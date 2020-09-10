@@ -1,0 +1,7 @@
+{
+  "domain": "dual_smart_thermostat",
+  "name": "Dual Smart Thermostat",
+  "documentation": "https://github.com/swingerman/ha-dual-climate",
+  "dependencies": ["sensor", "switch"],
+  "codeowners": ["@swingerman"]
+}
