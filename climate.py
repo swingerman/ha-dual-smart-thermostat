@@ -58,6 +58,8 @@ CONF_SENSOR = "target_sensor"
 CONF_MIN_TEMP = "min_temp"
 CONF_MAX_TEMP = "max_temp"
 CONF_TARGET_TEMP = "target_temp"
+CONF_TARGET_TEMP_HIGH = "target_temp_high"
+CONF_TARGET_TEMP_LOW = "target_temp_low"
 CONF_AC_MODE = "ac_mode"
 CONF_MIN_DUR = "min_cycle_duration"
 CONF_COLD_TOLERANCE = "cold_tolerance"
@@ -81,6 +83,8 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Optional(CONF_COLD_TOLERANCE, default=DEFAULT_TOLERANCE): vol.Coerce(float),
         vol.Optional(CONF_HOT_TOLERANCE, default=DEFAULT_TOLERANCE): vol.Coerce(float),
         vol.Optional(CONF_TARGET_TEMP): vol.Coerce(float),
+        vol.Optional(CONF_TARGET_TEMP_HIGH): vol.Coerce(float),
+        vol.Optional(CONF_TARGET_TEMP_LOW): vol.Coerce(float),
         vol.Optional(CONF_KEEP_ALIVE): cv.positive_time_period,
         vol.Optional(CONF_INITIAL_HVAC_MODE): vol.In(
             [HVAC_MODE_COOL, HVAC_MODE_HEAT, HVAC_MODE_OFF, HVAC_MODE_HEAT_COOL]
@@ -105,6 +109,8 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
     min_temp = config.get(CONF_MIN_TEMP)
     max_temp = config.get(CONF_MAX_TEMP)
     target_temp = config.get(CONF_TARGET_TEMP)
+    target_temp_high = config.get(CONF_TARGET_TEMP_HIGH)
+    target_temp_low = config.get(CONF_TARGET_TEMP_LOW)
     ac_mode = config.get(CONF_AC_MODE)
     min_cycle_duration = config.get(CONF_MIN_DUR)
     cold_tolerance = config.get(CONF_COLD_TOLERANCE)
@@ -117,7 +123,7 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
 
     async_add_entities(
         [
-            GenericThermostat(
+            DualSmartThermostat(
                 name,
                 heater_entity_id,
                 cooler_entity_id,
@@ -125,6 +131,8 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
                 min_temp,
                 max_temp,
                 target_temp,
+                target_temp_high,
+                target_temp_low,
                 ac_mode,
                 min_cycle_duration,
                 cold_tolerance,
@@ -139,7 +147,7 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
     )
 
 
-class GenericThermostat(ClimateEntity, RestoreEntity):
+class DualSmartThermostat(ClimateEntity, RestoreEntity):
     """Representation of a Generic Thermostat device."""
 
     def __init__(
@@ -151,6 +159,8 @@ class GenericThermostat(ClimateEntity, RestoreEntity):
         min_temp,
         max_temp,
         target_temp,
+        target_temp_high,
+        target_temp_low,
         ac_mode,
         min_cycle_duration,
         cold_tolerance,
@@ -181,6 +191,8 @@ class GenericThermostat(ClimateEntity, RestoreEntity):
         self._min_temp = min_temp
         self._max_temp = max_temp
         self._target_temp = target_temp
+        self._target_temp_high = target_temp_high
+        self._target_temp_low = target_temp_low
         self._unit = unit
         self._support_flags = SUPPORT_FLAGS
         if away_temp:
@@ -310,16 +322,18 @@ class GenericThermostat(ClimateEntity, RestoreEntity):
     def target_temperature(self):
         """Return the temperature we try to reach."""
         return self._target_temp
-    
+
     @property
     def target_temperature_high(self):
+        """TODO implement high temp setting"""
         """Return the upper bound temperature."""
-        return self._target_temp
+        return self._target_temp_high
 
     @property
     def target_temperature_low(self):
+        """TODO implement low temp setting"""
         """Return the  lower bound temperature."""
-        return self._target_temp
+        return self._target_temp_low
 
     @property
     def hvac_modes(self):
@@ -359,10 +373,20 @@ class GenericThermostat(ClimateEntity, RestoreEntity):
 
     async def async_set_temperature(self, **kwargs):
         """Set new target temperature."""
-        temperature = kwargs.get(ATTR_TEMPERATURE)
-        if temperature is None:
+        temp_low = kwargs.get('target_temp_low')
+        temp_high = kwargs.get('target_temp_low')
+        temp = kwargs.get('target_temp')
+
+        if temp is None and temp_high is None and temp_low is None:
             return
-        self._target_temp = temperature
+
+        if temp is not None:
+            self._target_temp = temp
+        if temp_high is not None:
+            self._target_temp_high = temp_high
+        if temp_low is not None:
+            self._target_temp_low = temp_low
+
         await self._async_control_heating(force=True)
         self.async_write_ha_state()
 
@@ -546,6 +570,20 @@ class GenericThermostat(ClimateEntity, RestoreEntity):
     async def _async_heater_turn_off(self):
         """Turn heater toggleable device off."""
         data = {ATTR_ENTITY_ID: self.heater_entity_id}
+        await self.hass.services.async_call(
+            HA_DOMAIN, SERVICE_TURN_OFF, data, context=self._context
+        )
+
+    async def _async_cooler_turn_on(self):
+        """Turn cooler toggleable device on."""
+        data = {ATTR_ENTITY_ID: self.cooler_entity_id}
+        await self.hass.services.async_call(
+            HA_DOMAIN, SERVICE_TURN_ON, data, context=self._context
+        )
+
+    async def _async_cooler_turn_off(self):
+        """Turn cooler toggleable device off."""
+        data = {ATTR_ENTITY_ID: self.cooler_entity_id}
         await self.hass.services.async_call(
             HA_DOMAIN, SERVICE_TURN_OFF, data, context=self._context
         )
