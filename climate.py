@@ -183,6 +183,8 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self._keep_alive = keep_alive
         self._hvac_mode = initial_hvac_mode
         self._saved_target_temp = target_temp or away_temp
+        self._saved_target_temp_high = target_temp_high
+        self._saved_target_temp_low = target_temp_low
         self._temp_precision = precision
         self._hvac_list = [HVAC_MODE_COOL, HVAC_MODE_HEAT, HVAC_MODE_OFF, HVAC_MODE_HEAT_COOL]
         self._active = False
@@ -325,13 +327,11 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
     @property
     def target_temperature_high(self):
-        """TODO implement high temp setting"""
         """Return the upper bound temperature."""
         return self._target_temp_high
 
     @property
     def target_temperature_low(self):
-        """TODO implement low temp setting"""
         """Return the  lower bound temperature."""
         return self._target_temp_low
 
@@ -350,8 +350,8 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         """Return a list of available preset modes or PRESET_NONE if _away_temp is undefined."""
         return [PRESET_NONE, PRESET_AWAY] if self._away_temp else PRESET_NONE
 
-    async def async_set_hvac_mode(self, hvac_mode):
-        """Set hvac mode."""
+    async def async_call_mode(self, hvac_mode):
+        """Call climate mode based on current mode"""
         if hvac_mode == HVAC_MODE_HEAT:
             self._hvac_mode = HVAC_MODE_HEAT
             await self._async_control_heating(force=True)
@@ -368,18 +368,21 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         else:
             _LOGGER.error("Unrecognized hvac mode: %s", hvac_mode)
             return
+
+    async def async_set_hvac_mode(self, hvac_mode):
+        """Set hvac mode."""
+        await self.async_call_mode(hvac_mode)
         # Ensure we update the current operation after changing the mode
         self.async_write_ha_state()
 
     async def async_set_temperature(self, **kwargs):
         """Set new target temperature."""
         temp_low = kwargs.get('target_temp_low')
-        temp_high = kwargs.get('target_temp_low')
+        temp_high = kwargs.get('target_temp_high')
         temp = kwargs.get('target_temp')
 
         if temp is None and temp_high is None and temp_low is None:
             return
-
         if temp is not None:
             self._target_temp = temp
         if temp_high is not None:
