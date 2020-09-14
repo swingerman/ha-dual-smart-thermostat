@@ -367,7 +367,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                 await self._async_heater_turn_off()
         else:
             _LOGGER.error("Unrecognized hvac mode: %s", hvac_mode)
-            return
+        return
 
     async def async_set_hvac_mode(self, hvac_mode):
         """Set hvac mode."""
@@ -390,7 +390,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         if temp_low is not None:
             self._target_temp_low = temp_low
 
-        await self._async_control_heating(force=True)
+        await self.async_call_mode(self._hvac_mode)
         self.async_write_ha_state()
 
     @property
@@ -418,7 +418,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             return
 
         self._async_update_temp(new_state)
-        await self._async_control_heating()
+        await self._async_control_heat_cool(force=True)
         self.async_write_ha_state()
 
     @callback
@@ -498,15 +498,8 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
     async def _async_control_heat_cool(self, time=None, force=False):
         """Check if we need to turn heating on or off."""
         async with self._temp_lock:
-            if not self._active and None not in (self._cur_temp, self._target_temp):
+            if not self._active and None not in (self._cur_temp, self._target_temp_high, self._target_temp_low):
                 self._active = True
-                _LOGGER.info(
-                    "Obtained current and target temperature. "
-                    "Generic thermostat active. %s, %s",
-                    self._cur_temp,
-                    self._target_temp,
-                )
-
             if not self._active or self._hvac_mode == HVAC_MODE_OFF:
                 return
 
@@ -522,36 +515,48 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                         current_state = HVAC_MODE_OFF
                     long_enough = condition.state(
                         self.hass,
-                        self.heater_entity_id,
+                        self.heater_entity_id, self.cooler_entity_id,
                         current_state,
                         self.min_cycle_duration,
                     )
                     if not long_enough:
                         return
 
-            too_cold = self._target_temp >= self._cur_temp + self._cold_tolerance
-            too_hot = self._cur_temp >= self._target_temp + self._hot_tolerance
-            if self._is_device_active:
-                if (self.ac_mode and too_cold) or (not self.ac_mode and too_hot):
-                    _LOGGER.info("Turning off heater %s", self.heater_entity_id)
-                    await self._async_heater_turn_off()
-                elif time is not None:
-                    # The time argument is passed only in keep-alive case
-                    _LOGGER.info(
-                        "Keep-alive - Turning on heater heater %s",
-                        self.heater_entity_id,
-                    )
-                    await self._async_heater_turn_on()
-            else:
-                if (self.ac_mode and too_hot) or (not self.ac_mode and too_cold):
-                    _LOGGER.info("Turning on heater %s", self.heater_entity_id)
-                    await self._async_heater_turn_on()
-                elif time is not None:
-                    # The time argument is passed only in keep-alive case
-                    _LOGGER.info(
-                        "Keep-alive - Turning off heater %s", self.heater_entity_id
-                    )
-                    await self._async_heater_turn_off()
+            too_cold = self._target_temp_low >= self._cur_temp + self._cold_tolerance
+            too_hot = self._cur_temp >= self._target_temp_high + self._hot_tolerance
+
+            await self.async_heater_cooler_toggle(too_cold, too_hot)
+
+            if time is not None:
+                # The time argument is passed only in keep-alive case
+                _LOGGER.info(
+                    "Keep-alive - Toggling on heater cooler %s, %s",
+                    self.heater_entity_id,
+                    self.cooler_entity_id
+                )
+                await self.async_heater_cooler_toggle(too_cold, too_hot)
+
+    async def async_heater_cooler_toggle(self, too_cold, too_hot):
+        """Toggle heater cooler based on device state"""
+        _LOGGER.info(
+            "Cold or hot?  %s, %s, %s, %s",
+            too_cold,
+            too_hot,
+            self._cur_temp,
+            self._target_temp_high + self._hot_tolerance
+        )
+        if (too_cold ):
+            await self._async_heater_turn_on()
+        elif(not too_hot and not too_cold):
+            await self._async_heater_turn_off()
+        else:
+            await self._async_heater_turn_off()
+        if (too_hot):
+            await self._async_cooler_turn_on()
+        elif(not too_hot and not too_cold):
+            await self._async_cooler_turn_off()
+        else:
+            await self._async_cooler_turn_off()
 
     @property
     def _is_device_active(self):
