@@ -1,6 +1,6 @@
 default_config:
 
-nput_boolean:
+input_boolean:
   heater_on:
     name: Heater toggle
   cooler_on:
@@ -62,7 +62,7 @@ switch:
           service: input_boolean.turn_off
           data:
             entity_id: input_boolean.cooler_on
-            
+
 climate:
   - platform: dual_smart_thermostat
     name: Study

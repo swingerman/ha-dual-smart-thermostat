@@ -5,7 +5,7 @@
 	"appPort": [
 		"9123:8123"
 	],
-	"postCreateCommand": "apk add gcc libc-dev libxslt-dev libxslt && pip install wheel lxml request beautifulsoup4 && container install",
+	"postCreateCommand": "container install",
 	"runArgs": [
 		"-v",
 		"${env:HOME}${env:USERPROFILE}/.ssh:/tmp/.ssh"
