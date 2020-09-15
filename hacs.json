@@ -1,10 +1,11 @@
 {
-    "name": "Dual Smart Thermostat",
-    "render_readme": true,
-    "hide_default_branch": true,
-    "domains": ["climate"],
-    "country": [],
-    "homeassistant": "0.116.0",
-    "zip_release": true,
-    "filename": "ha-dual-smart-thermostat.zip"
-  }
+  "name": "Dual Smart Thermostat",
+  "render_readme": true,
+  "hide_default_branch": true,
+  "domains": [
+    "climate"
+  ],
+  "country": [],
+  "homeassistant": "0.115.0",
+  "filename": "ha-dual-smart-thermostat.zip"
+}
