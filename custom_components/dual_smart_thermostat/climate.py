@@ -50,7 +50,7 @@ from . import DOMAIN, PLATFORMS
 _LOGGER = logging.getLogger(__name__)
 
 DEFAULT_TOLERANCE = 0.3
-DEFAULT_NAME = "Generic Thermostat"
+DEFAULT_NAME = "Dual Smart"
 
 CONF_HEATER = "heater"
 CONF_COOLER = "cooler"
