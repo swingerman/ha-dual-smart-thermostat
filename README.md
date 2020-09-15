@@ -1,5 +1,7 @@
 # Home Assistant Dual Smart Thermostat component
 
+[![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=S6NC9BYVDDJMA&source=url)
+
 The `dual_smart_thermostat` is an enhaced verion of generic thermostat implemented in Home Assistant. It uses several sensors and dedicated switches connected to a heater and air conditioning under the hood. When in heater-cooler mode, if the measured temperature is cooler than the target low `target_temp_low` temperature, the heater will be turned on off when the required low temperature is reached, if the measured temperature is hotter than the target high temperature, the cooling (air conditioning) will be turned on and turned off when the required high `target_temp_high` temperature is reached. When in heater mode, if the measured temperature is cooler than the target temperature, the heater will be turned on and turned off when the required temperature is reached. When in cooling mode, if the measured temperature is hotter than the target temperature, the coooler (air conditioning) will be turned on and turned off when required high temperature is reached.
 
 ```yaml
@@ -59,7 +61,7 @@ climate:
 ### ac_mode
 
   &nbsp;&nbsp;&nbsp;&nbsp;_(optional) (boolean)_ Set the switch specified in the *heater* option to be treated as a cooling device instead of a heating device.
-  
+
   &nbsp;&nbsp;&nbsp;&nbsp;_default: false_
 
 ### min_cycle_duration
@@ -93,9 +95,42 @@ climate:
 ### precision
 
   &nbsp;&nbsp;&nbsp;&nbsp;_(optional) (float)_ "The desired precision for this device. Can be used to match your actual thermostat's precision. Supported values are `0.1`, `0.5` and `1.0`."
-  
+
   &nbsp;&nbsp;&nbsp;&nbsp;_default: "`0.5` for Celsius and `1.0` for Fahrenheit."_
 
 ## Installation
 
 Installation is via the [Home Assistant Community Store (HACS)](https://hacs.xyz/), which is the best place to get third-party integrations for Home Assistant. Once you have HACS set up, simply [search the `Integrations` section](https://hacs.xyz/docs/basic/getting_started) for Dual Smart Thermostat.
+
+## Full configuration example
+
+```yaml
+climate:
+  - platform: dual_smart_thermostat
+    name: Study
+    heater: switch.study_heater
+    cooler: switch.study_cooler
+    target_sensor: sensor.study_temperature
+    min_temp: 15
+    max_temp: 21
+    ac_mode: false
+    target_temp: 17
+    target_temp_high: 26
+    target_temp_low: 23
+    cold_tolerance: 0.3
+    hot_tolerance: 0
+    min_cycle_duration:
+      seconds: 5
+    keep_alive:
+      minutes: 3
+    initial_hvac_mode: "off"
+    away_temp: 16
+    precision: 0.1
+```
+
+### Donate
+
+I am happy hlep the Home Assistant community but I do it in my free time on the cost of spending less time with my family. Feel; free to motivate me and appritiate my sacrifice by donating:
+
+
+[![paypal](https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=S6NC9BYVDDJMA&source=url)

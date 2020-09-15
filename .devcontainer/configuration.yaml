@@ -81,7 +81,7 @@ climate:
       seconds: 5
     keep_alive:
       minutes: 3
-    initial_hvac_mode: "off"
+    initial_hvac_mode: "heat_cool"
     away_temp: 16
     precision: 0.1
 
