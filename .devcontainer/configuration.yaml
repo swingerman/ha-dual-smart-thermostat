@@ -65,7 +65,7 @@ switch:
 
 climate:
   - platform: dual_smart_thermostat
-    name: Study
+    name: Heat Cool Room
     heater: switch.heater
     cooler: switch.cooler
     target_sensor: sensor.room_temp
