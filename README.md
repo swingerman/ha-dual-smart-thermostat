@@ -132,5 +132,4 @@ climate:
 
 I am happy hlep the Home Assistant community but I do it in my free time on the cost of spending less time with my family. Feel; free to motivate me and appritiate my sacrifice by donating:
 
-
 [![paypal](https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=S6NC9BYVDDJMA&source=url)
