@@ -19,7 +19,7 @@ from homeassistant.components.climate.const import (
     PRESET_NONE,
     SUPPORT_PRESET_MODE,
     SUPPORT_TARGET_TEMPERATURE,
-    SUPPORT_TARGET_TEMPERATURE_RANGE
+    SUPPORT_TARGET_TEMPERATURE_RANGE,
 )
 from homeassistant.const import (
     ATTR_ENTITY_ID,
@@ -186,7 +186,12 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self._saved_target_temp_high = target_temp_high
         self._saved_target_temp_low = target_temp_low
         self._temp_precision = precision
-        self._hvac_list = [HVAC_MODE_COOL, HVAC_MODE_HEAT, HVAC_MODE_OFF, HVAC_MODE_HEAT_COOL]
+        self._hvac_list = [
+            HVAC_MODE_COOL,
+            HVAC_MODE_HEAT,
+            HVAC_MODE_OFF,
+            HVAC_MODE_HEAT_COOL,
+        ]
         self._active = False
         self._cur_temp = None
         self._temp_lock = asyncio.Lock()
@@ -214,7 +219,9 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         )
         self.async_on_remove(
             async_track_state_change_event(
-                self.hass, [self.heater_entity_id, self.cooler_entity_id], self._async_switch_changed
+                self.hass,
+                [self.heater_entity_id, self.cooler_entity_id],
+                self._async_switch_changed,
             )
         )
 
@@ -377,9 +384,9 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
     async def async_set_temperature(self, **kwargs):
         """Set new target temperature."""
-        temp_low = kwargs.get('target_temp_low')
-        temp_high = kwargs.get('target_temp_high')
-        temp = kwargs.get('target_temp')
+        temp_low = kwargs.get("target_temp_low")
+        temp_high = kwargs.get("target_temp_high")
+        temp = kwargs.get("target_temp")
 
         if temp is None and temp_high is None and temp_low is None:
             return
@@ -498,7 +505,11 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
     async def _async_control_heat_cool(self, time=None, force=False):
         """Check if we need to turn heating on or off."""
         async with self._temp_lock:
-            if not self._active and None not in (self._cur_temp, self._target_temp_high, self._target_temp_low):
+            if not self._active and None not in (
+                self._cur_temp,
+                self._target_temp_high,
+                self._target_temp_low,
+            ):
                 self._active = True
             if not self._active or self._hvac_mode == HVAC_MODE_OFF:
                 return
@@ -515,7 +526,8 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                         current_state = HVAC_MODE_OFF
                     long_enough = condition.state(
                         self.hass,
-                        self.heater_entity_id, self.cooler_entity_id,
+                        self.heater_entity_id,
+                        self.cooler_entity_id,
                         current_state,
                         self.min_cycle_duration,
                     )
@@ -532,28 +544,21 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                 _LOGGER.info(
                     "Keep-alive - Toggling on heater cooler %s, %s",
                     self.heater_entity_id,
-                    self.cooler_entity_id
+                    self.cooler_entity_id,
                 )
                 await self.async_heater_cooler_toggle(too_cold, too_hot)
 
     async def async_heater_cooler_toggle(self, too_cold, too_hot):
         """Toggle heater cooler based on device state"""
-        _LOGGER.info(
-            "Cold or hot?  %s, %s, %s, %s",
-            too_cold,
-            too_hot,
-            self._cur_temp,
-            self._target_temp_high + self._hot_tolerance
-        )
-        if (too_cold ):
+        if too_cold:
             await self._async_heater_turn_on()
-        elif(not too_hot and not too_cold):
+        elif not too_hot and not too_cold:
             await self._async_heater_turn_off()
         else:
             await self._async_heater_turn_off()
-        if (too_hot):
+        if too_hot:
             await self._async_cooler_turn_on()
-        elif(not too_hot and not too_cold):
+        elif not too_hot and not too_cold:
             await self._async_cooler_turn_off()
         else:
             await self._async_cooler_turn_off()
