@@ -42,26 +42,26 @@ switch:
   - platform: template
     switches:
       heater:
-        value_template: "{{ is_state_attr('switch.heater', 'sensor_state', 'on') }}"
+        value_template: "{{ is_state_attr('input_boolean.heater_on', 'sensor_state', 'on') }}"
         turn_on:
-          service: switch.turn_on
+          service: input_boolean.turn_on
           data:
-            entity_id: switch.heater
+            entity_id: input_boolean.heater_on
         turn_off:
-          service: switch.turn_off
+          service: input_boolean.turn_off
           data:
-            entity_id: switch.heater
+            entity_id: input_boolean.heater_on
 
       cooler:
-        value_template: "{{ is_state_attr('switch.cooler', 'sensor_state', 'on') }}"
+        value_template: "{{ is_state_attr('input_boolean.cooler_on', 'sensor_state', 'on') }}"
         turn_on:
-          service: switch.turn_on
+          service: input_boolean.turn_on
           data:
-            entity_id: switch.cooler
+            entity_id: input_boolean.cooler_on
         turn_off:
-          service: switch.turn_off
+          service: input_boolean.turn_off
           data:
-            entity_id: switch.cooler
+            entity_id: input_boolean.cooler_on
 
 climate:
   - platform: dual_smart_thermostat
