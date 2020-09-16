@@ -67,7 +67,7 @@ CONF_KEEP_ALIVE = "keep_alive"
 CONF_INITIAL_HVAC_MODE = "initial_hvac_mode"
 CONF_AWAY_TEMP = "away_temp"
 CONF_PRECISION = "precision"
-SUPPORT_FLAGS = SUPPORT_TARGET_TEMPERATURE_RANGE
+SUPPORT_FLAGS = SUPPORT_TARGET_TEMPERATURE
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
@@ -201,9 +201,13 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self._target_temp_high = target_temp_high
         self._target_temp_low = target_temp_low
         self._unit = unit
-        self._support_flags = SUPPORT_FLAGS
+        self._support_flags = (
+            SUPPORT_TARGET_TEMPERATURE_RANGE if cooler_entity_id else SUPPORT_FLAGS
+        )
         if away_temp:
-            self._support_flags = SUPPORT_FLAGS | SUPPORT_PRESET_MODE
+            self._support_flags = (
+                SUPPORT_TARGET_TEMPERATURE_RANGE if cooler_entity_id else SUPPORT_FLAGS
+            ) | SUPPORT_PRESET_MODE
         self._away_temp = away_temp
         self._is_away = False
 
@@ -466,7 +470,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                 self._active = True
                 _LOGGER.info(
                     "Obtained current and target temperature. "
-                    "Generic thermostat active. %s, %s",
+                    "Dual smart thermostat active. %s, %s",
                     self._cur_temp,
                     self._target_temp,
                 )
@@ -502,8 +506,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                 elif time is not None:
                     # The time argument is passed only in keep-alive case
                     _LOGGER.info(
-                        "Keep-alive - Turning on heater heater %s",
-                        self.heater_entity_id,
+                        "Keep-alive - Turning on heater %s", self.heater_entity_id,
                     )
                     await self._async_heater_turn_on()
             else:
