@@ -42,7 +42,7 @@ switch:
   - platform: template
     switches:
       heater:
-        value_template: "{{ is_state_attr('input_boolean.heater_on', 'sensor_state', 'on') }}"
+        value_template: "{{ is_state('input_boolean.heater_on', 'on') }}"
         turn_on:
           service: input_boolean.turn_on
           data:
@@ -53,7 +53,7 @@ switch:
             entity_id: input_boolean.heater_on
 
       cooler:
-        value_template: "{{ is_state_attr('input_boolean.cooler_on', 'sensor_state', 'on') }}"
+        value_template: "{{ is_state('input_boolean.cooler_on', 'on') }}"
         turn_on:
           service: input_boolean.turn_on
           data:
@@ -71,7 +71,6 @@ climate:
     target_sensor: sensor.room_temp
     min_temp: 15
     max_temp: 28
-    ac_mode: false
     target_temp: 23
     target_temp_high: 26
     target_temp_low: 23
@@ -82,6 +81,41 @@ climate:
     keep_alive:
       minutes: 3
     initial_hvac_mode: "heat_cool"
+    away_temp: 16
+    precision: 0.1
+
+  - platform: dual_smart_thermostat
+    name: Heat Room
+    heater: switch.heater
+    target_sensor: sensor.room_temp
+    min_temp: 15
+    max_temp: 28
+    target_temp: 23
+    cold_tolerance: 0.3
+    hot_tolerance: 0
+    min_cycle_duration:
+      seconds: 5
+    keep_alive:
+      minutes: 3
+    initial_hvac_mode: "off"
+    away_temp: 16
+    precision: 0.1
+
+  - platform: dual_smart_thermostat
+    name: Cool Room
+    heater: switch.cooler
+    ac_mode: true
+    target_sensor: sensor.room_temp
+    min_temp: 15
+    max_temp: 28
+    target_temp: 23
+    cold_tolerance: 0.3
+    hot_tolerance: 0
+    min_cycle_duration:
+      seconds: 5
+    keep_alive:
+      minutes: 3
+    initial_hvac_mode: "off"
     away_temp: 16
     precision: 0.1
 
