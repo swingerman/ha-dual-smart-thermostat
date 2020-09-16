@@ -72,7 +72,7 @@ SUPPORT_FLAGS = SUPPORT_TARGET_TEMPERATURE_RANGE
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
         vol.Required(CONF_HEATER): cv.entity_id,
-        vol.Required(CONF_COOLER): cv.entity_id,
+        vol.Optional(CONF_COOLER): cv.entity_id,
         vol.Required(CONF_SENSOR): cv.entity_id,
         vol.Optional(CONF_AC_MODE): cv.boolean,
         vol.Optional(CONF_MAX_TEMP): vol.Coerce(float),
@@ -183,12 +183,15 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self._saved_target_temp_high = target_temp_high
         self._saved_target_temp_low = target_temp_low
         self._temp_precision = precision
-        self._hvac_list = [
-            HVAC_MODE_COOL,
-            HVAC_MODE_HEAT,
-            HVAC_MODE_OFF,
-            HVAC_MODE_HEAT_COOL,
-        ]
+        if self.heater_entity_id and self.cooler_entity_id:
+            self._hvac_list = [
+                HVAC_MODE_OFF,
+                HVAC_MODE_HEAT_COOL,
+            ]
+        elif self.ac_mode:
+            self._hvac_list = [HVAC_MODE_COOL, HVAC_MODE_OFF]
+        else:
+            self._hvac_list = [HVAC_MODE_HEAT, HVAC_MODE_OFF]
         self._active = False
         self._cur_temp = None
         self._temp_lock = asyncio.Lock()
@@ -209,21 +212,35 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         await super().async_added_to_hass()
 
         # Add listener
-        async_track_state_change_event(
-            self.hass,
-            [self.sensor_entity_id, self.cooler_entity_id],
-            self._async_sensor_changed,
-        )
-        async_track_state_change_event(
-            self.hass,
-            [self.heater_entity_id, self.cooler_entity_id],
-            self._async_switch_changed,
-        )
+        if self.cooler_entity_id:
+            async_track_state_change_event(
+                self.hass,
+                [self.sensor_entity_id, self.cooler_entity_id],
+                self._async_sensor_changed,
+            )
+            async_track_state_change_event(
+                self.hass,
+                [self.heater_entity_id, self.cooler_entity_id],
+                self._async_switch_changed,
+            )
+
+        else:
+            async_track_state_change_event(
+                self.hass, [self.sensor_entity_id], self._async_sensor_changed,
+            )
+            async_track_state_change_event(
+                self.hass, [self.heater_entity_id], self._async_switch_changed,
+            )
 
         if self._keep_alive:
-            async_track_time_interval(
-                self.hass, self._async_control_heat_cool, self._keep_alive
-            )
+            if self.cooler_entity_id:
+                async_track_time_interval(
+                    self.hass, self._async_control_heat_cool, self._keep_alive
+                )
+            else:
+                async_track_time_interval(
+                    self.hass, self._async_control_heating, self._keep_alive
+                )
 
         @callback
         def _async_startup(event):
@@ -365,6 +382,8 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             self._hvac_mode = HVAC_MODE_OFF
             if self._is_device_active:
                 await self._async_heater_turn_off()
+                if self.cooler_entity_id:
+                    await self._async_cooler_turn_off()
         else:
             _LOGGER.error("Unrecognized hvac mode: %s", hvac_mode)
         return
@@ -559,7 +578,9 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
     @property
     def _is_device_active(self):
         """If the toggleable device is currently active."""
-        return self.hass.states.is_state(self.heater_entity_id, STATE_ON)
+        return self.hass.states.is_state(
+            self.heater_entity_id, STATE_ON
+        ) or self.hass.states.is_state(self.cooler_entity_id, STATE_ON)
 
     @property
     def supported_features(self):
