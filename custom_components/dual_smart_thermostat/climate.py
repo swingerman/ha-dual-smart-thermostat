@@ -437,7 +437,10 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             return
 
         self._async_update_temp(new_state)
-        await self._async_control_heat_cool(force=True)
+        if self.cooler_entity_id:
+            await self._async_control_heat_cool(force=True)
+        else:
+            await self._async_control_heating(force=True)
         self.async_write_ha_state()
 
     @callback
@@ -578,9 +581,10 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
     @property
     def _is_device_active(self):
         """If the toggleable device is currently active."""
-        return self.hass.states.is_state(
-            self.heater_entity_id, STATE_ON
-        ) or self.hass.states.is_state(self.cooler_entity_id, STATE_ON)
+        return self.hass.states.is_state(self.heater_entity_id, STATE_ON) or (
+            self.cooler_entity_id
+            and self.hass.states.is_state(self.cooler_entity_id, STATE_ON)
+        )
 
     @property
     def supported_features(self):
