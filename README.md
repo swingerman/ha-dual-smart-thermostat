@@ -11,6 +11,9 @@ climate:
     name: Study
     heater: switch.study_heater
     cooler: switch.study_cooler
+    openings:
+      - sensor.window1
+      - sensor.window2
     target_sensor: sensor.study_temperature
 ```
 
@@ -33,6 +36,9 @@ climate:
 ### target_sensor
 
   &nbsp;&nbsp;&nbsp;&nbsp;_(required) (string)_  "`entity_id` for a temperature sensor, target_sensor.state must be temperature."
+
+### openings
+  &nbsp;&nbsp;&nbsp;&nbsp;_(optional) (list)_  "list of opening `entity_id`'s for detecting open widows or doors that will idle the termostat until any of them are open"
 
 ### min_temp
 
@@ -111,6 +117,9 @@ climate:
     heater: switch.study_heater
     cooler: switch.study_cooler
     target_sensor: sensor.study_temperature
+    openings:
+      - sensor.window1
+      - sensor.window2
     min_temp: 15
     max_temp: 21
     ac_mode: false
