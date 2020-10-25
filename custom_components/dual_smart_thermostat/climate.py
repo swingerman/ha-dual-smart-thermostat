@@ -32,6 +32,7 @@ from homeassistant.const import (
     SERVICE_TURN_OFF,
     SERVICE_TURN_ON,
     STATE_ON,
+    STATE_OPEN,
     STATE_UNAVAILABLE,
     STATE_UNKNOWN,
 )
@@ -69,7 +70,7 @@ CONF_KEEP_ALIVE = "keep_alive"
 CONF_INITIAL_HVAC_MODE = "initial_hvac_mode"
 CONF_AWAY_TEMP = "away_temp"
 CONF_PRECISION = "precision"
-CONF_OPENING = "opening"
+CONF_OPENINGS = "openings"
 SUPPORT_FLAGS = SUPPORT_TARGET_TEMPERATURE
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
@@ -95,7 +96,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Optional(CONF_PRECISION): vol.In(
             [PRECISION_TENTHS, PRECISION_HALVES, PRECISION_WHOLE]
         ),
-        vol.Optional(CONF_OPENING): cv.entity_id,
+        vol.Optional(CONF_OPENINGS): [cv.entity_id],
     }
 )
 
@@ -109,7 +110,7 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
     heater_entity_id = config.get(CONF_HEATER)
     cooler_entity_id = config.get(CONF_COOLER)
     sensor_entity_id = config.get(CONF_SENSOR)
-    opening_entity_id = config.get(CONF_OPENING)
+    opening_entities = config.get(CONF_OPENINGS)
     min_temp = config.get(CONF_MIN_TEMP)
     max_temp = config.get(CONF_MAX_TEMP)
     target_temp = config.get(CONF_TARGET_TEMP)
@@ -132,7 +133,7 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
                 heater_entity_id,
                 cooler_entity_id,
                 sensor_entity_id,
-                opening_entity_id,
+                opening_entities,
                 min_temp,
                 max_temp,
                 target_temp,
@@ -161,7 +162,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         heater_entity_id,
         cooler_entity_id,
         sensor_entity_id,
-        opening_entity_id,
+        opening_entities,
         min_temp,
         max_temp,
         target_temp,
@@ -182,7 +183,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self.heater_entity_id = heater_entity_id
         self.cooler_entity_id = cooler_entity_id
         self.sensor_entity_id = sensor_entity_id
-        self.opening_entity_id = opening_entity_id
+        self.opening_entities = opening_entities
         self.ac_mode = ac_mode
         self.min_cycle_duration = min_cycle_duration
         self._cold_tolerance = cold_tolerance
@@ -234,11 +235,11 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             )
         )
 
-        if self.opening_entity_id:
+        if self.opening_entities and len(self.opening_entities):
             self.async_on_remove(
                 async_track_state_change_event(
                     self.hass,
-                    [self.opening_entity_id],
+                    self.opening_entities,
                     self._async_opening_changed,
                 )
             )
@@ -462,23 +463,24 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             return
 
         self._async_update_temp(new_state)
-        if self.cooler_entity_id:
-            await self._async_control_heat_cool(force=True)
-        else:
-            await self._async_control_heating(force=True)
+        await self._async_trigger_control()
         self.async_write_ha_state()
 
     async def _async_opening_changed(self, event):
         """Handle opening changes."""
         new_state = event.data.get("new_state")
+        _LOGGER.info("Opening changed: %s", new_state)
         if new_state is None or new_state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
             return
 
+        await self._async_trigger_control()
+        self.async_write_ha_state()
+
+    async def _async_trigger_control(self):
         if self.cooler_entity_id:
             await self._async_control_heat_cool(force=True)
         else:
             await self._async_control_heating(force=True)
-        self.async_write_ha_state()
 
     @callback
     def _async_switch_changed(self, event):
@@ -539,18 +541,13 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                     or (not self.ac_mode and too_hot)
                     or self._is_opening_open
                 ):
-                    _LOGGER.info(
-                        "Turning off heater %s, %s",
-                        self.heater_entity_id,
-                        self.opening_entity_id,
-                    )
+                    _LOGGER.info("Turning off heater %s", self.heater_entity_id)
                     await self._async_heater_turn_off()
                 elif time is not None and not self._is_opening_open:
                     # The time argument is passed only in keep-alive case
                     _LOGGER.info(
-                        "Keep-alive - Turning on heater (from active) %s, %s",
+                        "Keep-alive - Turning on heater (from active) %s",
                         self.heater_entity_id,
-                        self.opening_entity_id,
                     )
                     await self._async_heater_turn_on()
             else:
@@ -558,17 +555,13 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                     not self.ac_mode and too_cold and not self._is_opening_open
                 ):
                     _LOGGER.info(
-                        "Turning on heater (from inactive) %s, %s",
-                        self.heater_entity_id,
-                        self.opening_entity_id,
+                        "Turning on heater (from inactive) %s", self.heater_entity_id
                     )
                     await self._async_heater_turn_on()
                 elif time is not None or self._is_opening_open:
                     # The time argument is passed only in keep-alive case
                     _LOGGER.info(
-                        "Keep-alive - Turning off heater %s, %s",
-                        self.heater_entity_id,
-                        self.opening_entity_id,
+                        "Keep-alive - Turning off heater %s", self.heater_entity_id
                     )
                     await self._async_heater_turn_off()
 
@@ -640,8 +633,16 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
     @property
     def _is_opening_open(self):
         """If the binary opening is currently open."""
-        if self.opening_entity_id:
-            return self.hass.states.is_state(self.opening_entity_id, STATE_ON)
+        _is_open = False
+        if self.opening_entities:
+            for opening in self.opening_entities:
+
+                if self.hass.states.is_state(
+                    opening, STATE_OPEN
+                ) or self.hass.states.is_state(opening, STATE_ON):
+                    _is_open = True
+
+            return _is_open
         else:
             return False
 
