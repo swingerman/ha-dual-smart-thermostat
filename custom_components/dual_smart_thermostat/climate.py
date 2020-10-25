@@ -228,20 +228,26 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         # Add listener
         self.async_on_remove(
             async_track_state_change_event(
-                self.hass, [self.sensor_entity_id], self._async_sensor_changed,
+                self.hass,
+                [self.sensor_entity_id],
+                self._async_sensor_changed,
             )
         )
 
         if self.opening_entity_id:
             self.async_on_remove(
                 async_track_state_change_event(
-                    self.hass, [self.opening_entity_id], self._async_opening_changed,
+                    self.hass,
+                    [self.opening_entity_id],
+                    self._async_opening_changed,
                 )
             )
 
         self.async_on_remove(
             async_track_state_change_event(
-                self.hass, [self.heater_entity_id], self._async_switch_changed,
+                self.hass,
+                [self.heater_entity_id],
+                self._async_switch_changed,
             )
         )
 
@@ -634,7 +640,10 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
     @property
     def _is_opening_open(self):
         """If the binary opening is currently open."""
-        return self.hass.states.is_state(self.opening_entity_id, STATE_ON)
+        if self.opening_entity_id:
+            return self.hass.states.is_state(self.opening_entity_id, STATE_ON)
+        else:
+            return False
 
     @property
     def _is_device_active(self):
