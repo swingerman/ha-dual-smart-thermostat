@@ -5,6 +5,8 @@ input_boolean:
     name: Heater toggle
   cooler_on:
     name: Cooler toggle
+  window_open:
+    name: Window
 
 input_number:
   room_temp:
@@ -63,11 +65,23 @@ switch:
           data:
             entity_id: input_boolean.cooler_on
 
+      window:
+        value_template: "{{ is_state('input_boolean.window_open', 'on') }}"
+        turn_on:
+          service: input_boolean.turn_on
+          data:
+            entity_id: input_boolean.window_open
+        turn_off:
+          service: input_boolean.turn_off
+          data:
+            entity_id: input_boolean.window_open
+
 climate:
   - platform: dual_smart_thermostat
     name: Heat Cool Room
     heater: switch.heater
     cooler: switch.cooler
+    opening: input_boolean.window_open
     target_sensor: sensor.room_temp
     min_temp: 15
     max_temp: 28
@@ -88,6 +102,7 @@ climate:
     name: Heat Room
     heater: switch.heater
     target_sensor: sensor.room_temp
+    opening: input_boolean.window_open
     min_temp: 15
     max_temp: 28
     target_temp: 23
