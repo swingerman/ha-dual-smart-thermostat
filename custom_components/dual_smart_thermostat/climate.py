@@ -42,7 +42,9 @@ from homeassistant.helpers.event import (
     async_track_state_change_event,
     async_track_time_interval,
 )
+from homeassistant.helpers.reload import async_setup_reload_service
 from homeassistant.helpers.restore_state import RestoreEntity
+
 
 from . import DOMAIN, PLATFORMS
 
@@ -225,6 +227,8 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                     [self.sensor_entity_id, self.cooler_entity_id],
                     self._async_sensor_changed,
                 )
+            )
+            self.async_on_remove(
                 async_track_state_change_event(
                     self.hass,
                     [self.heater_entity_id, self.cooler_entity_id],
@@ -237,22 +241,27 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                 async_track_state_change_event(
                     self.hass, [self.sensor_entity_id], self._async_sensor_changed,
                 )
+            )
+            self.async_on_remove(
                 async_track_state_change_event(
                     self.hass, [self.heater_entity_id], self._async_switch_changed,
                 )
             )
 
         if self._keep_alive:
-            self.async_on_remove(
-                if self.cooler_entity_id:
+
+            if self.cooler_entity_id:
+                self.async_on_remove(
                     async_track_time_interval(
                         self.hass, self._async_control_heat_cool, self._keep_alive
                     )
-                else:
+                )
+            else:
+                self.async_on_remove(
                     async_track_time_interval(
                         self.hass, self._async_control_heating, self._keep_alive
                     )
-            )
+                )
 
         @callback
         def _async_startup(event):
