@@ -7,6 +7,8 @@ input_boolean:
     name: Cooler toggle
   window_open:
     name: Window
+  window_open2:
+    name: Window2
 
 input_number:
   room_temp:
@@ -81,7 +83,9 @@ climate:
     name: Heat Cool Room
     heater: switch.heater
     cooler: switch.cooler
-    opening: input_boolean.window_open
+    openings:
+     - input_boolean.window_open
+     - input_boolean.window_open2
     target_sensor: sensor.room_temp
     min_temp: 15
     max_temp: 28
@@ -102,7 +106,9 @@ climate:
     name: Heat Room
     heater: switch.heater
     target_sensor: sensor.room_temp
-    opening: input_boolean.window_open
+    openings:
+      - input_boolean.window_open
+      - input_boolean.window_open2
     min_temp: 15
     max_temp: 28
     target_temp: 23
