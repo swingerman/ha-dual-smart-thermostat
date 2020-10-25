@@ -97,7 +97,9 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
 
 
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
-    """Set up the generic thermostat platform."""
+    """Set up the smart dual thermostat platform."""
+
+    await async_setup_reload_service(hass, DOMAIN, PLATFORMS)
 
     name = config.get(CONF_NAME)
     heater_entity_id = config.get(CONF_HEATER)
@@ -217,34 +219,40 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
         # Add listener
         if self.cooler_entity_id:
-            async_track_state_change_event(
-                self.hass,
-                [self.sensor_entity_id, self.cooler_entity_id],
-                self._async_sensor_changed,
-            )
-            async_track_state_change_event(
-                self.hass,
-                [self.heater_entity_id, self.cooler_entity_id],
-                self._async_switch_changed,
+            self.async_on_remove(
+                async_track_state_change_event(
+                    self.hass,
+                    [self.sensor_entity_id, self.cooler_entity_id],
+                    self._async_sensor_changed,
+                )
+                async_track_state_change_event(
+                    self.hass,
+                    [self.heater_entity_id, self.cooler_entity_id],
+                    self._async_switch_changed,
+                )
             )
 
         else:
-            async_track_state_change_event(
-                self.hass, [self.sensor_entity_id], self._async_sensor_changed,
-            )
-            async_track_state_change_event(
-                self.hass, [self.heater_entity_id], self._async_switch_changed,
+            self.async_on_remove(
+                async_track_state_change_event(
+                    self.hass, [self.sensor_entity_id], self._async_sensor_changed,
+                )
+                async_track_state_change_event(
+                    self.hass, [self.heater_entity_id], self._async_switch_changed,
+                )
             )
 
         if self._keep_alive:
-            if self.cooler_entity_id:
-                async_track_time_interval(
-                    self.hass, self._async_control_heat_cool, self._keep_alive
-                )
-            else:
-                async_track_time_interval(
-                    self.hass, self._async_control_heating, self._keep_alive
-                )
+            self.async_on_remove(
+                if self.cooler_entity_id:
+                    async_track_time_interval(
+                        self.hass, self._async_control_heat_cool, self._keep_alive
+                    )
+                else:
+                    async_track_time_interval(
+                        self.hass, self._async_control_heating, self._keep_alive
+                    )
+            )
 
         @callback
         def _async_startup(event):
