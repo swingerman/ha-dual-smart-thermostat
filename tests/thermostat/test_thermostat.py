@@ -17,7 +17,7 @@ from homeassistant.components.climate.const import (
     PRESET_AWAY,
     PRESET_NONE,
 )
-from custom_component.dual_smart_thermostat import (
+from custom_components.dual_smart_thermostat import (
     DOMAIN as DUAL_SMART_THERMOSTAT_DOMAIN,
 )
 from homeassistant.const import (
