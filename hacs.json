@@ -6,6 +6,6 @@
     "climate"
   ],
   "country": [],
-  "homeassistant": "0.115.0",
+  "homeassistant": "0.118.0",
   "filename": "ha-dual-smart-thermostat.zip"
 }
