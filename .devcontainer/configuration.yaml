@@ -41,6 +41,9 @@ sensor:
       room_temp:
         value_template: "{{ states.input_number.room_temp.state | int | round(1) }}"
         entity_id: input_number.room_temp
+      floor_temp:
+        value_template: "{{ states.input_number.room_floor_temp.state | int | round(1) }}"
+        entity_id: input_number.room_floor_temp
 
 switch:
   - platform: template
@@ -87,11 +90,13 @@ climate:
      - input_boolean.window_open
      - input_boolean.window_open2
     target_sensor: sensor.room_temp
+    floor_sensor: sensor.floor_temp
     min_temp: 15
     max_temp: 28
     target_temp: 23
     target_temp_high: 26
     target_temp_low: 23
+    max_floor_temp: 28
     cold_tolerance: 0.3
     hot_tolerance: 0
     min_cycle_duration:
@@ -106,6 +111,7 @@ climate:
     name: Heat Room
     heater: switch.heater
     target_sensor: sensor.room_temp
+    floor_sensor: sensor.floor_temp
     openings:
       - input_boolean.window_open
       - input_boolean.window_open2

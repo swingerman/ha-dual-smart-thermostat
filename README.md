@@ -4,6 +4,22 @@
 
 The `dual_smart_thermostat` is an enhaced verion of generic thermostat implemented in Home Assistant. It uses several sensors and dedicated switches connected to a heater and air conditioning under the hood. When in heater-cooler mode, if the measured temperature is cooler than the target low `target_temp_low` temperature, the heater will be turned on off when the required low temperature is reached, if the measured temperature is hotter than the target high temperature, the cooling (air conditioning) will be turned on and turned off when the required high `target_temp_high` temperature is reached. When in heater mode, if the measured temperature is cooler than the target temperature, the heater will be turned on and turned off when the required temperature is reached. When in cooling mode, if the measured temperature is hotter than the target temperature, the coooler (air conditioning) will be turned on and turned off when required high temperature is reached.
 
+## Openings
+
+The `dual_smart_thermostat` can turn off heating or cooling if a window or door is opened and turn heating or cooling back on when the door or window is closed to save energy.
+The `openings` configuration variable accepts a list of openings.
+
+## Floor heating temperature cap
+
+The `dual_smart_thermostat` can turn off if the floor heating reaches tha maximum allowed temperature you define in order to protect the floor from overheating and damage.
+To enable this protection you need to set two variables:
+```yaml
+floor_sensor: sensor.floor_temp
+max_floor_temp: 28
+```
+
+## Configuration
+
 ```yaml
 # Example configuration.yaml entry
 climate:
@@ -37,6 +53,10 @@ climate:
 
   &nbsp;&nbsp;&nbsp;&nbsp;_(required) (string)_  "`entity_id` for a temperature sensor, target_sensor.state must be temperature."
 
+### floor_sensor
+
+  &nbsp;&nbsp;&nbsp;&nbsp;_(optional) (string)_  "`entity_id` for the foor temperature sensor, floor_sensor.state must be temperature."
+
 ### openings
   &nbsp;&nbsp;&nbsp;&nbsp;_(optional) (list)_  "list of opening `entity_id`'s for detecting open widows or doors that will idle the termostat until any of them are open"
 
@@ -51,6 +71,12 @@ climate:
   &nbsp;&nbsp;&nbsp;&nbsp;_(optional) (float)_
 
   &nbsp;&nbsp;&nbsp;&nbsp;_default: 35_
+
+### max_floor_temp
+
+  &nbsp;&nbsp;&nbsp;&nbsp;_(optional) (float)_
+
+  &nbsp;&nbsp;&nbsp;&nbsp;_default: 28_
 
 ### target_temp
 
@@ -117,6 +143,8 @@ climate:
     heater: switch.study_heater
     cooler: switch.study_cooler
     target_sensor: sensor.study_temperature
+    floor_sensor: sensor.floor_temp
+    max_floor_temp: 28
     openings:
       - sensor.window1
       - sensor.window2
