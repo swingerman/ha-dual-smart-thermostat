@@ -53,6 +53,7 @@ _LOGGER = logging.getLogger(__name__)
 
 DEFAULT_TOLERANCE = 0.3
 DEFAULT_NAME = "Dual Smart"
+DEFAULT_MAX_FLOOR_TEMP = 28
 
 CONF_HEATER = "heater"
 CONF_COOLER = "cooler"
@@ -85,7 +86,9 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Optional(CONF_MAX_TEMP): vol.Coerce(float),
         vol.Optional(CONF_MIN_DUR): vol.All(cv.time_period, cv.positive_timedelta),
         vol.Optional(CONF_MIN_TEMP): vol.Coerce(float),
-        vol.Optional(CONF_MAX_FLOOR_TEMP): vol.Coerce(float),
+        vol.Optional(CONF_MAX_FLOOR_TEMP, default=DEFAULT_MAX_FLOOR_TEMP): vol.Coerce(
+            float
+        ),
         vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
         vol.Optional(CONF_COLD_TOLERANCE, default=DEFAULT_TOLERANCE): vol.Coerce(float),
         vol.Optional(CONF_HOT_TOLERANCE, default=DEFAULT_TOLERANCE): vol.Coerce(float),
@@ -259,13 +262,14 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             )
         )
 
-        self.async_on_remove(
-            async_track_state_change_event(
-                self.hass,
-                [self.sensor_floor_entity_id],
-                self._async_sensor_floor_changed,
+        if self.sensor_floor_entity_id is not None:
+            self.async_on_remove(
+                async_track_state_change_event(
+                    self.hass,
+                    [self.sensor_floor_entity_id],
+                    self._async_sensor_floor_changed,
+                )
             )
-        )
 
         if self._keep_alive:
             if self.cooler_entity_id:
