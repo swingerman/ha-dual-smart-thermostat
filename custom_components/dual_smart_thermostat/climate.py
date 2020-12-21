@@ -53,7 +53,7 @@ _LOGGER = logging.getLogger(__name__)
 
 DEFAULT_TOLERANCE = 0.3
 DEFAULT_NAME = "Dual Smart"
-DEFAULT_MAX_FLOOR_TEMP = 28
+DEFAULT_MAX_FLOOR_TEMP = 28.0
 
 CONF_HEATER = "heater"
 CONF_COOLER = "cooler"
@@ -289,7 +289,10 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         def _async_startup(event):
             """Init on startup."""
             sensor_state = self.hass.states.get(self.sensor_entity_id)
-            floor_sensor_State = self.hass.states.get(self.sensor_floor_entity_id)
+            if self.sensor_floor_entity_id:
+                floor_sensor_state = self.hass.states.get(self.sensor_floor_entity_id)
+            else:
+                floor_sensor_state = None
 
             if sensor_state and sensor_state.state not in (
                 STATE_UNAVAILABLE,
@@ -297,11 +300,11 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             ):
                 self._async_update_temp(sensor_state)
 
-            if floor_sensor_State and floor_sensor_State.state not in (
+            if floor_sensor_state and floor_sensor_state.state not in (
                 STATE_UNAVAILABLE,
                 STATE_UNKNOWN,
             ):
-                self._async_update_floor_temp(floor_sensor_State)
+                self._async_update_floor_temp(floor_sensor_state)
 
         self.hass.bus.async_listen_once(EVENT_HOMEASSISTANT_START, _async_startup)
 
@@ -714,7 +717,11 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
     @property
     def _is_floor_hot(self):
         """If the floor temp is above limit."""
-        if self.sensor_floor_entity_id:
+        if (
+            (self.sensor_floor_entity_id is not None)
+            and (self._max_floor_temp is not None)
+            and (self._cur_floor_temp is not None)
+        ):
             if self._cur_floor_temp >= self._max_floor_temp:
                 return True
 
