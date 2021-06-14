@@ -22,8 +22,8 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements-first.txt
           pip install -r requirements-dev.txt
-      - name: Test with pytest
-        run: pytest --cov=. --cov-config=.coveragerc --cov-report xml:coverage.xml
+      # - name: Test with pytest
+      #   run: pytest --cov=. --cov-config=.coveragerc --cov-report xml:coverage.xml
       - name: Track master branch
         run: git fetch --no-tags https://$GITHUB_ACTOR:${{ secrets.GITHUB_TOKEN }}@github.com/$GITHUB_REPOSITORY +refs/heads/master:refs/remotes/origin/master
       - name: SonarCloud scan
