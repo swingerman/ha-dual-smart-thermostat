@@ -20,5 +20,5 @@ jobs:
           pip install --pre -r requirements-dev.txt
       - name: isort
         run: isort --recursive --diff
-      - name: Black
-        run: black --check .
+      # - name: Black
+      #   run: black --check .
