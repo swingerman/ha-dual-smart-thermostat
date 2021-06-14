@@ -3,5 +3,6 @@
   "name": "Dual Smart Thermostat",
   "documentation": "ttps://github.com/swingerman/ha-dual-smart-thermostat.git",
   "dependencies": ["climate", "sensor", "switch"],
-  "codeowners": ["@swingerman"]
+  "codeowners": ["@swingerman"],
+  "version": "0.5.3"
 }
