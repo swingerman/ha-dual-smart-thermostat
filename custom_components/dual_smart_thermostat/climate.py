@@ -245,20 +245,34 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         # Add listener
         self.async_on_remove(
             async_track_state_change_event(
-                self.hass, [self.sensor_entity_id], self._async_sensor_changed,
+                self.hass,
+                [self.sensor_entity_id],
+                self._async_sensor_changed,
             )
         )
 
         if self.opening_entities and len(self.opening_entities):
             self.async_on_remove(
                 async_track_state_change_event(
-                    self.hass, self.opening_entities, self._async_opening_changed,
+                    self.hass,
+                    self.opening_entities,
+                    self._async_opening_changed,
                 )
             )
 
         self.async_on_remove(
             async_track_state_change_event(
-                self.hass, [self.heater_entity_id], self._async_switch_changed,
+                self.hass,
+                [self.heater_entity_id],
+                self._async_switch_changed,
+            )
+        )
+
+        self.async_on_remove(
+            async_track_state_change_event(
+                self.hass,
+                [self.cooler_entity_id],
+                self._async_cooler_changed,
             )
         )
 
@@ -538,6 +552,15 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
     @callback
     def _async_switch_changed(self, event):
         """Handle heater switch state changes."""
+        new_state = event.data.get("new_state")
+        if new_state is None:
+            return
+        self.async_write_ha_state()
+
+    callback
+
+    def _async_cooler_changed(self, event):
+        """Handle cooler switch state changes."""
         new_state = event.data.get("new_state")
         if new_state is None:
             return
