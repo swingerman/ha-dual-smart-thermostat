@@ -793,10 +793,11 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
     async def _async_cooler_turn_on(self):
         """Turn cooler toggleable device on."""
-        data = {ATTR_ENTITY_ID: self.cooler_entity_id}
-        await self.hass.services.async_call(
-            HA_DOMAIN, SERVICE_TURN_ON, data, context=self._context
-        )
+        if not self._is_cooler_active:
+            data = {ATTR_ENTITY_ID: self.cooler_entity_id}
+            await self.hass.services.async_call(
+                HA_DOMAIN, SERVICE_TURN_ON, data, context=self._context
+            )
 
     async def _async_cooler_turn_off(self):
         """Turn cooler toggleable device off."""
