@@ -712,10 +712,12 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
     async def async_heater_cooler_toggle(self, too_cold, too_hot):
         """Toggle heater cooler based on device state"""
         if too_cold:
-            await self._async_heater_turn_on()
+            if not self._is_opening_open:
+                await self._async_heater_turn_on()
             await self._async_cooler_turn_off()
         elif too_hot:
-            await self._async_cooler_turn_on()
+            if not self._is_opening_open:
+                await self._async_cooler_turn_on()
             await self._async_heater_turn_off()
         else:
             await self._async_heater_turn_off()
