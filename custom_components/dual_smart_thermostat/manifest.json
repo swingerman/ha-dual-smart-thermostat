@@ -2,7 +2,13 @@
   "domain": "dual_smart_thermostat",
   "name": "Dual Smart Thermostat",
   "documentation": "ttps://github.com/swingerman/ha-dual-smart-thermostat.git",
-  "dependencies": ["climate", "sensor", "switch"],
-  "codeowners": ["@swingerman"],
-  "version": "0.5.3"
+  "dependencies": [
+    "climate",
+    "sensor",
+    "switch"
+  ],
+  "codeowners": [
+    "@swingerman"
+  ],
+  "version": "0.5.4"
 }
