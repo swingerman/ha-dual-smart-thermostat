@@ -7,7 +7,8 @@
     "sensor",
     "switch"
   ],
-  "codeowners": [
+  "issue_tracker": "https://github.com/swingerman/ha-dual-smart-thermostat/issues",
+  "codeowners":
     "@swingerman"
   ],
   "version": "0.5.5"
