@@ -7,12 +7,19 @@ on:
     - cron: '0 0 * * *'
 
 jobs:
-  validate:
+  validate_hacs:
+    name: Valiate With HACS
     runs-on: 'ubuntu-latest'
     steps:
       - uses: 'actions/checkout@v2'
       - name: HACS validation
-        uses: 'hacs/integration/action@master'
+        uses: 'hacs/action@main'
         with:
-          GITHUB_TOKEN: ${{ secrets.GITHUB }}
           CATEGORY: 'integration'
+
+  validate_hassfest:
+    name: Validate with Hassfest
+    runs-on: "ubuntu-latest"
+    steps:
+        - uses: "actions/checkout@v2"
+        - uses: "home-assistant/actions/hassfest@master"
