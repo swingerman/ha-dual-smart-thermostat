@@ -9,7 +9,7 @@
   ],
   "requirements": [],
   "issue_tracker": "https://github.com/swingerman/ha-dual-smart-thermostat/issues",
-  "codeowners":
+  "codeowners": [
     "@swingerman"
   ],
   "version": "0.5.5"
