@@ -7,25 +7,33 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.8]
+        python-version: [3.9]
 
     steps:
       - uses: actions/checkout@v2
         with:
           fetch-depth: 0
+
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
+
+      # - name: Set PY env
+      #   run: echo "::set-env name=PY::$(python -VV | sha256sum | cut -d' ' -f1)"
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements-first.txt
-          pip install -r requirements-dev.txt
-      # - name: Test with pytest
-      #   run: pytest --cov=. --cov-config=.coveragerc --cov-report xml:coverage.xml
+          pip install -r requirements-test.txt
+
+      - name: Run pytest
+        run: |
+          pytest --strict-markers
+
       - name: Track master branch
         run: git fetch --no-tags https://$GITHUB_ACTOR:${{ secrets.GITHUB_TOKEN }}@github.com/$GITHUB_REPOSITORY +refs/heads/master:refs/remotes/origin/master
+
       - name: SonarCloud scan
         uses: sonarsource/sonarcloud-github-action@master
         env:

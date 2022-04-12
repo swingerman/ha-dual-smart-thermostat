@@ -152,3 +152,5 @@ logger:
   default: error
   logs:
     custom_components.dual_smart_thermostat: debug
+
+debugpy:
