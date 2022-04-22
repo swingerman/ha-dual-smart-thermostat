@@ -1,4 +1,6 @@
-"""Adds support for generic thermostat units."""
+"""Adds support for dual smart thermostat units."""
+import const
+
 import asyncio
 import logging
 
@@ -18,7 +20,6 @@ from homeassistant.components.climate.const import (
     PRESET_AWAY,
     PRESET_NONE,
     SUPPORT_PRESET_MODE,
-    SUPPORT_TARGET_TEMPERATURE,
     SUPPORT_TARGET_TEMPERATURE_RANGE,
 )
 from homeassistant.const import (
@@ -46,35 +47,10 @@ from homeassistant.helpers.event import (
 from homeassistant.helpers.reload import async_setup_reload_service
 from homeassistant.helpers.restore_state import RestoreEntity
 
-
 from . import DOMAIN, PLATFORMS
 
 _LOGGER = logging.getLogger(__name__)
 
-DEFAULT_TOLERANCE = 0.3
-DEFAULT_NAME = "Dual Smart"
-DEFAULT_MAX_FLOOR_TEMP = 28.0
-
-CONF_HEATER = "heater"
-CONF_COOLER = "cooler"
-CONF_SENSOR = "target_sensor"
-CONF_FLOOR_SENSOR = "floor_sensor"
-CONF_MIN_TEMP = "min_temp"
-CONF_MAX_TEMP = "max_temp"
-CONF_MAX_FLOOR_TEMP = "max_floor_temp"
-CONF_TARGET_TEMP = "target_temp"
-CONF_TARGET_TEMP_HIGH = "target_temp_high"
-CONF_TARGET_TEMP_LOW = "target_temp_low"
-CONF_AC_MODE = "ac_mode"
-CONF_MIN_DUR = "min_cycle_duration"
-CONF_COLD_TOLERANCE = "cold_tolerance"
-CONF_HOT_TOLERANCE = "hot_tolerance"
-CONF_KEEP_ALIVE = "keep_alive"
-CONF_INITIAL_HVAC_MODE = "initial_hvac_mode"
-CONF_AWAY_TEMP = "away_temp"
-CONF_PRECISION = "precision"
-CONF_OPENINGS = "openings"
-SUPPORT_FLAGS = SUPPORT_TARGET_TEMPERATURE
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
@@ -108,7 +84,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
 )
 
 
-async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
+async def async_setup_platform(hass, config, async_add_entities):
     """Set up the smart dual thermostat platform."""
 
     await async_setup_reload_service(hass, DOMAIN, PLATFORMS)
@@ -165,7 +141,7 @@ async def async_setup_platform(hass, config, async_add_entities, discovery_info=
 
 
 class DualSmartThermostat(ClimateEntity, RestoreEntity):
-    """Representation of a Generic Thermostat device."""
+    """Representation of a Dual Smart Thermostat device."""
 
     def __init__(
         self,
@@ -557,8 +533,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             return
         self.async_write_ha_state()
 
-    callback
-
+    @callback
     def _async_cooler_changed(self, event):
         """Handle cooler switch state changes."""
         new_state = event.data.get("new_state")

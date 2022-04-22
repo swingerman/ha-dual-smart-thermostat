@@ -1,0 +1,7 @@
+# Strictly for tests
+#pytest
+#pytest-cov==2.9.0
+#pytest-homeassistant
+pytest-homeassistant-custom-component==0.7.7
+# From our manifest.json for our custom component
+# gidgethub[aiohttp]==4.1.1
