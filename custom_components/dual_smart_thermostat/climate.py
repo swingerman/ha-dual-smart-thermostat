@@ -1,5 +1,4 @@
 """Adds support for dual smart thermostat units."""
-import const
 
 import asyncio
 import logging
@@ -26,6 +25,7 @@ from homeassistant.const import (
     ATTR_ENTITY_ID,
     ATTR_TEMPERATURE,
     CONF_NAME,
+    CONF_UNIQUE_ID,
     EVENT_HOMEASSISTANT_START,
     PRECISION_HALVES,
     PRECISION_TENTHS,
@@ -37,7 +37,7 @@ from homeassistant.const import (
     STATE_UNAVAILABLE,
     STATE_UNKNOWN,
 )
-from homeassistant.core import DOMAIN as HA_DOMAIN, callback
+from homeassistant.core import DOMAIN as HA_DOMAIN, callback, HomeAssistant
 from homeassistant.helpers import condition
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.event import (
@@ -46,6 +46,35 @@ from homeassistant.helpers.event import (
 )
 from homeassistant.helpers.reload import async_setup_reload_service
 from homeassistant.helpers.restore_state import RestoreEntity
+from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
+
+
+from custom_components.dual_smart_thermostat.const import (
+    CONF_AC_MODE,
+    CONF_AWAY_TEMP,
+    CONF_COLD_TOLERANCE,
+    CONF_COOLER,
+    CONF_FLOOR_SENSOR,
+    CONF_HEATER,
+    CONF_HOT_TOLERANCE,
+    CONF_INITIAL_HVAC_MODE,
+    CONF_KEEP_ALIVE,
+    CONF_MAX_FLOOR_TEMP,
+    CONF_MAX_TEMP,
+    CONF_MIN_DUR,
+    CONF_MIN_TEMP,
+    CONF_OPENINGS,
+    CONF_PRECISION,
+    CONF_SENSOR,
+    CONF_TARGET_TEMP,
+    CONF_TARGET_TEMP_HIGH,
+    CONF_TARGET_TEMP_LOW,
+    DEFAULT_MAX_FLOOR_TEMP,
+    DEFAULT_NAME,
+    DEFAULT_TOLERANCE,
+    SUPPORT_FLAGS,
+)
 
 from . import DOMAIN, PLATFORMS
 
@@ -80,11 +109,17 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
             [PRECISION_TENTHS, PRECISION_HALVES, PRECISION_WHOLE]
         ),
         vol.Optional(CONF_OPENINGS): [cv.entity_id],
+        vol.Optional(CONF_UNIQUE_ID): cv.string,
     }
 )
 
 
-async def async_setup_platform(hass, config, async_add_entities):
+async def async_setup_platform(
+    hass: HomeAssistant,
+    config: ConfigType,
+    async_add_entities: AddEntitiesCallback,
+    discovery_info: None = None,
+):
     """Set up the smart dual thermostat platform."""
 
     await async_setup_reload_service(hass, DOMAIN, PLATFORMS)
@@ -110,6 +145,7 @@ async def async_setup_platform(hass, config, async_add_entities):
     away_temp = config.get(CONF_AWAY_TEMP)
     precision = config.get(CONF_PRECISION)
     unit = hass.config.units.temperature_unit
+    unique_id = config.get(CONF_UNIQUE_ID)
 
     async_add_entities(
         [
@@ -135,6 +171,7 @@ async def async_setup_platform(hass, config, async_add_entities):
                 away_temp,
                 precision,
                 unit,
+                unique_id,
             )
         ]
     )
@@ -166,6 +203,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         away_temp,
         precision,
         unit,
+        unique_id,
     ):
         """Initialize the thermostat."""
         self._name = name
@@ -204,6 +242,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self._target_temp_high = target_temp_high
         self._target_temp_low = target_temp_low
         self._unit = unit
+        self._unique_id = unique_id
         self._support_flags = (
             SUPPORT_TARGET_TEMPERATURE_RANGE if cooler_entity_id else SUPPORT_FLAGS
         )
@@ -219,13 +258,14 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         await super().async_added_to_hass()
 
         # Add listener
-        self.async_on_remove(
-            async_track_state_change_event(
-                self.hass,
-                [self.sensor_entity_id],
-                self._async_sensor_changed,
+        if self.sensor_entity_id:
+            self.async_on_remove(
+                async_track_state_change_event(
+                    self.hass,
+                    [self.sensor_entity_id],
+                    self._async_sensor_changed,
+                )
             )
-        )
 
         if self.opening_entities and len(self.opening_entities):
             self.async_on_remove(
@@ -236,21 +276,23 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                 )
             )
 
-        self.async_on_remove(
-            async_track_state_change_event(
-                self.hass,
-                [self.heater_entity_id],
-                self._async_switch_changed,
+        if self.heater_entity_id:
+            self.async_on_remove(
+                async_track_state_change_event(
+                    self.hass,
+                    [self.heater_entity_id],
+                    self._async_switch_changed,
+                )
             )
-        )
 
-        self.async_on_remove(
-            async_track_state_change_event(
-                self.hass,
-                [self.cooler_entity_id],
-                self._async_cooler_changed,
+        if self.cooler_entity_id:
+            self.async_on_remove(
+                async_track_state_change_event(
+                    self.hass,
+                    [self.cooler_entity_id],
+                    self._async_cooler_changed,
+                )
             )
-        )
 
         if self.sensor_floor_entity_id is not None:
             self.async_on_remove(
@@ -315,8 +357,8 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                     )
                 else:
                     self._target_temp = float(old_state.attributes[ATTR_TEMPERATURE])
-            if old_state.attributes.get(ATTR_PRESET_MODE) == PRESET_AWAY:
-                self._is_away = True
+            if old_state.attributes.get(ATTR_PRESET_MODE) in self._attr_preset_modes:
+                self._attr_preset_mode = old_state.attributes.get(ATTR_PRESET_MODE)
             if not self._hvac_mode and old_state.state:
                 self._hvac_mode = old_state.state
 
@@ -344,6 +386,11 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
     def name(self):
         """Return the name of the thermostat."""
         return self._name
+
+    @property
+    def unique_id(self):
+        """Return the unique id of this thermostat."""
+        return self._unique_id
 
     @property
     def precision(self):
@@ -400,12 +447,12 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
     @property
     def target_temperature_low(self):
-        """Return the  lower bound temperature."""
+        """Return the lower bound temperature."""
         return self._target_temp_low
 
     @property
     def floor_temperature_limit(self):
-        """Return the  lower bound temperature."""
+        """Return the maximum floor temperature."""
         return self._max_floor_temp
 
     @property
