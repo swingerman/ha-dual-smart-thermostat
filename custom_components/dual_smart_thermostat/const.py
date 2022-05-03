@@ -1,7 +1,10 @@
-"""constants"""
+"""const"""
 from homeassistant.components.climate.const import (
     SUPPORT_TARGET_TEMPERATURE,
 )
+
+from homeassistant.backports.enum import StrEnum
+
 
 DEFAULT_TOLERANCE = 0.3
 DEFAULT_NAME = "Dual Smart"
@@ -27,3 +30,29 @@ CONF_AWAY_TEMP = "away_temp"
 CONF_PRECISION = "precision"
 CONF_OPENINGS = "openings"
 SUPPORT_FLAGS = SUPPORT_TARGET_TEMPERATURE
+
+
+class HVACMode(StrEnum):
+    """HVAC mode for climate devices."""
+
+    # All activity disabled / Device is off/standby
+    OFF = "off"
+
+    # Heating
+    HEAT = "heat"
+
+    # Cooling
+    COOL = "cool"
+
+    # The device supports heating/cooling to a range
+    HEAT_COOL = "heat_cool"
+
+    # The temperature is set based on a schedule, learned behavior, AI or some
+    # other related mechanism. User is not able to adjust the temperature
+    AUTO = "auto"
+
+    # Device is in Dry/Humidity mode
+    DRY = "dry"
+
+    # Only the fan is on, not fan and another mode like cool
+    FAN_ONLY = "fan_only"
