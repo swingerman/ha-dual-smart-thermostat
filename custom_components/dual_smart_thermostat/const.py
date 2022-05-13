@@ -56,3 +56,5 @@ class HVACMode(StrEnum):
 
     # Only the fan is on, not fan and another mode like cool
     FAN_ONLY = "fan_only"
+
+    IDLE = "idle"

@@ -1,7 +1,7 @@
 {
 	"name": "Dual Smart Thermostat Component",
 	"image": "ghcr.io/ludeeus/devcontainer/integration:stable",
-	"postCreateCommand": "container install",
+	"postCreateCommand": "container install && sudo apt-get install libpcap-dev ",
 	"context": "..",
 	"appPort": [
 		"9123:8123"
