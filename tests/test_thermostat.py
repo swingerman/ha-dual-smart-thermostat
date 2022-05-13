@@ -9,33 +9,14 @@ from typing import Final
 from homeassistant.core import HomeAssistant
 from homeassistant.components import input_boolean, input_number
 from homeassistant.util import dt
-
 from homeassistant.components.climate.const import (
-    ATTR_PRESET_MODE,
     DOMAIN as CLIMATE,
-    HVAC_MODE_COOL,
-    HVAC_MODE_HEAT,
-    HVAC_MODE_OFF,
-    PRESET_AWAY,
-    PRESET_NONE,
 )
-
-from custom_components.dual_smart_thermostat import (
-    DOMAIN as DUAL_SMART_THERMOSTAT,
-)
-
 from homeassistant.const import (
     ATTR_ENTITY_ID,
     ATTR_TEMPERATURE,
-    SERVICE_RELOAD,
-    SERVICE_TURN_OFF,
-    SERVICE_TURN_ON,
     STATE_OFF,
     STATE_ON,
-    STATE_UNAVAILABLE,
-    STATE_UNKNOWN,
-    TEMP_CELSIUS,
-    TEMP_FAHRENHEIT,
 )
 import homeassistant.core as ha
 from homeassistant.core import DOMAIN as HASS_DOMAIN, CoreState, State, callback
@@ -57,6 +38,10 @@ from homeassistant.components.sensor import (
 from custom_components.dual_smart_thermostat.const import *
 
 from homeassistant.setup import async_setup_component
+
+from custom_components.dual_smart_thermostat import (
+    DOMAIN as DUAL_SMART_THERMOSTAT,
+)
 
 ENT_SWITCH = "switch.test"
 HEAT_ENTITY = "climate.test_heat"
@@ -105,7 +90,7 @@ async def test_valid_conf(hass):
         CLIMATE,
         {
             "climate": {
-                "platform": "dual_smart_thermostat",
+                "platform": DUAL_SMART_THERMOSTAT,
                 "name": "test",
                 "heater": CONF_HEATER,
                 "target_sensor": CONF_SENSOR,
@@ -145,7 +130,7 @@ async def test_heater_mode(hass, setup_comp_1):
         CLIMATE,
         {
             "climate": {
-                "platform": "dual_smart_thermostat",
+                "platform": DUAL_SMART_THERMOSTAT,
                 "name": "test",
                 "heater": heater_switch,
                 "target_sensor": temp_input,
@@ -187,7 +172,7 @@ async def test_cooler_mode(hass, setup_comp_1):
         CLIMATE,
         {
             "climate": {
-                "platform": "dual_smart_thermostat",
+                "platform": DUAL_SMART_THERMOSTAT,
                 "name": "test",
                 "heater": cooler_switch,
                 "ac_mode": "true",
@@ -234,7 +219,7 @@ async def test_heater_cooler_mode(hass, setup_comp_1):
         CLIMATE,
         {
             "climate": {
-                "platform": "dual_smart_thermostat",
+                "platform": DUAL_SMART_THERMOSTAT,
                 "name": "test",
                 "cooler": cooler_switch,
                 "heater": heater_switch,
