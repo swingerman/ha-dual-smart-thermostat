@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+from tkinter import OFF
 from typing import List
 
 import voluptuous as vol
@@ -14,6 +15,7 @@ from homeassistant.components.climate.const import (
     PRESET_AWAY,
     PRESET_NONE,
     SUPPORT_PRESET_MODE,
+    SUPPORT_TARGET_TEMPERATURE,
     SUPPORT_TARGET_TEMPERATURE_RANGE,
 )
 from homeassistant.const import (
@@ -242,11 +244,15 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self._unit = unit
         self._unique_id = unique_id
         self._support_flags = (
-            SUPPORT_TARGET_TEMPERATURE_RANGE if cooler_entity_id else SUPPORT_FLAGS
+            SUPPORT_TARGET_TEMPERATURE_RANGE
+            if cooler_entity_id
+            else SUPPORT_TARGET_TEMPERATURE
         )
         if away_temp:
             self._support_flags = (
-                SUPPORT_TARGET_TEMPERATURE_RANGE if cooler_entity_id else SUPPORT_FLAGS
+                SUPPORT_TARGET_TEMPERATURE_RANGE
+                if cooler_entity_id
+                else SUPPORT_TARGET_TEMPERATURE
             ) | SUPPORT_PRESET_MODE
         self._away_temp = away_temp
         self._is_away = False
@@ -484,12 +490,15 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         _LOGGER.info("Setting hvac mode: %s", hvac_mode)
         if hvac_mode == HVACMode.HEAT:
             self._hvac_mode = HVACMode.HEAT
+            self._support_flags = SUPPORT_TARGET_TEMPERATURE
             await self._async_control_heating(force=True)
         elif hvac_mode == HVACMode.COOL:
             self._hvac_mode = HVACMode.COOL
+            self._support_flags = SUPPORT_TARGET_TEMPERATURE
             await self._async_control_heating(force=True)
         elif hvac_mode == HVACMode.HEAT_COOL:
             self._hvac_mode = HVACMode.HEAT_COOL
+            self._support_flags = SUPPORT_TARGET_TEMPERATURE_RANGE
             await self._async_control_heat_cool(force=True)
         elif hvac_mode == HVACMode.OFF:
             self._hvac_mode = HVACMode.OFF
@@ -504,7 +513,11 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
     async def async_set_temperature(self, **kwargs):
         """Set new target temperature."""
-        if (temperature := kwargs.get(ATTR_TEMPERATURE)) is None:
+        temperature = kwargs.get(ATTR_TEMPERATURE)
+        if (
+            self._hvac_mode not in (HVACMode.HEAT_COOL, HVACMode.OFF)
+            and temperature is None
+        ):
             return
         temp_low = kwargs.get(ATTR_TARGET_TEMP_LOW)
         temp_high = kwargs.get(ATTR_TARGET_TEMP_HIGH)
