@@ -86,6 +86,7 @@ switch:
 climate:
   - platform: dual_smart_thermostat
     name: Heat Cool Room
+    unique_id: heat_cool_room
     heater: switch.heater
     cooler: switch.cooler
     openings:
@@ -138,6 +139,8 @@ climate:
     min_temp: 15
     max_temp: 28
     target_temp: 23
+    target_temp_high: 26
+    target_temp_low: 23
     cold_tolerance: 0.3
     hot_tolerance: 0
     min_cycle_duration:

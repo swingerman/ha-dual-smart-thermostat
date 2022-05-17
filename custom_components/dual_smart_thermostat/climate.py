@@ -1,9 +1,12 @@
 """Adds support for dual smart thermostat units."""
 
 import asyncio
+from datetime import timedelta
+from distutils.log import debug
 import logging
 from tkinter import OFF
 from typing import List
+from sqlalchemy import false
 
 import voluptuous as vol
 
@@ -211,7 +214,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self.sensor_floor_entity_id = sensor_floor_entity_id
         self.opening_entities: List = opening_entities
         self.ac_mode = ac_mode
-        self.min_cycle_duration = min_cycle_duration
+        self.min_cycle_duration: timedelta = min_cycle_duration
         self._cold_tolerance = cold_tolerance
         self._hot_tolerance = hot_tolerance
         self._keep_alive = keep_alive
@@ -495,7 +498,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         elif hvac_mode == HVACMode.COOL:
             self._hvac_mode = HVACMode.COOL
             self._support_flags = SUPPORT_TARGET_TEMPERATURE
-            await self._async_control_heating(force=True)
+            await self._async_control_cooling(force=True)
         elif hvac_mode == HVACMode.HEAT_COOL:
             self._hvac_mode = HVACMode.HEAT_COOL
             self._support_flags = SUPPORT_TARGET_TEMPERATURE_RANGE
@@ -514,21 +517,23 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
     async def async_set_temperature(self, **kwargs):
         """Set new target temperature."""
         temperature = kwargs.get(ATTR_TEMPERATURE)
+        temp_low = kwargs.get(ATTR_TARGET_TEMP_LOW)
+        temp_high = kwargs.get(ATTR_TARGET_TEMP_HIGH)
+
         if (
             self._hvac_mode not in (HVACMode.HEAT_COOL, HVACMode.OFF)
             and temperature is None
         ):
             return
-        temp_low = kwargs.get(ATTR_TARGET_TEMP_LOW)
-        temp_high = kwargs.get(ATTR_TARGET_TEMP_HIGH)
 
         self._target_temp = temperature
 
-        if self._hvac_mode == HVACMode.HEAT_COOL and (
-            temp_high is None or temp_low is None
-        ):
+        if temp_high is None or temp_low is None:
+            await self._async_control_climate()
+            self.async_write_ha_state()
             return
 
+        self._target_temp = temp_low
         self._target_temp_high = temp_high
         self._target_temp_low = temp_low
 
@@ -596,10 +601,14 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self.async_write_ha_state()
 
     async def _async_control_climate(self, time=None, force=False):
-        if self.cooler_entity_id is not None:
-            await self._async_control_heat_cool(force)
+        if self.cooler_entity_id is not None and self.hvac_mode == HVACMode.HEAT_COOL:
+            await self._async_control_heat_cool(time, force)
+        elif self.ac_mode is True or (
+            self.cooler_entity_id is not None and self.hvac_mode == HVACMode.COOL
+        ):
+            await self._async_control_cooling(time, force)
         else:
-            await self._async_control_heating(force)
+            await self._async_control_heating(time, force)
 
     @callback
     def _async_switch_changed(self, event):
@@ -636,47 +645,17 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
     async def _async_control_heating(self, time=None, force=False):
         """Check if we need to turn heating on or off."""
         async with self._temp_lock:
-            if not self._active and None not in (self._cur_temp, self._target_temp):
-                self._active = True
-                _LOGGER.info(
-                    "Obtained current and target temperature. "
-                    "Dual smart thermostat active. %s, %s",
-                    self._cur_temp,
-                    self._target_temp,
-                )
+            _LOGGER.debug("_async_control_heating")
+            self.set_self_active()
 
-            if not self._active or self._hvac_mode == HVACMode.OFF:
+            if not self._needs_control(time, force):
                 return
 
-            if not force and time is None:
-                # If the `force` argument is True, we
-                # ignore `min_cycle_duration`.
-                # If the `time` argument is not none, we were invoked for
-                # keep-alive purposes, and `min_cycle_duration` is irrelevant.
-                if self.min_cycle_duration:
-                    if self._is_device_active:
-                        current_state = STATE_ON
-                    else:
-                        current_state = HVACMode.OFF
-                    long_enough = condition.state(
-                        self.hass,
-                        self.heater_entity_id,
-                        current_state,
-                        self.min_cycle_duration,
-                    )
-                    if not long_enough:
-                        return
-
-            too_cold = self._target_temp >= self._cur_temp + self._cold_tolerance
-            too_hot = self._cur_temp >= self._target_temp + self._hot_tolerance
+            too_cold = self._is_too_cold()
+            too_hot = self._is_too_hot()
 
             if self._is_device_active:
-                if (
-                    (self.ac_mode and too_cold)
-                    or (not self.ac_mode and too_hot)
-                    or (not self.ac_mode and self._is_floor_hot)
-                    or self._is_opening_open
-                ):
+                if too_hot or self._is_floor_hot or self._is_opening_open:
                     _LOGGER.info("Turning off heater %s", self.heater_entity_id)
                     await self._async_heater_turn_off()
                 elif (
@@ -691,12 +670,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                     )
                     await self._async_heater_turn_on()
             else:
-                if (self.ac_mode and too_hot and not self._is_opening_open) or (
-                    not self.ac_mode
-                    and too_cold
-                    and not self._is_opening_open
-                    and not self._is_floor_hot
-                ):
+                if too_cold and not self._is_opening_open and not self._is_floor_hot:
                     _LOGGER.info(
                         "Turning on heater (from inactive) %s", self.heater_entity_id
                     )
@@ -708,40 +682,53 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                     )
                     await self._async_heater_turn_off()
 
+    async def _async_control_cooling(self, time=None, force=False):
+        """Check if we need to turn heating on or off."""
+        async with self._temp_lock:
+            _LOGGER.debug("_async_control_cooling")
+            self.set_self_active()
+
+            if not self._needs_control(time, force):
+                return
+
+            too_cold = self._is_too_cold()
+            too_hot = self._is_too_hot()
+
+            if self._is_device_active:
+                if too_cold or self._is_opening_open:
+                    _LOGGER.info("Turning off cooler %s", self.heater_entity_id)
+                    await self._async_heater_turn_off()
+                elif time is not None and not self._is_opening_open:
+                    # The time argument is passed only in keep-alive case
+                    _LOGGER.info(
+                        "Keep-alive - Turning on cooler (from active) %s",
+                        self.heater_entity_id,
+                    )
+                    await self._async_heater_turn_on()
+            else:
+                if too_hot and not self._is_opening_open:
+                    _LOGGER.info(
+                        "Turning on cooler (from inactive) %s", self.heater_entity_id
+                    )
+                    await self._async_heater_turn_on()
+                elif time is not None or self._is_opening_open or self._is_floor_hot:
+                    # The time argument is passed only in keep-alive case
+                    _LOGGER.info(
+                        "Keep-alive - Turning off cooler %s", self.heater_entity_id
+                    )
+                    await self._async_heater_turn_off()
+
     async def _async_control_heat_cool(self, time=None, force=False):
         """Check if we need to turn heating on or off."""
         async with self._temp_lock:
-            if not self._active and None not in (
-                self._cur_temp,
-                self._target_temp_high,
-                self._target_temp_low,
-            ):
+            _LOGGER.debug("_async_control_heat_cool")
+            if not self._active and self._is_configured_for_heat_cool():
                 self._active = True
-            if not self._active or self._hvac_mode == HVACMode.OFF:
+            if not self._needs_control(time, force, True):
                 return
 
-            if not force and time is None:
-                # If the `force` argument is True, we
-                # ignore `min_cycle_duration`.
-                # If the `time` argument is not none, we were invoked for
-                # keep-alive purposes, and `min_cycle_duration` is irrelevant.
-                if self.min_cycle_duration:
-                    if self._is_device_active:
-                        current_state = STATE_ON
-                    else:
-                        current_state = HVACMode.OFF
-                    long_enough = condition.state(
-                        self.hass,
-                        self.heater_entity_id,
-                        self.cooler_entity_id,
-                        current_state,
-                        self.min_cycle_duration,
-                    )
-                    if not long_enough:
-                        return
-
-            too_cold = self._target_temp_low >= self._cur_temp + self._cold_tolerance
-            too_hot = self._cur_temp >= self._target_temp_high + self._hot_tolerance
+            too_cold = self._is_too_cold("_target_temp_low")
+            too_hot = self._is_too_hot("_target_temp_high")
 
             if self._is_opening_open:
                 await self._async_heater_turn_off()
@@ -864,10 +851,90 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             self._is_away = True
             self._saved_target_temp = self._target_temp
             self._target_temp = self._away_temp
-            await self._async_control_heating(force=True)
+            await self._async_control_climate(force=True)
         elif preset_mode == PRESET_NONE and self._is_away:
             self._is_away = False
             self._target_temp = self._saved_target_temp
-            await self._async_control_heating(force=True)
+            await self._async_control_climate(force=True)
 
         self.async_write_ha_state()
+
+    def set_self_active(self):
+        """checks if active state needs to be set true"""
+        if (
+            not self._active
+            and None not in (self._cur_temp, self._target_temp)
+            and self._hvac_mode != HVACMode.OFF
+        ):
+            self._active = True
+            _LOGGER.info(
+                "Obtained current and target temperature. "
+                "Dual smart thermostat active. %s, %s",
+                self._cur_temp,
+                self._target_temp,
+            )
+
+    def _needs_control(self, time=None, force=False, dual=False):
+        """checks if the controller needs to continue"""
+        if not self._active or self._hvac_mode == HVACMode.OFF:
+            return False
+
+        if not force and time is None:
+            # If the `force` argument is True, we
+            # ignore `min_cycle_duration`.
+            # If the `time` argument is not none, we were invoked for
+            # keep-alive purposes, and `min_cycle_duration` is irrelevant.
+            if self.min_cycle_duration:
+                return self._needs_cycle(dual)
+        return True
+
+    def _needs_cycle(self, dual=False):
+        long_enough = self._ran_long_enough()
+        if not dual and not long_enough:
+            return False
+
+        if self.cooler_entity_id is not None:
+            long_enough_cooler = self._ran_long_enough(self.cooler_entity_id)
+            if True not in (long_enough, long_enough_cooler):
+                return False
+
+        return True
+
+    def _is_too_cold(self, target_attr="_target_temp") -> bool:
+        """checks if the current temperature is below target"""
+        target_temp = getattr(self, target_attr)
+        return target_temp >= self._cur_temp + self._cold_tolerance
+
+    def _is_too_hot(self, target_attr="_target_temp") -> bool:
+        """checks if the current temperature is above target"""
+        target_temp = getattr(self, target_attr)
+        return self._cur_temp >= target_temp + self._hot_tolerance
+
+    def _is_configured_for_heat_cool(self) -> bool:
+        """checks if the configuration is complete for heat/cool mode"""
+        return None not in (
+            self._cur_temp,
+            self._target_temp_high,
+            self._target_temp_low,
+        )
+
+    def _ran_long_enough(self, entity_id=None):
+        """determines if a switch with the passed property name has run long enough"""
+        if entity_id is None:
+            switch_entity_id = self.heater_entity_id
+        else:
+            switch_entity_id = entity_id
+
+        if self._is_device_active:
+            current_state = STATE_ON
+        else:
+            current_state = HVACMode.OFF
+
+        long_enough = condition.state(
+            self.hass,
+            switch_entity_id,
+            current_state,
+            self.min_cycle_duration,
+        )
+
+        return long_enough

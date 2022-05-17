@@ -11,6 +11,8 @@ from homeassistant.components import input_boolean, input_number
 from homeassistant.util import dt
 from homeassistant.components.climate.const import (
     DOMAIN as CLIMATE,
+    HVAC_MODE_HEAT,
+    HVAC_MODE_COOL,
 )
 from homeassistant.const import (
     ATTR_ENTITY_ID,
@@ -55,6 +57,7 @@ HOT_TOLERANCE = 0.5
 TARGET_TEMP_STEP = 0.5
 
 SERVICE_SET_TEMPERATURE = "set_temperature"
+SERVICE_SET_HVAC_MODE = "set_hvac_mode"
 INPUT_SET_VALUE = "set_value"
 ENTITY_MATCH_ALL: Final = "all"
 
@@ -255,6 +258,57 @@ async def test_heater_cooler_mode(hass, setup_comp_1):
     assert hass.states.get(cooler_switch).state == STATE_OFF
 
 
+async def test_heater_cooler_switch_hvac_modes(hass, setup_comp_1):
+    """Test thermostat heater and cooler switch to heater only mode."""
+
+    heater_switch = "input_boolean.heater"
+    cooler_switch = "input_boolean.cooler"
+    assert await async_setup_component(
+        hass,
+        input_boolean.DOMAIN,
+        {"input_boolean": {"heater": None, "cooler": None}},
+    )
+
+    temp_input = "input_number.temp"
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {"name": "test", "initial": 10, "min": 0, "max": 40, "step": 1}
+            }
+        },
+    )
+
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DUAL_SMART_THERMOSTAT,
+                "name": "test",
+                "cooler": cooler_switch,
+                "heater": heater_switch,
+                "target_sensor": temp_input,
+                "initial_hvac_mode": HVACMode.HEAT_COOL,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+
+    _setup_sensor(hass, temp_input, 26)
+    await hass.async_block_till_done()
+    await async_set_hvac_mode(hass, "all", HVACMode.HEAT)
+
+    assert hass.states.get("climate.test").state == HVAC_MODE_HEAT
+
+    await async_set_hvac_mode(hass, "all", HVACMode.COOL)
+    assert hass.states.get("climate.test").state == HVAC_MODE_COOL
+
+
 def _setup_sensor(hass, sensor, temp):
     """Set up the test sensor."""
     hass.states.async_set(sensor, temp)
@@ -283,4 +337,24 @@ async def async_set_temperature(
     _LOGGER.debug("set_temperature start data=%s", kwargs)
     await hass.services.async_call(
         CLIMATE, SERVICE_SET_TEMPERATURE, kwargs, blocking=True
+    )
+
+
+async def async_set_hvac_mode(
+    hass,
+    entity_id="all",
+    hvac_mode=HVACMode.OFF,
+):
+    """Set new HVAC mode."""
+    kwargs = {
+        key: value
+        for key, value in [
+            (ATTR_ENTITY_ID, entity_id),
+            (ATTR_HVAC_MODE, hvac_mode),
+        ]
+        if value is not None
+    }
+    _LOGGER.debug("%s start data=%s", SERVICE_SET_HVAC_MODE, kwargs)
+    await hass.services.async_call(
+        CLIMATE, SERVICE_SET_HVAC_MODE, kwargs, blocking=True
     )
