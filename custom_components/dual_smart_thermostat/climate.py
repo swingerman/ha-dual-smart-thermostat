@@ -2,17 +2,13 @@
 
 import asyncio
 from datetime import timedelta
-from distutils.log import debug
 import logging
-from tkinter import OFF
 from typing import List
-from sqlalchemy import false
 
 import voluptuous as vol
 
 from homeassistant.components.climate import PLATFORM_SCHEMA, ClimateEntity
 from homeassistant.components.climate.const import (
-    ATTR_PRESET_MODE,
     ATTR_TARGET_TEMP_HIGH,
     ATTR_TARGET_TEMP_LOW,
     PRESET_AWAY,
@@ -46,7 +42,7 @@ from homeassistant.helpers.event import (
 )
 from homeassistant.helpers.reload import async_setup_reload_service
 from homeassistant.helpers.restore_state import RestoreEntity
-from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
+from homeassistant.helpers.typing import ConfigType
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 
@@ -73,7 +69,6 @@ from custom_components.dual_smart_thermostat.const import (
     DEFAULT_MAX_FLOOR_TEMP,
     DEFAULT_NAME,
     DEFAULT_TOLERANCE,
-    SUPPORT_FLAGS,
     HVACMode,
 )
 
