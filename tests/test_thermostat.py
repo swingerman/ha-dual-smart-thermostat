@@ -301,8 +301,8 @@ async def test_heater_cooler_switch_hvac_modes(hass, setup_comp_1):
 
     _setup_sensor(hass, temp_input, 26)
     await hass.async_block_till_done()
-    await async_set_hvac_mode(hass, "all", HVACMode.HEAT)
 
+    await async_set_hvac_mode(hass, "all", HVACMode.HEAT)
     assert hass.states.get("climate.test").state == HVAC_MODE_HEAT
 
     await async_set_hvac_mode(hass, "all", HVACMode.COOL)

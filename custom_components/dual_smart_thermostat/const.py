@@ -58,3 +58,14 @@ class HVACMode(StrEnum):
     FAN_ONLY = "fan_only"
 
     IDLE = "idle"
+
+
+class HVACAction(StrEnum):
+    """HVAC action for climate devices."""
+
+    COOLING = "cooling"
+    DRYING = "drying"
+    FAN = "fan"
+    HEATING = "heating"
+    IDLE = "idle"
+    OFF = "off"
