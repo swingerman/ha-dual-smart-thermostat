@@ -74,7 +74,7 @@ from custom_components.dual_smart_thermostat.const import (
     DEFAULT_TOLERANCE,
     HVACAction,
     HVACMode,
-    PRESET_ANTI_FREEZE
+    PRESET_ANTI_FREEZE,
 )
 
 from . import DOMAIN, PLATFORMS
@@ -236,13 +236,13 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self._keep_alive = keep_alive
         self._hvac_mode = initial_hvac_mode
         self._saved_target_temp = (
-                    target_temp
-                    or comfort_temp
-                    or at_home_temp
-                    or away_temp
-                    or eco_temp
-                    or anti_freeze_temp
-                )
+            target_temp
+            or comfort_temp
+            or at_home_temp
+            or away_temp
+            or eco_temp
+            or anti_freeze_temp
+        )
         self._saved_target_temp_high = target_temp_high
         self._saved_target_temp_low = target_temp_low
         self._temp_precision = precision
