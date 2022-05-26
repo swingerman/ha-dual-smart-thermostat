@@ -52,6 +52,10 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from custom_components.dual_smart_thermostat.const import (
     CONF_AC_MODE,
     CONF_AWAY_TEMP,
+    CONF_ECO_TEMP,
+    CONF_COMFORT_TEMP,
+    CONF_AT_HOME_TEMP,
+    CONF_ANTI_FREEZE_TEMP,
     CONF_COLD_TOLERANCE,
     CONF_COOLER,
     CONF_FLOOR_SENSOR,
