@@ -27,8 +27,13 @@ CONF_HOT_TOLERANCE = "hot_tolerance"
 CONF_KEEP_ALIVE = "keep_alive"
 CONF_INITIAL_HVAC_MODE = "initial_hvac_mode"
 CONF_AWAY_TEMP = "away_temp"
+CONF_ECO_TEMP = "eco_temp"
+CONF_COMFORT_TEMP = "comfort_temp"
+CONF_AT_HOME_TEMP = "at_home_temp"
+CONF_ANTI_FREEZE_TEMP = "anti_freeze_temp"
 CONF_PRECISION = "precision"
 CONF_OPENINGS = "openings"
+PRESET_ANTI_FREEZE = "Anti Freeze"
 SUPPORT_FLAGS = SUPPORT_TARGET_TEMPERATURE
 
 

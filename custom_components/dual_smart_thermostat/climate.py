@@ -12,6 +12,9 @@ from homeassistant.components.climate.const import (
     ATTR_TARGET_TEMP_HIGH,
     ATTR_TARGET_TEMP_LOW,
     PRESET_AWAY,
+    PRESET_ECO,
+    PRESET_COMFORT,
+    PRESET_HOME,
     PRESET_NONE,
     SUPPORT_PRESET_MODE,
     SUPPORT_TARGET_TEMPERATURE,
@@ -71,6 +74,7 @@ from custom_components.dual_smart_thermostat.const import (
     DEFAULT_TOLERANCE,
     HVACAction,
     HVACMode,
+    PRESET_ANTI_FREEZE
 )
 
 from . import DOMAIN, PLATFORMS
@@ -102,6 +106,10 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
             [HVACMode.COOL, HVACMode.HEAT, HVACMode.OFF, HVACMode.HEAT_COOL]
         ),
         vol.Optional(CONF_AWAY_TEMP): vol.Coerce(float),
+        vol.Optional(CONF_ECO_TEMP): vol.Coerce(float),
+        vol.Optional(CONF_COMFORT_TEMP): vol.Coerce(float),
+        vol.Optional(CONF_AT_HOME_TEMP): vol.Coerce(float),
+        vol.Optional(CONF_ANTI_FREEZE_TEMP): vol.Coerce(float),
         vol.Optional(CONF_PRECISION): vol.In(
             [PRECISION_TENTHS, PRECISION_HALVES, PRECISION_WHOLE]
         ),
@@ -140,6 +148,10 @@ async def async_setup_platform(
     keep_alive = config.get(CONF_KEEP_ALIVE)
     initial_hvac_mode = config.get(CONF_INITIAL_HVAC_MODE)
     away_temp = config.get(CONF_AWAY_TEMP)
+    eco_temp = config.get(CONF_ECO_TEMP)
+    comfort_temp = config.get(CONF_COMFORT_TEMP)
+    at_home_temp = config.get(CONF_AT_HOME_TEMP)
+    anti_freeze_temp = config.get(CONF_ANTI_FREEZE_TEMP)
     precision = config.get(CONF_PRECISION)
     unit = hass.config.units.temperature_unit
     unique_id = config.get(CONF_UNIQUE_ID)
@@ -166,6 +178,10 @@ async def async_setup_platform(
                 keep_alive,
                 initial_hvac_mode,
                 away_temp,
+                eco_temp,
+                comfort_temp,
+                at_home_temp,
+                anti_freeze_temp,
                 precision,
                 unit,
                 unique_id,
@@ -198,6 +214,10 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         keep_alive,
         initial_hvac_mode,
         away_temp,
+        eco_temp,
+        comfort_temp,
+        at_home_temp,
+        anti_freeze_temp,
         precision,
         unit,
         unique_id,
@@ -215,7 +235,14 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self._hot_tolerance = hot_tolerance
         self._keep_alive = keep_alive
         self._hvac_mode = initial_hvac_mode
-        self._saved_target_temp = target_temp or away_temp
+        self._saved_target_temp = (
+                    target_temp
+                    or comfort_temp
+                    or at_home_temp
+                    or away_temp
+                    or eco_temp
+                    or anti_freeze_temp
+                )
         self._saved_target_temp_high = target_temp_high
         self._saved_target_temp_low = target_temp_low
         self._temp_precision = precision
@@ -247,14 +274,22 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             if cooler_entity_id
             else SUPPORT_TARGET_TEMPERATURE
         )
-        if away_temp:
+        if away_temp or eco_temp or comfort_temp or at_home_temp or anti_freeze_temp:
             self._support_flags = (
                 SUPPORT_TARGET_TEMPERATURE_RANGE
                 if cooler_entity_id
                 else SUPPORT_TARGET_TEMPERATURE
             ) | SUPPORT_PRESET_MODE
         self._away_temp = away_temp
+        self._eco_temp = eco_temp
+        self._comfort_temp = comfort_temp
+        self._at_home_temp = at_home_temp
+        self._anti_freeze_temp = anti_freeze_temp
         self._is_away = False
+        self._is_eco = False
+        self._is_comfort = False
+        self._is_at_home = False
+        self._is_anti_freeze = False
 
     async def async_added_to_hass(self):
         """Run when entity about to be added."""
@@ -477,12 +512,34 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
     @property
     def preset_mode(self):
         """Return the current preset mode, e.g., home, away, temp."""
-        return PRESET_AWAY if self._is_away else PRESET_NONE
+        if self._is_away:
+            return PRESET_AWAY
+        elif self._is_eco:
+            return PRESET_ECO
+        elif self._is_comfort:
+            return PRESET_COMFORT
+        elif self._is_at_home:
+            return PRESET_HOME
+        elif self._is_anti_freeze:
+            return PRESET_ANTI_FREEZE
+        else:
+            return PRESET_NONE
 
     @property
     def preset_modes(self):
         """Return a list of available preset modes or PRESET_NONE if _away_temp is undefined."""
-        return [PRESET_NONE, PRESET_AWAY] if self._away_temp else PRESET_NONE
+        preset_modes = [PRESET_NONE]
+        if self._anti_freeze_temp:
+            preset_modes.append(PRESET_ANTI_FREEZE)
+        if self._eco_temp:
+            preset_modes.append(PRESET_ECO)
+        if self._away_temp:
+            preset_modes.append(PRESET_AWAY)
+        if self._comfort_temp:
+            preset_modes.append(PRESET_COMFORT)
+        if self._at_home_temp:
+            preset_modes.append(PRESET_HOME)
+        return preset_modes
 
     async def async_set_hvac_mode(self, hvac_mode):
         """Call climate mode based on current mode"""
