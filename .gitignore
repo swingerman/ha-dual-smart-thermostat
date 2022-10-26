@@ -1,6 +1,7 @@
 /.idea/
 __pycache__/
 /config/
+/Config/
 *.zip
 /.coverage
 /coverage.xml
