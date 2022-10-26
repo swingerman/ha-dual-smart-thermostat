@@ -935,7 +935,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             PRESET_COMFORT: ("_is_comfort", self._comfort_temp),
             PRESET_HOME: ("_is_at_home", self._at_home_temp),
             PRESET_ANTI_FREEZE: ("_is_anti_freeze", self._anti_freeze_temp),
-            PRESET_NONE: ("None", self._saved_target_temp)
+            PRESET_NONE: ("None", self._saved_target_temp),
         }
         if preset_mode != PRESET_NONE:
             self._saved_target_temp = self._target_temp
