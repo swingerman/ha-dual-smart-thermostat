@@ -127,6 +127,22 @@ _default: Dual Smart_
 
   _(optional) (float)_ "Set the temperature used by `preset_mode: away`. If this is not specified, the preset mode feature will not be available."
 
+### eco_temp
+
+  _(optional) (float)_ "Set the temperature used by `preset_mode: eco`. If this is not specified, the preset mode feature will not be available."
+
+### at_home_temp
+
+  _(optional) (float)_ "Set the temperature used by `preset_mode: home`. If this is not specified, the preset mode feature will not be available."
+
+### comfort_temp
+
+  _(optional) (float)_ "Set the temperature used by `preset_mode: comfort`. If this is not specified, the preset mode feature will not be available."
+
+### anti_freeze_temp
+
+  _(optional) (float)_ "Set the temperature used by `preset_mode: anti freeze`. If this is not specified, the preset mode feature will not be available."
+
 ### precision
 
   _(optional) (float)_ "The desired precision for this device. Can be used to match your actual thermostat's precision. Supported values are `0.1`, `0.5` and `1.0`."
