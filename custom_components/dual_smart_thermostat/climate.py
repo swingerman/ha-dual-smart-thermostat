@@ -531,7 +531,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
     @property
     def preset_modes(self):
-        """Return a list of available preset modes or PRESET_NONE if _away_temp is undefined."""
+        """Return a list of available preset modes or PRESET_NONE."""
         preset_modes = [PRESET_NONE]
         if self._anti_freeze_temp:
             preset_modes.append(PRESET_ANTI_FREEZE)
@@ -929,16 +929,26 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
     async def async_set_preset_mode(self, preset_mode: str):
         """Set new preset mode."""
-        if preset_mode == PRESET_AWAY and not self._is_away:
-            self._is_away = True
+        presets_dict = {
+            PRESET_AWAY: ("_is_away", self._away_temp),
+            PRESET_ECO: ("_is_eco", self._eco_temp),
+            PRESET_COMFORT: ("_is_comfort", self._comfort_temp),
+            PRESET_HOME: ("_is_at_home", self._at_home_temp),
+            PRESET_ANTI_FREEZE: ("_is_anti_freeze", self._anti_freeze_temp),
+            PRESET_NONE: ("None", self._saved_target_temp)
+        }
+        if preset_mode != PRESET_NONE:
             self._saved_target_temp = self._target_temp
-            self._target_temp = self._away_temp
-            await self._async_control_climate(force=True)
-        elif preset_mode == PRESET_NONE and self._is_away:
+        self._target_temp = presets_dict[preset_mode][1]
+        if not getattr(self, presets_dict[preset_mode][0], False):
             self._is_away = False
-            self._target_temp = self._saved_target_temp
+            self._is_eco = False
+            self._is_comfort = False
+            self._is_at_home = False
+            self._is_anti_freeze = False
+            if presets_dict[preset_mode][0] != "None":
+                setattr(self, presets_dict[preset_mode][0], True)
             await self._async_control_climate(force=True)
-
         self.async_write_ha_state()
 
     def set_self_active(self):
