@@ -16,7 +16,9 @@ from homeassistant.components.climate.const import (
     PRESET_COMFORT,
     PRESET_HOME,
     PRESET_NONE,
-    ClimateEntityFeature,
+    SUPPORT_PRESET_MODE,
+    SUPPORT_TARGET_TEMPERATURE,
+    SUPPORT_TARGET_TEMPERATURE_RANGE,
 )
 from homeassistant.const import (
     ATTR_ENTITY_ID,
@@ -272,16 +274,16 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self._unit = unit
         self._unique_id = unique_id
         self._support_flags = (
-            ClimateEntityFeature.TARGET_TEMPERATURE_RANGE
+            SUPPORT_TARGET_TEMPERATURE_RANGE
             if cooler_entity_id
-            else ClimateEntityFeature.TARGET_TEMPERATURE
+            else SUPPORT_TARGET_TEMPERATURE
         )
         if away_temp or eco_temp or comfort_temp or at_home_temp or anti_freeze_temp:
             self._support_flags = (
-                ClimateEntityFeature.TARGET_TEMPERATURE_RANGE
+                SUPPORT_TARGET_TEMPERATURE_RANGE
                 if cooler_entity_id
-                else ClimateEntityFeature.TARGET_TEMPERATURE
-            ) | ClimateEntityFeature.PRESET_MODE
+                else SUPPORT_TARGET_TEMPERATURE
+            ) | SUPPORT_PRESET_MODE
         self._away_temp = away_temp
         self._eco_temp = eco_temp
         self._comfort_temp = comfort_temp
@@ -549,28 +551,25 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         if hvac_mode == HVACMode.HEAT:
             self._hvac_mode = HVACMode.HEAT
             self._support_flags = (
-                ClimateEntityFeature.TARGET_TEMPERATURE
-                | ClimateEntityFeature.PRESET_MODE
-                if self._support_flags >= ClimateEntityFeature.PRESET_MODE
-                else ClimateEntityFeature.TARGET_TEMPERATURE
+                SUPPORT_TARGET_TEMPERATURE | SUPPORT_PRESET_MODE
+                if self._support_flags >= SUPPORT_PRESET_MODE
+                else SUPPORT_TARGET_TEMPERATURE
             )
             await self._async_control_heating(force=True)
         elif hvac_mode == HVACMode.COOL:
             self._hvac_mode = HVACMode.COOL
             self._support_flags = (
-                ClimateEntityFeature.TARGET_TEMPERATURE
-                | ClimateEntityFeature.PRESET_MODE
-                if self._support_flags >= ClimateEntityFeature.PRESET_MODE
-                else ClimateEntityFeature.TARGET_TEMPERATURE
+                SUPPORT_TARGET_TEMPERATURE | SUPPORT_PRESET_MODE
+                if self._support_flags >= SUPPORT_PRESET_MODE
+                else SUPPORT_TARGET_TEMPERATURE
             )
             await self._async_control_cooling(force=True)
         elif hvac_mode == HVACMode.HEAT_COOL:
             self._hvac_mode = HVACMode.HEAT_COOL
             self._support_flags = (
-                ClimateEntityFeature.TARGET_TEMPERATURE_RANGE
-                | ClimateEntityFeature.PRESET_MODE
-                if self._support_flags >= ClimateEntityFeature.PRESET_MODE
-                else ClimateEntityFeature.TARGET_TEMPERATURE_RANGE
+                SUPPORT_TARGET_TEMPERATURE_RANGE | SUPPORT_PRESET_MODE
+                if self._support_flags >= SUPPORT_PRESET_MODE
+                else SUPPORT_TARGET_TEMPERATURE_RANGE
             )
             await self._async_control_heat_cool(force=True)
         elif hvac_mode == HVACMode.OFF:
