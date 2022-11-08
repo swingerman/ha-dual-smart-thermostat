@@ -250,13 +250,17 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self._saved_target_temp_high = target_temp_high
         self._saved_target_temp_low = target_temp_low
         self._temp_precision = precision
+        self._target_temp = target_temp
+        self._target_temp_high = target_temp_high
+        self._target_temp_low = target_temp_low
         if self.heater_entity_id and self.cooler_entity_id:
             self._hvac_list = [
                 HVACMode.OFF,
                 HVACMode.HEAT,
                 HVACMode.COOL,
-                HVACMode.HEAT_COOL,
             ]
+            if self._is_configured_for_heat_cool():
+                self._hvac_list.append(HVACMode.HEAT_COOL)
         elif self.ac_mode:
             self._hvac_list = [HVACMode.COOL, HVACMode.OFF]
         else:
@@ -268,22 +272,11 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self._min_temp = min_temp
         self._max_temp = max_temp
         self._max_floor_temp = max_floor_temp
-        self._target_temp = target_temp
-        self._target_temp_high = target_temp_high
-        self._target_temp_low = target_temp_low
         self._unit = unit
         self._unique_id = unique_id
-        self._support_flags = (
-            SUPPORT_TARGET_TEMPERATURE_RANGE
-            if cooler_entity_id
-            else SUPPORT_TARGET_TEMPERATURE
-        )
+        self._support_flags = SUPPORT_TARGET_TEMPERATURE
         if away_temp or eco_temp or comfort_temp or at_home_temp or anti_freeze_temp:
-            self._support_flags = (
-                SUPPORT_TARGET_TEMPERATURE_RANGE
-                if cooler_entity_id
-                else SUPPORT_TARGET_TEMPERATURE
-            ) | SUPPORT_PRESET_MODE
+            self._support_flags |= SUPPORT_PRESET_MODE
         self._away_temp = away_temp
         self._eco_temp = eco_temp
         self._comfort_temp = comfort_temp
@@ -430,6 +423,9 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         if not self._hvac_mode:
             self._hvac_mode = HVACMode.OFF
 
+        # Set correct support flag
+        self._set_support_flags()
+
     @property
     def should_poll(self):
         """Return the polling state."""
@@ -550,27 +546,15 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         _LOGGER.info("Setting hvac mode: %s", hvac_mode)
         if hvac_mode == HVACMode.HEAT:
             self._hvac_mode = HVACMode.HEAT
-            self._support_flags = (
-                SUPPORT_TARGET_TEMPERATURE | SUPPORT_PRESET_MODE
-                if self._support_flags >= SUPPORT_PRESET_MODE
-                else SUPPORT_TARGET_TEMPERATURE
-            )
+            self._set_support_flags()
             await self._async_control_heating(force=True)
         elif hvac_mode == HVACMode.COOL:
             self._hvac_mode = HVACMode.COOL
-            self._support_flags = (
-                SUPPORT_TARGET_TEMPERATURE | SUPPORT_PRESET_MODE
-                if self._support_flags >= SUPPORT_PRESET_MODE
-                else SUPPORT_TARGET_TEMPERATURE
-            )
+            self._set_support_flags()
             await self._async_control_cooling(force=True)
         elif hvac_mode == HVACMode.HEAT_COOL:
             self._hvac_mode = HVACMode.HEAT_COOL
-            self._support_flags = (
-                SUPPORT_TARGET_TEMPERATURE_RANGE | SUPPORT_PRESET_MODE
-                if self._support_flags >= SUPPORT_PRESET_MODE
-                else SUPPORT_TARGET_TEMPERATURE_RANGE
-            )
+            self._set_support_flags()
             await self._async_control_heat_cool(force=True)
         elif hvac_mode == HVACMode.OFF:
             self._hvac_mode = HVACMode.OFF
@@ -595,7 +579,8 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         ):
             return
 
-        self._target_temp = temperature
+        if temperature is not None:
+            self._target_temp = temperature
 
         if temp_high is None or temp_low is None:
             await self._async_control_climate()
@@ -797,7 +782,11 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         """Check if we need to turn heating on or off."""
         async with self._temp_lock:
             _LOGGER.debug("_async_control_heat_cool")
-            if not self._active and self._is_configured_for_heat_cool():
+            if (
+                not self._active and
+                self._is_configured_for_heat_cool() and
+                self._cur_temp is not None
+            ):
                 self._active = True
             if not self._needs_control(time, force, True):
                 return
@@ -1017,10 +1006,25 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
     def _is_configured_for_heat_cool(self) -> bool:
         """checks if the configuration is complete for heat/cool mode"""
         return None not in (
-            self._cur_temp,
             self._target_temp_high,
             self._target_temp_low,
         )
+
+    def _set_support_flags(self) -> None:
+        """set the correct support flags based on configuration"""
+        self._support_flags = (
+            SUPPORT_PRESET_MODE
+            if self._support_flags >= SUPPORT_PRESET_MODE
+            else 0
+        )
+
+        if (
+            not self._is_configured_for_heat_cool() or
+            self._hvac_mode in (HVACMode.COOL, HVACMode.HEAT)
+        ):
+            self._support_flags |= SUPPORT_TARGET_TEMPERATURE
+        else:
+            self._support_flags |= SUPPORT_TARGET_TEMPERATURE_RANGE
 
     def _ran_long_enough(self, entity_id=None):
         """determines if a switch with the passed property name has run long enough"""
