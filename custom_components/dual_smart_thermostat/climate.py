@@ -783,9 +783,9 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         async with self._temp_lock:
             _LOGGER.debug("_async_control_heat_cool")
             if (
-                not self._active and
-                self._is_configured_for_heat_cool() and
-                self._cur_temp is not None
+                not self._active
+                and self._is_configured_for_heat_cool()
+                and self._cur_temp is not None
             ):
                 self._active = True
             if not self._needs_control(time, force, True):
@@ -1013,14 +1013,12 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
     def _set_support_flags(self) -> None:
         """set the correct support flags based on configuration"""
         self._support_flags = (
-            SUPPORT_PRESET_MODE
-            if self._support_flags >= SUPPORT_PRESET_MODE
-            else 0
+            SUPPORT_PRESET_MODE if self._support_flags >= SUPPORT_PRESET_MODE else 0
         )
 
-        if (
-            not self._is_configured_for_heat_cool() or
-            self._hvac_mode in (HVACMode.COOL, HVACMode.HEAT)
+        if not self._is_configured_for_heat_cool() or self._hvac_mode in (
+            HVACMode.COOL,
+            HVACMode.HEAT,
         ):
             self._support_flags |= SUPPORT_TARGET_TEMPERATURE
         else:
