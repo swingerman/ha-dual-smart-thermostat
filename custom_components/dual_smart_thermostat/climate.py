@@ -396,7 +396,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                             self._target_temp_low,
                         )
                     else:
-                        self._target_temp_low = old_target_min
+                        self._target_temp_low = float(old_target_min)
                 if self._target_temp_high is None:
                     old_target_max = old_state.attributes.get(ATTR_TARGET_TEMP_HIGH)
                     if old_target_max is None:
@@ -406,13 +406,14 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                             self._target_temp_high,
                         )
                     else:
-                        self._target_temp_high = old_target_max
+                        self._target_temp_high = float(old_target_max)
             else:
                 if hvac_mode not in self.hvac_modes:
                     hvac_mode = HVACMode.OFF
                 if self._target_temp is None:
                     # If we have a previously saved temperature
-                    if old_state.attributes.get(ATTR_TEMPERATURE) is None:
+                    old_target = old_state.attributes.get(ATTR_TEMPERATURE)
+                    if old_target is None:
                         if self.ac_mode:
                             self._target_temp = self.max_temp
                         else:
@@ -422,7 +423,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                             self._target_temp,
                         )
                     else:
-                        self._target_temp = float(old_state.attributes[ATTR_TEMPERATURE])
+                        self._target_temp = float(old_target)
                         old_pres_mode = old_state.attributes.get(ATTR_PRESET_MODE)
                         if self.preset_modes and old_pres_mode in self.preset_modes:
                             self._preset_mode = old_pres_mode
