@@ -81,19 +81,25 @@ _default: Dual Smart_
 
 ### target_temp
 
-  _(optional) (float)_ Set initial target temperature. Failure to set this variable will result in target temperature being set to null on startup.
+  _(optional) (float)_ Set initial target temperature. If this variable is not set, it will retain the target temperature set before restart if available.
 
 ### target_temp_low
 
-  _(optional) (float)_ Set initial target low temperature. Failure to set this variable will result in target temperature being set to null on startup.
+  _(optional) (float)_ Set initial target low temperature. If this variable is not set, it will retain the target temperature low set before restart if available.
 
 ### target_temp_high
 
-  _(optional) (float)_ Set initial target high temperature. Failure to set this variable will result in target temperature being set to null on startup.
+  _(optional) (float)_ Set initial target high temperature. If this variable is not set, it will retain the target temperature high set before restart if available.
 
 ### ac_mode
 
-  _(optional) (boolean)_ Set the switch specified in the *heater* option to be treated as a cooling device instead of a heating device.
+  _(optional) (boolean)_ Set the switch specified in the `heater` option to be treated as a cooling device instead of a heating device. This parameter will be ignored if `cooler` option is defined.
+
+  _default: false_
+
+### heat_cool_mode
+
+  _(optional) (boolean)_ If variable `target_temp_low` and `target_temp_high` are not set, this parameter must be set to *true* to enable the `heat_cool` mode.
 
   _default: false_
 
@@ -125,29 +131,35 @@ _default: Dual Smart_
 
 ### away_temp
 
-  _(optional) (float)_ "Set the temperature used by `preset_mode: away`. If this is not specified, the preset mode feature will not be available."
+  _(optional) (float)_ "Set the temperature used by `preset_mode: away`. If this is not specified, the preset mode feature will not be available. N.B. Presets are not available for `heat_cool` mode."
 
 ### eco_temp
 
-  _(optional) (float)_ "Set the temperature used by `preset_mode: eco`. If this is not specified, the preset mode feature will not be available."
+  _(optional) (float)_ "Set the temperature used by `preset_mode: eco`. If this is not specified, the preset mode feature will not be available. N.B. Presets are not available for `heat_cool` mode."
 
-### at_home_temp
+### home_temp
 
-  _(optional) (float)_ "Set the temperature used by `preset_mode: home`. If this is not specified, the preset mode feature will not be available."
+  _(optional) (float)_ "Set the temperature used by `preset_mode: home`. If this is not specified, the preset mode feature will not be available. N.B. Presets are not available for `heat_cool` mode."
 
 ### comfort_temp
 
-  _(optional) (float)_ "Set the temperature used by `preset_mode: comfort`. If this is not specified, the preset mode feature will not be available."
+  _(optional) (float)_ "Set the temperature used by `preset_mode: comfort`. If this is not specified, the preset mode feature will not be available. N.B. Presets are not available for `heat_cool` mode."
 
 ### anti_freeze_temp
 
-  _(optional) (float)_ "Set the temperature used by `preset_mode: anti freeze`. If this is not specified, the preset mode feature will not be available."
+  _(optional) (float)_ "Set the temperature used by `preset_mode: anti freeze`. If this is not specified, the preset mode feature will not be available. N.B. Presets are not available for `heat_cool` mode."
 
 ### precision
 
-  _(optional) (float)_ "The desired precision for this device. Can be used to match your actual thermostat's precision. Supported values are `0.1`, `0.5` and `1.0`."
+  _(optional) (float)_ The desired precision for this device. Can be used to match your actual thermostat's precision. Supported values are `0.1`, `0.5` and `1.0`.
 
-  _default: "`0.5` for Celsius and `1.0` for Fahrenheit."_
+  _default: `0.5` for Celsius and `1.0` for Fahrenheit._
+
+### target_temp_step 
+
+  _(optional) (float)_ The desired step size for setting the target temperature. Supported values are `0.1`, `0.5` and `1.0`.
+
+  _default: Value used for `precision`_
 
 ## Installation
 

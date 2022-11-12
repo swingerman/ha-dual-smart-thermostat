@@ -7,10 +7,11 @@ from typing import List
 
 import voluptuous as vol
 
-from homeassistant.components.climate import PLATFORM_SCHEMA, ClimateEntity
-from homeassistant.components.climate.const import (
+from homeassistant.components.climate import (
+    ATTR_PRESET_MODE,
     ATTR_TARGET_TEMP_HIGH,
     ATTR_TARGET_TEMP_LOW,
+    PLATFORM_SCHEMA,
     PRESET_AWAY,
     PRESET_ECO,
     PRESET_COMFORT,
@@ -19,9 +20,11 @@ from homeassistant.components.climate.const import (
     SUPPORT_PRESET_MODE,
     SUPPORT_TARGET_TEMPERATURE,
     SUPPORT_TARGET_TEMPERATURE_RANGE,
+    ClimateEntity,
 )
 from homeassistant.const import (
     ATTR_ENTITY_ID,
+    ATTR_SUPPORTED_FEATURES,
     ATTR_TEMPERATURE,
     CONF_NAME,
     CONF_UNIQUE_ID,
@@ -48,18 +51,13 @@ from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-
-from custom_components.dual_smart_thermostat.const import (
+from .const import (
     CONF_AC_MODE,
-    CONF_AWAY_TEMP,
-    CONF_ECO_TEMP,
-    CONF_COMFORT_TEMP,
-    CONF_AT_HOME_TEMP,
-    CONF_ANTI_FREEZE_TEMP,
     CONF_COLD_TOLERANCE,
     CONF_COOLER,
     CONF_FLOOR_SENSOR,
     CONF_HEATER,
+    CONF_HEAT_COOL_MODE,
     CONF_HOT_TOLERANCE,
     CONF_INITIAL_HVAC_MODE,
     CONF_KEEP_ALIVE,
@@ -73,6 +71,7 @@ from custom_components.dual_smart_thermostat.const import (
     CONF_TARGET_TEMP,
     CONF_TARGET_TEMP_HIGH,
     CONF_TARGET_TEMP_LOW,
+    CONF_TEMP_STEP,
     DEFAULT_MAX_FLOOR_TEMP,
     DEFAULT_NAME,
     DEFAULT_TOLERANCE,
@@ -80,8 +79,18 @@ from custom_components.dual_smart_thermostat.const import (
     HVACMode,
     PRESET_ANTI_FREEZE,
 )
-
 from . import DOMAIN, PLATFORMS
+
+CONF_PRESETS = {
+    p: f"{p.replace(' ', '_').lower()}_temp"
+    for p in (
+        PRESET_AWAY,
+        PRESET_COMFORT,
+        PRESET_ECO,
+        PRESET_HOME,
+        PRESET_ANTI_FREEZE,
+    )
+}
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -93,6 +102,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Required(CONF_SENSOR): cv.entity_id,
         vol.Optional(CONF_FLOOR_SENSOR): cv.entity_id,
         vol.Optional(CONF_AC_MODE): cv.boolean,
+        vol.Optional(CONF_HEAT_COOL_MODE): cv.boolean,
         vol.Optional(CONF_MAX_TEMP): vol.Coerce(float),
         vol.Optional(CONF_MIN_DUR): vol.All(cv.time_period, cv.positive_timedelta),
         vol.Optional(CONF_MIN_TEMP): vol.Coerce(float),
@@ -109,18 +119,16 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Optional(CONF_INITIAL_HVAC_MODE): vol.In(
             [HVACMode.COOL, HVACMode.HEAT, HVACMode.OFF, HVACMode.HEAT_COOL]
         ),
-        vol.Optional(CONF_AWAY_TEMP): vol.Coerce(float),
-        vol.Optional(CONF_ECO_TEMP): vol.Coerce(float),
-        vol.Optional(CONF_COMFORT_TEMP): vol.Coerce(float),
-        vol.Optional(CONF_AT_HOME_TEMP): vol.Coerce(float),
-        vol.Optional(CONF_ANTI_FREEZE_TEMP): vol.Coerce(float),
         vol.Optional(CONF_PRECISION): vol.In(
+            [PRECISION_TENTHS, PRECISION_HALVES, PRECISION_WHOLE]
+        ),
+        vol.Optional(CONF_TEMP_STEP): vol.In(
             [PRECISION_TENTHS, PRECISION_HALVES, PRECISION_WHOLE]
         ),
         vol.Optional(CONF_OPENINGS): [cv.entity_id],
         vol.Optional(CONF_UNIQUE_ID): cv.string,
     }
-)
+).extend({vol.Optional(v): vol.Coerce(float) for (k, v) in CONF_PRESETS.items()})
 
 
 async def async_setup_platform(
@@ -146,17 +154,17 @@ async def async_setup_platform(
     target_temp_high = config.get(CONF_TARGET_TEMP_HIGH)
     target_temp_low = config.get(CONF_TARGET_TEMP_LOW)
     ac_mode = config.get(CONF_AC_MODE)
+    heat_cool_mode = config.get(CONF_HEAT_COOL_MODE)
     min_cycle_duration = config.get(CONF_MIN_DUR)
     cold_tolerance = config.get(CONF_COLD_TOLERANCE)
     hot_tolerance = config.get(CONF_HOT_TOLERANCE)
     keep_alive = config.get(CONF_KEEP_ALIVE)
     initial_hvac_mode = config.get(CONF_INITIAL_HVAC_MODE)
-    away_temp = config.get(CONF_AWAY_TEMP)
-    eco_temp = config.get(CONF_ECO_TEMP)
-    comfort_temp = config.get(CONF_COMFORT_TEMP)
-    at_home_temp = config.get(CONF_AT_HOME_TEMP)
-    anti_freeze_temp = config.get(CONF_ANTI_FREEZE_TEMP)
+    presets = {
+        key: config[value] for key, value in CONF_PRESETS.items() if value in config
+    }
     precision = config.get(CONF_PRECISION)
+    target_temperature_step = config.get(CONF_TEMP_STEP)
     unit = hass.config.units.temperature_unit
     unique_id = config.get(CONF_UNIQUE_ID)
 
@@ -176,17 +184,15 @@ async def async_setup_platform(
                 target_temp_high,
                 target_temp_low,
                 ac_mode,
+                heat_cool_mode,
                 min_cycle_duration,
                 cold_tolerance,
                 hot_tolerance,
                 keep_alive,
                 initial_hvac_mode,
-                away_temp,
-                eco_temp,
-                comfort_temp,
-                at_home_temp,
-                anti_freeze_temp,
+                presets,
                 precision,
+                target_temperature_step,
                 unit,
                 unique_id,
             )
@@ -212,17 +218,15 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         target_temp_high,
         target_temp_low,
         ac_mode,
+        heat_cool_mode,
         min_cycle_duration,
         cold_tolerance,
         hot_tolerance,
         keep_alive,
         initial_hvac_mode,
-        away_temp,
-        eco_temp,
-        comfort_temp,
-        at_home_temp,
-        anti_freeze_temp,
+        presets,
         precision,
+        target_temperature_step,
         unit,
         unique_id,
     ):
@@ -234,26 +238,20 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self.sensor_floor_entity_id = sensor_floor_entity_id
         self.opening_entities: List = opening_entities
         self.ac_mode = ac_mode
+        self._heat_cool_mode = heat_cool_mode
         self.min_cycle_duration: timedelta = min_cycle_duration
         self._cold_tolerance = cold_tolerance
         self._hot_tolerance = hot_tolerance
         self._keep_alive = keep_alive
-        self._hvac_mode = initial_hvac_mode
-        self._saved_target_temp = (
-            target_temp
-            or comfort_temp
-            or at_home_temp
-            or away_temp
-            or eco_temp
-            or anti_freeze_temp
-        )
-        self._saved_target_temp_high = target_temp_high
-        self._saved_target_temp_low = target_temp_low
+        self._saved_target_temp = target_temp or next(iter(presets.values()), None)
         self._temp_precision = precision
+        self._temp_target_temperature_step = target_temperature_step
         self._target_temp = target_temp
         self._target_temp_high = target_temp_high
         self._target_temp_low = target_temp_low
         if self.heater_entity_id and self.cooler_entity_id:
+            # if both switch entity are defined ac_mode must be false
+            self.ac_mode = False
             self._hvac_list = [
                 HVACMode.OFF,
                 HVACMode.HEAT,
@@ -265,6 +263,10 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             self._hvac_list = [HVACMode.COOL, HVACMode.OFF]
         else:
             self._hvac_list = [HVACMode.HEAT, HVACMode.OFF]
+        if initial_hvac_mode in self._hvac_list:
+            self._hvac_mode = initial_hvac_mode
+        else:
+            self._hvac_mode = None
         self._active = False
         self._cur_temp = None
         self._cur_floor_temp = None
@@ -275,41 +277,30 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self._unit = unit
         self._unique_id = unique_id
         self._support_flags = SUPPORT_TARGET_TEMPERATURE
-        if away_temp or eco_temp or comfort_temp or at_home_temp or anti_freeze_temp:
+        if len(presets):
             self._support_flags |= SUPPORT_PRESET_MODE
-        self._away_temp = away_temp
-        self._eco_temp = eco_temp
-        self._comfort_temp = comfort_temp
-        self._at_home_temp = at_home_temp
-        self._anti_freeze_temp = anti_freeze_temp
-        self._is_away = False
-        self._is_eco = False
-        self._is_comfort = False
-        self._is_at_home = False
-        self._is_anti_freeze = False
+            self._preset_modes = [PRESET_NONE] + list(presets.keys())
+        else:
+            self._preset_modes = [PRESET_NONE]
+        self._preset_mode = PRESET_NONE
+        self._presets = presets
 
     async def async_added_to_hass(self):
         """Run when entity about to be added."""
         await super().async_added_to_hass()
 
         # Add listener
-        if self.sensor_entity_id:
-            self.async_on_remove(
-                async_track_state_change_event(
-                    self.hass,
-                    [self.sensor_entity_id],
-                    self._async_sensor_changed,
-                )
+        self.async_on_remove(
+            async_track_state_change_event(
+                self.hass, [self.sensor_entity_id], self._async_sensor_changed
             )
+        )
 
-        if self.heater_entity_id:
-            self.async_on_remove(
-                async_track_state_change_event(
-                    self.hass,
-                    [self.heater_entity_id],
-                    self._async_switch_changed,
-                )
+        self.async_on_remove(
+            async_track_state_change_event(
+                self.hass, [self.heater_entity_id], self._async_switch_changed
             )
+        )
 
         if self.cooler_entity_id:
             self.async_on_remove(
@@ -389,28 +380,63 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         # Check If we have an old state
         if (old_state := await self.async_get_last_state()) is not None:
             # If we have no initial temperature, restore
-            if self._target_temp is None:
-                # If we have a previously saved temperature
-                if old_state.attributes.get(ATTR_TEMPERATURE) is None:
-                    if self.ac_mode:
-                        self._target_temp = self.max_temp
+            supp_feat = old_state.attributes.get(ATTR_SUPPORTED_FEATURES)
+            hvac_mode = self._hvac_mode or old_state.state or HVACMode.OFF
+            if (
+                supp_feat & SUPPORT_TARGET_TEMPERATURE_RANGE
+                and self._is_configured_for_heat_cool()
+                and hvac_mode in (HVACMode.HEAT_COOL, HVACMode.OFF)
+            ):
+                self._support_flags = SUPPORT_TARGET_TEMPERATURE_RANGE
+                if self._target_temp_low is None:
+                    old_target_min = old_state.attributes.get(ATTR_TARGET_TEMP_LOW)
+                    if old_target_min is None:
+                        self._target_temp_low = self.min_temp
+                        _LOGGER.warning(
+                            "Undefined target low temperature, falling back to %s",
+                            self._target_temp_low,
+                        )
                     else:
-                        self._target_temp = self.min_temp
-                    _LOGGER.warning(
-                        "Undefined target temperature, falling back to %s",
-                        self._target_temp,
-                    )
-                else:
-                    self._target_temp = float(old_state.attributes[ATTR_TEMPERATURE])
-            # if old_state.attributes.get(ATTR_PRESET_MODE) in self._attr_preset_modes:
-            #     self._attr_preset_mode = old_state.attributes.get(ATTR_PRESET_MODE)
+                        self._target_temp_low = old_target_min
+                if self._target_temp_high is None:
+                    old_target_max = old_state.attributes.get(ATTR_TARGET_TEMP_HIGH)
+                    if old_target_max is None:
+                        self._target_temp_high = self.max_temp
+                        _LOGGER.warning(
+                            "Undefined target high temperature, falling back to %s",
+                            self._target_temp_high,
+                        )
+                    else:
+                        self._target_temp_high = old_target_max
+            else:
+                if hvac_mode not in self.hvac_modes:
+                    hvac_mode = HVACMode.OFF
+                if self._target_temp is None:
+                    # If we have a previously saved temperature
+                    if old_state.attributes.get(ATTR_TEMPERATURE) is None:
+                        if self.ac_mode:
+                            self._target_temp = self.max_temp
+                        else:
+                            self._target_temp = self.min_temp
+                        _LOGGER.warning(
+                            "Undefined target temperature, falling back to %s",
+                            self._target_temp,
+                        )
+                    else:
+                        self._target_temp = float(old_state.attributes[ATTR_TEMPERATURE])
+                        if (
+                            self.preset_modes
+                            and old_state.attributes.get(ATTR_PRESET_MODE)
+                            in self.preset_modes
+                        ):
+                            self._preset_mode = old_state.attributes.get(ATTR_PRESET_MODE)
 
-            if not self._hvac_mode and old_state.state:
-                self._hvac_mode = old_state.state
+            self._hvac_mode = hvac_mode
 
         else:
             # No previous state, try and restore defaults
-            if self._target_temp is None:
+            hvac_mode = self._hvac_mode or HVACMode.OFF
+            if self._target_temp is None and hvac_mode == HVACMode.OFF:
                 if self.ac_mode:
                     self._target_temp = self.max_temp
                 else:
@@ -418,10 +444,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             _LOGGER.warning(
                 "No previously saved temperature, setting to %s", self._target_temp
             )
-
-        # Set default state to off
-        if not self._hvac_mode:
-            self._hvac_mode = HVACMode.OFF
+            self._hvac_mode = hvac_mode
 
         # Set correct support flag
         self._set_support_flags()
@@ -447,6 +470,14 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         if self._temp_precision is not None:
             return self._temp_precision
         return super().precision
+
+    @property
+    def target_temperature_step(self):
+        """Return the supported step of target temperature."""
+        if self._temp_target_temperature_step is not None:
+            return self._temp_target_temperature_step
+        # if a target_temperature_step is not defined, fallback to equal the precision
+        return self.precision
 
     @property
     def temperature_unit(self):
@@ -512,38 +543,20 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
     @property
     def preset_mode(self):
         """Return the current preset mode, e.g., home, away, temp."""
-        if self._is_away:
-            return PRESET_AWAY
-        elif self._is_eco:
-            return PRESET_ECO
-        elif self._is_comfort:
-            return PRESET_COMFORT
-        elif self._is_at_home:
-            return PRESET_HOME
-        elif self._is_anti_freeze:
-            return PRESET_ANTI_FREEZE
-        else:
-            return PRESET_NONE
+        if not self._support_flags & SUPPORT_PRESET_MODE:
+            return None
+        return self._preset_mode
 
     @property
     def preset_modes(self):
         """Return a list of available preset modes or PRESET_NONE."""
-        preset_modes = [PRESET_NONE]
-        if self._anti_freeze_temp:
-            preset_modes.append(PRESET_ANTI_FREEZE)
-        if self._eco_temp:
-            preset_modes.append(PRESET_ECO)
-        if self._away_temp:
-            preset_modes.append(PRESET_AWAY)
-        if self._comfort_temp:
-            preset_modes.append(PRESET_COMFORT)
-        if self._at_home_temp:
-            preset_modes.append(PRESET_HOME)
-        return preset_modes
+        if not self._support_flags & SUPPORT_PRESET_MODE:
+            return None
+        return self._preset_modes
 
     async def async_set_hvac_mode(self, hvac_mode):
         """Call climate mode based on current mode"""
-        _LOGGER.info("Setting hvac mode: %s", hvac_mode)
+        _LOGGER.debug("Setting hvac mode: %s", hvac_mode)
         if hvac_mode == HVACMode.HEAT:
             self._hvac_mode = HVACMode.HEAT
             self._set_support_flags()
@@ -564,6 +577,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                 await self._async_cooler_turn_off()
         else:
             _LOGGER.error("Unrecognized hvac mode: %s", hvac_mode)
+            return
         # Ensure we update the current operation after changing the mode
         self.async_write_ha_state()
 
@@ -573,25 +587,20 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         temp_low = kwargs.get(ATTR_TARGET_TEMP_LOW)
         temp_high = kwargs.get(ATTR_TARGET_TEMP_HIGH)
 
-        if (
-            self._hvac_mode not in (HVACMode.HEAT_COOL, HVACMode.OFF)
-            and temperature is None
-        ):
-            return
-
-        if temperature is not None:
+        if self._support_flags & SUPPORT_TARGET_TEMPERATURE:
+            if temperature is None:
+                return
             self._target_temp = temperature
+            if self._preset_mode != PRESET_NONE:
+                self._preset_mode = PRESET_NONE
 
-        if temp_high is None or temp_low is None:
-            await self._async_control_climate()
-            self.async_write_ha_state()
-            return
+        elif self._support_flags & SUPPORT_TARGET_TEMPERATURE_RANGE:
+            if temp_low is None or temp_high is None:
+                return
+            self._target_temp_low = temp_low
+            self._target_temp_high = temp_high
 
-        self._target_temp = temp_low
-        self._target_temp_high = temp_high
-        self._target_temp_low = temp_low
-
-        await self._async_control_climate()
+        await self._async_control_climate(force=True)
         self.async_write_ha_state()
 
     @property
@@ -668,8 +677,11 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
     def _async_switch_changed(self, event):
         """Handle heater switch state changes."""
         new_state = event.data.get("new_state")
+        old_state = event.data.get("old_state")
         if new_state is None:
             return
+        if old_state is None:
+            self.hass.create_task(self._check_switch_initial_state())
         self.async_write_ha_state()
 
     @callback
@@ -745,17 +757,16 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             _LOGGER.debug("_async_control_cooling")
             self.set_self_active()
 
-            if not self._needs_control(time, force):
+            if not self._needs_control(time, force, self.cooler_entity_id is not None):
                 return
 
             too_cold = self._is_too_cold()
             too_hot = self._is_too_hot()
 
             cooler_entity = self.heater_entity_id
-
-            if not self.ac_mode and self.cooler_entity_id:
+            if self.cooler_entity_id:
                 cooler_entity = self.cooler_entity_id
-                if self._is_heter_active:
+                if self._is_heater_active:
                     await self._async_heater_turn_off()
 
             if self._is_device_active:
@@ -851,10 +862,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         ):
             if self._cur_floor_temp >= self._max_floor_temp:
                 return True
-
-            return False
-        else:
-            return False
+        return False
 
     @property
     def _is_device_active(self):
@@ -865,7 +873,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         )
 
     @property
-    def _is_heter_active(self):
+    def _is_heater_active(self):
         """If the toggleable device is currently active."""
         return self.hass.states.is_state(self.heater_entity_id, STATE_ON)
 
@@ -876,8 +884,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             self.cooler_entity_id, STATE_ON
         ):
             return True
-        else:
-            return False
+        return False
 
     @property
     def supported_features(self):
@@ -930,26 +937,23 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
     async def async_set_preset_mode(self, preset_mode: str):
         """Set new preset mode."""
-        presets_dict = {
-            PRESET_AWAY: ("_is_away", self._away_temp),
-            PRESET_ECO: ("_is_eco", self._eco_temp),
-            PRESET_COMFORT: ("_is_comfort", self._comfort_temp),
-            PRESET_HOME: ("_is_at_home", self._at_home_temp),
-            PRESET_ANTI_FREEZE: ("_is_anti_freeze", self._anti_freeze_temp),
-            PRESET_NONE: ("None", self._saved_target_temp),
-        }
-        if preset_mode != PRESET_NONE:
-            self._saved_target_temp = self._target_temp
-        self._target_temp = presets_dict[preset_mode][1]
-        if not getattr(self, presets_dict[preset_mode][0], False):
-            self._is_away = False
-            self._is_eco = False
-            self._is_comfort = False
-            self._is_at_home = False
-            self._is_anti_freeze = False
-            if presets_dict[preset_mode][0] != "None":
-                setattr(self, presets_dict[preset_mode][0], True)
-            await self._async_control_climate(force=True)
+        if preset_mode not in (self.preset_modes or []):
+            raise ValueError(
+                f"Got unsupported preset_mode {preset_mode}. Must be one of {self.preset_modes}"
+            )
+        if preset_mode == self._preset_mode:
+            # I don't think we need to call async_write_ha_state if we didn't change the state
+            return
+        if preset_mode == PRESET_NONE:
+            self._preset_mode = PRESET_NONE
+            self._target_temp = self._saved_target_temp
+        else:
+            if self._preset_mode == PRESET_NONE:
+                self._saved_target_temp = self._target_temp
+            self._preset_mode = preset_mode
+            self._target_temp = self._presets[preset_mode]
+
+        await self._async_control_climate(force=True)
         self.async_write_ha_state()
 
     def set_self_active(self):
@@ -1005,24 +1009,47 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
     def _is_configured_for_heat_cool(self) -> bool:
         """checks if the configuration is complete for heat/cool mode"""
-        return None not in (
-            self._target_temp_high,
-            self._target_temp_low,
+        return self._heat_cool_mode or (
+            self._target_temp_high is not None and self._target_temp_low is not None
         )
 
     def _set_support_flags(self) -> None:
         """set the correct support flags based on configuration"""
-        self._support_flags = (
-            SUPPORT_PRESET_MODE if self._support_flags >= SUPPORT_PRESET_MODE else 0
-        )
-
         if not self._is_configured_for_heat_cool() or self._hvac_mode in (
             HVACMode.COOL,
             HVACMode.HEAT,
         ):
-            self._support_flags |= SUPPORT_TARGET_TEMPERATURE
+            self._support_flags = SUPPORT_TARGET_TEMPERATURE
+            # preset are only supported in single mode
+            if len(self._presets):
+                self._support_flags |= SUPPORT_PRESET_MODE
+            if self._target_temp is None:
+                if self._hvac_mode == HVACMode.COOL:
+                    if self._target_temp_high is None:
+                        self._target_temp = self.max_temp
+                    else:
+                        self._target_temp = self._target_temp_high
+                elif self._hvac_mode == HVACMode.HEAT:
+                    if self._target_temp_low is None:
+                        self._target_temp = self.min_temp
+                    else:
+                        self._target_temp = self._target_temp_low
         else:
-            self._support_flags |= SUPPORT_TARGET_TEMPERATURE_RANGE
+            self._support_flags = SUPPORT_TARGET_TEMPERATURE_RANGE
+            if self._preset_mode != PRESET_NONE:
+                self._preset_mode = PRESET_NONE
+                self._target_temp = self._saved_target_temp
+            if self._target_temp_low is None or self._target_temp_high is None:
+                if self._target_temp is None:
+                    self._target_temp_low = self.min_temp
+                    self._target_temp_high = self.max_temp
+                else:
+                    self._target_temp_low = (
+                        self._target_temp - self.target_temperature_step
+                    )
+                    self._target_temp_high = (
+                        self._target_temp + self.target_temperature_step
+                    )
 
     def _ran_long_enough(self, entity_id=None):
         """determines if a switch with the passed property name has run long enough"""
