@@ -7,11 +7,11 @@ from typing import List
 
 import voluptuous as vol
 
-from homeassistant.components.climate import (
+from homeassistant.components.climate import PLATFORM_SCHEMA, ClimateEntity
+from homeassistant.components.climate.const import (
     ATTR_PRESET_MODE,
     ATTR_TARGET_TEMP_HIGH,
     ATTR_TARGET_TEMP_LOW,
-    PLATFORM_SCHEMA,
     PRESET_AWAY,
     PRESET_ECO,
     PRESET_COMFORT,
@@ -20,7 +20,6 @@ from homeassistant.components.climate import (
     SUPPORT_PRESET_MODE,
     SUPPORT_TARGET_TEMPERATURE,
     SUPPORT_TARGET_TEMPERATURE_RANGE,
-    ClimateEntity,
 )
 from homeassistant.const import (
     ATTR_ENTITY_ID,
@@ -424,12 +423,9 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                         )
                     else:
                         self._target_temp = float(old_state.attributes[ATTR_TEMPERATURE])
-                        if (
-                            self.preset_modes
-                            and old_state.attributes.get(ATTR_PRESET_MODE)
-                            in self.preset_modes
-                        ):
-                            self._preset_mode = old_state.attributes.get(ATTR_PRESET_MODE)
+                        old_pres_mode = old_state.attributes.get(ATTR_PRESET_MODE)
+                        if self.preset_modes and old_pres_mode in self.preset_modes:
+                            self._preset_mode = old_pres_mode
 
             self._hvac_mode = hvac_mode
 
