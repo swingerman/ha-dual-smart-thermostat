@@ -226,6 +226,7 @@ async def test_heater_cooler_mode(hass, setup_comp_1):
                 "name": "test",
                 "cooler": cooler_switch,
                 "heater": heater_switch,
+                "heat_cool_mode": True,
                 "target_sensor": temp_input,
                 "initial_hvac_mode": HVACMode.HEAT_COOL,
             }
