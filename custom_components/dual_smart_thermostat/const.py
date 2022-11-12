@@ -1,5 +1,4 @@
 """const"""
-from homeassistant.components.climate import SUPPORT_TARGET_TEMPERATURE
 from homeassistant.backports.enum import StrEnum
 
 
@@ -28,7 +27,6 @@ CONF_TEMP_STEP = "target_temp_step"
 CONF_OPENINGS = "openings"
 CONF_HEAT_COOL_MODE = "heat_cool_mode"
 PRESET_ANTI_FREEZE = "Anti Freeze"
-SUPPORT_FLAGS = SUPPORT_TARGET_TEMPERATURE
 
 
 class HVACMode(StrEnum):
