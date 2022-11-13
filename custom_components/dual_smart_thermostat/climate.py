@@ -412,6 +412,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                     hvac_mode = HVACMode.OFF
                 self._set_default_target_temps()
 
+                # restore previous preset mode if available
                 old_pres_mode = old_state.attributes.get(ATTR_PRESET_MODE)
                 if self.preset_modes and old_pres_mode in self._presets:
                     self._preset_mode = old_pres_mode
@@ -424,6 +425,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             # No previous state, try and restore defaults
             if not self._hvac_mode:
                 self._hvac_mode = HVACMode.OFF
+            if self._hvac_mode == HVACMode.OFF:
                 self._set_default_target_temps()
 
         # Set correct support flag
