@@ -85,15 +85,15 @@ _default: Dual Smart_
 
 ### target_temp_low
 
-  _(optional) (float)_ Set initial target low temperature. If this variable is not set, it will retain the target temperature low set before restart if available.
+  _(optional) (float)_ Set initial target low temperature. If this variable is not set, it will retain the target low temperature set before restart if available.
 
 ### target_temp_high
 
-  _(optional) (float)_ Set initial target high temperature. If this variable is not set, it will retain the target temperature high set before restart if available.
+  _(optional) (float)_ Set initial target high temperature. If this variable is not set, it will retain the target high temperature set before restart if available.
 
 ### ac_mode
 
-  _(optional) (boolean)_ Set the switch specified in the `heater` option to be treated as a cooling device instead of a heating device. This parameter will be ignored if `cooler` option is defined.
+  _(optional) (boolean)_ Set the switch specified in the `heater` option to be treated as a cooling device instead of a heating device. This parameter will be ignored if `cooler` entity is defined.
 
   _default: false_
 
@@ -129,25 +129,55 @@ _default: Dual Smart_
 
   **NOTE! If this is set, the saved state will not be restored after HA retstarts.**
 
-### away_temp
+### away
 
-  _(optional) (float)_ "Set the temperature used by `preset_mode: away`. If this is not specified, the preset mode feature will not be available. N.B. Presets are not available for `heat_cool` mode."
+  _(optional) (list)_ Set the temperatures used by `preset_mode: away`. If this is not specified, the preset mode feature will not be available.
+  
+  Possible values are:
 
-### eco_temp
+  `temperature: <value>` The preset temperature to use in `heat` or `cool` mode (float)</br>
+  `target_temp_low: <value>` The preset low temperature to use in `heat_cool` mode (float)</br>
+  `target_temp_high: <value>` The preset high temperature to use in `heat_cool` mode (float)</br>
 
-  _(optional) (float)_ "Set the temperature used by `preset_mode: eco`. If this is not specified, the preset mode feature will not be available. N.B. Presets are not available for `heat_cool` mode."
+### eco
 
-### home_temp
+  _(optional) (list)_ Set the temperature used by `preset_mode: eco`. If this is not specified, the preset mode feature will not be available.
 
-  _(optional) (float)_ "Set the temperature used by `preset_mode: home`. If this is not specified, the preset mode feature will not be available. N.B. Presets are not available for `heat_cool` mode."
+  Possible values are:
 
-### comfort_temp
+  `temperature: <value>` The preset temperature to use in `heat` or `cool` mode (float)</br>
+  `target_temp_low: <value>` The preset low temperature to use in `heat_cool` mode (float)</br>
+  `target_temp_high: <value>` The preset high temperature to use in `heat_cool` mode (float)</br>
 
-  _(optional) (float)_ "Set the temperature used by `preset_mode: comfort`. If this is not specified, the preset mode feature will not be available. N.B. Presets are not available for `heat_cool` mode."
+### home
 
-### anti_freeze_temp
+  _(optional) (list)_ Set the temperature used by `preset_mode: home`. If this is not specified, the preset mode feature will not be available.
 
-  _(optional) (float)_ "Set the temperature used by `preset_mode: anti freeze`. If this is not specified, the preset mode feature will not be available. N.B. Presets are not available for `heat_cool` mode."
+  Possible values are:
+
+  `temperature: <value>` The preset temperature to use in `heat` or `cool` mode (float)</br>
+  `target_temp_low: <value>` The preset low temperature to use in `heat_cool` mode (float)</br>
+  `target_temp_high: <value>` The preset high temperature to use in `heat_cool` mode (float)</br>
+
+### comfort
+
+  _(optional) (list)_ Set the temperature used by `preset_mode: comfort`. If this is not specified, the preset mode feature will not be available.
+
+  Possible values are:
+
+  `temperature: <value>` The preset temperature to use in `heat` or `cool` mode (float)</br>
+  `target_temp_low: <value>` The preset low temperature to use in `heat_cool` mode (float)</br>
+  `target_temp_high: <value>` The preset high temperature to use in `heat_cool` mode (float)</br>
+
+### anti_freeze
+
+  _(optional) (list)_ Set the temperature used by `preset_mode: Anti Freeze`. If this is not specified, the preset mode feature will not be available.
+
+  Possible values are:
+
+  `temperature: <value>` The preset temperature to use in `heat` or `cool` mode (float)</br>
+  `target_temp_low: <value>` The preset low temperature to use in `heat_cool` mode (float)</br>
+  `target_temp_high: <value>` The preset high temperature to use in `heat_cool` mode (float)</br>
 
 ### precision
 
@@ -179,8 +209,8 @@ climate:
     openings:
       - sensor.window1
       - sensor.window2
-    min_temp: 15
-    max_temp: 21
+    min_temp: 10
+    max_temp: 28
     ac_mode: false
     target_temp: 17
     target_temp_high: 26
@@ -191,9 +221,15 @@ climate:
       seconds: 5
     keep_alive:
       minutes: 3
-    initial_hvac_mode: "off" # hvac mode vill reset to this value after restart
-    away_temp: 16
+    initial_hvac_mode: "off" # hvac mode will reset to this value after restart
+    away: # this preset will be available for all hvac modes
+      temperature: 13
+      target_temp_low: 12
+      target_temp_high: 14
+    home: # this preset will be available only for heat or cool hvac mode
+      temperature: 21
     precision: 0.1
+    target_temp_step: 0.5
 ```
 
 ### Donate
