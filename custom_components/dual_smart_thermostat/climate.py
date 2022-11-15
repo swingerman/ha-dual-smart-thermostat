@@ -190,9 +190,18 @@ async def async_setup_platform(
         and ATTR_TARGET_TEMP_HIGH in values
         and values[ATTR_TARGET_TEMP_LOW] < values[ATTR_TARGET_TEMP_HIGH]
     }
-    # Try to load presets in old format if new format not available in config
-    if not presets_dict:
-        presets = {k: config[v] for k, v in CONF_PRESETS_OLD.items() if v in config}
+
+    # Try to load presets in old format and use if new format not available in config
+    old_presets = {k: config[v] for k, v in CONF_PRESETS_OLD.items() if v in config}
+    if old_presets:
+        _LOGGER.warning(
+            "Found deprecated presets settings in configuration. "
+            "Please remove and replace with new presets settings format. "
+            "Read documentation in integration repository for more details"
+        )
+        if not presets_dict:
+            presets = old_presets
+
     precision = config.get(CONF_PRECISION)
     target_temperature_step = config.get(CONF_TEMP_STEP)
     unit = hass.config.units.temperature_unit
