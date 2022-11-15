@@ -94,6 +94,7 @@ CONF_PRESETS = {
         PRESET_ANTI_FREEZE,
     )
 }
+CONF_PRESETS_OLD = {k: f"{v}_temp" for k, v in CONF_PRESETS.items()}
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -138,6 +139,11 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Optional(CONF_UNIQUE_ID): cv.string,
     }
 ).extend({vol.Optional(v): PRESET_SCHEMA for (k, v) in CONF_PRESETS.items()})
+
+# Add the old presets schema to avoid breaking change
+PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
+    {vol.Optional(v): vol.Coerce(float) for (k, v) in CONF_PRESETS_OLD.items()}
+)
 
 
 async def async_setup_platform(
@@ -184,6 +190,9 @@ async def async_setup_platform(
         and ATTR_TARGET_TEMP_HIGH in values
         and values[ATTR_TARGET_TEMP_LOW] < values[ATTR_TARGET_TEMP_HIGH]
     }
+    # Try to load presets in old format if new format not available in config
+    if not presets_dict:
+        presets = {k: config[v] for k, v in CONF_PRESETS_OLD.items() if v in config}
     precision = config.get(CONF_PRECISION)
     target_temperature_step = config.get(CONF_TEMP_STEP)
     unit = hass.config.units.temperature_unit
