@@ -784,7 +784,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             if self.cooler_entity_id and self._is_cooler_active:
                 await self._async_cooler_turn_off()
 
-            if self._is_device_active:
+            if self._is_heater_active:
                 if too_hot or self._is_floor_hot or self._is_opening_open:
                     _LOGGER.info("Turning off heater %s", self.heater_entity_id)
                     await self._async_heater_turn_off()
@@ -818,7 +818,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             _LOGGER.debug("_async_control_cooling")
             self.set_self_active()
 
-            if not self._needs_control(time, force, self.cooler_entity_id is not None):
+            if not self._needs_control(time, force, cool=True):
                 return
 
             too_cold = self._is_too_cold()
@@ -829,8 +829,11 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                 cooler_entity = self.cooler_entity_id
                 if self._is_heater_active:
                     await self._async_heater_turn_off()
+                is_device_active = self._is_cooler_active
+            else:
+                is_device_active = self._is_heater_active
 
-            if self._is_device_active:
+            if is_device_active:
                 if too_cold or self._is_opening_open:
                     _LOGGER.info("Turning off cooler %s", cooler_entity)
                     await self._async_switch_turn_off(cooler_entity)
@@ -860,7 +863,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                 and self._cur_temp is not None
             ):
                 self._active = True
-            if not self._needs_control(time, force, True):
+            if not self._needs_control(time, force, dual=True):
                 return
 
             too_cold = self._is_too_cold("_target_temp_low")
@@ -1043,7 +1046,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                 self._target_temp,
             )
 
-    def _needs_control(self, time=None, force=False, dual=False):
+    def _needs_control(self, time=None, force=False, *, dual=False, cool=False):
         """checks if the controller needs to continue"""
         if not self._active or self._hvac_mode == HVACMode.OFF:
             return False
@@ -1054,20 +1057,16 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             # If the `time` argument is not none, we were invoked for
             # keep-alive purposes, and `min_cycle_duration` is irrelevant.
             if self.min_cycle_duration:
-                return self._needs_cycle(dual)
+                return self._needs_cycle(dual, cool)
         return True
 
-    def _needs_cycle(self, dual=False):
-        long_enough = self._ran_long_enough()
-        if not dual and not long_enough:
-            return False
+    def _needs_cycle(self, dual=False, cool=False):
+        long_enough = self._ran_long_enough(cool)
+        if not dual or cool or self.cooler_entity_id is None:
+            return long_enough
 
-        if self.cooler_entity_id is not None:
-            long_enough_cooler = self._ran_long_enough(self.cooler_entity_id)
-            if True not in (long_enough, long_enough_cooler):
-                return False
-
-        return True
+        long_enough_cooler = self._ran_long_enough(True)
+        return long_enough and long_enough_cooler
 
     def _is_too_cold(self, target_attr="_target_temp") -> bool:
         """checks if the current temperature is below target"""
@@ -1165,14 +1164,16 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                 self._support_flags |= SUPPORT_PRESET_MODE
         self._set_default_target_temps()
 
-    def _ran_long_enough(self, entity_id=None):
+    def _ran_long_enough(self, cooler_entity=False):
         """determines if a switch with the passed property name has run long enough"""
-        if entity_id is None:
-            switch_entity_id = self.heater_entity_id
+        if cooler_entity and self.cooler_entity_id is not None:
+            switch_entity_id = self.cooler_entity_id
+            is_active = self._is_cooler_active
         else:
-            switch_entity_id = entity_id
+            switch_entity_id = self.heater_entity_id
+            is_active = self._is_heater_active
 
-        if self._is_device_active:
+        if is_active:
             current_state = STATE_ON
         else:
             current_state = HVACMode.OFF
