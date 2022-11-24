@@ -1,12 +1,11 @@
 """The tests for the dual_smart_thermostat."""
-from datetime import datetime, timezone, date
+from datetime import timedelta
 import logging
+from typing import Final
+from unittest.mock import patch
 
 import pytest
 
-from typing import Final
-
-from homeassistant.core import HomeAssistant
 from homeassistant.components import input_boolean, input_number
 from homeassistant.util import dt
 from homeassistant.components.climate.const import (
@@ -20,27 +19,11 @@ from homeassistant.const import (
     STATE_OFF,
     STATE_ON,
 )
-import homeassistant.core as ha
-from homeassistant.core import DOMAIN as HASS_DOMAIN, CoreState, State, callback
+from homeassistant.core import DOMAIN as HASS_DOMAIN
 from homeassistant.setup import async_setup_component
 from homeassistant.util.unit_system import METRIC_SYSTEM
 
-from pytest_homeassistant_custom_component.common import (
-    AsyncMock,
-    Mock,
-    MockConfigEntry,
-)
-
-from homeassistant.components.sensor import (
-    SensorDeviceClass,
-    SensorEntity,
-    SensorEntityDescription,
-)
-
 from custom_components.dual_smart_thermostat.const import *
-
-from homeassistant.setup import async_setup_component
-
 from custom_components.dual_smart_thermostat import (
     DOMAIN as DUAL_SMART_THERMOSTAT,
 )
@@ -147,9 +130,71 @@ async def test_heater_mode(hass, setup_comp_1):
 
     _setup_sensor(hass, temp_input, 18)
     await hass.async_block_till_done()
-    await async_set_temperature(hass, 23)
 
+    await async_set_temperature(hass, 23)
     assert hass.states.get(heater_switch).state == STATE_ON
+
+    _setup_sensor(hass, temp_input, 24)
+    await hass.async_block_till_done()
+    assert hass.states.get(heater_switch).state == STATE_OFF
+
+
+@pytest.mark.parametrize(
+    ["duration", "result_state"],
+    [
+        (timedelta(seconds=10), STATE_ON),
+        (timedelta(seconds=30), STATE_OFF),
+    ],
+)
+async def test_heater_mode_cycle(hass, duration, result_state, setup_comp_1):
+    """Test thermostat heater switch in heating mode with min_cycle_duration."""
+    heater_switch = "input_boolean.test"
+    assert await async_setup_component(
+        hass, input_boolean.DOMAIN, {"input_boolean": {"test": None}}
+    )
+
+    temp_input = "input_number.temp"
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {"name": "test", "initial": 10, "min": 0, "max": 40, "step": 1}
+            }
+        },
+    )
+
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DUAL_SMART_THERMOSTAT,
+                "name": "test",
+                "heater": heater_switch,
+                "target_sensor": temp_input,
+                "initial_hvac_mode": HVACMode.HEAT,
+                "min_cycle_duration": timedelta(seconds=15),
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    assert hass.states.get(heater_switch).state == STATE_OFF
+
+    _setup_sensor(hass, temp_input, 18)
+    await hass.async_block_till_done()
+
+    fake_changed = dt.utcnow() - duration
+    with patch(
+        "homeassistant.helpers.condition.dt_util.utcnow", return_value=fake_changed
+    ):
+        await async_set_temperature(hass, 23)
+        assert hass.states.get(heater_switch).state == STATE_ON
+
+    _setup_sensor(hass, temp_input, 24)
+    await hass.async_block_till_done()
+    assert hass.states.get(heater_switch).state == result_state
 
 
 async def test_cooler_mode(hass, setup_comp_1):
@@ -190,9 +235,190 @@ async def test_cooler_mode(hass, setup_comp_1):
 
     _setup_sensor(hass, temp_input, 23)
     await hass.async_block_till_done()
-    await async_set_temperature(hass, 18)
 
+    await async_set_temperature(hass, 18)
     assert hass.states.get(cooler_switch).state == STATE_ON
+
+    _setup_sensor(hass, temp_input, 17)
+    await hass.async_block_till_done()
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+
+
+@pytest.mark.parametrize(
+    ["duration", "result_state"],
+    [
+        (timedelta(seconds=10), STATE_ON),
+        (timedelta(seconds=30), STATE_OFF),
+    ],
+)
+async def test_cooler_mode_cycle(hass, duration, result_state, setup_comp_1):
+    """Test thermostat cooler switch in cooling mode with cycle duration."""
+    cooler_switch = "input_boolean.test"
+    assert await async_setup_component(
+        hass, input_boolean.DOMAIN, {"input_boolean": {"test": None}}
+    )
+
+    temp_input = "input_number.temp"
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {"name": "test", "initial": 10, "min": 0, "max": 40, "step": 1}
+            }
+        },
+    )
+
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DUAL_SMART_THERMOSTAT,
+                "name": "test",
+                "heater": cooler_switch,
+                "ac_mode": "true",
+                "target_sensor": temp_input,
+                "initial_hvac_mode": HVACMode.COOL,
+                "min_cycle_duration": timedelta(seconds=15),
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+
+    _setup_sensor(hass, temp_input, 23)
+    await hass.async_block_till_done()
+
+    fake_changed = dt.utcnow() - duration
+    with patch(
+        "homeassistant.helpers.condition.dt_util.utcnow", return_value=fake_changed
+    ):
+        await async_set_temperature(hass, 18)
+        assert hass.states.get(cooler_switch).state == STATE_ON
+
+    _setup_sensor(hass, temp_input, 17)
+    await hass.async_block_till_done()
+    assert hass.states.get(cooler_switch).state == result_state
+
+
+async def test_cooler_mode2(hass, setup_comp_1):
+    """Test thermostat cooler switch in cooling mode."""
+    heater_switch = "input_boolean.heater"
+    cooler_switch = "input_boolean.cooler"
+    assert await async_setup_component(
+        hass,
+        input_boolean.DOMAIN,
+        {"input_boolean": {"heater": None, "cooler": None}},
+    )
+
+    temp_input = "input_number.temp"
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {"name": "test", "initial": 10, "min": 0, "max": 40, "step": 1}
+            }
+        },
+    )
+
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DUAL_SMART_THERMOSTAT,
+                "name": "test",
+                "heater": heater_switch,
+                "cooler": cooler_switch,
+                "target_sensor": temp_input,
+                "initial_hvac_mode": HVACMode.COOL,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+
+    _setup_sensor(hass, temp_input, 23)
+    await hass.async_block_till_done()
+
+    await async_set_temperature(hass, 18)
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(cooler_switch).state == STATE_ON
+
+    _setup_sensor(hass, temp_input, 17)
+    await hass.async_block_till_done()
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+
+
+@pytest.mark.parametrize(
+    ["duration", "result_state"],
+    [
+        (timedelta(seconds=10), STATE_ON),
+        (timedelta(seconds=30), STATE_OFF),
+    ],
+)
+async def test_cooler_mode2_cycle(hass, duration, result_state, setup_comp_1):
+    """Test thermostat cooler switch in cooling mode with cycle duration."""
+    heater_switch = "input_boolean.heater"
+    cooler_switch = "input_boolean.cooler"
+    assert await async_setup_component(
+        hass,
+        input_boolean.DOMAIN,
+        {"input_boolean": {"heater": None, "cooler": None}},
+    )
+
+    temp_input = "input_number.temp"
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {"name": "test", "initial": 10, "min": 0, "max": 40, "step": 1}
+            }
+        },
+    )
+
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DUAL_SMART_THERMOSTAT,
+                "name": "test",
+                "heater": heater_switch,
+                "cooler": cooler_switch,
+                "target_sensor": temp_input,
+                "initial_hvac_mode": HVACMode.COOL,
+                "min_cycle_duration": timedelta(seconds=15),
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+
+    _setup_sensor(hass, temp_input, 23)
+    await hass.async_block_till_done()
+
+    fake_changed = dt.utcnow() - duration
+    with patch(
+        "homeassistant.helpers.condition.dt_util.utcnow", return_value=fake_changed
+    ):
+        await async_set_temperature(hass, 18)
+        assert hass.states.get(heater_switch).state == STATE_OFF
+        assert hass.states.get(cooler_switch).state == STATE_ON
+
+    _setup_sensor(hass, temp_input, 17)
+    await hass.async_block_till_done()
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(cooler_switch).state == result_state
 
 
 async def test_heater_cooler_mode(hass, setup_comp_1):
@@ -239,24 +465,166 @@ async def test_heater_cooler_mode(hass, setup_comp_1):
 
     _setup_sensor(hass, temp_input, 26)
     await hass.async_block_till_done()
-    await async_set_temperature(hass, 18, "all", 25, 22)
 
+    await async_set_temperature(hass, 18, "all", 25, 22)
     assert hass.states.get(heater_switch).state == STATE_OFF
     assert hass.states.get(cooler_switch).state == STATE_ON
 
     _setup_sensor(hass, temp_input, 24)
     await hass.async_block_till_done()
-    await async_set_temperature(hass, 18, "all", 25, 22)
-
     assert hass.states.get(heater_switch).state == STATE_OFF
     assert hass.states.get(cooler_switch).state == STATE_OFF
 
     _setup_sensor(hass, temp_input, 18)
     await hass.async_block_till_done()
-    await async_set_temperature(hass, 18, "all", 25, 22)
-
     assert hass.states.get(heater_switch).state == STATE_ON
     assert hass.states.get(cooler_switch).state == STATE_OFF
+
+
+@pytest.mark.parametrize(
+    ["duration", "result_state"],
+    [
+        (timedelta(seconds=10), STATE_ON),
+        (timedelta(seconds=30), STATE_OFF),
+    ],
+)
+async def test_heater_cooler_mode_cycle_heat(
+    hass, duration, result_state, setup_comp_1
+):
+    """Test thermostat heater and cooler switch in heat mode with min_cycle_duration."""
+
+    heater_switch = "input_boolean.heater"
+    cooler_switch = "input_boolean.cooler"
+    fake_changed = dt.utcnow() - duration
+    with patch(
+        "homeassistant.helpers.condition.dt_util.utcnow", return_value=fake_changed
+    ):
+        assert await async_setup_component(
+            hass,
+            input_boolean.DOMAIN,
+            {"input_boolean": {"heater": None, "cooler": None}},
+        )
+
+    temp_input = "input_number.temp"
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {"name": "test", "initial": 10, "min": 0, "max": 40, "step": 1}
+            }
+        },
+    )
+
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DUAL_SMART_THERMOSTAT,
+                "name": "test",
+                "cooler": cooler_switch,
+                "heater": heater_switch,
+                "heat_cool_mode": True,
+                "target_sensor": temp_input,
+                "initial_hvac_mode": HVACMode.HEAT_COOL,
+                "min_cycle_duration": timedelta(seconds=15),
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+
+    _setup_sensor(hass, temp_input, 20)
+    await hass.async_block_till_done()
+
+    fake_changed = dt.utcnow() - duration
+    with patch(
+        "homeassistant.helpers.condition.dt_util.utcnow", return_value=fake_changed
+    ):
+        await async_set_temperature(hass, None, "all", 25, 22)
+        assert hass.states.get(heater_switch).state == STATE_ON
+        assert hass.states.get(cooler_switch).state == STATE_OFF
+
+    _setup_sensor(hass, temp_input, 24)
+    await hass.async_block_till_done()
+    assert hass.states.get(heater_switch).state == result_state
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+
+
+@pytest.mark.parametrize(
+    ["duration", "result_state"],
+    [
+        (timedelta(seconds=10), STATE_ON),
+        (timedelta(seconds=30), STATE_OFF),
+    ],
+)
+async def test_heater_cooler_mode_cycle_cool(
+    hass, duration, result_state, setup_comp_1
+):
+    """Test thermostat heater and cooler switch in cool mode with min_cycle_duration."""
+
+    heater_switch = "input_boolean.heater"
+    cooler_switch = "input_boolean.cooler"
+    fake_changed = dt.utcnow() - duration
+    with patch(
+        "homeassistant.helpers.condition.dt_util.utcnow", return_value=fake_changed
+    ):
+        assert await async_setup_component(
+            hass,
+            input_boolean.DOMAIN,
+            {"input_boolean": {"heater": None, "cooler": None}},
+        )
+
+    temp_input = "input_number.temp"
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {"name": "test", "initial": 10, "min": 0, "max": 40, "step": 1}
+            }
+        },
+    )
+
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DUAL_SMART_THERMOSTAT,
+                "name": "test",
+                "cooler": cooler_switch,
+                "heater": heater_switch,
+                "heat_cool_mode": True,
+                "target_sensor": temp_input,
+                "initial_hvac_mode": HVACMode.HEAT_COOL,
+                "min_cycle_duration": timedelta(seconds=15),
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+
+    _setup_sensor(hass, temp_input, 26)
+    await hass.async_block_till_done()
+
+    fake_changed = dt.utcnow() - duration
+    with patch(
+        "homeassistant.helpers.condition.dt_util.utcnow", return_value=fake_changed
+    ):
+        await async_set_temperature(hass, None, "all", 25, 22)
+        assert hass.states.get(heater_switch).state == STATE_OFF
+        assert hass.states.get(cooler_switch).state == STATE_ON
+
+    _setup_sensor(hass, temp_input, 24)
+    await hass.async_block_till_done()
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(cooler_switch).state == result_state
 
 
 async def test_heater_cooler_switch_hvac_modes(hass, setup_comp_1):
