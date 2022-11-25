@@ -38,7 +38,7 @@ from homeassistant.const import (
     STATE_UNAVAILABLE,
     STATE_UNKNOWN,
 )
-from homeassistant.core import DOMAIN as HA_DOMAIN, callback, HomeAssistant
+from homeassistant.core import DOMAIN as HA_DOMAIN, CoreState, callback, HomeAssistant
 from homeassistant.helpers import condition
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.event import (
@@ -423,7 +423,10 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                 ):
                     self.hass.create_task(self._check_switch_initial_state())
 
-        self.hass.bus.async_listen_once(EVENT_HOMEASSISTANT_START, _async_startup)
+        if self.hass.state == CoreState.running:
+            _async_startup()
+        else:
+            self.hass.bus.async_listen_once(EVENT_HOMEASSISTANT_START, _async_startup)
 
         # Check If we have an old state
         if (old_state := await self.async_get_last_state()) is not None:
