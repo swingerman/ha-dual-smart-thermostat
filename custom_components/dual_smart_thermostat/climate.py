@@ -156,10 +156,15 @@ async def async_setup_platform(
 
     await async_setup_reload_service(hass, DOMAIN, PLATFORMS)
 
-    name = config.get(CONF_NAME)
-    heater_entity_id = config.get(CONF_HEATER)
-    cooler_entity_id = config.get(CONF_COOLER)
-    sensor_entity_id = config.get(CONF_SENSOR)
+    name = config[CONF_NAME]
+    heater_entity_id = config[CONF_HEATER]
+    sensor_entity_id = config[CONF_SENSOR]
+    if cooler_entity_id := config.get(CONF_COOLER):
+        if cooler_entity_id == heater_entity_id:
+            _LOGGER.warning(
+                "'cooler' entity cannot be equal to 'heater' entity. 'cooler' entity will be ignored"
+            )
+            cooler_entity_id = None
     sensor_floor_entity_id = config.get(CONF_FLOOR_SENSOR)
     opening_entities = config.get(CONF_OPENINGS)
     min_temp = config.get(CONF_MIN_TEMP)
