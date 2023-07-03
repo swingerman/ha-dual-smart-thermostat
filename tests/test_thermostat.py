@@ -454,11 +454,17 @@ async def test_heater_cooler_mode(hass, setup_comp_1):
                 "heater": heater_switch,
                 "heat_cool_mode": True,
                 "target_sensor": temp_input,
-                "initial_hvac_mode": HVACMode.HEAT_COOL,
             }
         },
     )
     await hass.async_block_till_done()
+
+    # check if all hvac modes are available
+    hvac_modes = hass.states.get("climate.test").attributes.get(ATTR_HVAC_MODES)
+    assert HVACMode.HEAT in hvac_modes
+    assert HVACMode.COOL in hvac_modes
+    assert HVACMode.HEAT_COOL in hvac_modes
+    assert HVACMode.OFF in hvac_modes
 
     assert hass.states.get(heater_switch).state == STATE_OFF
     assert hass.states.get(cooler_switch).state == STATE_OFF
@@ -466,6 +472,7 @@ async def test_heater_cooler_mode(hass, setup_comp_1):
     _setup_sensor(hass, temp_input, 26)
     await hass.async_block_till_done()
 
+    await async_set_hvac_mode(hass, "all", HVACMode.HEAT_COOL)
     await async_set_temperature(hass, 18, "all", 25, 22)
     assert hass.states.get(heater_switch).state == STATE_OFF
     assert hass.states.get(cooler_switch).state == STATE_ON
