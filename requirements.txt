@@ -23,4 +23,4 @@ voluptuous-serialize==2.5.0
 yarl==1.7.2
 pre-commit
 isort
-black
+black==22.1.0
