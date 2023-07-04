@@ -790,8 +790,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             too_cold = self._is_too_cold()
             too_hot = self._is_too_hot()
 
-            if self.cooler_entity_id and self._is_cooler_active:
-                await self._async_cooler_turn_off()
+            await self._async_cooler_turn_off()
 
             if self._is_heater_active:
                 if too_hot or self._is_floor_hot or self._is_opening_open:
@@ -833,34 +832,41 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             too_cold = self._is_too_cold()
             too_hot = self._is_too_hot()
 
-            cooler_entity = self.heater_entity_id
-            if self.cooler_entity_id:
-                cooler_entity = self.cooler_entity_id
-                if self._is_heater_active:
-                    await self._async_heater_turn_off()
-                is_device_active = self._is_cooler_active
-            else:
-                is_device_active = self._is_heater_active
+            cooler_set = self.cooler_entity_id is not None
+            control_entity = (
+                self.cooler_entity_id if cooler_set else self.heater_entity_id
+            )
+            is_device_active = (
+                self._is_cooler_active if cooler_set else self._is_heater_active
+            )
+            control_off = (
+                self._async_cooler_turn_off
+                if cooler_set
+                else self._async_heater_turn_off
+            )
+            control_on = (
+                self._async_cooler_turn_on if cooler_set else self._async_heater_turn_on
+            )
 
             if is_device_active:
                 if too_cold or self._is_opening_open:
-                    _LOGGER.info("Turning off cooler %s", cooler_entity)
-                    await self._async_switch_turn_off(cooler_entity)
+                    _LOGGER.info("Turning off cooler %s", control_entity)
+                    await control_off()
                 elif time is not None and not self._is_opening_open:
                     # The time argument is passed only in keep-alive case
                     _LOGGER.info(
                         "Keep-alive - Turning on cooler (from active) %s",
-                        cooler_entity,
+                        control_entity,
                     )
-                    await self._async_switch_turn_on(cooler_entity)
+                    await control_on()
             else:
                 if too_hot and not self._is_opening_open:
-                    _LOGGER.info("Turning on cooler (from inactive) %s", cooler_entity)
-                    await self._async_switch_turn_on(cooler_entity)
-                elif time is not None or self._is_opening_open or self._is_floor_hot:
+                    _LOGGER.info("Turning on cooler (from inactive) %s", control_entity)
+                    await control_on()
+                elif time is not None or self._is_opening_open:
                     # The time argument is passed only in keep-alive case
-                    _LOGGER.info("Keep-alive - Turning off cooler %s", cooler_entity)
-                    await self._async_switch_turn_off(cooler_entity)
+                    _LOGGER.info("Keep-alive - Turning off cooler %s", control_entity)
+                    await control_off()
 
     async def _async_control_heat_cool(self, time=None, force=False):
         """Check if we need to turn heating on or off."""
@@ -963,14 +969,6 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         return False
 
     @property
-    def _is_device_active(self):
-        """If the toggleable device is currently active."""
-        return self.hass.states.is_state(self.heater_entity_id, STATE_ON) or (
-            self.cooler_entity_id
-            and self.hass.states.is_state(self.cooler_entity_id, STATE_ON)
-        )
-
-    @property
     def _is_heater_active(self):
         """If the toggleable device is currently active."""
         return self.hass.states.is_state(self.heater_entity_id, STATE_ON)
@@ -978,11 +976,16 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
     @property
     def _is_cooler_active(self):
         """If the toggleable cooler device is currently active."""
-        if self.cooler_entity_id and self.hass.states.is_state(
+        if self.cooler_entity_id is not None and self.hass.states.is_state(
             self.cooler_entity_id, STATE_ON
         ):
             return True
         return False
+
+    @property
+    def _is_device_active(self):
+        """If the toggleable device is currently active."""
+        return self._is_heater_active or self._is_cooler_active
 
     @property
     def supported_features(self):
@@ -991,11 +994,13 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
     async def _async_heater_turn_on(self):
         """Turn heater toggleable device on."""
-        await self._async_switch_turn_on(self.heater_entity_id)
+        if self.heater_entity_id is not None and not self._is_heater_active:
+            await self._async_switch_turn_on(self.heater_entity_id)
 
     async def _async_heater_turn_off(self):
         """Turn heater toggleable device off."""
-        await self._async_switch_turn_off(self.heater_entity_id)
+        if self.heater_entity_id is not None and self._is_heater_active:
+            await self._async_switch_turn_off(self.heater_entity_id)
 
     async def _async_cooler_turn_on(self):
         """Turn cooler toggleable device on."""
@@ -1093,6 +1098,10 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
     def _is_too_cold(self, target_attr="_target_temp") -> bool:
         """checks if the current temperature is below target"""
         target_temp = getattr(self, target_attr)
+        _LOGGER.debug(
+            "Debug is too cold?. %s",
+            target_temp >= self._cur_temp + self._cold_tolerance,
+        )
         return target_temp >= self._cur_temp + self._cold_tolerance
 
     def _is_too_hot(self, target_attr="_target_temp") -> bool:
