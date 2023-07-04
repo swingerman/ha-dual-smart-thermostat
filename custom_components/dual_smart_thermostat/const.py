@@ -66,3 +66,11 @@ class HVACAction(StrEnum):
     HEATING = "heating"
     IDLE = "idle"
     OFF = "off"
+
+
+class ToleranceDevice(StrEnum):
+    """Tolerance device for climate devices."""
+
+    HEATER = "heater"
+    COOLER = "cooler"
+    AUTO = "auto"

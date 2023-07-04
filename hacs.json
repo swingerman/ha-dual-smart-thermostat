@@ -3,6 +3,6 @@
   "render_readme": true,
   "hide_default_branch": true,
   "country": [],
-  "homeassistant": "0.118.0",
+  "homeassistant": "2023.3.0",
   "filename": "ha-dual-smart-thermostat.zip"
 }
