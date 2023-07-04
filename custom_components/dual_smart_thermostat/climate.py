@@ -77,6 +77,7 @@ from .const import (
     HVACAction,
     HVACMode,
     PRESET_ANTI_FREEZE,
+    ToleranceDevice,
 )
 from . import DOMAIN, PLATFORMS
 
@@ -874,8 +875,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             if not self._needs_control(time, force, dual=True):
                 return
 
-            too_cold = self._is_too_cold("_target_temp_low")
-            too_hot = self._is_too_hot("_target_temp_high")
+            too_cold, too_hot, tolerance_device = self._is_cold_or_hot()
 
             if self._is_opening_open:
                 await self._async_heater_turn_off()
@@ -883,7 +883,9 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             elif self._is_floor_hot:
                 await self._async_heater_turn_off()
             else:
-                await self.async_heater_cooler_toggle(too_cold, too_hot)
+                await self.async_heater_cooler_toggle(
+                    tolerance_device, too_cold, too_hot
+                )
 
             if time is not None:
                 # The time argument is passed only in keep-alive case
@@ -892,10 +894,35 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                     self.heater_entity_id,
                     self.cooler_entity_id,
                 )
-                await self.async_heater_cooler_toggle(too_cold, too_hot)
+                await self.async_heater_cooler_toggle(
+                    tolerance_device, too_cold, too_hot
+                )
 
-    async def async_heater_cooler_toggle(self, too_cold, too_hot):
-        """Toggle heater cooler based on device state"""
+    async def async_heater_cooler_toggle(self, tolerance_device, too_cold, too_hot):
+        """Toggle heater cooler based on temp and tolarance."""
+        match tolerance_device:
+            case ToleranceDevice.HEATER:
+                await self._async_heater_toggle(too_cold, too_hot)
+            case ToleranceDevice.COOLER:
+                await self._async_cooler_toggle(too_cold, too_hot)
+            case _:
+                await self._async_auto_toggle(too_cold, too_hot)
+
+    async def _async_heater_toggle(self, too_cold, too_hot):
+        """Toggle heater based on temp."""
+        if too_cold:
+            await self._async_heater_turn_on()
+        elif too_hot:
+            await self._async_heater_turn_off()
+
+    async def _async_cooler_toggle(self, too_cold, too_hot):
+        """Toggle cooler based on temp."""
+        if too_cold:
+            await self._async_cooler_turn_off()
+        elif too_hot:
+            await self._async_cooler_turn_on()
+
+    async def _async_auto_toggle(self, too_cold, too_hot):
         if too_cold:
             if not self._is_opening_open:
                 await self._async_heater_turn_on()
@@ -914,7 +941,6 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         _is_open = False
         if self.opening_entities:
             for opening in self.opening_entities:
-
                 if self.hass.states.is_state(
                     opening, STATE_OPEN
                 ) or self.hass.states.is_state(opening, STATE_ON):
@@ -965,33 +991,21 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
     async def _async_heater_turn_on(self):
         """Turn heater toggleable device on."""
-        data = {ATTR_ENTITY_ID: self.heater_entity_id}
-        await self.hass.services.async_call(
-            HA_DOMAIN, SERVICE_TURN_ON, data, context=self._context
-        )
+        await self._async_switch_turn_on(self.heater_entity_id)
 
     async def _async_heater_turn_off(self):
         """Turn heater toggleable device off."""
-        data = {ATTR_ENTITY_ID: self.heater_entity_id}
-        await self.hass.services.async_call(
-            HA_DOMAIN, SERVICE_TURN_OFF, data, context=self._context
-        )
+        await self._async_switch_turn_off(self.heater_entity_id)
 
     async def _async_cooler_turn_on(self):
         """Turn cooler toggleable device on."""
         if self.cooler_entity_id is not None and not self._is_cooler_active:
-            data = {ATTR_ENTITY_ID: self.cooler_entity_id}
-            await self.hass.services.async_call(
-                HA_DOMAIN, SERVICE_TURN_ON, data, context=self._context
-            )
+            await self._async_switch_turn_on(self.cooler_entity_id)
 
     async def _async_cooler_turn_off(self):
         """Turn cooler toggleable device off."""
         if self.cooler_entity_id is not None and self._is_cooler_active:
-            data = {ATTR_ENTITY_ID: self.cooler_entity_id}
-            await self.hass.services.async_call(
-                HA_DOMAIN, SERVICE_TURN_OFF, data, context=self._context
-            )
+            await self._async_switch_turn_off(self.cooler_entity_id)
 
     async def _async_switch_turn_off(self, entity_id):
         """Turn toggleable device off."""
@@ -1085,6 +1099,21 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         """checks if the current temperature is above target"""
         target_temp = getattr(self, target_attr)
         return self._cur_temp >= target_temp + self._hot_tolerance
+
+    def _is_cold_or_hot(self):
+        if self._is_heater_active:
+            too_cold = self._is_too_cold("_target_temp_low")
+            too_hot = self._is_too_hot("_target_temp_low")
+            tolerance_device = ToleranceDevice.HEATER
+        elif self._is_cooler_active:
+            too_cold = self._is_too_cold("_target_temp_high")
+            too_hot = self._is_too_hot("_target_temp_high")
+            tolerance_device = ToleranceDevice.COOLER
+        else:
+            too_cold = self._is_too_cold("_target_temp_low")
+            too_hot = self._is_too_hot("_target_temp_high")
+            tolerance_device = ToleranceDevice.AUTO
+        return too_cold, too_hot, tolerance_device
 
     def _is_configured_for_heat_cool(self) -> bool:
         """checks if the configuration is complete for heat/cool mode"""
