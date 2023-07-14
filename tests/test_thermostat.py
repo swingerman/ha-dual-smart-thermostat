@@ -1,6 +1,8 @@
 """The tests for the dual_smart_thermostat."""
+import asyncio
 from datetime import timedelta
 import logging
+import time
 from typing import Final
 from unittest.mock import patch
 
@@ -420,7 +422,7 @@ async def test_cooler_mode_cycle(hass, duration, result_state, setup_comp_1):
     assert hass.states.get(cooler_switch).state == result_state
 
 
-async def test_cooler_mode2(hass, setup_comp_1):
+async def test_cooler_mode_dual(hass, setup_comp_1):
     """Test thermostat cooler switch in cooling mode."""
     heater_switch = "input_boolean.heater"
     cooler_switch = "input_boolean.cooler"
@@ -480,7 +482,7 @@ async def test_cooler_mode2(hass, setup_comp_1):
         (timedelta(seconds=30), STATE_OFF),
     ],
 )
-async def test_cooler_mode2_cycle(hass, duration, result_state, setup_comp_1):
+async def test_cooler_mode_dual_cycle(hass, duration, result_state, setup_comp_1):
     """Test thermostat cooler switch in cooling mode with cycle duration."""
     heater_switch = "input_boolean.heater"
     cooler_switch = "input_boolean.cooler"
@@ -536,6 +538,83 @@ async def test_cooler_mode2_cycle(hass, duration, result_state, setup_comp_1):
     await hass.async_block_till_done()
     assert hass.states.get(heater_switch).state == STATE_OFF
     assert hass.states.get(cooler_switch).state == result_state
+
+
+async def test_cooler_mode_opening(hass, setup_comp_1):
+    """Test thermostat cooler switch in cooling mode."""
+    cooler_switch = "input_boolean.test"
+    opening_1 = "input_boolean.opening_1"
+    opening_2 = "input_boolean.opening_2"
+
+    assert await async_setup_component(
+        hass,
+        input_boolean.DOMAIN,
+        {"input_boolean": {"test": None, "opening_1": None, "opening_2": None}},
+    )
+
+    temp_input = "input_number.temp"
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {"name": "test", "initial": 10, "min": 0, "max": 40, "step": 1}
+            }
+        },
+    )
+
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DUAL_SMART_THERMOSTAT,
+                "name": "test",
+                "heater": cooler_switch,
+                "ac_mode": "true",
+                "target_sensor": temp_input,
+                "initial_hvac_mode": HVACMode.COOL,
+                "openings": [
+                    opening_1,
+                    {"entity_id": opening_2, "timeout": {"seconds": 10}},
+                ],
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+
+    _setup_sensor(hass, temp_input, 23)
+    await hass.async_block_till_done()
+
+    await async_set_temperature(hass, 18)
+    assert hass.states.get(cooler_switch).state == STATE_ON
+
+    _setup_boolean(hass, opening_1, "open")
+    await hass.async_block_till_done()
+
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+
+    _setup_boolean(hass, opening_1, "closed")
+    await hass.async_block_till_done()
+
+    assert hass.states.get(cooler_switch).state == STATE_ON
+
+    _setup_boolean(hass, opening_2, "open")
+    await hass.async_block_till_done()
+
+    # wait 10 seconds, actually 133 due to the other tests run time seems to affect this
+    # needs to separate the tests
+    await asyncio.sleep(13)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+
+    _setup_boolean(hass, opening_2, "closed")
+    await hass.async_block_till_done()
+
+    assert hass.states.get(cooler_switch).state == STATE_ON
 
 
 async def test_heater_cooler_mode(hass, setup_comp_1):
@@ -910,6 +989,11 @@ async def test_heater_cooler_mode_tolerances(hass, setup_comp_1):
 def _setup_sensor(hass, sensor, temp):
     """Set up the test sensor."""
     hass.states.async_set(sensor, temp)
+
+
+def _setup_boolean(hass, entity, state):
+    """Set up the test sensor."""
+    hass.states.async_set(entity, state)
 
 
 async def async_set_temperature(

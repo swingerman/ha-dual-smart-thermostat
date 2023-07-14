@@ -3,7 +3,7 @@
 import asyncio
 from datetime import timedelta
 import logging
-from typing import List
+from typing import Any, List
 
 import voluptuous as vol
 
@@ -71,6 +71,7 @@ from .const import (
     CONF_TARGET_TEMP_HIGH,
     CONF_TARGET_TEMP_LOW,
     CONF_TEMP_STEP,
+    ATTR_TIMEOUT,
     DEFAULT_MAX_FLOOR_TEMP,
     DEFAULT_NAME,
     DEFAULT_TOLERANCE,
@@ -99,12 +100,18 @@ CONF_PRESETS_OLD = {k: f"{v}_temp" for k, v in CONF_PRESETS.items()}
 
 _LOGGER = logging.getLogger(__name__)
 
-
 PRESET_SCHEMA = {
     vol.Optional(ATTR_TEMPERATURE): vol.Coerce(float),
     vol.Optional(ATTR_TARGET_TEMP_LOW): vol.Coerce(float),
     vol.Optional(ATTR_TARGET_TEMP_HIGH): vol.Coerce(float),
 }
+
+TIMED_OPENING_SCHEMA = vol.Schema(
+    {
+        vol.Required(ATTR_ENTITY_ID): cv.entity_id,
+        vol.Required(ATTR_TIMEOUT): vol.All(cv.time_period, cv.positive_timedelta),
+    }
+)
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
@@ -136,7 +143,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Optional(CONF_TEMP_STEP): vol.In(
             [PRECISION_TENTHS, PRECISION_HALVES, PRECISION_WHOLE]
         ),
-        vol.Optional(CONF_OPENINGS): [cv.entity_id],
+        vol.Optional(CONF_OPENINGS): [vol.Any(cv.entity_id, TIMED_OPENING_SCHEMA)],
         vol.Optional(CONF_UNIQUE_ID): cv.string,
     }
 ).extend({vol.Optional(v): PRESET_SCHEMA for (k, v) in CONF_PRESETS.items()})
@@ -167,7 +174,7 @@ async def async_setup_platform(
             )
             cooler_entity_id = None
     sensor_floor_entity_id = config.get(CONF_FLOOR_SENSOR)
-    opening_entities = config.get(CONF_OPENINGS)
+    openings = config.get(CONF_OPENINGS)
     min_temp = config.get(CONF_MIN_TEMP)
     max_temp = config.get(CONF_MAX_TEMP)
     max_floor_temp = config.get(CONF_MAX_FLOOR_TEMP)
@@ -221,7 +228,7 @@ async def async_setup_platform(
                 cooler_entity_id,
                 sensor_entity_id,
                 sensor_floor_entity_id,
-                opening_entities,
+                openings,
                 min_temp,
                 max_temp,
                 max_floor_temp,
@@ -256,7 +263,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         cooler_entity_id,
         sensor_entity_id,
         sensor_floor_entity_id,
-        opening_entities,
+        openings,
         min_temp,
         max_temp,
         max_floor_temp,
@@ -283,7 +290,22 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self.cooler_entity_id = cooler_entity_id
         self.sensor_entity_id = sensor_entity_id
         self.sensor_floor_entity_id = sensor_floor_entity_id
-        self.opening_entities: List = opening_entities
+        if openings:
+            self.openings = list(
+                map(
+                    lambda entry: entry
+                    if isinstance(entry, dict)
+                    else {ATTR_ENTITY_ID: entry, ATTR_TIMEOUT: None},
+                    openings,
+                )
+            )
+            self.opening_entities: List[str] = list(
+                map(lambda entry: entry[ATTR_ENTITY_ID], self.openings)
+            )
+        else:
+            self.openings = []
+            self.opening_entities = []
+
         self.ac_mode = ac_mode
         self._heat_cool_mode = heat_cool_mode
         self.min_cycle_duration: timedelta = min_cycle_duration
@@ -381,7 +403,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                 )
             )
 
-        if self.opening_entities and len(self.opening_entities):
+        if self.opening_entities:
             self.async_on_remove(
                 async_track_state_change_event(
                     self.hass,
@@ -730,7 +752,29 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         if new_state is None or new_state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
             return
 
-        await self._async_control_climate()
+        opening_entity = event.data.get("entity_id")
+        # get the opening timeout
+        opening_timeout = None
+        for opening in self.openings:
+            if opening_entity == opening[ATTR_ENTITY_ID]:
+                opening_timeout = opening[ATTR_TIMEOUT]
+                break
+
+        # schdule the closing of the opening
+        if opening_timeout is not None and new_state.state == STATE_OPEN:
+            _LOGGER.debug(
+                "Scheduling state open of opening %s in %s",
+                opening_entity,
+                opening_timeout,
+            )
+            self.async_on_remove(
+                async_track_time_interval(
+                    self.hass, self._async_control_climate_forced, opening_timeout
+                )
+            )
+        else:
+            await self._async_control_climate(force=True)
+
         self.async_write_ha_state()
 
     async def _async_control_climate(self, time=None, force=False):
@@ -742,6 +786,10 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             await self._async_control_cooling(time, force)
         else:
             await self._async_control_heating(time, force)
+
+    async def _async_control_climate_forced(self, time=None):
+        _LOGGER.debug("_async_control_climate_forced, time %s", time)
+        await self._async_control_climate(force=True, time=time)
 
     @callback
     def _async_switch_changed(self, event):
@@ -823,7 +871,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
     async def _async_control_cooling(self, time=None, force=False):
         """Check if we need to turn heating on or off."""
         async with self._temp_lock:
-            _LOGGER.debug("_async_control_cooling")
+            _LOGGER.debug("_async_control_cooling time: %s. force: %s", time, force)
             self.set_self_active()
 
             if not self._needs_control(time, force, cool=True):
@@ -848,11 +896,19 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                 self._async_cooler_turn_on if cooler_set else self._async_heater_turn_on
             )
 
+            _LOGGER.info(
+                "is device active: %s, is opening open: %s",
+                is_device_active,
+                self._is_opening_open,
+            )
+
+            any_opening_open = self._is_opening_open
+
             if is_device_active:
-                if too_cold or self._is_opening_open:
+                if too_cold or any_opening_open:
                     _LOGGER.info("Turning off cooler %s", control_entity)
                     await control_off()
-                elif time is not None and not self._is_opening_open:
+                elif time is not None and not any_opening_open:
                     # The time argument is passed only in keep-alive case
                     _LOGGER.info(
                         "Keep-alive - Turning on cooler (from active) %s",
@@ -860,10 +916,10 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                     )
                     await control_on()
             else:
-                if too_hot and not self._is_opening_open:
+                if too_hot and not any_opening_open:
                     _LOGGER.info("Turning on cooler (from inactive) %s", control_entity)
                     await control_on()
-                elif time is not None or self._is_opening_open:
+                elif time is not None or any_opening_open:
                     # The time argument is passed only in keep-alive case
                     _LOGGER.info("Keep-alive - Turning off cooler %s", control_entity)
                     await control_off()
@@ -944,17 +1000,38 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
     @property
     def _is_opening_open(self):
         """If the binary opening is currently open."""
-        _is_open = False
-        if self.opening_entities:
-            for opening in self.opening_entities:
-                if self.hass.states.is_state(
-                    opening, STATE_OPEN
-                ) or self.hass.states.is_state(opening, STATE_ON):
-                    _is_open = True
+        _LOGGER.debug("_is_opening_open")
+        if not self.opening_entities:
+            return False
+        else:
+            _is_open = False
+            for opening in self.openings:
+                opening_entity = opening[ATTR_ENTITY_ID]
+                if opening[ATTR_TIMEOUT] is not None:
+                    if condition.state(
+                        self.hass,
+                        opening_entity,
+                        STATE_OPEN,
+                        opening[ATTR_TIMEOUT],
+                    ):
+                        _is_open = True
+                    _LOGGER.debug(
+                        "Have timeout mode for opening %s, is open: %s",
+                        opening,
+                        _is_open,
+                    )
+                else:
+                    if self.hass.states.is_state(
+                        opening_entity, STATE_OPEN
+                    ) or self.hass.states.is_state(opening_entity, STATE_ON):
+                        _is_open = True
+                    _LOGGER.debug(
+                        "No timeout mode for opening %s, is open: %s.",
+                        opening_entity,
+                        _is_open,
+                    )
 
             return _is_open
-        else:
-            return False
 
     @property
     def _is_floor_hot(self):
@@ -1098,10 +1175,6 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
     def _is_too_cold(self, target_attr="_target_temp") -> bool:
         """checks if the current temperature is below target"""
         target_temp = getattr(self, target_attr)
-        _LOGGER.debug(
-            "Debug is too cold?. %s",
-            target_temp >= self._cur_temp + self._cold_tolerance,
-        )
         return target_temp >= self._cur_temp + self._cold_tolerance
 
     def _is_too_hot(self, target_attr="_target_temp") -> bool:
