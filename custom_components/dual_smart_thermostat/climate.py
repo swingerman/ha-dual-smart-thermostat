@@ -761,7 +761,9 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                 break
 
         # schdule the closing of the opening
-        if opening_timeout is not None and new_state.state == STATE_OPEN:
+        if opening_timeout is not None and (
+            new_state.state == STATE_OPEN or new_state.state == STATE_ON
+        ):
             _LOGGER.debug(
                 "Scheduling state open of opening %s in %s",
                 opening_entity,
@@ -1012,6 +1014,11 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                         self.hass,
                         opening_entity,
                         STATE_OPEN,
+                        opening[ATTR_TIMEOUT],
+                    ) or condition.state(
+                        self.hass,
+                        opening_entity,
+                        STATE_ON,
                         opening[ATTR_TIMEOUT],
                     ):
                         _is_open = True
