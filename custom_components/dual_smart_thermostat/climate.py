@@ -1009,7 +1009,11 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             _is_open = False
             for opening in self.openings:
                 opening_entity = opening[ATTR_ENTITY_ID]
-                if opening[ATTR_TIMEOUT] is not None:
+                opening_entity_state = self.hass.states.get(opening_entity)
+                if (
+                    opening_entity_state not in (STATE_UNAVAILABLE, STATE_UNKNOWN)
+                    and opening[ATTR_TIMEOUT] is not None
+                ):
                     if condition.state(
                         self.hass,
                         opening_entity,
