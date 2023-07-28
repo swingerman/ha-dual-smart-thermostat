@@ -1,5 +1,9 @@
 """const"""
 from homeassistant.backports.enum import StrEnum
+from homeassistant.const import ATTR_ENTITY_ID
+import homeassistant.helpers.config_validation as cv
+
+import voluptuous as vol
 
 
 DEFAULT_TOLERANCE = 0.3
@@ -28,6 +32,13 @@ CONF_OPENINGS = "openings"
 CONF_HEAT_COOL_MODE = "heat_cool_mode"
 ATTR_TIMEOUT = "timeout"
 PRESET_ANTI_FREEZE = "Anti Freeze"
+
+TIMED_OPENING_SCHEMA = vol.Schema(
+    {
+        vol.Required(ATTR_ENTITY_ID): cv.entity_id,
+        vol.Required(ATTR_TIMEOUT): vol.All(cv.time_period, cv.positive_timedelta),
+    }
+)
 
 
 class HVACMode(StrEnum):
