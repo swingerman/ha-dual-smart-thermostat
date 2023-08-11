@@ -8,7 +8,22 @@ The `dual_smart_thermostat` is an enhanced verion of generic thermostat implemen
 ## Openings
 
 The `dual_smart_thermostat` can turn off heating or cooling if a window or door is opened and turn heating or cooling back on when the door or window is closed to save energy.
-The `openings` configuration variable accepts a list of openings.
+The `openings` configuration variable accepts a list of opening entities and opening objects.
+
+### Opening entities and objects
+
+An opening entity is a sensor that can be in two states: `on` or `off`. If the state is `on` the opening is considered open, if the state is `off` the opening is considered closed.
+The opening object can conatin a timout property that defines the time in seconds after which the opening is considered open even if the state is still `on`. This is useful if you would want to ignor windows opened only for a short time.
+
+### Example
+
+```yaml
+openings:
+  - sensor.window1
+  - sensor.window2
+  - entity_id: binary_sensor.window3
+    timeout: 00:00:30 # cosnidered to be open if still open after 30 seconds
+```
 
 ## Floor heating temperature cap
 
@@ -29,8 +44,10 @@ climate:
     heater: switch.study_heater
     cooler: switch.study_cooler
     openings:
-      - sensor.window1
-      - sensor.window2
+      - binary_sensor.window1
+      - binary_sensor.window2
+      - entity_id: binary_sensor.window3
+        timeout: 00:00:30
     target_sensor: sensor.study_temperature
 ```
 
@@ -59,7 +76,11 @@ _default: Dual Smart_
   _(optional) (string)_  "`entity_id` for the foor temperature sensor, floor_sensor.state must be temperature."
 
 ### openings
-  _(optional) (list)_  "list of opening `entity_id`'s for detecting open widows or doors that will idle the termostat until any of them are open"
+  _(optional) (list)_  "list of opening `entity_id`'s and/or opbjects for detecting open widows or doors that will idle the termostat until any of them are open"
+
+  `entity_id: <value>`The entity id of the opening bstate sensor (string)</br>
+
+  `timeout: <value>` The time after which the opening is considered open even if the state is still `on` (timedata)</br>
 
 ### min_temp
 
@@ -132,7 +153,7 @@ _default: Dual Smart_
 ### away
 
   _(optional) (list)_ Set the temperatures used by `preset_mode: away`. If this is not specified, the preset mode feature will not be available.
-  
+
   Possible values are:
 
   `temperature: <value>` The preset temperature to use in `heat` or `cool` mode (float)</br>
@@ -185,7 +206,7 @@ _default: Dual Smart_
 
   _default: `0.5` for Celsius and `1.0` for Fahrenheit._
 
-### target_temp_step 
+### target_temp_step
 
   _(optional) (float)_ The desired step size for setting the target temperature. Supported values are `0.1`, `0.5` and `1.0`.
 
@@ -194,6 +215,63 @@ _default: Dual Smart_
 ## Installation
 
 Installation is via the [Home Assistant Community Store (HACS)](https://hacs.xyz/), which is the best place to get third-party integrations for Home Assistant. Once you have HACS set up, simply [search the `Integrations` section](https://hacs.xyz/docs/basic/getting_started) for Dual Smart Thermostat.
+
+## Heater Mode Example
+
+```yaml
+climate:
+  - platform: dual_smart_thermostat
+    name: Study
+    heater: switch.study_heater
+    target_sensor: sensor.study_temperature
+    initial_hvac_mode: "heat"
+```
+
+## Cooler Mode Example
+
+```yaml
+climate:
+  - platform: dual_smart_thermostat
+    name: Study
+    heater: switch.study_cooler
+    ac_mode: true # <-important
+    target_sensor: sensor.study_temperature
+    initial_hvac_mode: "cool"
+```
+
+## DUAL Heat-Cool Mode Example
+
+This mode is used whan you want (and can) control bothe the heater and the cooler. In this mode the `target_temp_low` and `target_temp_high` must be set.
+In this mode you can switch between heating and cooling by setting the `hvac_mode` to `heat` or `cool` or `heat_cool`.
+
+```yaml
+climate:
+  - platform: dual_smart_thermostat
+    name: Study
+    heater: switch.study_heater
+    cooler: switch.study_cooler
+    target_sensor: sensor.study_temperature
+    heat_cool_mode: true # <-important
+    initial_hvac_mode: "heat_cool"
+```
+
+## Tolerances
+
+The `dual_smart_thermostat` has two tolerance variables: `cold_tolerance` and `hot_tolerance`. These variables are used to prevent the heater or cooler from switching on and off too frequently. For example, if the target temperature is 25 and the tolerance is 0.5 the heater will start when the sensor equals or goes below 24.5. The heater will stop when the sensor equals or goes above 25.5. This prevents the heater from switching on and off too frequently when the temperature is close to the target temperature.
+
+If the thermosat is set to heat_cool mode the tolerance will work in the same way for both the heater and the cooler.
+
+```yaml
+climate:
+  - platform: dual_smart_thermostat
+    name: Study
+    heater: switch.study_heater
+    cooler: switch.study_cooler
+    target_sensor: sensor.study_temperature
+    cold_tolerance: 0.3
+    hot_tolerance: 0
+```
+
 
 ## Full configuration example
 
@@ -207,8 +285,10 @@ climate:
     floor_sensor: sensor.floor_temp
     max_floor_temp: 28
     openings:
-      - sensor.window1
-      - sensor.window2
+      - binary_sensor.window1
+      - binary_sensor.window2
+      - entity_id: binary_sensor.window3
+        timeout: 00:00:30
     min_temp: 10
     max_temp: 28
     ac_mode: false
@@ -231,6 +311,7 @@ climate:
     precision: 0.1
     target_temp_step: 0.5
 ```
+
 
 ### Donate
 
