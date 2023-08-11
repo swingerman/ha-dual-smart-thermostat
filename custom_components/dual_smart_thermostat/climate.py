@@ -48,6 +48,7 @@ from homeassistant.helpers.reload import async_setup_reload_service
 from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from custom_components.dual_smart_thermostat.climate_controller import ClimateController
 
 from custom_components.dual_smart_thermostat.opening_manager import OpeningManager
 
@@ -252,6 +253,8 @@ async def async_setup_platform(
 class DualSmartThermostat(ClimateEntity, RestoreEntity):
     """Representation of a Dual Smart Thermostat device."""
 
+    climate_controller: ClimateController
+
     def __init__(
         self,
         name,
@@ -288,7 +291,6 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self.sensor_entity_id = sensor_entity_id
         self.sensor_floor_entity_id = sensor_floor_entity_id
         self.opening_manager = opening_manager
-
         self.ac_mode = ac_mode
         self._heat_cool_mode = heat_cool_mode
         self.min_cycle_duration: timedelta = min_cycle_duration
