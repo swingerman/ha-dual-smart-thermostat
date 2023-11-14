@@ -16,6 +16,7 @@ from homeassistant.components.climate.const import (
     PRESET_COMFORT,
     PRESET_HOME,
     PRESET_NONE,
+    PRESET_SLEEP,
     SUPPORT_PRESET_MODE,
     SUPPORT_TARGET_TEMPERATURE,
     SUPPORT_TARGET_TEMPERATURE_RANGE,
@@ -95,6 +96,7 @@ CONF_PRESETS = {
         PRESET_COMFORT,
         PRESET_ECO,
         PRESET_HOME,
+        PRESET_SLEEP,
         PRESET_ANTI_FREEZE,
     )
 }

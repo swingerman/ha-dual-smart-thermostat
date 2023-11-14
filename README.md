@@ -190,6 +190,16 @@ _default: Dual Smart_
   `target_temp_low: <value>` The preset low temperature to use in `heat_cool` mode (float)</br>
   `target_temp_high: <value>` The preset high temperature to use in `heat_cool` mode (float)</br>
 
+### sleep
+
+  _(optional) (list)_ Set the temperature used by `preset_mode: sleep`. If this is not specified, the preset mode feature will not be available.
+
+  Possible values are:
+
+  `temperature: <value>` The preset temperature to use in `heat` or `cool` mode (float)</br>
+  `target_temp_low: <value>` The preset low temperature to use in `heat_cool` mode (float)</br>
+  `target_temp_high: <value>` The preset high temperature to use in `heat_cool` mode (float)</br>
+
 ### anti_freeze
 
   _(optional) (list)_ Set the temperature used by `preset_mode: Anti Freeze`. If this is not specified, the preset mode feature will not be available.
