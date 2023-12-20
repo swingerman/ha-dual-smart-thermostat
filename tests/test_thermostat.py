@@ -133,7 +133,7 @@ async def test_heater_mode(hass, setup_comp_1):
     _setup_sensor(hass, temp_input, 18)
     await hass.async_block_till_done()
 
-    await async_set_temperature(hass, 23)
+    await async_climate_set_temperature(hass, 23)
     assert hass.states.get(heater_switch).state == STATE_ON
 
     _setup_sensor(hass, temp_input, 24)
@@ -181,7 +181,8 @@ async def test_heater_mode_tolerance(hass, setup_comp_1):
     _setup_sensor(hass, temp_input, 18.6)
     await hass.async_block_till_done()
 
-    await async_set_temperature(hass, 19)
+    await async_climate_set_temperature(hass, 19)
+    await hass.async_block_till_done()
     assert hass.states.get(heater_switch).state == STATE_OFF
 
     _setup_sensor(hass, temp_input, 18.5)
@@ -197,6 +198,99 @@ async def test_heater_mode_tolerance(hass, setup_comp_1):
     assert hass.states.get(heater_switch).state == STATE_ON
 
     _setup_sensor(hass, temp_input, 19.5)
+    await hass.async_block_till_done()
+    assert hass.states.get(heater_switch).state == STATE_OFF
+
+
+async def test_heater_mode_floor_temp(hass, setup_comp_1):
+    """Test thermostat heater switch with floor temp in heating mode."""
+    heater_switch = "input_boolean.test"
+    assert await async_setup_component(
+        hass, input_boolean.DOMAIN, {"input_boolean": {"test": None}}
+    )
+
+    temp_input = "input_number.temp"
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {"name": "temp", "initial": 10, "min": 0, "max": 40, "step": 1}
+            }
+        },
+    )
+
+    floor_temp_input = "input_number.floor_temp"
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {
+                    "name": "floor_temp",
+                    "initial": 10,
+                    "min": 0,
+                    "max": 40,
+                    "step": 1,
+                }
+            }
+        },
+    )
+
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DUAL_SMART_THERMOSTAT,
+                "name": "test",
+                "heater": heater_switch,
+                "target_sensor": temp_input,
+                "initial_hvac_mode": HVACMode.HEAT,
+                "floor_sensor": floor_temp_input,
+                "min_floor_temp": 5,
+                "max_floor_temp": 28,
+                "cold_tolerance": 0.5,
+                "hot_tolerance": 0.5,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    assert hass.states.get(heater_switch).state == STATE_OFF
+
+    _setup_sensor(hass, temp_input, 18.6)
+    _setup_sensor(hass, floor_temp_input, 10)
+    await hass.async_block_till_done()
+
+    await async_climate_set_temperature(hass, 18)
+    assert hass.states.get(heater_switch).state == STATE_OFF
+
+    _setup_sensor(hass, temp_input, 17)
+    await hass.async_block_till_done()
+    assert hass.states.get(heater_switch).state == STATE_ON
+
+    _setup_sensor(hass, floor_temp_input, 28)
+    await hass.async_block_till_done()
+    assert hass.states.get(heater_switch).state == STATE_OFF
+
+    _setup_sensor(hass, floor_temp_input, 26)
+    await hass.async_block_till_done()
+    assert hass.states.get(heater_switch).state == STATE_ON
+
+    _setup_sensor(hass, temp_input, 22)
+    await hass.async_block_till_done()
+    assert hass.states.get(heater_switch).state == STATE_OFF
+
+    _setup_sensor(hass, floor_temp_input, 4)
+    await hass.async_block_till_done()
+    assert hass.states.get(heater_switch).state == STATE_ON
+
+    _setup_sensor(hass, floor_temp_input, 3)
+    await hass.async_block_till_done()
+    assert hass.states.get(heater_switch).state == STATE_ON
+
+    _setup_sensor(hass, floor_temp_input, 10)
     await hass.async_block_till_done()
     assert hass.states.get(heater_switch).state == STATE_OFF
 
@@ -251,7 +345,7 @@ async def test_heater_mode_cycle(hass, duration, result_state, setup_comp_1):
     with patch(
         "homeassistant.helpers.condition.dt_util.utcnow", return_value=fake_changed
     ):
-        await async_set_temperature(hass, 23)
+        await async_climate_set_temperature(hass, 23)
         assert hass.states.get(heater_switch).state == STATE_ON
 
     _setup_sensor(hass, temp_input, 24)
@@ -298,7 +392,7 @@ async def test_cooler_mode(hass, setup_comp_1):
     _setup_sensor(hass, temp_input, 23)
     await hass.async_block_till_done()
 
-    await async_set_temperature(hass, 18)
+    await async_climate_set_temperature(hass, 18)
     assert hass.states.get(cooler_switch).state == STATE_ON
 
     _setup_sensor(hass, temp_input, 17)
@@ -347,7 +441,7 @@ async def test_cooler_mode_tolerance(hass, setup_comp_1):
     _setup_sensor(hass, temp_input, 22.4)
     await hass.async_block_till_done()
 
-    await async_set_temperature(hass, 22)
+    await async_climate_set_temperature(hass, 22)
     assert hass.states.get(cooler_switch).state == STATE_OFF
 
     _setup_sensor(hass, temp_input, 22.5)
@@ -414,7 +508,7 @@ async def test_cooler_mode_cycle(hass, duration, result_state, setup_comp_1):
     with patch(
         "homeassistant.helpers.condition.dt_util.utcnow", return_value=fake_changed
     ):
-        await async_set_temperature(hass, 18)
+        await async_climate_set_temperature(hass, 18)
         assert hass.states.get(cooler_switch).state == STATE_ON
 
     _setup_sensor(hass, temp_input, 17)
@@ -465,7 +559,7 @@ async def test_cooler_mode_dual(hass, setup_comp_1):
     _setup_sensor(hass, temp_input, 23)
     await hass.async_block_till_done()
 
-    await async_set_temperature(hass, 18)
+    await async_climate_set_temperature(hass, 18)
     assert hass.states.get(heater_switch).state == STATE_OFF
     assert hass.states.get(cooler_switch).state == STATE_ON
 
@@ -530,7 +624,7 @@ async def test_cooler_mode_dual_cycle(hass, duration, result_state, setup_comp_1
     with patch(
         "homeassistant.helpers.condition.dt_util.utcnow", return_value=fake_changed
     ):
-        await async_set_temperature(hass, 18)
+        await async_climate_set_temperature(hass, 18)
         assert hass.states.get(heater_switch).state == STATE_OFF
         assert hass.states.get(cooler_switch).state == STATE_ON
 
@@ -588,7 +682,7 @@ async def test_cooler_mode_opening(hass, setup_comp_1):
     _setup_sensor(hass, temp_input, 23)
     await hass.async_block_till_done()
 
-    await async_set_temperature(hass, 18)
+    await async_climate_set_temperature(hass, 18)
     assert hass.states.get(cooler_switch).state == STATE_ON
 
     _setup_boolean(hass, opening_1, "open")
@@ -669,10 +763,112 @@ async def test_heater_cooler_mode(hass, setup_comp_1):
     await hass.async_block_till_done()
 
     await async_set_hvac_mode(hass, "all", HVACMode.HEAT_COOL)
-    await async_set_temperature(hass, 18, "all", 25, 22)
+    await async_climate_set_temperature(hass, 18, "all", 25, 22)
     assert hass.states.get(heater_switch).state == STATE_OFF
     assert hass.states.get(cooler_switch).state == STATE_ON
 
+    _setup_sensor(hass, temp_input, 24)
+    await hass.async_block_till_done()
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+
+    _setup_sensor(hass, temp_input, 18)
+    await hass.async_block_till_done()
+    assert hass.states.get(heater_switch).state == STATE_ON
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+
+
+async def test_heater_cooler_mode_floor_temp(hass, setup_comp_1):
+    """Test thermostat heater and cooler switch in heat/cool mode. with floor temp caps"""
+
+    heater_switch = "input_boolean.heater"
+    cooler_switch = "input_boolean.cooler"
+    assert await async_setup_component(
+        hass,
+        input_boolean.DOMAIN,
+        {"input_boolean": {"heater": None, "cooler": None}},
+    )
+
+    temp_input = "input_number.temp"
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {"name": "temp", "initial": 10, "min": 0, "max": 40, "step": 1}
+            }
+        },
+    )
+
+    floor_temp_input = "input_number.floor_temp"
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {
+                    "name": "floor_temp",
+                    "initial": 10,
+                    "min": 0,
+                    "max": 40,
+                    "step": 1,
+                }
+            }
+        },
+    )
+
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DUAL_SMART_THERMOSTAT,
+                "name": "test",
+                "cooler": cooler_switch,
+                "heater": heater_switch,
+                "heat_cool_mode": True,
+                "target_sensor": temp_input,
+                "floor_sensor": floor_temp_input,
+                "min_floor_temp": 5,
+                "max_floor_temp": 28,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    # check if all hvac modes are available
+    hvac_modes = hass.states.get("climate.test").attributes.get(ATTR_HVAC_MODES)
+    assert HVACMode.HEAT in hvac_modes
+    assert HVACMode.COOL in hvac_modes
+    assert HVACMode.HEAT_COOL in hvac_modes
+    assert HVACMode.OFF in hvac_modes
+
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+
+    _setup_sensor(hass, temp_input, 26)
+    _setup_sensor(hass, floor_temp_input, 10)
+    await hass.async_block_till_done()
+
+    await async_set_hvac_mode(hass, "all", HVACMode.HEAT_COOL)
+    await async_climate_set_temperature(hass, 18, "all", 25, 22)
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(cooler_switch).state == STATE_ON
+
+    _setup_sensor(hass, temp_input, 24)
+    await hass.async_block_till_done()
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+
+    """If floor temp is below min_floor_temp, heater should be on"""
+    _setup_sensor(hass, floor_temp_input, 4)
+    _setup_sensor(hass, temp_input, 24)
+    await hass.async_block_till_done()
+    assert hass.states.get(heater_switch).state == STATE_ON
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+
+    """If floor temp is above min_floor_temp, heater should be off"""
+    _setup_sensor(hass, floor_temp_input, 10)
     _setup_sensor(hass, temp_input, 24)
     await hass.async_block_till_done()
     assert hass.states.get(heater_switch).state == STATE_OFF
@@ -747,7 +943,7 @@ async def test_heater_cooler_mode_cycle_heat(
     with patch(
         "homeassistant.helpers.condition.dt_util.utcnow", return_value=fake_changed
     ):
-        await async_set_temperature(hass, None, "all", 25, 22)
+        await async_climate_set_temperature(hass, None, "all", 25, 22)
         assert hass.states.get(heater_switch).state == STATE_ON
         assert hass.states.get(cooler_switch).state == STATE_OFF
 
@@ -820,7 +1016,7 @@ async def test_heater_cooler_mode_cycle_cool(
     with patch(
         "homeassistant.helpers.condition.dt_util.utcnow", return_value=fake_changed
     ):
-        await async_set_temperature(hass, None, "all", 25, 22)
+        await async_climate_set_temperature(hass, None, "all", 25, 22)
         assert hass.states.get(heater_switch).state == STATE_OFF
         assert hass.states.get(cooler_switch).state == STATE_ON
 
@@ -928,7 +1124,7 @@ async def test_heater_cooler_mode_tolerances(hass, setup_comp_1):
     _setup_sensor(hass, temp_input, 24)
     await hass.async_block_till_done()
 
-    await async_set_temperature(hass, 18, "all", 25, 22)
+    await async_climate_set_temperature(hass, 18, "all", 25, 22)
 
     assert hass.states.get(heater_switch).state == STATE_OFF
     assert hass.states.get(cooler_switch).state == STATE_OFF
@@ -996,7 +1192,7 @@ def _setup_boolean(hass, entity, state):
     hass.states.async_set(entity, state)
 
 
-async def async_set_temperature(
+async def async_climate_set_temperature(
     hass,
     temperature=None,
     entity_id="all",
