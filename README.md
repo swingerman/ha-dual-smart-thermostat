@@ -27,12 +27,16 @@ openings:
 
 ## Floor heating temperature cap
 
-The `dual_smart_thermostat` can turn off if the floor heating reaches tha maximum allowed temperature you define in order to protect the floor from overheating and damage.
+### Maximum floor temperature
+The `dual_smart_thermostat` can turn off if the floor heating reaches the maximum allowed temperature you define in order to protect the floor from overheating and damage.
 To enable this protection you need to set two variables:
 ```yaml
 floor_sensor: sensor.floor_temp
 max_floor_temp: 28
 ```
+
+### Minimum floor temperature
+The `dual_smart_thermostat` can turn on if the floor temperature reaches the minimum required temperature you define in order to protect the floor from freezing or to keep it on a comfortbale temperature.
 
 ## Configuration
 
@@ -76,7 +80,7 @@ _default: Dual Smart_
   _(optional) (string)_  "`entity_id` for the foor temperature sensor, floor_sensor.state must be temperature."
 
 ### openings
-  _(optional) (list)_  "list of opening `entity_id`'s and/or opbjects for detecting open widows or doors that will idle the termostat until any of them are open"
+  _(optional) (list)_  "list of opening `entity_id`'s and/or opbjects for detecting open widows or doors that will idle the termostat until any of them are open. Note: if min_floor_temp is set and the floor temperature is below the minimum temperature, the thermostat will not idle even if any of the openings are open."
 
   `entity_id: <value>`The entity id of the opening bstate sensor (string)</br>
 
@@ -99,6 +103,10 @@ _default: Dual Smart_
   _(optional) (float)_
 
   _default: 28_
+
+### min_floor_temp
+
+  _(optional) (float)_
 
 ### target_temp
 
@@ -247,6 +255,20 @@ climate:
     ac_mode: true # <-important
     target_sensor: sensor.study_temperature
     initial_hvac_mode: "cool"
+```
+
+## Floor Temperature Caps Example
+
+```yaml
+climate:
+  - platform: dual_smart_thermostat
+    name: Study
+    heater: switch.study_heater
+    target_sensor: sensor.study_temperature
+    initial_hvac_mode: "heat"
+    floor_sensor: sensor.floor_temp
+    max_floor_temp: 28
+    min_floor_temp: 20
 ```
 
 ## DUAL Heat-Cool Mode Example
