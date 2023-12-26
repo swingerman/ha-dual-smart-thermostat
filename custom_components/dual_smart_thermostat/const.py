@@ -11,6 +11,8 @@ DEFAULT_NAME = "Dual Smart"
 DEFAULT_MAX_FLOOR_TEMP = 28.0
 
 CONF_HEATER = "heater"
+CONF_SECONDARY_HEATER = "seondary_heater"
+CONF_SECONDARY_HEATING_TIMEOUT = "secondary_heating_timeout"
 CONF_COOLER = "cooler"
 CONF_SENSOR = "target_sensor"
 CONF_FLOOR_SENSOR = "floor_sensor"
