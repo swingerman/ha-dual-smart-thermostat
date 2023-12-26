@@ -58,6 +58,8 @@ from .const import (
     CONF_COOLER,
     CONF_FLOOR_SENSOR,
     CONF_HEATER,
+    CONF_SECONDARY_HEATER,
+    CONF_SECONDARY_HEATING_TIMEOUT,9
     CONF_HEAT_COOL_MODE,
     CONF_HOT_TOLERANCE,
     CONF_INITIAL_HVAC_MODE,
@@ -110,20 +112,33 @@ PRESET_SCHEMA = {
     vol.Optional(ATTR_TARGET_TEMP_HIGH): vol.Coerce(float),
 }
 
+SECONDARY_HEATING_SCHEMA = {
+    vol.Optional(CONF_SECONDARY_HEATER): cv.entity_id,
+    vol.Optional(CONF_SECONDARY_HEATING_TIMEOUT): vol.All(
+        cv.time_period, cv.positive_timedelta
+    ),
+}
+
+FLOOR_TEMPERATURE_SCHEMA = {
+    vol.Optional(CONF_FLOOR_SENSOR): cv.entity_id,
+    vol.Optional(CONF_MAX_FLOOR_TEMP): vol.Coerce(float),
+    vol.Optional(CONF_MIN_FLOOR_TEMP): vol.Coerce(float),
+}
+
+OPENINGS_SCHEMA = {
+    vol.Optional(CONF_OPENINGS): [vol.Any(cv.entity_id, TIMED_OPENING_SCHEMA)]
+}
+
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
         vol.Required(CONF_HEATER): cv.entity_id,
         vol.Optional(CONF_COOLER): cv.entity_id,
         vol.Required(CONF_SENSOR): cv.entity_id,
-        vol.Optional(CONF_FLOOR_SENSOR): cv.entity_id,
         vol.Optional(CONF_AC_MODE): cv.boolean,
         vol.Optional(CONF_HEAT_COOL_MODE): cv.boolean,
         vol.Optional(CONF_MAX_TEMP): vol.Coerce(float),
         vol.Optional(CONF_MIN_DUR): vol.All(cv.time_period, cv.positive_timedelta),
         vol.Optional(CONF_MIN_TEMP): vol.Coerce(float),
-        vol.Optional(CONF_MAX_FLOOR_TEMP, default=DEFAULT_MAX_FLOOR_TEMP): vol.Coerce(
-            float
-        ),
         vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
         vol.Optional(CONF_COLD_TOLERANCE, default=DEFAULT_TOLERANCE): vol.Coerce(float),
         vol.Optional(CONF_HOT_TOLERANCE, default=DEFAULT_TOLERANCE): vol.Coerce(float),
@@ -140,10 +155,15 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Optional(CONF_TEMP_STEP): vol.In(
             [PRECISION_TENTHS, PRECISION_HALVES, PRECISION_WHOLE]
         ),
-        vol.Optional(CONF_OPENINGS): [vol.Any(cv.entity_id, TIMED_OPENING_SCHEMA)],
         vol.Optional(CONF_UNIQUE_ID): cv.string,
     }
 ).extend({vol.Optional(v): PRESET_SCHEMA for (k, v) in CONF_PRESETS.items()})
+
+PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(SECONDARY_HEATING_SCHEMA)
+
+PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(FLOOR_TEMPERATURE_SCHEMA)
+
+PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(OPENINGS_SCHEMA)
 
 # Add the old presets schema to avoid breaking change
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
@@ -163,6 +183,7 @@ async def async_setup_platform(
 
     name = config[CONF_NAME]
     heater_entity_id = config[CONF_HEATER]
+    secondary_heater_entity_id = config[CONF_SECONDARY_HEATER]
     sensor_entity_id = config[CONF_SENSOR]
     if cooler_entity_id := config.get(CONF_COOLER):
         if cooler_entity_id == heater_entity_id:
@@ -223,6 +244,7 @@ async def async_setup_platform(
             DualSmartThermostat(
                 name,
                 heater_entity_id,
+                secondary_heater_entity_id,
                 cooler_entity_id,
                 sensor_entity_id,
                 sensor_floor_entity_id,
@@ -258,6 +280,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self,
         name,
         heater_entity_id,
+        secondary_heater_entity_id,
         cooler_entity_id,
         sensor_entity_id,
         sensor_floor_entity_id,
@@ -286,6 +309,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self._name = name
 
         self.heater_entity_id = heater_entity_id
+        self.secondary_heater_entity_id = secondary_heater_entity_id
         self.cooler_entity_id = cooler_entity_id
         self.sensor_entity_id = sensor_entity_id
         self.sensor_floor_entity_id = sensor_floor_entity_id
