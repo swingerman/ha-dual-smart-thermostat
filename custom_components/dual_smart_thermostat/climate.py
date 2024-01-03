@@ -58,8 +58,9 @@ from .const import (
     CONF_COOLER,
     CONF_FLOOR_SENSOR,
     CONF_HEATER,
+    CONF_MIN_FLOOR_TEMP,
     CONF_SECONDARY_HEATER,
-    CONF_SECONDARY_HEATING_TIMEOUT,9
+    CONF_SECONDARY_HEATING_TIMEOUT,
     CONF_HEAT_COOL_MODE,
     CONF_HOT_TOLERANCE,
     CONF_INITIAL_HVAC_MODE,
@@ -183,7 +184,7 @@ async def async_setup_platform(
 
     name = config[CONF_NAME]
     heater_entity_id = config[CONF_HEATER]
-    secondary_heater_entity_id = config[CONF_SECONDARY_HEATER]
+    secondary_heater_entity_id = config.get(CONF_SECONDARY_HEATER)
     sensor_entity_id = config[CONF_SENSOR]
     if cooler_entity_id := config.get(CONF_COOLER):
         if cooler_entity_id == heater_entity_id:
@@ -197,6 +198,7 @@ async def async_setup_platform(
     min_temp = config.get(CONF_MIN_TEMP)
     max_temp = config.get(CONF_MAX_TEMP)
     max_floor_temp = config.get(CONF_MAX_FLOOR_TEMP)
+    min_floor_temp = config.get(CONF_MIN_FLOOR_TEMP)
     target_temp = config.get(CONF_TARGET_TEMP)
     target_temp_high = config.get(CONF_TARGET_TEMP_HIGH)
     target_temp_low = config.get(CONF_TARGET_TEMP_LOW)
@@ -251,6 +253,7 @@ async def async_setup_platform(
                 min_temp,
                 max_temp,
                 max_floor_temp,
+                min_floor_temp,
                 target_temp,
                 target_temp_high,
                 target_temp_low,
@@ -287,6 +290,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         min_temp,
         max_temp,
         max_floor_temp,
+        min_floor_temp,
         target_temp,
         target_temp_high,
         target_temp_low,
@@ -354,6 +358,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self._min_temp = min_temp
         self._max_temp = max_temp
         self._max_floor_temp = max_floor_temp
+        self._min_floor_temp = min_floor_temp
         self._unit = unit
         self._unique_id = unique_id
         self._support_flags = SUPPORT_TARGET_TEMPERATURE
@@ -612,6 +617,11 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         return self._max_floor_temp
 
     @property
+    def floor_temperature_required(self):
+        """Return the maximum floor temperature."""
+        return self._min_floor_temp
+
+    @property
     def hvac_modes(self):
         """List of available operation modes."""
         return self._hvac_list
@@ -862,7 +872,14 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                 await self._async_control_heater_when_off(too_cold, time)
 
     async def _async_control_heater_when_on(self, too_hot: bool, time=None):
-        if too_hot or self._is_floor_hot or self.opening_manager.any_opening_open:
+        """Check if we need to turn heating on or off when theheater is on."""
+        _LOGGER.debug(
+            "_async_control_heater_when_on, floor cold: %s", self._is_floor_cold
+        )
+
+        if (
+            (too_hot or self._is_floor_hot) or self.opening_manager.any_opening_open
+        ) and not self._is_floor_cold:
             _LOGGER.info("Turning off heater %s", self.heater_entity_id)
             await self._async_heater_turn_off()
         elif (
@@ -878,11 +895,13 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             await self._async_heater_turn_on()
 
     async def _async_control_heater_when_off(self, too_cold: bool, time=None):
+        """Check if we need to turn heating on or off when the heater is off."""
+        _LOGGER.debug("_async_control_heater_when_off")
         if (
             too_cold
             and not self.opening_manager.any_opening_open
             and not self._is_floor_hot
-        ):
+        ) or self._is_floor_cold:
             _LOGGER.info("Turning on heater (from inactive) %s", self.heater_entity_id)
             await self._async_heater_turn_on()
         elif (
@@ -970,6 +989,8 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                 await self._async_cooler_turn_off()
             elif self._is_floor_hot:
                 await self._async_heater_turn_off()
+            elif self._is_floor_cold:
+                await self._async_heater_turn_on()
             else:
                 await self.async_heater_cooler_toggle(
                     tolerance_device, too_cold, too_hot
@@ -1032,6 +1053,20 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             and (self._cur_floor_temp is not None)
         ):
             if self._cur_floor_temp >= self._max_floor_temp:
+                return True
+        return False
+
+    @property
+    def _is_floor_cold(self):
+        """If the floor temp is below limit."""
+        if (
+            (self.sensor_floor_entity_id is not None)
+            and (self._min_floor_temp is not None)
+            and (self._cur_floor_temp is not None)
+        ):
+            _LOGGER.debug("floor temp: %s", self._cur_floor_temp)
+            _LOGGER.debug("min floor temp: %s", self._min_floor_temp)
+            if self._cur_floor_temp <= self._min_floor_temp:
                 return True
         return False
 
