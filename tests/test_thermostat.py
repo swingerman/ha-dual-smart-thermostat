@@ -141,6 +141,85 @@ async def test_heater_mode(hass, setup_comp_1):
     assert hass.states.get(heater_switch).state == STATE_OFF
 
 
+async def test_heater_mode_secondary_heater(hass, setup_comp_1):
+    """Test thermostat secondary heater switch in heating mode."""
+
+    secondaty_heater_timeout = 10
+    heater_switch = "input_boolean.heater_switch"
+    secondary_heater_switch = "input_boolean.secondary_heater_switch"
+
+    assert await async_setup_component(
+        hass,
+        input_boolean.DOMAIN,
+        {"input_boolean": {"heater_switch": None, "secondary_heater_switch": None}},
+    )
+
+    temp_input = "input_number.temp"
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {"name": "test", "initial": 10, "min": 0, "max": 40, "step": 1}
+            }
+        },
+    )
+
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DUAL_SMART_THERMOSTAT,
+                "name": "test",
+                "heater": heater_switch,
+                "secondary_heater": secondary_heater_switch,
+                "secondary_heater_timeout": {"seconds": secondaty_heater_timeout},
+                "target_sensor": temp_input,
+                "initial_hvac_mode": HVACMode.HEAT,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    assert hass.states.get(heater_switch).state == STATE_OFF
+
+    _setup_sensor(hass, temp_input, 18)
+    await hass.async_block_till_done()
+
+    await async_climate_set_temperature(hass, 23)
+    assert hass.states.get(heater_switch).state == STATE_ON
+    assert hass.states.get(secondary_heater_switch).state == STATE_OFF
+
+    # until secondary heater timeout everything should be the same
+    await asyncio.sleep(secondaty_heater_timeout - 4)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(heater_switch).state == STATE_ON
+    assert hass.states.get(secondary_heater_switch).state == STATE_OFF
+
+    # after secondary heater timeout secondary heater should be on
+    await asyncio.sleep(secondaty_heater_timeout + 3)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(secondary_heater_switch).state == STATE_ON
+
+    # triggers reaching target temp should turn off secondary heater
+    _setup_sensor(hass, temp_input, 24)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(secondary_heater_switch).state == STATE_OFF
+
+    # if temp is below target temp secondary heater should be on again for the same day
+    _setup_sensor(hass, temp_input, 18)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(secondary_heater_switch).state == STATE_ON
+
+
 async def test_heater_mode_tolerance(hass, setup_comp_1):
     """Test thermostat heater switch in heating mode."""
     heater_switch = "input_boolean.test"
@@ -697,6 +776,8 @@ async def test_cooler_mode_opening(hass, setup_comp_1):
 
     _setup_boolean(hass, opening_2, "open")
     await hass.async_block_till_done()
+
+    assert hass.states.get(cooler_switch).state == STATE_ON
 
     # wait 10 seconds, actually 133 due to the other tests run time seems to affect this
     # needs to separate the tests
