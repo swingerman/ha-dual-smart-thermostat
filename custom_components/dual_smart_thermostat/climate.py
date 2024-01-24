@@ -18,9 +18,7 @@ from homeassistant.components.climate.const import (
     PRESET_HOME,
     PRESET_NONE,
     PRESET_SLEEP,
-    SUPPORT_PRESET_MODE,
-    SUPPORT_TARGET_TEMPERATURE,
-    SUPPORT_TARGET_TEMPERATURE_RANGE,
+    ClimateEntityFeature,
 )
 from homeassistant.const import (
     ATTR_ENTITY_ID,
@@ -367,9 +365,9 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self._min_floor_temp = min_floor_temp
         self._unit = unit
         self._unique_id = unique_id
-        self._support_flags = SUPPORT_TARGET_TEMPERATURE
+        self._support_flags = ClimateEntityFeature.TARGET_TEMPERATURE
         if len(presets):
-            self._support_flags |= SUPPORT_PRESET_MODE
+            self._support_flags |= ClimateEntityFeature.PRESET_MODE
             self._preset_modes = [PRESET_NONE] + list(presets.keys())
         else:
             self._preset_modes = [PRESET_NONE]
@@ -501,13 +499,13 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             supp_feat = old_state.attributes.get(ATTR_SUPPORTED_FEATURES)
             hvac_mode = self._hvac_mode or old_state.state or HVACMode.OFF
             if (
-                supp_feat & SUPPORT_TARGET_TEMPERATURE_RANGE
+                supp_feat & ClimateEntityFeature.TARGET_TEMPERATURE_RANGE
                 and self._is_configured_for_heat_cool()
                 and hvac_mode in (HVACMode.HEAT_COOL, HVACMode.OFF)
             ):
-                self._support_flags = SUPPORT_TARGET_TEMPERATURE_RANGE
+                self._support_flags = ClimateEntityFeature.TARGET_TEMPERATURE_RANGE
                 if len(self._presets_range):
-                    self._support_flags |= SUPPORT_PRESET_MODE
+                    self._support_flags |= ClimateEntityFeature.PRESET_MODE
                 self._set_default_target_temps()
             else:
                 if hvac_mode not in self.hvac_modes:
@@ -639,14 +637,14 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
     @property
     def preset_mode(self):
         """Return the current preset mode, e.g., home, away, temp."""
-        if not self._support_flags & SUPPORT_PRESET_MODE:
+        if not self._support_flags & ClimateEntityFeature.PRESET_MODE:
             return None
         return self._preset_mode
 
     @property
     def preset_modes(self):
         """Return a list of available preset modes or PRESET_NONE."""
-        if not self._support_flags & SUPPORT_PRESET_MODE:
+        if not self._support_flags & ClimateEntityFeature.PRESET_MODE:
             return None
         if self._is_range_mode():
             return self._preset_range_modes
@@ -1329,11 +1327,11 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
     def _is_target_mode(self):
         """Check if current support flag is for target temp mode."""
-        return self._support_flags & SUPPORT_TARGET_TEMPERATURE
+        return self._support_flags & ClimateEntityFeature.TARGET_TEMPERATURE
 
     def _is_range_mode(self):
         """Check if current support flag is for range temp mode."""
-        return self._support_flags & SUPPORT_TARGET_TEMPERATURE_RANGE
+        return self._support_flags & ClimateEntityFeature.TARGET_TEMPERATURE_RANGE
 
     def _set_default_target_temps(self):
         """Set default values for target temperatures."""
@@ -1401,16 +1399,16 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                 self._preset_mode = PRESET_NONE
                 self._target_temp_low = self._saved_target_temp_low
                 self._target_temp_high = self._saved_target_temp_high
-            self._support_flags = SUPPORT_TARGET_TEMPERATURE
+            self._support_flags = ClimateEntityFeature.TARGET_TEMPERATURE
             if len(self._presets):
-                self._support_flags |= SUPPORT_PRESET_MODE
+                self._support_flags |= ClimateEntityFeature.PRESET_MODE
         else:
             if self._is_target_mode() and self._preset_mode != PRESET_NONE:
                 self._preset_mode = PRESET_NONE
                 self._target_temp = self._saved_target_temp
-            self._support_flags = SUPPORT_TARGET_TEMPERATURE_RANGE
+            self._support_flags = ClimateEntityFeature.TARGET_TEMPERATURE_RANGE
             if len(self._presets_range):
-                self._support_flags |= SUPPORT_PRESET_MODE
+                self._support_flags |= ClimateEntityFeature.PRESET_MODE
         self._set_default_target_temps()
 
     def _ran_long_enough(self, cooler_entity=False):

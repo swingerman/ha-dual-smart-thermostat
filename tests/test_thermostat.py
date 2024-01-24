@@ -95,7 +95,9 @@ async def setup_comp_1(hass):
     await hass.async_block_till_done()
 
 
+@pytest.mark.asyncio
 async def test_heater_mode(hass, setup_comp_1):
+    await setup_comp_1
     """Test thermostat heater switch in heating mode."""
     heater_switch = "input_boolean.test"
     assert await async_setup_component(
@@ -141,7 +143,9 @@ async def test_heater_mode(hass, setup_comp_1):
     assert hass.states.get(heater_switch).state == STATE_OFF
 
 
+@pytest.mark.asyncio
 async def test_heater_mode_secondary_heater(hass, setup_comp_1):
+    await setup_comp_1
     """Test thermostat secondary heater switch in heating mode."""
 
     secondaty_heater_timeout = 10
@@ -220,7 +224,9 @@ async def test_heater_mode_secondary_heater(hass, setup_comp_1):
     assert hass.states.get(secondary_heater_switch).state == STATE_ON
 
 
+@pytest.mark.asyncio
 async def test_heater_mode_tolerance(hass, setup_comp_1):
+    await setup_comp_1
     """Test thermostat heater switch in heating mode."""
     heater_switch = "input_boolean.test"
     assert await async_setup_component(
@@ -281,7 +287,9 @@ async def test_heater_mode_tolerance(hass, setup_comp_1):
     assert hass.states.get(heater_switch).state == STATE_OFF
 
 
+@pytest.mark.asyncio
 async def test_heater_mode_floor_temp(hass, setup_comp_1):
+    await setup_comp_1
     """Test thermostat heater switch with floor temp in heating mode."""
     heater_switch = "input_boolean.test"
     assert await async_setup_component(
@@ -381,7 +389,9 @@ async def test_heater_mode_floor_temp(hass, setup_comp_1):
         (timedelta(seconds=30), STATE_OFF),
     ],
 )
+@pytest.mark.asyncio
 async def test_heater_mode_cycle(hass, duration, result_state, setup_comp_1):
+    await setup_comp_1
     """Test thermostat heater switch in heating mode with min_cycle_duration."""
     heater_switch = "input_boolean.test"
     assert await async_setup_component(
@@ -432,7 +442,9 @@ async def test_heater_mode_cycle(hass, duration, result_state, setup_comp_1):
     assert hass.states.get(heater_switch).state == result_state
 
 
+@pytest.mark.asyncio
 async def test_cooler_mode(hass, setup_comp_1):
+    await setup_comp_1
     """Test thermostat cooler switch in cooling mode."""
     cooler_switch = "input_boolean.test"
     assert await async_setup_component(
@@ -479,7 +491,9 @@ async def test_cooler_mode(hass, setup_comp_1):
     assert hass.states.get(cooler_switch).state == STATE_OFF
 
 
+@pytest.mark.asyncio
 async def test_mode_change(hass, setup_comp_1):
+    await setup_comp_1
     """Test thermostat switch state iif HVAc mode changes."""
     cooler_switch = "input_boolean.test"
     assert await async_setup_component(
@@ -526,7 +540,9 @@ async def test_mode_change(hass, setup_comp_1):
     assert hass.states.get(cooler_switch).state == STATE_OFF
 
 
+@pytest.mark.asyncio
 async def test_cooler_mode_tolerance(hass, setup_comp_1):
+    await setup_comp_1
     """Test thermostat cooler switch in cooling mode."""
     cooler_switch = "input_boolean.test"
     assert await async_setup_component(
@@ -590,7 +606,9 @@ async def test_cooler_mode_tolerance(hass, setup_comp_1):
         (timedelta(seconds=30), STATE_OFF),
     ],
 )
+@pytest.mark.asyncio
 async def test_cooler_mode_cycle(hass, duration, result_state, setup_comp_1):
+    await setup_comp_1
     """Test thermostat cooler switch in cooling mode with cycle duration."""
     cooler_switch = "input_boolean.test"
     assert await async_setup_component(
@@ -642,7 +660,9 @@ async def test_cooler_mode_cycle(hass, duration, result_state, setup_comp_1):
     assert hass.states.get(cooler_switch).state == result_state
 
 
+@pytest.mark.asyncio
 async def test_cooler_mode_dual(hass, setup_comp_1):
+    await setup_comp_1
     """Test thermostat cooler switch in cooling mode."""
     heater_switch = "input_boolean.heater"
     cooler_switch = "input_boolean.cooler"
@@ -702,7 +722,9 @@ async def test_cooler_mode_dual(hass, setup_comp_1):
         (timedelta(seconds=30), STATE_OFF),
     ],
 )
+@pytest.mark.asyncio
 async def test_cooler_mode_dual_cycle(hass, duration, result_state, setup_comp_1):
+    await setup_comp_1
     """Test thermostat cooler switch in cooling mode with cycle duration."""
     heater_switch = "input_boolean.heater"
     cooler_switch = "input_boolean.cooler"
@@ -760,7 +782,9 @@ async def test_cooler_mode_dual_cycle(hass, duration, result_state, setup_comp_1
     assert hass.states.get(cooler_switch).state == result_state
 
 
+@pytest.mark.asyncio
 async def test_cooler_mode_opening(hass, setup_comp_1):
+    await setup_comp_1
     """Test thermostat cooler switch in cooling mode."""
     cooler_switch = "input_boolean.test"
     opening_1 = "input_boolean.opening_1"
@@ -839,7 +863,9 @@ async def test_cooler_mode_opening(hass, setup_comp_1):
     assert hass.states.get(cooler_switch).state == STATE_ON
 
 
+@pytest.mark.asyncio
 async def test_heater_cooler_mode(hass, setup_comp_1):
+    await setup_comp_1
     """Test thermostat heater and cooler switch in heat/cool mode."""
 
     heater_switch = "input_boolean.heater"
@@ -933,7 +959,9 @@ async def test_heater_cooler_mode(hass, setup_comp_1):
     assert hass.states.get(heater_switch).state == STATE_OFF
 
 
+@pytest.mark.asyncio
 async def test_heater_cooler_mode_floor_temp(hass, setup_comp_1):
+    await setup_comp_1
     """Test thermostat heater and cooler switch in heat/cool mode. with floor temp caps"""
 
     heater_switch = "input_boolean.heater"
@@ -1042,11 +1070,12 @@ async def test_heater_cooler_mode_floor_temp(hass, setup_comp_1):
         (timedelta(seconds=30), STATE_OFF),
     ],
 )
+@pytest.mark.asyncio
 async def test_heater_cooler_mode_cycle_heat(
     hass, duration, result_state, setup_comp_1
 ):
     """Test thermostat heater and cooler switch in heat mode with min_cycle_duration."""
-
+    await setup_comp_1
     heater_switch = "input_boolean.heater"
     cooler_switch = "input_boolean.cooler"
     fake_changed = dt.utcnow() - duration
@@ -1115,11 +1144,13 @@ async def test_heater_cooler_mode_cycle_heat(
         (timedelta(seconds=30), STATE_OFF),
     ],
 )
+@pytest.mark.asyncio
 async def test_heater_cooler_mode_cycle_cool(
     hass, duration, result_state, setup_comp_1
 ):
     """Test thermostat heater and cooler switch in cool mode with min_cycle_duration."""
 
+    await setup_comp_1
     heater_switch = "input_boolean.heater"
     cooler_switch = "input_boolean.cooler"
     fake_changed = dt.utcnow() - duration
@@ -1181,9 +1212,11 @@ async def test_heater_cooler_mode_cycle_cool(
     assert hass.states.get(cooler_switch).state == result_state
 
 
+@pytest.mark.asyncio
 async def test_heater_cooler_switch_hvac_modes(hass, setup_comp_1):
     """Test thermostat heater and cooler switch to heater only mode."""
 
+    await setup_comp_1
     heater_switch = "input_boolean.heater"
     cooler_switch = "input_boolean.cooler"
     assert await async_setup_component(
@@ -1232,9 +1265,11 @@ async def test_heater_cooler_switch_hvac_modes(hass, setup_comp_1):
     assert hass.states.get("climate.test").state == HVAC_MODE_COOL
 
 
+@pytest.mark.asyncio
 async def test_heater_cooler_mode_tolerances(hass, setup_comp_1):
     """Test thermostat heater and cooler mode tolerances."""
 
+    await setup_comp_1
     heater_switch = "input_boolean.heater"
     cooler_switch = "input_boolean.cooler"
     assert await async_setup_component(
