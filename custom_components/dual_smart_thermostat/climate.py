@@ -682,11 +682,17 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                 self._hvac_mode = HVACMode.HEAT
                 self._set_support_flags()
                 await self._async_control_heating(force=True)
+                if self._is_cooler_active:
+                    await self._async_cooler_turn_off()
 
             case HVACMode.COOL:
                 self._hvac_mode = HVACMode.COOL
                 self._set_support_flags()
                 await self._async_control_cooling(force=True)
+                if self._is_device_active:
+                    await self._async_heater_turn_off()
+                    if self._is_secondary_heating_configured():
+                        await self._async_secondary_heater_turn_off()
 
             case HVACMode.HEAT_COOL:
                 self._hvac_mode = HVACMode.HEAT_COOL
@@ -828,6 +834,13 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
     async def _async_control_climate_forced(self, time=None):
         _LOGGER.debug("_async_control_climate_forced, time %s", time)
         await self._async_control_climate(force=True, time=time)
+
+    @callback
+    def _async_hvac_mode_changed(self, hvac_mode):
+        """Handle HVAC mode changes."""
+        self._hvac_mode = hvac_mode
+        self._set_support_flags()
+        self.async_write_ha_state()
 
     @callback
     def _async_switch_changed(self, event):
