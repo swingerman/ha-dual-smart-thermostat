@@ -2,6 +2,7 @@
 
 import asyncio
 from datetime import timedelta
+import datetime
 import logging
 
 import voluptuous as vol
@@ -44,6 +45,7 @@ import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.event import (
     async_track_state_change_event,
     async_track_time_interval,
+    async_call_later,
 )
 from homeassistant.helpers.reload import async_setup_reload_service
 from homeassistant.helpers.restore_state import RestoreEntity
@@ -185,6 +187,7 @@ async def async_setup_platform(
     name = config[CONF_NAME]
     heater_entity_id = config[CONF_HEATER]
     secondary_heater_entity_id = config.get(CONF_SECONDARY_HEATER)
+    secondary_heater_timeout = config.get(CONF_SECONDARY_HEATING_TIMEOUT)
     sensor_entity_id = config[CONF_SENSOR]
     if cooler_entity_id := config.get(CONF_COOLER):
         if cooler_entity_id == heater_entity_id:
@@ -247,6 +250,7 @@ async def async_setup_platform(
                 name,
                 heater_entity_id,
                 secondary_heater_entity_id,
+                secondary_heater_timeout,
                 cooler_entity_id,
                 sensor_entity_id,
                 sensor_floor_entity_id,
@@ -284,6 +288,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         name,
         heater_entity_id,
         secondary_heater_entity_id,
+        secondary_heater_timeout,
         cooler_entity_id,
         sensor_entity_id,
         sensor_floor_entity_id,
@@ -314,6 +319,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
         self.heater_entity_id = heater_entity_id
         self.secondary_heater_entity_id = secondary_heater_entity_id
+        self.secondary_heater_timeout: timedelta = secondary_heater_timeout
         self.cooler_entity_id = cooler_entity_id
         self.sensor_entity_id = sensor_entity_id
         self.sensor_floor_entity_id = sensor_floor_entity_id
@@ -374,6 +380,10 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             self._preset_range_modes = [PRESET_NONE]
         self._presets_range = presets_range
         self._preset_mode = PRESET_NONE
+
+        # secondary heater last run time
+        if self.secondary_heater_entity_id and self.secondary_heater_timeout:
+            self._secondary_heater_last_run: datetime = None
 
     async def async_added_to_hass(self):
         """Run when entity about to be added."""
@@ -794,8 +804,10 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                 opening_timeout,
             )
             self.async_on_remove(
-                async_track_time_interval(
-                    self.hass, self._async_control_climate_forced, opening_timeout
+                async_call_later(
+                    self.hass,
+                    opening_timeout,
+                    self._async_control_climate_forced,
                 )
             )
         else:
@@ -852,6 +864,12 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         except ValueError as ex:
             _LOGGER.error("Unable to update from floor temp sensor: %s", ex)
 
+    async def _async_control_heating_forced(self, time=None):
+        """Call turn_on heater device."""
+        _LOGGER.debug("_async_control_heating_forced")
+        _LOGGER.debug("Time check %s", time)
+        await self._async_control_heating(time, force=True)
+
     async def _async_control_heating(self, time=None, force=False):
         """Check if we need to turn heating on or off."""
         async with self._temp_lock:
@@ -859,14 +877,16 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             self.set_self_active()
 
             if not self._needs_control(time, force):
+                _LOGGER.debug("No need for control")
                 return
 
+            _LOGGER.debug("Needs control")
             too_cold = self._is_too_cold()
             too_hot = self._is_too_hot()
 
             await self._async_cooler_turn_off()
 
-            if self._is_heater_active:
+            if self._is_heater_active or self._is_secondary_heater_active:
                 await self._async_control_heater_when_on(too_hot, time)
             else:
                 await self._async_control_heater_when_off(too_cold, time)
@@ -882,6 +902,18 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         ) and not self._is_floor_cold:
             _LOGGER.info("Turning off heater %s", self.heater_entity_id)
             await self._async_heater_turn_off()
+            await self._async_secondary_heater_turn_off()
+
+        elif (
+            self._is_secondary_heating_configured()
+            and self._first_stage_heating_timed_out
+            and not self._is_secondary_heater_active
+        ):
+            _LOGGER.info(
+                "Turning on secondary heater %s", self.secondary_heater_entity_id
+            )
+            await self._async_heater_turn_off()
+            await self._async_secondary_heater_turn_on()
         elif (
             time is not None
             and not self.opening_manager.any_opening_open
@@ -903,7 +935,27 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             and not self._is_floor_hot
         ) or self._is_floor_cold:
             _LOGGER.info("Turning on heater (from inactive) %s", self.heater_entity_id)
-            await self._async_heater_turn_on()
+            # here is where we need to handle secondary heating
+            # need to check if last time secondary heater used was today
+            # if it was used today, turn on secondary heating
+            # else turn on primary heating
+            # and start a timer that will potentially turn secondary heating on
+            if (
+                self._is_secondary_heating_configured()
+                and self._has_secondary_heating_ran_today()
+            ):
+                await self._async_secondary_heater_turn_on()
+            else:
+                await self._async_heater_turn_on()
+                if self._is_secondary_heating_configured():
+                    self.async_on_remove(
+                        async_call_later(
+                            self.hass,
+                            self.secondary_heater_timeout,
+                            self._async_control_heating_forced,
+                        )
+                    )
+
         elif (
             time is not None
             or self.opening_manager.any_opening_open
@@ -1076,6 +1128,13 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         return self.hass.states.is_state(self.heater_entity_id, STATE_ON)
 
     @property
+    def _is_secondary_heater_active(self):
+        """If the toggleable device is currently active."""
+        return self.secondary_heater_entity_id and self.hass.states.is_state(
+            self.secondary_heater_entity_id, STATE_ON
+        )
+
+    @property
     def _is_cooler_active(self):
         """If the toggleable cooler device is currently active."""
         if self.cooler_entity_id is not None and self.hass.states.is_state(
@@ -1087,7 +1146,11 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
     @property
     def _is_device_active(self):
         """If the toggleable device is currently active."""
-        return self._is_heater_active or self._is_cooler_active
+        return (
+            self._is_heater_active
+            or self._is_secondary_heater_active
+            or self._is_cooler_active
+        )
 
     @property
     def supported_features(self):
@@ -1103,6 +1166,23 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         """Turn heater toggleable device off."""
         if self.heater_entity_id is not None and self._is_heater_active:
             await self._async_switch_turn_off(self.heater_entity_id)
+
+    async def _async_secondary_heater_turn_on(self):
+        """Turn secondary heater toggleable device on."""
+        if (
+            self.secondary_heater_entity_id is not None
+            and not self._is_secondary_heater_active
+        ):
+            await self._async_switch_turn_on(self.secondary_heater_entity_id)
+            self._secondary_heater_last_run = datetime.datetime.now()
+
+    async def _async_secondary_heater_turn_off(self):
+        """Turn secondary heater toggleable device off."""
+        if (
+            self.secondary_heater_entity_id is not None
+            and self._is_secondary_heater_active
+        ):
+            await self._async_switch_turn_off(self.secondary_heater_entity_id)
 
     async def _async_cooler_turn_on(self):
         """Turn cooler toggleable device on."""
@@ -1342,3 +1422,40 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         )
 
         return long_enough
+
+    def _first_stage_heating_timed_out(self, timeout=None):
+        """determines if the heater switch has been on for the timeout period"""
+        if timeout is None:
+            timeout = self.secondary_heater_timeout
+
+        timed_out = condition.state(
+            self.hass,
+            self.heater_entity_id,
+            STATE_ON,
+            timeout,
+        )
+
+        return timed_out
+
+    def _has_secondary_heating_ran_today(self):
+        """determines if the secondary heater has been used today"""
+        if not self._is_secondary_heating_configured():
+            return False
+
+        if self._secondary_heater_last_run is None:
+            return False
+
+        if self._secondary_heater_last_run.date() == datetime.datetime.now().date():
+            return True
+
+        return False
+
+    def _is_secondary_heating_configured(self):
+        """determines if the secondary heater is configured"""
+        if self.secondary_heater_entity_id is None:
+            return False
+
+        if self.secondary_heater_timeout is None:
+            return False
+
+        return True

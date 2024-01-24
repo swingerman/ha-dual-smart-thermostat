@@ -67,6 +67,14 @@ _default: Dual Smart_
 
   _(required) (string)_ "`entity_id` for heater switch, must be a toggle device. Becomes air conditioning switch when `ac_mode` is set to `true`"
 
+### secondary_heater
+
+  _(optional, __required for two stage heating__) (string)_ "`entity_id` for secondary heater switch, must be a toggle device.
+
+### secondar_heater_timeout
+
+  _(optional, __required for two stage heating__) (time, integer)_  Set a minimum amount of time that the switch specified in the *heater* option must be in its ON state before secondary heater devices needs to be turned on.
+
 ### cooler
 
   _(optional) (string)_ "`entity_id` for cooler switch, must be a toggle device."
@@ -245,6 +253,23 @@ climate:
     initial_hvac_mode: "heat"
 ```
 
+## Two Stage Heateing Mode Example
+
+For two stage heating both the `heater` and `secondary_heater` must be defined. The `secondary_heater` will be turned on only if the `heater` is on for the amount of time defined in `secondar_heater_timeout`.
+
+```yaml
+climate:
+  - platform: dual_smart_thermostat
+    name: Study
+    heater: switch.study_heater
+
+    secondary_heater: switch.study_secondary_heater # <-requred
+    secondar_heater_timeout: 00:00:30 # <-requred
+
+    target_sensor: sensor.study_temperature
+    initial_hvac_mode: "heat"
+```
+
 ## Cooler Mode Example
 
 ```yaml
@@ -266,9 +291,9 @@ climate:
     heater: switch.study_heater
     target_sensor: sensor.study_temperature
     initial_hvac_mode: "heat"
-    floor_sensor: sensor.floor_temp
-    max_floor_temp: 28
-    min_floor_temp: 20
+    floor_sensor: sensor.floor_temp # <-required
+    max_floor_temp: 28 # <-required
+    min_floor_temp: 20 # <-required
 ```
 
 ## DUAL Heat-Cool Mode Example
@@ -280,11 +305,27 @@ In this mode you can switch between heating and cooling by setting the `hvac_mod
 climate:
   - platform: dual_smart_thermostat
     name: Study
+    heater: switch.study_heater # <-required
+    cooler: switch.study_cooler # <-required
+    target_sensor: sensor.study_temperature
+    heat_cool_mode: true # <-required
+    initial_hvac_mode: "heat_cool"
+```
+
+## OPENINGS Example
+
+```yaml
+climate:
+  - platform: dual_smart_thermostat
+    name: Study
     heater: switch.study_heater
     cooler: switch.study_cooler
     target_sensor: sensor.study_temperature
-    heat_cool_mode: true # <-important
-    initial_hvac_mode: "heat_cool"
+    openings: # <-required
+      - binary_sensor.window1
+      - binary_sensor.window2
+      - entity_id: binary_sensor.window3
+        timeout: 00:00:30 # <-optional
 ```
 
 ## Tolerances
@@ -313,6 +354,8 @@ climate:
     name: Study
     heater: switch.study_heater
     cooler: switch.study_cooler
+    secondary_heater: switch.study_secondary_heater
+    secondar_heater_timeout: 00:00:30
     target_sensor: sensor.study_temperature
     floor_sensor: sensor.floor_temp
     max_floor_temp: 28
