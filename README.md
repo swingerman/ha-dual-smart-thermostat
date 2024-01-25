@@ -1,9 +1,62 @@
 # Home Assistant Dual Smart Thermostat component
 
+The `dual_smart_thermostat` is an enhanced verion of generic thermostat implemented in Home Assistant.
+
 [![hacs_badge](https://img.shields.io/badge/HACS-Default-41BDF5.svg?style=for-the-badge)](https://github.com/swingerman/ha-dual-smart-thermostat) ![Release](https://img.shields.io/github/v/release/swingerman/ha-dual-smart-thermostat?style=for-the-badge) [![Donate](https://img.shields.io/badge/Donate-PayPal-yellowgreen?style=for-the-badge&logo=paypal)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=S6NC9BYVDDJMA&source=url)
 
 
-The `dual_smart_thermostat` is an enhanced verion of generic thermostat implemented in Home Assistant. It uses several sensors and dedicated switches connected to a heater and air conditioning under the hood. When in heater-cooler mode, if the measured temperature is cooler than the target low `target_temp_low` temperature, the heater will be turned on off when the required low temperature is reached, if the measured temperature is hotter than the target high temperature, the cooling (air conditioning) will be turned on and turned off when the required high `target_temp_high` temperature is reached. When in heater mode, if the measured temperature is cooler than the target temperature, the heater will be turned on and turned off when the required temperature is reached. When in cooling mode, if the measured temperature is hotter than the target temperature, the cooler (air conditioning) will be turned on and turned off when required high temperature is reached.
+## Features
+
+
+|  |  | |
+| :--- | :---: | :---: |
+| **Heater/Cooler Mode** | <img src="docs/images/sun-snowflake.svg" height="30" /> | [<img src="docs/images/file-document-outline.svg" height="30" style="stroke: red" />](#heater-cooler-mdoe) |
+| **Heater Only Mode** | <img src="docs/images/radiator.svg" height="30" /> | [<img src="docs/images/file-document-outline.svg" height="30" />](#heater-only-mode) |
+| **Two Stage Heating Mode** | <img src="docs/images/radiator.svg" height="30" /> <img src="docs/images/plus.svg" height="30" /> <img src="docs/images/radiator.svg" height="30" /> | [<img src="docs/images/file-document-outline.svg" height="30" />](#two-stage-heating) |
+| **Cooler Only mode** | <img src="docs/images/air-conditioner.svg" height="30" /> | [<img src="docs/images/file-document-outline.svg" height="30" />](#cooler-only-mode) |
+| **Floor Temperature Control** | <img src="docs/images/heating-coil.svg" height="30" /> <img src="docs/images/snowflake-thermometer.svg" height="30" />  <img src="docs/images/thermometer-alert.svg" height="30" />  | [<img src="docs/images/file-document-outline.svg" height="30" />](#floor-heating-temperature-control) |
+| **Window/Door sensor integration** | <img src="docs/images/window-open.svg" height="30" /> <img src="docs/images/door-open.svg" height="30" /> <img src="docs/images/chevron-right.svg" height="30" /> <img src="docs/images/timer-cog-outline.svg" height="30" /> <img src="docs/images/chevron-right.svg" height="30" /> <img src="docs/images/hvac-off.svg" height="30" /> | [<img src="docs/images/file-document-outline.svg" height="30" />](#openings) |
+| **Presets** | <img src="docs/images/sleep.svg" height="30" /> <img src="docs/images/snowflake-thermometer.svg" height="30" /> <img src="docs/images/shield-lock-outline.svg" height="30" /> | [<img src="docs/images/file-document-outline.svg" height="30" />](#presets) |
+
+
+## Heat/Cool Mdoe
+
+If both [`heater`](#heater) and [`cooler`](#cooler) entities configured. The thermostat can control heaing and cooling and you sare able to set min/max low and min/max high temperatures.
+In this mode you can turn the thermostat to heat only, cooler only and back to heat/cool mode.
+
+[all features ⤴️](#features)
+
+## Heater Only Mode
+
+If only the [`heater`](#heater) entity is set the thermostat works only in heater mode.
+
+[all features ⤴️](#features)
+
+## Two Stage Heating
+
+Thwo stage heating canbe anabled by cadding the [required configuration](#two-stage-heating-example) netities: [`secondary_heater`](#secondary_heater), [`secondary heater_timeout`](#secondar_heater_timeout). If these are set the feature will enable automatically. 
+
+### How Two Stage Heating Works?
+
+If the timout ends and the [`heater`](#heater) was on for the whole time the thermostate switches to the [`secondary heater`](#secondary_heater). In this case the primarey heater ([`heater`](#heater)) will be turned off. This will be rmemebered for the day it turned on and in the next heating cycle the [`secondary heater`](#secondary_heater) will trun on automatically.
+On the next day the primary heater will turn on again the second stage will again only turn on after a timeout.
+
+### Two Stage Heating Example
+
+```yaml
+openings:
+  - sensor.window1
+  - sensor.window2
+  - entity_id: binary_sensor.window3
+    timeout: 00:00:30 # cosnidered to be open if still open after 30 seconds
+```
+
+## Cooler Only Mode
+
+If only the [`cooler`](#cooler) entity is set the thermostat works only in cooling mode.
+
+[all features ⤴️](#features)
+
 
 ## Openings
 
@@ -15,30 +68,7 @@ The `openings` configuration variable accepts a list of opening entities and ope
 An opening entity is a sensor that can be in two states: `on` or `off`. If the state is `on` the opening is considered open, if the state is `off` the opening is considered closed.
 The opening object can conatin a timout property that defines the time in seconds after which the opening is considered open even if the state is still `on`. This is useful if you would want to ignor windows opened only for a short time.
 
-### Example
-
-```yaml
-openings:
-  - sensor.window1
-  - sensor.window2
-  - entity_id: binary_sensor.window3
-    timeout: 00:00:30 # cosnidered to be open if still open after 30 seconds
-```
-
-## Floor heating temperature cap
-
-### Maximum floor temperature
-The `dual_smart_thermostat` can turn off if the floor heating reaches the maximum allowed temperature you define in order to protect the floor from overheating and damage.
-To enable this protection you need to set two variables:
-```yaml
-floor_sensor: sensor.floor_temp
-max_floor_temp: 28
-```
-
-### Minimum floor temperature
-The `dual_smart_thermostat` can turn on if the floor temperature reaches the minimum required temperature you define in order to protect the floor from freezing or to keep it on a comfortbale temperature.
-
-## Configuration
+## Openings Configuration
 
 ```yaml
 # Example configuration.yaml entry
@@ -54,6 +84,62 @@ climate:
         timeout: 00:00:30
     target_sensor: sensor.study_temperature
 ```
+[all features ⤴️](#features)
+
+## Floor heating temperature control
+
+### Maximum floor temperature
+
+The `dual_smart_thermostat` can turn off if the floor heating reaches the maximum allowed temperature you define in order to protect the floor from overheating and damage.
+To enable this protection you need to set two variables:
+```yaml
+floor_sensor: sensor.floor_temp
+max_floor_temp: 28
+```
+
+### Minimum floor temperature
+
+The `dual_smart_thermostat` can turn on if the floor temperature reaches the minimum required temperature you define in order to protect the floor from freezing or to keep it on a comfortbale temperature.
+
+### Floor Temoerature COntrol Configuration
+
+```yaml
+# Example configuration.yaml entry
+climate:
+  - platform: dual_smart_thermostat
+    name: Study
+    heater: switch.study_heater
+    cooler: switch.study_cooler
+    target_sensor: sensor.study_temperature
+    floor_sensor: sensor.floor_temp
+    max_floor_temp: 28
+    min_floor_temp: 5
+```
+
+[all features ⤴️](#features)
+
+## Presets
+
+Currrnetly supported presets are:
+
+* none
+* [home](#home)
+* [away](#away)
+* [eco](#eco)
+* [sleep](#sleep)
+* [comfort](#comfort)
+* [anti freeze](#anti_freeze)
+
+To set presets you need to add entries for them in the configuration file like this:
+
+```yaml
+preset_name:
+  temperature: 13
+  target_temp_low: 12
+  target_temp_high: 14
+```
+
+[all features ⤴️](#features)
 
 ## Configuration variables
 
