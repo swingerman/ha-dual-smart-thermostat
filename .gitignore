@@ -1,7 +1,17 @@
-/.idea/
-__pycache__/
-/config/
-/Config/
-*.zip
-/.coverage
-/coverage.xml
+# artifacts
+__pycache__
+.pytest*
+*.egg-info
+*/build/*
+*/dist/*
+
+
+# misc
+.coverage
+.vscode
+coverage.xml
+
+
+# Home Assistant configuration
+config/*
+!config/configuration.yaml
