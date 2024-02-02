@@ -1,4 +1,3 @@
-
 name: Linting
 
 on:
@@ -7,23 +6,23 @@ on:
       - master
 
   pull_request:
-    branches: '*'
+    branches: "*"
 
 jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Setup Python
-        uses: actions/setup-python@v1
+        uses: actions/setup-python@v5
         with:
           python-version: 3.10.13
 
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
-         # pip install --pre -r requirements-dev.txt
+        # pip install --pre -r requirements-dev.txt
       - name: isort
         run: isort . --recursive --diff
       - name: Black

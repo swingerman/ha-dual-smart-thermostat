@@ -6,25 +6,25 @@ on:
       - master
 
   pull_request:
-    branches: '*'
+    branches: "*"
 
   schedule:
-    - cron: '0 0 * * *'
+    - cron: "0 0 * * *"
 
 jobs:
   validate_hacs:
     name: Valiate With HACS
-    runs-on: 'ubuntu-latest'
+    runs-on: "ubuntu-latest"
     steps:
-      - uses: 'actions/checkout@v3'
+      - uses: actions/checkout@v4
       - name: HACS validation
-        uses: 'hacs/action@main'
+        uses: hacs/action@main
         with:
-          CATEGORY: 'integration'
+          category: "integration"
 
   validate_hassfest:
     name: Validate with Hassfest
     runs-on: "ubuntu-latest"
     steps:
-        - uses: "actions/checkout@v3"
-        - uses: "home-assistant/actions/hassfest@master"
+      - uses: actions/checkout@v4
+      - uses: home-assistant/actions/hassfest@master
