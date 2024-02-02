@@ -2,6 +2,7 @@ colorlog==6.7.0
 homeassistant==2023.12.0
 pip>=21.0,<23.2
 ruff==0.0.292
+isort
 # Home Assistant Core
 # aiohttp==3.8.1
 # astral==2.2
