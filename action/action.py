@@ -1,4 +1,5 @@
 """Validate a GitHub repository to be used with HACS."""
+
 import asyncio
 import json
 import os
