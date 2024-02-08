@@ -1,6 +1,5 @@
 """Opening Manager for Dual Smart Thermostat."""
 
-
 import logging
 
 from homeassistant.const import (
@@ -37,9 +36,14 @@ class OpeningManager:
     @staticmethod
     def conform_openings_list(openings: list) -> list:
         """Return a list of openings from a list of entities."""
-        return [entry
+        return [
+            (
+                entry
                 if isinstance(entry, dict)
-                else {ATTR_ENTITY_ID: entry, ATTR_TIMEOUT: None} for entry in openings]
+                else {ATTR_ENTITY_ID: entry, ATTR_TIMEOUT: None}
+            )
+            for entry in openings
+        ]
 
     @staticmethod
     def conform_opnening_entities(openings: [TIMED_OPENING_SCHEMA]) -> list:
@@ -73,7 +77,9 @@ class OpeningManager:
         ):
             _is_open = True
             _LOGGER.debug(
-                "Have timeout mode for opening %s, is open: %s", opening, _is_open,
+                "Have timeout mode for opening %s, is open: %s",
+                opening,
+                _is_open,
             )
         else:
             if self.hass.states.is_state(
@@ -91,9 +97,15 @@ class OpeningManager:
         opening_entity = opening[ATTR_ENTITY_ID]
         _is_open = False
         if condition.state(
-            self.hass, opening_entity, STATE_OPEN, opening[ATTR_TIMEOUT],
+            self.hass,
+            opening_entity,
+            STATE_OPEN,
+            opening[ATTR_TIMEOUT],
         ) or condition.state(
-            self.hass, opening_entity, STATE_ON, opening[ATTR_TIMEOUT],
+            self.hass,
+            opening_entity,
+            STATE_ON,
+            opening[ATTR_TIMEOUT],
         ):
             _is_open = True
         return _is_open
