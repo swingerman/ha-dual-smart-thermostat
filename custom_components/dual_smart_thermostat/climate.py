@@ -77,7 +77,6 @@ from .const import (
     CONF_TARGET_TEMP_LOW,
     CONF_TEMP_STEP,
     ATTR_TIMEOUT,
-    DEFAULT_MAX_FLOOR_TEMP,
     DEFAULT_NAME,
     DEFAULT_TOLERANCE,
     TIMED_OPENING_SCHEMA,
@@ -673,7 +672,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         return attributes
 
     async def async_set_hvac_mode(self, hvac_mode):
-        """Call climate mode based on current mode"""
+        """Call climate mode based on current mode."""
         _LOGGER.debug("Setting hvac mode: %s", hvac_mode)
         match hvac_mode:
             case HVACMode.HEAT:
@@ -1258,7 +1257,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self._preset_mode = preset_mode
 
     def set_self_active(self):
-        """checks if active state needs to be set true"""
+        """Checks if active state needs to be set true."""
         if (
             not self._active
             and None not in (self._cur_temp, self._target_temp)
@@ -1273,7 +1272,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             )
 
     def _needs_control(self, time=None, force=False, *, dual=False, cool=False):
-        """checks if the controller needs to continue"""
+        """Checks if the controller needs to continue."""
         if not self._active or self._hvac_mode == HVACMode.OFF:
             return False
 
@@ -1295,12 +1294,12 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         return long_enough and long_enough_cooler
 
     def _is_too_cold(self, target_attr="_target_temp") -> bool:
-        """checks if the current temperature is below target"""
+        """Checks if the current temperature is below target."""
         target_temp = getattr(self, target_attr)
         return target_temp >= self._cur_temp + self._cold_tolerance
 
     def _is_too_hot(self, target_attr="_target_temp") -> bool:
-        """checks if the current temperature is above target"""
+        """Checks if the current temperature is above target."""
         target_temp = getattr(self, target_attr)
         return self._cur_temp >= target_temp + self._hot_tolerance
 
@@ -1320,7 +1319,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         return too_cold, too_hot, tolerance_device
 
     def _is_configured_for_heat_cool(self) -> bool:
-        """checks if the configuration is complete for heat/cool mode"""
+        """Checks if the configuration is complete for heat/cool mode."""
         return self._heat_cool_mode or (
             self._target_temp_high is not None and self._target_temp_low is not None
         )
@@ -1387,7 +1386,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             self._target_temp_high += PRECISION_WHOLE
 
     def _set_support_flags(self) -> None:
-        """set the correct support flags based on configuration"""
+        """Set the correct support flags based on configuration."""
         if self._hvac_mode == HVACMode.OFF:
             return
 
@@ -1412,7 +1411,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self._set_default_target_temps()
 
     def _ran_long_enough(self, cooler_entity=False):
-        """determines if a switch with the passed property name has run long enough"""
+        """Determines if a switch with the passed property name has run long enough."""
         if cooler_entity and self.cooler_entity_id is not None:
             switch_entity_id = self.cooler_entity_id
             is_active = self._is_cooler_active
@@ -1435,7 +1434,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         return long_enough
 
     def _first_stage_heating_timed_out(self, timeout=None):
-        """determines if the heater switch has been on for the timeout period"""
+        """Determines if the heater switch has been on for the timeout period."""
         if timeout is None:
             timeout = self.secondary_heater_timeout
 
@@ -1449,7 +1448,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         return timed_out
 
     def _has_secondary_heating_ran_today(self):
-        """determines if the secondary heater has been used today"""
+        """Determines if the secondary heater has been used today."""
         if not self._is_secondary_heating_configured():
             return False
 
@@ -1462,7 +1461,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         return False
 
     def _is_secondary_heating_configured(self):
-        """determines if the secondary heater is configured"""
+        """Determines if the secondary heater is configured."""
         if self.secondary_heater_entity_id is None:
             return False
 

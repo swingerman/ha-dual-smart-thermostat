@@ -2,7 +2,6 @@
 import asyncio
 from datetime import timedelta
 import logging
-import time
 from typing import Final
 from unittest.mock import patch
 
@@ -26,9 +25,7 @@ from homeassistant.setup import async_setup_component
 from homeassistant.util.unit_system import METRIC_SYSTEM
 
 from custom_components.dual_smart_thermostat.const import *
-from custom_components.dual_smart_thermostat import (
-    DOMAIN as DUAL_SMART_THERMOSTAT,
-)
+from custom_components.dual_smart_thermostat import DOMAIN as DUAL_SMART_THERMOSTAT
 
 ENT_SWITCH = "switch.test"
 HEAT_ENTITY = "climate.test_heat"
@@ -384,10 +381,7 @@ async def test_heater_mode_floor_temp(hass, setup_comp_1):
 
 @pytest.mark.parametrize(
     ["duration", "result_state"],
-    [
-        (timedelta(seconds=10), STATE_ON),
-        (timedelta(seconds=30), STATE_OFF),
-    ],
+    [(timedelta(seconds=10), STATE_ON), (timedelta(seconds=30), STATE_OFF),],
 )
 @pytest.mark.asyncio
 async def test_heater_mode_cycle(hass, duration, result_state, setup_comp_1):
@@ -601,10 +595,7 @@ async def test_cooler_mode_tolerance(hass, setup_comp_1):
 
 @pytest.mark.parametrize(
     ["duration", "result_state"],
-    [
-        (timedelta(seconds=10), STATE_ON),
-        (timedelta(seconds=30), STATE_OFF),
-    ],
+    [(timedelta(seconds=10), STATE_ON), (timedelta(seconds=30), STATE_OFF),],
 )
 @pytest.mark.asyncio
 async def test_cooler_mode_cycle(hass, duration, result_state, setup_comp_1):
@@ -667,9 +658,7 @@ async def test_cooler_mode_dual(hass, setup_comp_1):
     heater_switch = "input_boolean.heater"
     cooler_switch = "input_boolean.cooler"
     assert await async_setup_component(
-        hass,
-        input_boolean.DOMAIN,
-        {"input_boolean": {"heater": None, "cooler": None}},
+        hass, input_boolean.DOMAIN, {"input_boolean": {"heater": None, "cooler": None}},
     )
 
     temp_input = "input_number.temp"
@@ -717,10 +706,7 @@ async def test_cooler_mode_dual(hass, setup_comp_1):
 
 @pytest.mark.parametrize(
     ["duration", "result_state"],
-    [
-        (timedelta(seconds=10), STATE_ON),
-        (timedelta(seconds=30), STATE_OFF),
-    ],
+    [(timedelta(seconds=10), STATE_ON), (timedelta(seconds=30), STATE_OFF),],
 )
 @pytest.mark.asyncio
 async def test_cooler_mode_dual_cycle(hass, duration, result_state, setup_comp_1):
@@ -729,9 +715,7 @@ async def test_cooler_mode_dual_cycle(hass, duration, result_state, setup_comp_1
     heater_switch = "input_boolean.heater"
     cooler_switch = "input_boolean.cooler"
     assert await async_setup_component(
-        hass,
-        input_boolean.DOMAIN,
-        {"input_boolean": {"heater": None, "cooler": None}},
+        hass, input_boolean.DOMAIN, {"input_boolean": {"heater": None, "cooler": None}},
     )
 
     temp_input = "input_number.temp"
@@ -871,9 +855,7 @@ async def test_heater_cooler_mode(hass, setup_comp_1):
     heater_switch = "input_boolean.heater"
     cooler_switch = "input_boolean.cooler"
     assert await async_setup_component(
-        hass,
-        input_boolean.DOMAIN,
-        {"input_boolean": {"heater": None, "cooler": None}},
+        hass, input_boolean.DOMAIN, {"input_boolean": {"heater": None, "cooler": None}},
     )
 
     temp_input = "input_number.temp"
@@ -967,9 +949,7 @@ async def test_heater_cooler_mode_floor_temp(hass, setup_comp_1):
     heater_switch = "input_boolean.heater"
     cooler_switch = "input_boolean.cooler"
     assert await async_setup_component(
-        hass,
-        input_boolean.DOMAIN,
-        {"input_boolean": {"heater": None, "cooler": None}},
+        hass, input_boolean.DOMAIN, {"input_boolean": {"heater": None, "cooler": None}},
     )
 
     temp_input = "input_number.temp"
@@ -1065,10 +1045,7 @@ async def test_heater_cooler_mode_floor_temp(hass, setup_comp_1):
 
 @pytest.mark.parametrize(
     ["duration", "result_state"],
-    [
-        (timedelta(seconds=10), STATE_ON),
-        (timedelta(seconds=30), STATE_OFF),
-    ],
+    [(timedelta(seconds=10), STATE_ON), (timedelta(seconds=30), STATE_OFF),],
 )
 @pytest.mark.asyncio
 async def test_heater_cooler_mode_cycle_heat(
@@ -1139,10 +1116,7 @@ async def test_heater_cooler_mode_cycle_heat(
 
 @pytest.mark.parametrize(
     ["duration", "result_state"],
-    [
-        (timedelta(seconds=10), STATE_ON),
-        (timedelta(seconds=30), STATE_OFF),
-    ],
+    [(timedelta(seconds=10), STATE_ON), (timedelta(seconds=30), STATE_OFF),],
 )
 @pytest.mark.asyncio
 async def test_heater_cooler_mode_cycle_cool(
@@ -1220,9 +1194,7 @@ async def test_heater_cooler_switch_hvac_modes(hass, setup_comp_1):
     heater_switch = "input_boolean.heater"
     cooler_switch = "input_boolean.cooler"
     assert await async_setup_component(
-        hass,
-        input_boolean.DOMAIN,
-        {"input_boolean": {"heater": None, "cooler": None}},
+        hass, input_boolean.DOMAIN, {"input_boolean": {"heater": None, "cooler": None}},
     )
 
     temp_input = "input_number.temp"
@@ -1273,9 +1245,7 @@ async def test_heater_cooler_mode_tolerances(hass, setup_comp_1):
     heater_switch = "input_boolean.heater"
     cooler_switch = "input_boolean.cooler"
     assert await async_setup_component(
-        hass,
-        input_boolean.DOMAIN,
-        {"input_boolean": {"heater": None, "cooler": None}},
+        hass, input_boolean.DOMAIN, {"input_boolean": {"heater": None, "cooler": None}},
     )
 
     temp_input = "input_number.temp"
@@ -1409,17 +1379,12 @@ async def async_climate_set_temperature(
 
 
 async def async_set_hvac_mode(
-    hass,
-    entity_id="all",
-    hvac_mode=HVACMode.OFF,
+    hass, entity_id="all", hvac_mode=HVACMode.OFF,
 ):
     """Set new HVAC mode."""
     kwargs = {
         key: value
-        for key, value in [
-            (ATTR_ENTITY_ID, entity_id),
-            (ATTR_HVAC_MODE, hvac_mode),
-        ]
+        for key, value in [(ATTR_ENTITY_ID, entity_id), (ATTR_HVAC_MODE, hvac_mode),]
         if value is not None
     }
     _LOGGER.debug("%s start data=%s", SERVICE_SET_HVAC_MODE, kwargs)

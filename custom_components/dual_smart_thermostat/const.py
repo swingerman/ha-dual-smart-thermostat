@@ -1,4 +1,4 @@
-"""const"""
+"""const."""
 from homeassistant.backports.enum import StrEnum
 from homeassistant.const import ATTR_ENTITY_ID
 import homeassistant.helpers.config_validation as cv
