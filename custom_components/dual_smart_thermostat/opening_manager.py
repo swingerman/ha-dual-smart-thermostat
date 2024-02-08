@@ -1,8 +1,7 @@
-"""Opening Manager for Dual Smart Thermostat"""
+"""Opening Manager for Dual Smart Thermostat."""
 
 
 import logging
-from typing import List
 
 from homeassistant.const import (
     ATTR_ENTITY_ID,
@@ -26,7 +25,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class OpeningManager:
-    """Opening Manager for Dual Smart Thermostat"""
+    """Opening Manager for Dual Smart Thermostat."""
 
     def __init__(self, hass: HomeAssistant, openings):
         self.hass = hass
@@ -37,20 +36,15 @@ class OpeningManager:
 
     @staticmethod
     def conform_openings_list(openings: list) -> list:
-        """Return a list of openings from a list of entities"""
-        return list(
-            map(
-                lambda entry: entry
+        """Return a list of openings from a list of entities."""
+        return [entry
                 if isinstance(entry, dict)
-                else {ATTR_ENTITY_ID: entry, ATTR_TIMEOUT: None},
-                openings,
-            )
-        )
+                else {ATTR_ENTITY_ID: entry, ATTR_TIMEOUT: None} for entry in openings]
 
     @staticmethod
-    def conform_opnening_entities(openings: [TIMED_OPENING_SCHEMA]) -> List:
-        """Return a list of entities from a list of openings"""
-        return list(map(lambda entry: entry[ATTR_ENTITY_ID], openings))
+    def conform_opnening_entities(openings: [TIMED_OPENING_SCHEMA]) -> list:
+        """Return a list of entities from a list of openings."""
+        return [entry[ATTR_ENTITY_ID] for entry in openings]
 
     @property
     def any_opening_open(self) -> bool:
@@ -79,9 +73,7 @@ class OpeningManager:
         ):
             _is_open = True
             _LOGGER.debug(
-                "Have timeout mode for opening %s, is open: %s",
-                opening,
-                _is_open,
+                "Have timeout mode for opening %s, is open: %s", opening, _is_open,
             )
         else:
             if self.hass.states.is_state(
@@ -99,15 +91,9 @@ class OpeningManager:
         opening_entity = opening[ATTR_ENTITY_ID]
         _is_open = False
         if condition.state(
-            self.hass,
-            opening_entity,
-            STATE_OPEN,
-            opening[ATTR_TIMEOUT],
+            self.hass, opening_entity, STATE_OPEN, opening[ATTR_TIMEOUT],
         ) or condition.state(
-            self.hass,
-            opening_entity,
-            STATE_ON,
-            opening[ATTR_TIMEOUT],
+            self.hass, opening_entity, STATE_ON, opening[ATTR_TIMEOUT],
         ):
             _is_open = True
         return _is_open
