@@ -10,7 +10,7 @@ The `dual_smart_thermostat` is an enhanced verion of generic thermostat implemen
 
 |  |  | |
 | :--- | :---: | :---: |
-| **Heater/Cooler Mode** | <img src="docs/images/sun-snowflake.svg" height="30" /> | [<img src="docs/images/file-document-outline.svg" height="30" style="stroke: red" />](#heater-cooler-mdoe) |
+| **Heater/Cooler Mode** | <img src="docs/images/sun-snowflake.svg" height="30" /> | [<img src="docs/images/file-document-outline.svg" height="30" style="stroke: red" />](#heatcool-mode) |
 | **Heater Only Mode** | <img src="docs/images/radiator.svg" height="30" /> | [<img src="docs/images/file-document-outline.svg" height="30" />](#heater-only-mode) |
 | **Two Stage Heating Mode** | <img src="docs/images/radiator.svg" height="30" /> <img src="docs/images/plus.svg" height="30" /> <img src="docs/images/radiator.svg" height="30" /> | [<img src="docs/images/file-document-outline.svg" height="30" />](#two-stage-heating) |
 | **Cooler Only mode** | <img src="docs/images/air-conditioner.svg" height="30" /> | [<img src="docs/images/file-document-outline.svg" height="30" />](#cooler-only-mode) |
@@ -19,7 +19,7 @@ The `dual_smart_thermostat` is an enhanced verion of generic thermostat implemen
 | **Presets** | <img src="docs/images/sleep.svg" height="30" /> <img src="docs/images/snowflake-thermometer.svg" height="30" /> <img src="docs/images/shield-lock-outline.svg" height="30" /> | [<img src="docs/images/file-document-outline.svg" height="30" />](#presets) |
 
 
-## Heat/Cool Mdoe
+## Heat/Cool Mode
 
 If both [`heater`](#heater) and [`cooler`](#cooler) entities configured. The thermostat can control heaing and cooling and you sare able to set min/max low and min/max high temperatures.
 In this mode you can turn the thermostat to heat only, cooler only and back to heat/cool mode.
