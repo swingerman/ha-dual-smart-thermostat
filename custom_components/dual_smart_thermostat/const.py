@@ -11,6 +11,8 @@ DEFAULT_TOLERANCE = 0.3
 DEFAULT_NAME = "Dual Smart"
 DEFAULT_MAX_FLOOR_TEMP = 28.0
 
+DOMAIN = "dual_smart_thermostat"
+
 CONF_HEATER = "heater"
 CONF_SECONDARY_HEATER = "secondary_heater"
 CONF_SECONDARY_HEATING_TIMEOUT = "secondary_heater_timeout"
@@ -43,46 +45,6 @@ TIMED_OPENING_SCHEMA = vol.Schema(
         vol.Required(ATTR_TIMEOUT): vol.All(cv.time_period, cv.positive_timedelta),
     }
 )
-
-
-class HVACMode(StrEnum):
-    """HVAC mode for climate devices."""
-
-    # All activity disabled / Device is off/standby
-    OFF = "off"
-
-    # Heating
-    HEAT = "heat"
-
-    # Cooling
-    COOL = "cool"
-
-    # The device supports heating/cooling to a range
-    HEAT_COOL = "heat_cool"
-
-    # The temperature is set based on a schedule, learned behavior, AI or some
-    # other related mechanism. User is not able to adjust the temperature
-    AUTO = "auto"
-
-    # Device is in Dry/Humidity mode
-    DRY = "dry"
-
-    # Only the fan is on, not fan and another mode like cool
-    FAN_ONLY = "fan_only"
-
-    IDLE = "idle"
-
-
-class HVACAction(StrEnum):
-    """HVAC action for climate devices."""
-
-    COOLING = "cooling"
-    DRYING = "drying"
-    FAN = "fan"
-    HEATING = "heating"
-    IDLE = "idle"
-    OFF = "off"
-
 
 class ToleranceDevice(StrEnum):
     """Tolerance device for climate devices."""

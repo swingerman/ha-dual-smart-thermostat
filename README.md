@@ -34,7 +34,7 @@ If only the [`heater`](#heater) entity is set the thermostat works only in heate
 
 ## Two Stage Heating
 
-Thwo stage heating canbe anabled by cadding the [required configuration](#two-stage-heating-example) netities: [`secondary_heater`](#secondary_heater), [`secondary heater_timeout`](#secondar_heater_timeout). If these are set the feature will enable automatically. 
+Thwo stage heating canbe anabled by cadding the [required configuration](#two-stage-heating-example) netities: [`secondary_heater`](#secondary_heater), [`secondary heater_timeout`](#secondar_heater_timeout). If these are set the feature will enable automatically.
 
 ### How Two Stage Heating Works?
 
@@ -460,6 +460,7 @@ climate:
     hot_tolerance: 0
     min_cycle_duration:
       seconds: 5
+      seconds: 5
     keep_alive:
       minutes: 3
     initial_hvac_mode: "off" # hvac mode will reset to this value after restart
@@ -480,3 +481,26 @@ I am happy tp help the Home Assistant community but I do it in my free time at t
 
 [![Donate](https://img.shields.io/badge/Donate-PayPal-yellowgreen?style=for-the-badge&logo=paypal)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=S6NC9BYVDDJMA&source=url)
 [![coffee](https://www.buymeacoffee.com/assets/img/custom_images/black_img.png)](https://www.buymeacoffee.com/swingerman)
+
+
+### Develpoent
+
+#### Tsting
+
+Use pytest to run the tests:
+
+```bash
+pytest
+```
+
+__Specific test__
+
+```bash
+pytest tests/test_heater_mode.py
+```
+
+__Log Level__
+
+```bash
+pytest --log-cli-level=DEBUG
+```
