@@ -1,4 +1,4 @@
-"""Global fixtures for schedule_state integration."""
+"""Global fixtures for knmi integration."""
 
 # Fixtures allow you to replace functions with a Mock object. You can perform
 # many options via the Mock to reflect a particular behavior from the original
@@ -18,11 +18,6 @@
 
 import pytest
 
-pytest_plugins = "pytest_homeassistant_custom_component"
-
-
-# This fixture enables loading custom integrations in all tests.
-# Remove to enable selective use of this fixture
 @pytest.fixture(autouse=True)
 def auto_enable_custom_integrations(enable_custom_integrations):
     yield
