@@ -7,7 +7,7 @@ from typing import Final
 from unittest.mock import patch
 
 from tests.const import MOCK_CONFIG_HEATER, MOCK_TARGET_SENSOR
-from . import setup_component, setup_sensor, setup_comp_1
+from . import setup_component, setup_floor_sensor, setup_sensor, setup_comp_1
 from . import common
 
 from homeassistant.core import HomeAssistant
@@ -21,10 +21,8 @@ from homeassistant.const import (
 )
 from homeassistant.components import input_boolean, input_number
 
-from homeassistant.components.climate import (
-    HVACMode
-)
-from homeassistant.components.climate.const import(
+from homeassistant.components.climate import HVACMode
+from homeassistant.components.climate.const import (
     DOMAIN as CLIMATE,
 )
 
@@ -71,6 +69,7 @@ ATTR_TARGET_TEMP_STEP = "target_temp_step"
 
 _LOGGER = logging.getLogger(__name__)
 
+
 async def test_heater_mode(hass, setup_comp_1) -> None:
     """Test thermostat heater switch in heating mode."""
     heater_switch = "input_boolean.test"
@@ -116,6 +115,7 @@ async def test_heater_mode(hass, setup_comp_1) -> None:
     setup_sensor(hass, 24)
     await hass.async_block_till_done()
     assert hass.states.get(heater_switch).state == STATE_OFF
+
 
 async def test_heater_mode_secondary_heater(hass, setup_comp_1):
     """Test thermostat secondary heater switch in heating mode."""
@@ -196,6 +196,7 @@ async def test_heater_mode_secondary_heater(hass, setup_comp_1):
     assert hass.states.get(heater_switch).state == STATE_OFF
     assert hass.states.get(secondary_heater_switch).state == STATE_ON
 
+
 async def test_heater_mode_tolerance(hass, setup_comp_1):
     """Test thermostat heater switch in heating mode."""
     heater_switch = "input_boolean.test"
@@ -255,6 +256,7 @@ async def test_heater_mode_tolerance(hass, setup_comp_1):
     await hass.async_block_till_done()
     assert hass.states.get(heater_switch).state == STATE_OFF
 
+
 async def test_heater_mode_floor_temp(hass, setup_comp_1):
     """Test thermostat heater switch with floor temp in heating mode."""
     heater_switch = "input_boolean.test"
@@ -311,7 +313,7 @@ async def test_heater_mode_floor_temp(hass, setup_comp_1):
     assert hass.states.get(heater_switch).state == STATE_OFF
 
     setup_sensor(hass, 18.6)
-    setup_sensor(hass, common.ENT_FLOOR_SENSOR, 10)
+    setup_floor_sensor(hass, 10)
     await hass.async_block_till_done()
 
     await common.async_set_temperature(hass, 18)
@@ -322,11 +324,11 @@ async def test_heater_mode_floor_temp(hass, setup_comp_1):
     await hass.async_block_till_done()
     assert hass.states.get(heater_switch).state == STATE_ON
 
-    setup_sensor(hass, common.ENT_FLOOR_SENSOR, 28)
+    setup_floor_sensor(hass, 28)
     await hass.async_block_till_done()
     assert hass.states.get(heater_switch).state == STATE_OFF
 
-    setup_sensor(hass, common.ENT_FLOOR_SENSOR, 26)
+    setup_floor_sensor(hass, 26)
     await hass.async_block_till_done()
     assert hass.states.get(heater_switch).state == STATE_ON
 
@@ -334,17 +336,18 @@ async def test_heater_mode_floor_temp(hass, setup_comp_1):
     await hass.async_block_till_done()
     assert hass.states.get(heater_switch).state == STATE_OFF
 
-    setup_sensor(hass, common.ENT_FLOOR_SENSOR, 4)
+    setup_floor_sensor(hass, 4)
     await hass.async_block_till_done()
     assert hass.states.get(heater_switch).state == STATE_ON
 
-    setup_sensor(hass, common.ENT_FLOOR_SENSOR, 3)
+    setup_floor_sensor(hass, 3)
     await hass.async_block_till_done()
     assert hass.states.get(heater_switch).state == STATE_ON
 
-    setup_sensor(hass, common.ENT_FLOOR_SENSOR, 10)
+    setup_floor_sensor(hass, 10)
     await hass.async_block_till_done()
     assert hass.states.get(heater_switch).state == STATE_OFF
+
 
 @pytest.mark.parametrize(
     ["duration", "result_state"],

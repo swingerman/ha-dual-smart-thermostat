@@ -3,6 +3,7 @@ import pytest
 
 from homeassistant.core import HomeAssistant
 
+
 async def setup_component(hass: HomeAssistant):
     """Initialize components."""
     hass.config.units = METRIC_SYSTEM

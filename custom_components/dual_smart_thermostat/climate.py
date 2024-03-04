@@ -9,7 +9,12 @@ from venv import logger
 
 import voluptuous as vol
 
-from homeassistant.components.climate import PLATFORM_SCHEMA, HVACAction, HVACMode, ClimateEntity
+from homeassistant.components.climate import (
+    PLATFORM_SCHEMA,
+    HVACAction,
+    HVACMode,
+    ClimateEntity,
+)
 from homeassistant.components.climate.const import (
     ATTR_PRESET_MODE,
     ATTR_TARGET_TEMP_HIGH,
@@ -40,7 +45,13 @@ from homeassistant.const import (
     STATE_UNAVAILABLE,
     STATE_UNKNOWN,
 )
-from homeassistant.core import DOMAIN as HA_DOMAIN, CoreState, callback, HomeAssistant, State
+from homeassistant.core import (
+    DOMAIN as HA_DOMAIN,
+    CoreState,
+    callback,
+    HomeAssistant,
+    State,
+)
 from homeassistant.helpers import condition
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.event import (
@@ -365,7 +376,11 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self._min_floor_temp = min_floor_temp
         self._unit = unit
         self._unique_id = unique_id
-        self._default_support_flags = ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.TURN_OFF | ClimateEntityFeature.TARGET_TEMPERATURE
+        self._default_support_flags = (
+            ClimateEntityFeature.TARGET_TEMPERATURE
+            | ClimateEntityFeature.TURN_OFF
+            | ClimateEntityFeature.TARGET_TEMPERATURE
+        )
         self._enable_turn_on_off_backwards_compatibility = False
         self._attr_supported_features = self._default_support_flags
         if len(presets):
@@ -417,6 +432,9 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             )
 
         if self.sensor_floor_entity_id is not None:
+            _LOGGER.debug(
+                "Adding floor sensor listener: %s", self.sensor_floor_entity_id
+            )
             self.async_on_remove(
                 async_track_state_change_event(
                     self.hass,
@@ -511,7 +529,10 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                 and self._is_configured_for_heat_cool()
                 and hvac_mode in (HVACMode.HEAT_COOL, HVACMode.OFF)
             ):
-                self._attr_supported_features = self._default_support_flags | ClimateEntityFeature.TARGET_TEMPERATURE_RANGE
+                self._attr_supported_features = (
+                    self._default_support_flags
+                    | ClimateEntityFeature.TARGET_TEMPERATURE_RANGE
+                )
                 if len(self._presets_range):
                     _LOGGER.debug("Setting support flag: presets for range mode")
                     self._attr_supported_features |= ClimateEntityFeature.PRESET_MODE
@@ -905,7 +926,6 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
     async def _async_control_heating_forced(self, time=None):
         """Call turn_on heater device."""
         _LOGGER.debug("_async_control_heating_forced")
-        _LOGGER.debug("Time check %s", time)
         await self._async_control_heating(time, force=True)
 
     async def _async_control_heating(self, time=None, force=False):
@@ -1154,8 +1174,6 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             and (self._min_floor_temp is not None)
             and (self._cur_floor_temp is not None)
         ):
-            _LOGGER.debug("floor temp: %s", self._cur_floor_temp)
-            _LOGGER.debug("min floor temp: %s", self._min_floor_temp)
             if self._cur_floor_temp <= self._min_floor_temp:
                 return True
         return False
@@ -1184,11 +1202,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
     @property
     def _is_device_active(self):
         """If the toggleable device is currently active."""
-        return (
-            self._is_heater_active
-            or self._is_aux_heat
-            or self._is_cooler_active
-        )
+        return self._is_heater_active or self._is_aux_heat or self._is_cooler_active
 
     @property
     def supported_features(self):
@@ -1207,10 +1221,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
     async def _async_secondary_heater_turn_on(self):
         """Turn secondary heater toggleable device on."""
-        if (
-            self.secondary_heater_entity_id is not None
-            and not self._is_aux_heat
-        ):
+        if self.secondary_heater_entity_id is not None and not self._is_aux_heat:
             await self._async_switch_turn_on(self.secondary_heater_entity_id)
             self._secondary_heater_last_run = datetime.datetime.now()
 
@@ -1224,10 +1235,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
     async def _async_secondary_heater_turn_off(self):
         """Turn secondary heater toggleable device off."""
-        if (
-            self.secondary_heater_entity_id is not None
-            and self._is_aux_heat
-        ):
+        if self.secondary_heater_entity_id is not None and self._is_aux_heat:
             await self._async_switch_turn_off(self.secondary_heater_entity_id)
 
     async def _async_cooler_turn_on(self):
@@ -1328,7 +1336,10 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             return long_enough
 
         long_enough_cooler = self._ran_long_enough(True)
-        return long_enough and long_enough_cooler
+        if cool:
+            return long_enough_cooler
+        # not sure if this is correct, need to revisit later
+        return long_enough or long_enough_cooler
 
     def _is_too_cold(self, target_attr="_target_temp") -> bool:
         """Checks if the current temperature is below target."""
@@ -1363,13 +1374,20 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
     def _is_target_mode(self):
         """Check if current support flag is for target temp mode."""
-        return self._attr_supported_features & ClimateEntityFeature.TARGET_TEMPERATURE and not (
-            self._attr_supported_features & ClimateEntityFeature.TARGET_TEMPERATURE_RANGE
+        return (
+            self._attr_supported_features & ClimateEntityFeature.TARGET_TEMPERATURE
+            and not (
+                self._attr_supported_features
+                & ClimateEntityFeature.TARGET_TEMPERATURE_RANGE
+            )
         )
 
     def _is_range_mode(self):
         """Check if current support flag is for range temp mode."""
-        return self._attr_supported_features & ClimateEntityFeature.TARGET_TEMPERATURE_RANGE
+        return (
+            self._attr_supported_features
+            & ClimateEntityFeature.TARGET_TEMPERATURE_RANGE
+        )
 
     def _set_default_target_temps(self):
         """Set default values for target temperatures."""
@@ -1442,17 +1460,25 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                 self._target_temp_high = self._saved_target_temp_high
             self._attr_supported_features = self._default_support_flags
             if len(self._presets):
-                _LOGGER.debug("Setting support flags to %s", self._attr_supported_features)
+                _LOGGER.debug(
+                    "Setting support flags to %s", self._attr_supported_features
+                )
                 self._attr_supported_features |= ClimateEntityFeature.PRESET_MODE
         else:
             if self._is_target_mode() and self._preset_mode != PRESET_NONE:
                 self._preset_mode = PRESET_NONE
                 self._target_temp = self._saved_target_temp
-            self._attr_supported_features = self._default_support_flags | ClimateEntityFeature.TARGET_TEMPERATURE_RANGE
+            self._attr_supported_features = (
+                self._default_support_flags
+                | ClimateEntityFeature.TARGET_TEMPERATURE_RANGE
+            )
             _LOGGER.debug("Setting support flags to %s", self._attr_supported_features)
             if len(self._presets_range):
                 self._attr_supported_features |= ClimateEntityFeature.PRESET_MODE
-                _LOGGER.debug("Setting support flags presets in range mode to %s", self._attr_supported_features)
+                _LOGGER.debug(
+                    "Setting support flags presets in range mode to %s",
+                    self._attr_supported_features,
+                )
         self._set_default_target_temps()
 
     def _ran_long_enough(self, cooler_entity=False):
