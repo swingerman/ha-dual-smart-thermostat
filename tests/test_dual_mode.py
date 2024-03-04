@@ -15,24 +15,20 @@ from homeassistant.core import HomeAssistant
 import pytest
 
 from homeassistant.util import dt
-from homeassistant.const import (
-    STATE_OFF,
-    STATE_ON,
-    ENTITY_MATCH_ALL
-)
+from homeassistant.const import STATE_OFF, STATE_ON, ENTITY_MATCH_ALL
 from homeassistant.components import input_boolean, input_number
 
 from homeassistant.components.climate import (
     HVACMode,
 )
-from homeassistant.components.climate.const import(
+from homeassistant.components.climate.const import (
     DOMAIN as CLIMATE,
 )
 
 from homeassistant.setup import async_setup_component
 from homeassistant.util.unit_system import METRIC_SYSTEM
 
-#from custom_components.dual_smart_thermostat.const import *
+# from custom_components.dual_smart_thermostat.const import *
 from custom_components.dual_smart_thermostat import DOMAIN
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
@@ -71,6 +67,7 @@ ATTR_SWING_MODE = "swing_mode"
 ATTR_TARGET_TEMP_STEP = "target_temp_step"
 
 _LOGGER = logging.getLogger(__name__)
+
 
 async def test_dual_mode_cooler(hass, setup_comp_1):
     """Test thermostat cooler switch in cooling mode."""
@@ -189,6 +186,7 @@ async def test_dual_mode_cooler_cycle(hass, duration, result_state, setup_comp_1
     assert hass.states.get(heater_switch).state == STATE_OFF
     assert hass.states.get(cooler_switch).state == result_state
 
+
 async def test_dual_mode(hass, setup_comp_1):
     """Test thermostat heater and cooler switch in heat/cool mode."""
 
@@ -283,6 +281,7 @@ async def test_dual_mode(hass, setup_comp_1):
 
     assert hass.states.get(heater_switch).state == STATE_OFF
 
+
 async def test_dual_mode_floor_temp(hass, setup_comp_1):
     """Test thermostat heater and cooler switch in heat/cool mode. with floor temp caps"""
 
@@ -367,7 +366,7 @@ async def test_dual_mode_floor_temp(hass, setup_comp_1):
 
     """If floor temp is below min_floor_temp, heater should be on"""
     setup_floor_sensor(hass, 4)
-    #setup_sensor(hass, 24)
+    # setup_sensor(hass, 24)
     await hass.async_block_till_done()
     assert hass.states.get(heater_switch).state == STATE_ON
     assert hass.states.get(cooler_switch).state == STATE_OFF
@@ -384,6 +383,7 @@ async def test_dual_mode_floor_temp(hass, setup_comp_1):
     assert hass.states.get(heater_switch).state == STATE_ON
     assert hass.states.get(cooler_switch).state == STATE_OFF
 
+
 @pytest.mark.parametrize(
     ["duration", "result_state"],
     [
@@ -391,9 +391,7 @@ async def test_dual_mode_floor_temp(hass, setup_comp_1):
         (timedelta(seconds=30), STATE_OFF),
     ],
 )
-async def test_dual_mode_cycle_heat(
-    hass, duration, result_state, setup_comp_1
-):
+async def test_dual_mode_cycle_heat(hass, duration, result_state, setup_comp_1):
     """Test thermostat heater and cooler switch in heat mode with min_cycle_duration."""
     heater_switch = "input_boolean.heater"
     cooler_switch = "input_boolean.cooler"
@@ -455,6 +453,7 @@ async def test_dual_mode_cycle_heat(
     assert hass.states.get(heater_switch).state == result_state
     assert hass.states.get(cooler_switch).state == STATE_OFF
 
+
 @pytest.mark.parametrize(
     ["duration", "result_state"],
     [
@@ -462,9 +461,7 @@ async def test_dual_mode_cycle_heat(
         (timedelta(seconds=30), STATE_OFF),
     ],
 )
-async def test_dual_mode_cycle_cool(
-    hass, duration, result_state, setup_comp_1
-):
+async def test_dual_mode_cycle_cool(hass, duration, result_state, setup_comp_1):
     """Test thermostat heater and cooler switch in cool mode with min_cycle_duration."""
     heater_switch = "input_boolean.heater"
     cooler_switch = "input_boolean.cooler"
@@ -526,6 +523,7 @@ async def test_dual_mode_cycle_cool(
     assert hass.states.get(heater_switch).state == STATE_OFF
     assert hass.states.get(cooler_switch).state == result_state
 
+
 async def test_dual_switch_hvac_modes(hass, setup_comp_1):
     """Test thermostat heater and cooler switch to heater only mode."""
     heater_switch = "input_boolean.heater"
@@ -575,6 +573,7 @@ async def test_dual_switch_hvac_modes(hass, setup_comp_1):
     # await common.async_set_hvac_mode(hass, HVACMode.COOL)
     # await hass.async_block_till_done()
     # assert hass.states.get("climate.test").state == HVAC_MODE_COOL
+
 
 async def test_dual_mode_tolerances(hass, setup_comp_1):
     """Test thermostat heater and cooler mode tolerances."""

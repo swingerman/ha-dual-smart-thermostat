@@ -20,10 +20,8 @@ from homeassistant.const import (
     STATE_ON,
 )
 from homeassistant.components import input_boolean, input_number
-from homeassistant.components.climate import (
-    HVACMode
-)
-from homeassistant.components.climate.const import(
+from homeassistant.components.climate import HVACMode
+from homeassistant.components.climate.const import (
     DOMAIN as CLIMATE,
 )
 
@@ -115,6 +113,7 @@ async def test_cooler_mode(hass, setup_comp_1):
     await hass.async_block_till_done()
     assert hass.states.get(cooler_switch).state == STATE_OFF
 
+
 async def test_cooler_mode_change(hass, setup_comp_1):
     """Test thermostat switch state iif HVAc mode changes."""
     cooler_switch = "input_boolean.test"
@@ -160,6 +159,7 @@ async def test_cooler_mode_change(hass, setup_comp_1):
     setup_sensor(hass, 17)
     await hass.async_block_till_done()
     assert hass.states.get(cooler_switch).state == STATE_OFF
+
 
 async def test_cooler_mode_tolerance(hass, setup_comp_1):
     """Test thermostat cooler switch in cooling mode."""
@@ -216,6 +216,7 @@ async def test_cooler_mode_tolerance(hass, setup_comp_1):
     setup_sensor(hass, 21.5)
     await hass.async_block_till_done()
     assert hass.states.get(cooler_switch).state == STATE_OFF
+
 
 @pytest.mark.parametrize(
     ["duration", "result_state"],
@@ -275,6 +276,7 @@ async def test_cooler_mode_cycle(hass, duration, result_state, setup_comp_1):
     setup_sensor(hass, 17)
     await hass.async_block_till_done()
     assert hass.states.get(cooler_switch).state == result_state
+
 
 async def test_cooler_mode_opening(hass, setup_comp_1):
     """Test thermostat cooler switch in cooling mode."""

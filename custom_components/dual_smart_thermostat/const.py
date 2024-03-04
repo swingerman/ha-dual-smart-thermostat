@@ -46,6 +46,7 @@ TIMED_OPENING_SCHEMA = vol.Schema(
     }
 )
 
+
 class ToleranceDevice(StrEnum):
     """Tolerance device for climate devices."""
 

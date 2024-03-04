@@ -28,12 +28,13 @@ from homeassistant.components.climate.const import (
     SERVICE_SET_HVAC_MODE,
     SERVICE_SET_PRESET_MODE,
     PRESET_AWAY,
-    ATTR_PRESET_MODE
+    ATTR_PRESET_MODE,
 )
 
 from . import common
 
 _LOGGER = logging.getLogger(__name__)
+
 
 @pytest.fixture
 async def setup_comp_1(hass):
@@ -41,7 +42,6 @@ async def setup_comp_1(hass):
     hass.config.units = METRIC_SYSTEM
     assert await async_setup_component(hass, "homeassistant", {})
     await hass.async_block_till_done()
-
 
 
 async def setup_component(hass: HomeAssistant, mock_config: dict) -> MockConfigEntry:
@@ -54,9 +54,11 @@ async def setup_component(hass: HomeAssistant, mock_config: dict) -> MockConfigE
 
     return config_entry
 
+
 def setup_sensor(hass, temp):
     """Set up the test sensor."""
     hass.states.async_set(common.ENT_SENSOR, temp)
+
 
 def setup_floor_sensor(hass, temp):
     """Set up the test sensor."""
