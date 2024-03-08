@@ -1,6 +1,6 @@
 # Home Assistant Dual Smart Thermostat component
 
-The `dual_smart_thermostat` is an enhanced verion of generic thermostat implemented in Home Assistant.
+The `dual_smart_thermostat` is an enhanced version of generic thermostat implemented in Home Assistant.
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Default-41BDF5.svg?style=for-the-badge)](https://github.com/swingerman/ha-dual-smart-thermostat) ![Release](https://img.shields.io/github/v/release/swingerman/ha-dual-smart-thermostat?style=for-the-badge) [![Donate](https://img.shields.io/badge/Donate-PayPal-yellowgreen?style=for-the-badge&logo=paypal)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=S6NC9BYVDDJMA&source=url)
 
@@ -19,7 +19,7 @@ The `dual_smart_thermostat` is an enhanced verion of generic thermostat implemen
 | **Presets** | <img src="docs/images/sleep.svg" height="30" /> <img src="docs/images/snowflake-thermometer.svg" height="30" /> <img src="docs/images/shield-lock-outline.svg" height="30" /> | [<img src="docs/images/file-document-outline.svg" height="30" />](#presets) |
 
 
-## Heat/Cool Mdoe
+## Heat/Cool Mode
 
 If both [`heater`](#heater) and [`cooler`](#cooler) entities configured. The thermostat can control heaing and cooling and you sare able to set min/max low and min/max high temperatures.
 In this mode you can turn the thermostat to heat only, cooler only and back to heat/cool mode.
@@ -34,11 +34,11 @@ If only the [`heater`](#heater) entity is set the thermostat works only in heate
 
 ## Two Stage Heating
 
-Thwo stage heating canbe anabled by cadding the [required configuration](#two-stage-heating-example) netities: [`secondary_heater`](#secondary_heater), [`secondary heater_timeout`](#secondar_heater_timeout). If these are set the feature will enable automatically.
+Thwo stage heating can be anabled by cadding the [required configuration](#two-stage-heating-example) netities: [`secondary_heater`](#secondary_heater), [`secondary heater_timeout`](#secondar_heater_timeout). If these are set the feature will enable automatically.
 
 ### How Two Stage Heating Works?
 
-If the timout ends and the [`heater`](#heater) was on for the whole time the thermostate switches to the [`secondary heater`](#secondary_heater). In this case the primarey heater ([`heater`](#heater)) will be turned off. This will be rmemebered for the day it turned on and in the next heating cycle the [`secondary heater`](#secondary_heater) will trun on automatically.
+If the timeout ends and the [`heater`](#heater) was on for the whole time the thermostate switches to the [`secondary heater`](#secondary_heater). In this case the primarey heater ([`heater`](#heater)) will be turned off. This will be rmemebered for the day it turned on and in the next heating cycle the [`secondary heater`](#secondary_heater) will turn on automatically.
 On the next day the primary heater will turn on again the second stage will again only turn on after a timeout.
 
 ### Two Stage Heating Example
@@ -66,7 +66,7 @@ The `openings` configuration variable accepts a list of opening entities and ope
 ### Opening entities and objects
 
 An opening entity is a sensor that can be in two states: `on` or `off`. If the state is `on` the opening is considered open, if the state is `off` the opening is considered closed.
-The opening object can conatin a timout property that defines the time in seconds after which the opening is considered open even if the state is still `on`. This is useful if you would want to ignor windows opened only for a short time.
+The opening object can contain a timeout property that defines the time in seconds after which the opening is considered open even if the state is still `on`. This is useful if you would want to ignor windows opened only for a short time.
 
 ## Openings Configuration
 
@@ -171,10 +171,10 @@ _default: Dual Smart_
 
 ### floor_sensor
 
-  _(optional) (string)_  "`entity_id` for the foor temperature sensor, floor_sensor.state must be temperature."
+  _(optional) (string)_  "`entity_id` for the floor temperature sensor, floor_sensor.state must be temperature."
 
 ### openings
-  _(optional) (list)_  "list of opening `entity_id`'s and/or opbjects for detecting open widows or doors that will idle the termostat until any of them are open. Note: if min_floor_temp is set and the floor temperature is below the minimum temperature, the thermostat will not idle even if any of the openings are open."
+  _(optional) (list)_  "list of opening `entity_id`'s and/or objects for detecting open widows or doors that will idle the thermostat until any of them are open. Note: if min_floor_temp is set and the floor temperature is below the minimum temperature, the thermostat will not idle even if any of the openings are open."
 
   `entity_id: <value>`The entity id of the opening bstate sensor (string)</br>
 
@@ -384,7 +384,7 @@ climate:
 
 ## DUAL Heat-Cool Mode Example
 
-This mode is used whan you want (and can) control bothe the heater and the cooler. In this mode the `target_temp_low` and `target_temp_high` must be set.
+This mode is used when you want (and can) control both the heater and the cooler. In this mode the `target_temp_low` and `target_temp_high` must be set.
 In this mode you can switch between heating and cooling by setting the `hvac_mode` to `heat` or `cool` or `heat_cool`.
 
 ```yaml
