@@ -1,17 +1,11 @@
-from homeassistant.const import (
-    CONF_NAME,
-    CONF_PLATFORM,
-)
+from homeassistant.components.climate import HVACMode
+from homeassistant.const import CONF_NAME, CONF_PLATFORM
 
 from custom_components.dual_smart_thermostat.const import (
-    DOMAIN as DUAL_SMART_THERMOSTAT_DOMAIN,
-    CONF_HEATER,
     CONF_COOLER,
+    CONF_HEATER,
     CONF_INITIAL_HVAC_MODE,
-)
-
-from homeassistant.components.climate import (
-    HVACMode,
+    DOMAIN as DUAL_SMART_THERMOSTAT_DOMAIN,
 )
 
 CONF_TARGET_SENSOR = "target_sensor"

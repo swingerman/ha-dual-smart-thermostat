@@ -4,8 +4,8 @@ import asyncio
 import json
 import os
 
-import aiohttp
 from aiogithubapi import GitHub
+import aiohttp
 from homeassistant.core import HomeAssistant
 
 from custom_components.hacs.const import HACS_ACTION_GITHUB_API_HEADERS

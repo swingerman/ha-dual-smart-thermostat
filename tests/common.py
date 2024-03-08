@@ -1,20 +1,14 @@
 from homeassistant.components.climate import (
     _LOGGER,
     ATTR_AUX_HEAT,
-    ATTR_FAN_MODE,
-    ATTR_HUMIDITY,
     ATTR_HVAC_MODE,
     ATTR_PRESET_MODE,
-    ATTR_SWING_MODE,
     ATTR_TARGET_TEMP_HIGH,
     ATTR_TARGET_TEMP_LOW,
     DOMAIN,
     SERVICE_SET_AUX_HEAT,
-    SERVICE_SET_FAN_MODE,
-    SERVICE_SET_HUMIDITY,
     SERVICE_SET_HVAC_MODE,
     SERVICE_SET_PRESET_MODE,
-    SERVICE_SET_SWING_MODE,
     SERVICE_SET_TEMPERATURE,
 )
 from homeassistant.const import (
@@ -32,7 +26,7 @@ ENT_HEATER = "heater.test"
 ENT_COOLER = "cooler.test"
 
 
-async def async_set_preset_mode(hass, preset_mode, entity_id=ENTITY_MATCH_ALL):
+async def async_set_preset_mode(hass, preset_mode, entity_id=ENTITY_MATCH_ALL) -> None:
     """Set new preset mode."""
     data = {ATTR_PRESET_MODE: preset_mode}
 
@@ -42,7 +36,7 @@ async def async_set_preset_mode(hass, preset_mode, entity_id=ENTITY_MATCH_ALL):
     await hass.services.async_call(DOMAIN, SERVICE_SET_PRESET_MODE, data, blocking=True)
 
 
-async def async_set_aux_heat(hass, aux_heat, entity_id=ENTITY_MATCH_ALL):
+async def async_set_aux_heat(hass, aux_heat, entity_id=ENTITY_MATCH_ALL) -> None:
     """Turn all or specified climate devices auxiliary heater on."""
     data = {ATTR_AUX_HEAT: aux_heat}
 
@@ -53,7 +47,7 @@ async def async_set_aux_heat(hass, aux_heat, entity_id=ENTITY_MATCH_ALL):
 
 
 @bind_hass
-def set_aux_heat(hass, aux_heat, entity_id=ENTITY_MATCH_ALL):
+def set_aux_heat(hass, aux_heat, entity_id=ENTITY_MATCH_ALL) -> None:
     """Turn all or specified climate devices auxiliary heater on."""
     data = {ATTR_AUX_HEAT: aux_heat}
 
@@ -70,7 +64,7 @@ async def async_set_temperature(
     target_temp_high=None,
     target_temp_low=None,
     hvac_mode=None,
-):
+) -> None:
     """Set new target temperature."""
     kwargs = {
         key: value
@@ -114,7 +108,7 @@ def set_temperature(
     hass.services.call(DOMAIN, SERVICE_SET_TEMPERATURE, kwargs)
 
 
-async def async_set_hvac_mode(hass, hvac_mode, entity_id=ENTITY_MATCH_ALL):
+async def async_set_hvac_mode(hass, hvac_mode, entity_id=ENTITY_MATCH_ALL) -> None:
     """Set new target operation mode."""
     data = {ATTR_HVAC_MODE: hvac_mode}
 
@@ -125,7 +119,7 @@ async def async_set_hvac_mode(hass, hvac_mode, entity_id=ENTITY_MATCH_ALL):
 
 
 @bind_hass
-def set_operation_mode(hass, hvac_mode, entity_id=ENTITY_MATCH_ALL):
+def set_operation_mode(hass, hvac_mode, entity_id=ENTITY_MATCH_ALL) -> None:
     """Set new target operation mode."""
     data = {ATTR_HVAC_MODE: hvac_mode}
 
@@ -135,7 +129,7 @@ def set_operation_mode(hass, hvac_mode, entity_id=ENTITY_MATCH_ALL):
     hass.services.call(DOMAIN, SERVICE_SET_HVAC_MODE, data)
 
 
-async def async_turn_on(hass, entity_id=ENTITY_MATCH_ALL):
+async def async_turn_on(hass, entity_id=ENTITY_MATCH_ALL) -> None:
     """Turn on device."""
     data = {}
 
@@ -145,7 +139,7 @@ async def async_turn_on(hass, entity_id=ENTITY_MATCH_ALL):
     await hass.services.async_call(DOMAIN, SERVICE_TURN_ON, data, blocking=True)
 
 
-async def async_turn_off(hass, entity_id=ENTITY_MATCH_ALL):
+async def async_turn_off(hass, entity_id=ENTITY_MATCH_ALL) -> None:
     """Turn off device."""
     data = {}
 
