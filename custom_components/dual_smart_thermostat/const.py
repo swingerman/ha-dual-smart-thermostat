@@ -3,12 +3,10 @@
 from homeassistant.backports.enum import StrEnum
 from homeassistant.const import ATTR_ENTITY_ID
 import homeassistant.helpers.config_validation as cv
-
 import voluptuous as vol
 
-
 DEFAULT_TOLERANCE = 0.3
-DEFAULT_NAME = "Dual Smart"
+DEFAULT_NAME = "Dual Smart Thermostat"
 DEFAULT_MAX_FLOOR_TEMP = 28.0
 
 DOMAIN = "dual_smart_thermostat"

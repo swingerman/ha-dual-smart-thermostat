@@ -3,71 +3,28 @@
 import asyncio
 from datetime import timedelta
 import logging
-from typing import Final
 from unittest.mock import patch
 
-from tests.const import MOCK_CONFIG_HEATER, MOCK_TARGET_SENSOR
-from . import setup_boolean, setup_component, setup_sensor, setup_comp_1
-from . import common
-
-from homeassistant.core import HomeAssistant
-
-import pytest
-
-from homeassistant.util import dt
-from homeassistant.const import (
-    STATE_OFF,
-    STATE_ON,
-)
 from homeassistant.components import input_boolean, input_number
 from homeassistant.components.climate import HVACMode
-from homeassistant.components.climate.const import (
-    DOMAIN as CLIMATE,
-)
-
+from homeassistant.components.climate.const import DOMAIN as CLIMATE
+from homeassistant.const import STATE_OFF, STATE_ON
+from homeassistant.core import HomeAssistant
 from homeassistant.setup import async_setup_component
-from homeassistant.util.unit_system import METRIC_SYSTEM
+from homeassistant.util import dt
+import pytest
 
-from custom_components.dual_smart_thermostat.const import *
-from custom_components.dual_smart_thermostat import DOMAIN
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from custom_components.dual_smart_thermostat.const import DOMAIN
 
+from . import common, setup_boolean, setup_comp_1, setup_sensor  # noqa: F401
 
-ATTR_AWAY_MODE = "away_mode"
-MIN_TEMP = 3.0
-MAX_TEMP = 65.0
-TARGET_TEMP = 42.0
 COLD_TOLERANCE = 0.5
 HOT_TOLERANCE = 0.5
-TARGET_TEMP_STEP = 0.5
-
-PRESET_ANTI_FREEZE = "anti_freeze"
-
-INPUT_SET_VALUE = "set_value"
-
-ATTR_AUX_HEAT = "aux_heat"
-ATTR_CURRENT_HUMIDITY = "current_humidity"
-ATTR_CURRENT_TEMPERATURE = "current_temperature"
-ATTR_FAN_MODES = "fan_modes"
-ATTR_FAN_MODE = "fan_mode"
-ATTR_PRESET_MODE = "preset_mode"
-ATTR_PRESET_MODES = "preset_modes"
-ATTR_HUMIDITY = "humidity"
-ATTR_MAX_HUMIDITY = "max_humidity"
-ATTR_MIN_HUMIDITY = "min_humidity"
-ATTR_MAX_TEMP = "max_temp"
-ATTR_MIN_TEMP = "min_temp"
-ATTR_HVAC_ACTION = "hvac_action"
-ATTR_HVAC_MODES = "hvac_modes"
-
-ATTR_SWING_MODES = "swing_modes"
-ATTR_SWING_MODE = "swing_mode"
-ATTR_TARGET_TEMP_STEP = "target_temp_step"
 
 _LOGGER = logging.getLogger(__name__)
 
 
-async def test_cooler_mode(hass, setup_comp_1):
+async def test_cooler_mode(hass: HomeAssistant, setup_comp_1) -> None:  # noqa: F811
     """Test thermostat cooler switch in cooling mode."""
     cooler_switch = "input_boolean.test"
     assert await async_setup_component(
@@ -114,8 +71,10 @@ async def test_cooler_mode(hass, setup_comp_1):
     assert hass.states.get(cooler_switch).state == STATE_OFF
 
 
-async def test_cooler_mode_change(hass, setup_comp_1):
-    """Test thermostat switch state iif HVAc mode changes."""
+async def test_cooler_mode_change(
+    hass: HomeAssistant, setup_comp_1  # noqa: F811
+) -> None:
+    """Test thermostat switch state if HVAc mode changes."""
     cooler_switch = "input_boolean.test"
     assert await async_setup_component(
         hass, input_boolean.DOMAIN, {"input_boolean": {"test": None}}
@@ -161,7 +120,9 @@ async def test_cooler_mode_change(hass, setup_comp_1):
     assert hass.states.get(cooler_switch).state == STATE_OFF
 
 
-async def test_cooler_mode_tolerance(hass, setup_comp_1):
+async def test_cooler_mode_tolerance(
+    hass: HomeAssistant, setup_comp_1  # noqa: F811
+) -> None:
     """Test thermostat cooler switch in cooling mode."""
     cooler_switch = "input_boolean.test"
     assert await async_setup_component(
@@ -189,8 +150,8 @@ async def test_cooler_mode_tolerance(hass, setup_comp_1):
                 "ac_mode": "true",
                 "target_sensor": common.ENT_SENSOR,
                 "initial_hvac_mode": HVACMode.COOL,
-                "cold_tolerance": 0.5,
-                "hot_tolerance": 0.5,
+                "cold_tolerance": COLD_TOLERANCE,
+                "hot_tolerance": HOT_TOLERANCE,
             }
         },
     )
@@ -226,7 +187,9 @@ async def test_cooler_mode_tolerance(hass, setup_comp_1):
     ],
 )
 @pytest.mark.asyncio
-async def test_cooler_mode_cycle(hass, duration, result_state, setup_comp_1):
+async def test_cooler_mode_cycle(
+    hass: HomeAssistant, duration, result_state, setup_comp_1  # noqa: F811
+) -> None:
     """Test thermostat cooler switch in cooling mode with cycle duration."""
     cooler_switch = "input_boolean.test"
     assert await async_setup_component(
@@ -278,7 +241,9 @@ async def test_cooler_mode_cycle(hass, duration, result_state, setup_comp_1):
     assert hass.states.get(cooler_switch).state == result_state
 
 
-async def test_cooler_mode_opening(hass, setup_comp_1):
+async def test_cooler_mode_opening(
+    hass: HomeAssistant, setup_comp_1  # noqa: F811
+) -> None:
     """Test thermostat cooler switch in cooling mode."""
     cooler_switch = "input_boolean.test"
     opening_1 = "input_boolean.opening_1"

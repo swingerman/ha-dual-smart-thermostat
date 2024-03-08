@@ -2,34 +2,13 @@
 
 import logging
 
-import pytest
-from custom_components.dual_smart_thermostat.const import DOMAIN
 from homeassistant.core import HomeAssistant
 from homeassistant.setup import async_setup_component
-from pytest_homeassistant_custom_component.common import MockConfigEntry
 from homeassistant.util.unit_system import METRIC_SYSTEM
-from homeassistant.core import DOMAIN as HASS_DOMAIN
-from homeassistant.const import (
-    ENTITY_MATCH_ALL,
-    ATTR_ENTITY_ID,
-    ATTR_TEMPERATURE,
-    STATE_OFF,
-    STATE_ON,
-)
+import pytest
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from homeassistant.components.climate.const import (
-    DOMAIN as CLIMATE,
-    HVAC_MODE_HEAT,
-    HVAC_MODE_COOL,
-    ATTR_TARGET_TEMP_HIGH,
-    ATTR_TARGET_TEMP_LOW,
-    ATTR_HVAC_MODE,
-    SERVICE_SET_TEMPERATURE,
-    SERVICE_SET_HVAC_MODE,
-    SERVICE_SET_PRESET_MODE,
-    PRESET_AWAY,
-    ATTR_PRESET_MODE,
-)
+from custom_components.dual_smart_thermostat.const import DOMAIN
 
 from . import common
 
@@ -37,7 +16,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 @pytest.fixture
-async def setup_comp_1(hass):
+async def setup_comp_1(hass: HomeAssistant):
     """Initialize components."""
     hass.config.units = METRIC_SYSTEM
     assert await async_setup_component(hass, "homeassistant", {})
@@ -55,16 +34,16 @@ async def setup_component(hass: HomeAssistant, mock_config: dict) -> MockConfigE
     return config_entry
 
 
-def setup_sensor(hass, temp):
+def setup_sensor(hass: HomeAssistant, temp):
     """Set up the test sensor."""
     hass.states.async_set(common.ENT_SENSOR, temp)
 
 
-def setup_floor_sensor(hass, temp):
+def setup_floor_sensor(hass: HomeAssistant, temp):
     """Set up the test sensor."""
     hass.states.async_set(common.ENT_FLOOR_SENSOR, temp)
 
 
-def setup_boolean(hass, entity, state):
+def setup_boolean(hass: HomeAssistant, entity, state):
     """Set up the test sensor."""
     hass.states.async_set(entity, state)

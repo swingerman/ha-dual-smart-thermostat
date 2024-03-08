@@ -9,9 +9,7 @@ from homeassistant.const import (
     STATE_UNAVAILABLE,
     STATE_UNKNOWN,
 )
-
 from homeassistant.core import HomeAssistant
-
 from homeassistant.helpers import condition
 
 from custom_components.dual_smart_thermostat.const import (
@@ -19,14 +17,13 @@ from custom_components.dual_smart_thermostat.const import (
     TIMED_OPENING_SCHEMA,
 )
 
-
 _LOGGER = logging.getLogger(__name__)
 
 
 class OpeningManager:
     """Opening Manager for Dual Smart Thermostat."""
 
-    def __init__(self, hass: HomeAssistant, openings):
+    def __init__(self, hass: HomeAssistant, openings) -> None:
         self.hass = hass
         self.openings = self.conform_openings_list(openings) if openings else []
         self.opening_entities = (
@@ -46,7 +43,7 @@ class OpeningManager:
         ]
 
     @staticmethod
-    def conform_opnening_entities(openings: [TIMED_OPENING_SCHEMA]) -> list:
+    def conform_opnening_entities(openings: [TIMED_OPENING_SCHEMA]) -> list:  # type: ignore
         """Return a list of entities from a list of openings."""
         return [entry[ATTR_ENTITY_ID] for entry in openings]
 
@@ -65,7 +62,7 @@ class OpeningManager:
 
         return _is_open
 
-    def _is_opening_open(self, opening: TIMED_OPENING_SCHEMA):
+    def _is_opening_open(self, opening: TIMED_OPENING_SCHEMA) -> None:  # type: ignore
         """If the opening is currently open."""
         opening_entity = opening[ATTR_ENTITY_ID]
         opening_entity_state = self.hass.states.get(opening_entity)
@@ -93,7 +90,7 @@ class OpeningManager:
             )
         return _is_open
 
-    def _is_opening_timed_out(self, opening: TIMED_OPENING_SCHEMA) -> bool:
+    def _is_opening_timed_out(self, opening: TIMED_OPENING_SCHEMA) -> bool:  # type: ignore
         opening_entity = opening[ATTR_ENTITY_ID]
         _is_open = False
         if condition.state(
