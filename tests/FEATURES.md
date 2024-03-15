@@ -70,6 +70,8 @@
 | restore will turn off when loaded second | X | ! | ! |
 | restore state uncoherence state | X | ! | ! |
 | aux heater | X | N/A | N/A |
+| aux heater keep primary on | X | N/A | N/A |
+| aux heater today | ! | N/A | N/A |
 | tolerance | X | X! | ? |
 | floor temp ! | X | N/A | ? |
 | hvac mode cycle | X | X | ? |
