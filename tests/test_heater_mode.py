@@ -1047,7 +1047,7 @@ async def test_restore_state_uncoherence_case(hass: HomeAssistant) -> None:
     assert state.state == HVACMode.OFF
 
 
-async def test_heater_mode_secondary_heater(
+async def test_heater_mode_aux_heater(
     hass: HomeAssistant, setup_comp_1  # noqa: F811
 ) -> None:
     """Test thermostat secondary heater switch in heating mode."""
@@ -1126,6 +1126,89 @@ async def test_heater_mode_secondary_heater(
     await hass.async_block_till_done()
 
     assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(secondary_heater_switch).state == STATE_ON
+
+
+async def test_heater_mode_aux_heater_keep_primary_heater_on(
+    hass: HomeAssistant, setup_comp_1  # noqa: F811
+) -> None:
+    """Test thermostat secondary heater switch in heating mode."""
+
+    secondaty_heater_timeout = 10
+    heater_switch = "input_boolean.heater_switch"
+    secondary_heater_switch = "input_boolean.secondary_heater_switch"
+
+    assert await async_setup_component(
+        hass,
+        input_boolean.DOMAIN,
+        {"input_boolean": {"heater_switch": None, "secondary_heater_switch": None}},
+    )
+
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {"name": "test", "initial": 10, "min": 0, "max": 40, "step": 1}
+            }
+        },
+    )
+
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "heater": heater_switch,
+                "secondary_heater": secondary_heater_switch,
+                "secondary_heater_timeout": {"seconds": secondaty_heater_timeout},
+                "secondary_heater_dual_mode": True,
+                "target_sensor": common.ENT_SENSOR,
+                "initial_hvac_mode": HVACMode.HEAT,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    assert hass.states.get(heater_switch).state == STATE_OFF
+
+    setup_sensor(hass, 18)
+    await hass.async_block_till_done()
+
+    await common.async_set_temperature(hass, 23)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(heater_switch).state == STATE_ON
+    assert hass.states.get(secondary_heater_switch).state == STATE_OFF
+
+    # until secondary heater timeout everything should be the same
+    await asyncio.sleep(secondaty_heater_timeout - 4)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(heater_switch).state == STATE_ON
+    assert hass.states.get(secondary_heater_switch).state == STATE_OFF
+
+    # after secondary heater timeout secondary heater should be on
+    await asyncio.sleep(secondaty_heater_timeout + 3)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(heater_switch).state == STATE_ON
+    assert hass.states.get(secondary_heater_switch).state == STATE_ON
+
+    # triggers reaching target temp should turn off secondary heater
+    setup_sensor(hass, 24)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(secondary_heater_switch).state == STATE_OFF
+
+    # if temp is below target temp secondary heater should be on again for the same day
+    setup_sensor(hass, 18)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(heater_switch).state == STATE_ON
     assert hass.states.get(secondary_heater_switch).state == STATE_ON
 
 

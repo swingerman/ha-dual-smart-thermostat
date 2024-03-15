@@ -12,7 +12,7 @@ The `dual_smart_thermostat` is an enhanced version of generic thermostat impleme
 | :--- | :---: | :---: |
 | **Heater/Cooler Mode** | <img src="docs/images/sun-snowflake.svg" height="30" /> | [<img src="docs/images/file-document-outline.svg" height="30" style="stroke: red" />](#heatcool-mode) |
 | **Heater Only Mode** | <img src="docs/images/radiator.svg" height="30" /> | [<img src="docs/images/file-document-outline.svg" height="30" />](#heater-only-mode) |
-| **Two Stage Heating Mode** | <img src="docs/images/radiator.svg" height="30" /> <img src="docs/images/plus.svg" height="30" /> <img src="docs/images/radiator.svg" height="30" /> | [<img src="docs/images/file-document-outline.svg" height="30" />](#two-stage-heating) |
+| **Two Stage (AUX) Heating Mode** | <img src="docs/images/radiator.svg" height="30" /> <img src="docs/images/plus.svg" height="30" /> <img src="docs/images/radiator.svg" height="30" /> | [<img src="docs/images/file-document-outline.svg" height="30" />](#two-stage-heating) |
 | **Cooler Only mode** | <img src="docs/images/air-conditioner.svg" height="30" /> | [<img src="docs/images/file-document-outline.svg" height="30" />](#cooler-only-mode) |
 | **Floor Temperature Control** | <img src="docs/images/heating-coil.svg" height="30" /> <img src="docs/images/snowflake-thermometer.svg" height="30" />  <img src="docs/images/thermometer-alert.svg" height="30" />  | [<img src="docs/images/file-document-outline.svg" height="30" />](#floor-heating-temperature-control) |
 | **Window/Door sensor integration** | <img src="docs/images/window-open.svg" height="30" /> <img src="docs/images/door-open.svg" height="30" /> <img src="docs/images/chevron-right.svg" height="30" /> <img src="docs/images/timer-cog-outline.svg" height="30" /> <img src="docs/images/chevron-right.svg" height="30" /> <img src="docs/images/hvac-off.svg" height="30" /> | [<img src="docs/images/file-document-outline.svg" height="30" />](#openings) |
@@ -32,23 +32,23 @@ If only the [`heater`](#heater) entity is set the thermostat works only in heate
 
 [all features ⤴️](#features)
 
-## Two Stage Heating
+## Two Stage (AUX) Heating
 
-Thwo stage heating can be anabled by cadding the [required configuration](#two-stage-heating-example) netities: [`secondary_heater`](#secondary_heater), [`secondary heater_timeout`](#secondar_heater_timeout). If these are set the feature will enable automatically.
+Thwo stage or AUX heating can be anabled by cadding the [required configuration](#two-stage-heating-example) netities: [`secondary_heater`](#secondary_heater), [`secondary heater_timeout`](#secondar_heater_timeout). If these are set the feature will enable automatically.
+Optionally you can set [`secondary heater_dual_mode`](#secondar_heater_dual_mode) to `true` to turn on the secondary heater together with the primary heater.
 
 ### How Two Stage Heating Works?
 
 If the timeout ends and the [`heater`](#heater) was on for the whole time the thermostate switches to the [`secondary heater`](#secondary_heater). In this case the primarey heater ([`heater`](#heater)) will be turned off. This will be rmemebered for the day it turned on and in the next heating cycle the [`secondary heater`](#secondary_heater) will turn on automatically.
 On the next day the primary heater will turn on again the second stage will again only turn on after a timeout.
+If the third [`secondary heater_dual_mode`](#secondar_heater_dual_mode) is set to `true` the secondary heater will be turned on together with the primary heater.
 
 ### Two Stage Heating Example
 
 ```yaml
-openings:
-  - sensor.window1
-  - sensor.window2
-  - entity_id: binary_sensor.window3
-    timeout: 00:00:30 # cosnidered to be open if still open after 30 seconds
+secondary_heater: switch.study_secondary_heater   # <-- required
+secondar_heater_timeout: 00:00:30                 # <-- required
+secondar_heater_dual_mode: true                   # <-- optional
 ```
 
 ## Cooler Only Mode
@@ -162,6 +162,10 @@ _default: Dual Smart_
 ### secondar_heater_timeout
 
   _(optional, __required for two stage heating__) (time, integer)_  Set a minimum amount of time that the switch specified in the *heater* option must be in its ON state before secondary heater devices needs to be turned on.
+
+### secondar_heater_dual_mode
+
+  _(optional, (bool)_  If set true the secondary (aux) heater will be turned on together with the primary heater.
 
 ### cooler
 
