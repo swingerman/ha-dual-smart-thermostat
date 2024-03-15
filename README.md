@@ -129,6 +129,8 @@ Currrnetly supported presets are:
 * [sleep](#sleep)
 * [comfort](#comfort)
 * [anti freeze](#anti_freeze)
+* [activity](#activity)
+* [boost](#boost)
 
 To set presets you need to add entries for them in the configuration file like this:
 
@@ -311,6 +313,27 @@ _default: Dual Smart_
   `temperature: <value>` The preset temperature to use in `heat` or `cool` mode (float)</br>
   `target_temp_low: <value>` The preset low temperature to use in `heat_cool` mode (float)</br>
   `target_temp_high: <value>` The preset high temperature to use in `heat_cool` mode (float)</br>
+
+### acrivity
+
+  _(optional) (list)_ Set the temperature used by `preset_mode: Activity`. If this is not specified, the preset mode feature will not be available.
+
+  Possible values are:
+
+  `temperature: <value>` The preset temperature to use in `heat` or `cool` mode (float)</br>
+  `target_temp_low: <value>` The preset low temperature to use in `heat_cool` mode (float)</br>
+  `target_temp_high: <value>` The preset high temperature to use in `heat_cool` mode (float)</br>
+
+### boost
+
+  _(optional) (list)_ Set the temperature used by `preset_mode: Boost`. If this is not specified, the preset mode feature will not be available.
+  This preset mode only works in `heat` or `cool` mode because boosting temperatures on heat_cools
+  mode will require setting `target_temp_low` higher than `target_temp_high` and vica versa.
+
+  Possible values are:
+
+  `temperature: <value>` The preset temperature to use in `heat` or `cool` mode (float)</br>
+
 
 ### precision
 

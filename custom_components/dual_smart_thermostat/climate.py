@@ -16,7 +16,9 @@ from homeassistant.components.climate.const import (
     ATTR_PRESET_MODE,
     ATTR_TARGET_TEMP_HIGH,
     ATTR_TARGET_TEMP_LOW,
+    PRESET_ACTIVITY,
     PRESET_AWAY,
+    PRESET_BOOST,
     PRESET_COMFORT,
     PRESET_ECO,
     PRESET_HOME,
@@ -90,6 +92,7 @@ from .const import (
     CONF_TARGET_TEMP_HIGH,
     CONF_TARGET_TEMP_LOW,
     CONF_TEMP_STEP,
+    DEFAULT_MAX_FLOOR_TEMP,
     DEFAULT_NAME,
     DEFAULT_TOLERANCE,
     PRESET_ANTI_FREEZE,
@@ -110,6 +113,8 @@ CONF_PRESETS = {
         PRESET_HOME,
         PRESET_SLEEP,
         PRESET_ANTI_FREEZE,
+        PRESET_ACTIVITY,
+        PRESET_BOOST,
     )
 }
 CONF_PRESETS_OLD = {k: f"{v}_temp" for k, v in CONF_PRESETS.items()}
@@ -385,10 +390,11 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self._attr_supported_features = self._default_support_flags
         if len(presets):
             self._attr_supported_features |= ClimateEntityFeature.PRESET_MODE
-            self._preset_modes = [PRESET_NONE] + list(presets.keys())
+            self._attr_preset_modes = [PRESET_NONE] + list(presets.keys())
             _LOGGER.debug("INIT - Setting support flag: presets")
         else:
-            self._preset_modes = [PRESET_NONE]
+            self._attr_preset_modes = [PRESET_NONE]
+            _LOGGER.debug("INIT - Setting support flag: presets - no presets set")
         self._presets = presets
         if len(presets_range):
             self._preset_range_modes = [PRESET_NONE] + list(presets_range.keys())
@@ -516,16 +522,22 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                 if old_target_max is not None:
                     self._target_temp_high = float(old_target_max)
             if self._target_temp is None:
+                _LOGGER.debug("Restoring previous target temperature")
                 old_target = old_state.attributes.get(ATTR_PREV_TARGET)
                 if old_target is None:
+                    _LOGGER.debug("No previous target temperature")
                     old_target = old_state.attributes.get(ATTR_TEMPERATURE)
                 if old_target is not None:
+                    _LOGGER.debug(
+                        "Restoring previous target temperature: %s", old_target
+                    )
                     self._target_temp = float(old_target)
 
             supp_feat = old_state.attributes.get(ATTR_SUPPORTED_FEATURES)
             hvac_mode = self._hvac_mode or old_state.state or HVACMode.OFF
             if (
-                supp_feat & ClimateEntityFeature.TARGET_TEMPERATURE_RANGE
+                supp_feat not in (None, 0)
+                and supp_feat & ClimateEntityFeature.TARGET_TEMPERATURE_RANGE
                 and self._is_configured_for_heat_cool()
                 and hvac_mode in (HVACMode.HEAT_COOL, HVACMode.OFF)
             ):
@@ -549,14 +561,16 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                     self._attr_preset_mode = old_pres_mode
                     self._saved_target_temp_low = self._target_temp_low
                     self._saved_target_temp_high = self._target_temp_high
-                    self._target_temp_low = self._presets_range[old_pres_mode][0]
-                    self._target_temp_high = self._presets_range[old_pres_mode][1]
+
             elif self._attr_preset_modes and old_pres_mode in self._presets:
+                _LOGGER.debug("Restoring previous preset mode: %s", old_pres_mode)
                 self._attr_preset_mode = old_pres_mode
                 self._saved_target_temp = self._target_temp
-                self._target_temp = self._presets[old_pres_mode]
 
             self._hvac_mode = hvac_mode
+            self._max_floor_temp = (
+                old_state.attributes.get("max_floor_temp") or DEFAULT_MAX_FLOOR_TEMP
+            )
 
         else:
             # No previous state, try and restore defaults
@@ -564,6 +578,9 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                 self._hvac_mode = HVACMode.OFF
             if self._hvac_mode == HVACMode.OFF:
                 self._set_default_target_temps()
+
+            if self._max_floor_temp is None:
+                self._max_floor_temp = DEFAULT_MAX_FLOOR_TEMP
 
         # Set correct support flag
         self._set_support_flags()
@@ -732,9 +749,6 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                 return
             self._target_temp_low = temp_low
             self._target_temp_high = temp_high
-
-        if self._attr_preset_mode != PRESET_NONE:
-            self._attr_preset_mode = PRESET_NONE
 
         await self._async_control_climate(force=True)
         self.async_write_ha_state()
@@ -1231,6 +1245,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
     async def async_set_preset_mode(self, preset_mode: str) -> None:
         """Set new preset mode."""
+        _LOGGER.debug("Setting preset mode: %s", preset_mode)
         if preset_mode not in (self.preset_modes or []):
             raise ValueError(
                 f"Got unsupported preset_mode {preset_mode}. Must be one of {self.preset_modes}"
@@ -1247,6 +1262,8 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self.async_write_ha_state()
 
     def _set_presets_when_no_preset_mode(self):
+        """Sets target temperatures when preset is none."""
+        _LOGGER.debug("Setting presets when no preset mode")
         self._attr_preset_mode = PRESET_NONE
         if self._is_range_mode():
             self._target_temp_low = self._saved_target_temp_low
@@ -1255,6 +1272,8 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             self._target_temp = self._saved_target_temp
 
     def _set_presets_when_have_preset_mode(self, preset_mode: str):
+        """Sets target temperatures when have preset is not none."""
+        _LOGGER.debug("Setting presets when have preset mode")
         if self._is_range_mode():
             if self._attr_preset_mode == PRESET_NONE:
                 self._saved_target_temp_low = self._target_temp_low
