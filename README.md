@@ -10,7 +10,7 @@ The `dual_smart_thermostat` is an enhanced version of generic thermostat impleme
 
 |  |  | |
 | :--- | :---: | :---: |
-| **Heater/Cooler Mode** | <img src="docs/images/sun-snowflake.svg" height="30" /> | [<img src="docs/images/file-document-outline.svg" height="30" style="stroke: red" />](#heater-cooler-mdoe) |
+| **Heater/Cooler Mode** | <img src="docs/images/sun-snowflake.svg" height="30" /> | [<img src="docs/images/file-document-outline.svg" height="30" style="stroke: red" />](#heatcool-mode) |
 | **Heater Only Mode** | <img src="docs/images/radiator.svg" height="30" /> | [<img src="docs/images/file-document-outline.svg" height="30" />](#heater-only-mode) |
 | **Two Stage Heating Mode** | <img src="docs/images/radiator.svg" height="30" /> <img src="docs/images/plus.svg" height="30" /> <img src="docs/images/radiator.svg" height="30" /> | [<img src="docs/images/file-document-outline.svg" height="30" />](#two-stage-heating) |
 | **Cooler Only mode** | <img src="docs/images/air-conditioner.svg" height="30" /> | [<img src="docs/images/file-document-outline.svg" height="30" />](#cooler-only-mode) |
