@@ -12,8 +12,9 @@ DEFAULT_MAX_FLOOR_TEMP = 28.0
 DOMAIN = "dual_smart_thermostat"
 
 CONF_HEATER = "heater"
-CONF_SECONDARY_HEATER = "secondary_heater"
-CONF_SECONDARY_HEATING_TIMEOUT = "secondary_heater_timeout"
+CONF_AUX_HEATER = "secondary_heater"
+CONF_AUX_HEATING_TIMEOUT = "secondary_heater_timeout"
+CONF_AUX_HEATING_DUAL_MODE = "secondary_heater_dual_mode"
 CONF_COOLER = "cooler"
 CONF_SENSOR = "target_sensor"
 CONF_FLOOR_SENSOR = "floor_sensor"
