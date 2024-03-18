@@ -387,11 +387,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self._unit = unit
         self._attr_unique_id = unique_id
         self._attr_preset_mode = PRESET_NONE
-        self._default_support_flags = (
-            ClimateEntityFeature.TARGET_TEMPERATURE
-            | ClimateEntityFeature.TURN_OFF
-            | ClimateEntityFeature.TARGET_TEMPERATURE
-        )
+        self._default_support_flags = ClimateEntityFeature.TURN_OFF
         self._enable_turn_on_off_backwards_compatibility = False
         self._attr_supported_features = self._default_support_flags
         if len(presets):
@@ -408,10 +404,6 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             self._preset_range_modes = [PRESET_NONE]
         self._presets_range = presets_range
         self._preset_mode = PRESET_NONE
-
-        # aux heater support
-        if self._is_aux_heating_configured:
-            self._attr_supported_features |= ClimateEntityFeature.AUX_HEAT
 
         # aux heater last run time
         if self.aux_heater_entity_id and self.aux_heater_timeout:
@@ -556,6 +548,10 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                     self._attr_supported_features |= ClimateEntityFeature.PRESET_MODE
                 self._set_default_target_temps()
             else:
+                self._attr_supported_features = (
+                    self._default_support_flags
+                    | ClimateEntityFeature.TARGET_TEMPERATURE
+                )
                 if hvac_mode not in self.hvac_modes:
                     hvac_mode = HVACMode.OFF
                 self._set_default_target_temps()
@@ -703,14 +699,12 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         match hvac_mode:
             case HVACMode.HEAT:
                 self._hvac_mode = HVACMode.HEAT
-                self._set_support_flags()
                 await self._async_control_heating(force=True)
                 if self._is_cooler_active:
                     await self._async_cooler_turn_off()
 
             case HVACMode.COOL:
                 self._hvac_mode = HVACMode.COOL
-                self._set_support_flags()
                 await self._async_control_cooling(force=True)
                 if self._is_device_active:
                     await self._async_heater_turn_off()
@@ -719,7 +713,6 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
             case HVACMode.HEAT_COOL:
                 self._hvac_mode = HVACMode.HEAT_COOL
-                self._set_support_flags()
                 await self._async_control_heat_cool(force=True)
 
             case HVACMode.OFF:
@@ -728,6 +721,8 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                     await self._async_heater_turn_off()
                 if self.cooler_entity_id:
                     await self._async_cooler_turn_off()
+                if self._is_aux_heating_configured():
+                    await self._async_aux_heater_turn_off()
 
             case _:
                 _LOGGER.error("Unrecognized hvac mode: %s", hvac_mode)
@@ -745,14 +740,19 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         _LOGGER.debug("Setting temperature low: %s", temp_low)
         _LOGGER.debug("Setting temperature high: %s", temp_high)
 
+        # Target mode needs only one temperature
         if self._is_target_mode():
             if temperature is None:
                 return
             self._target_temp = temperature
 
+        # range mode needs three temperatures
+        # range mode is combined with target mode
+        # HVACMode.HEAT_COOL, HVACMode.COOL, HVACMode.HEAT
         elif self._is_range_mode():
             if temp_low is None or temp_high is None:
                 return
+            self._target_temp = temperature
             self._target_temp_low = temp_low
             self._target_temp_high = temp_high
 
@@ -869,7 +869,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
     def _async_hvac_mode_changed(self, hvac_mode) -> None:
         """Handle HVAC mode changes."""
         self._hvac_mode = hvac_mode
-        self._set_support_flags()
+        # self._set_support_flags()
         self.async_write_ha_state()
 
     @callback
@@ -1336,6 +1336,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
     def _is_too_cold(self, target_attr="_target_temp") -> bool:
         """Checks if the current temperature is below target."""
         target_temp = getattr(self, target_attr)
+        _LOGGER.debug("Target temp: %s, current temp: %s", target_temp, self._cur_temp)
         return target_temp >= self._cur_temp + self._cold_tolerance
 
     def _is_too_hot(self, target_attr="_target_temp") -> bool:
@@ -1421,10 +1422,12 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         _LOGGER.debug("Setting default target temperature range mode")
 
         if self._target_temp is None:
+            self._target_temp = self.min_temp
             self._target_temp_low = self.min_temp
             self._target_temp_high = self.max_temp
             _LOGGER.warning(
-                "Undefined target temperature range, falling back to %s-%s",
+                "Undefined target temperature range, falling back to %s-%s-%s",
+                self._target_temp,
                 self._target_temp_low,
                 self._target_temp_high,
             )
@@ -1439,8 +1442,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
     def _set_support_flags(self) -> None:
         """Set the correct support flags based on configuration."""
-        if self._hvac_mode == HVACMode.OFF:
-            return
+        _LOGGER.debug("Setting support flags")
 
         if not self._is_configured_for_heat_cool() or self._hvac_mode in (
             HVACMode.COOL,
@@ -1450,7 +1452,11 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                 self._attr_preset_mode = PRESET_NONE
                 self._target_temp_low = self._saved_target_temp_low
                 self._target_temp_high = self._saved_target_temp_high
-            self._attr_supported_features = self._default_support_flags
+            self._attr_supported_features = (
+                self._default_support_flags | ClimateEntityFeature.TARGET_TEMPERATURE
+            )
+            if self._is_aux_heating_configured():
+                self._attr_supported_features |= ClimateEntityFeature.AUX_HEAT
             if len(self._presets):
                 _LOGGER.debug(
                     "Setting support flags to %s", self._attr_supported_features

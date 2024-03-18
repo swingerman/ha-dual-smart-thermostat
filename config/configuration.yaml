@@ -5,6 +5,8 @@ recorder:
 input_boolean:
   heater_on:
     name: Heater toggle
+  aux_heater_on:
+    name: AUX Heater toggle
   cooler_on:
     name: Cooler toggle
   window_open:
@@ -60,6 +62,17 @@ switch:
           service: input_boolean.turn_off
           data:
             entity_id: input_boolean.heater_on
+
+      aux_heater:
+        value_template: "{{ is_state('input_boolean.aux_heater_on', 'on') }}"
+        turn_on:
+          service: input_boolean.turn_on
+          data:
+            entity_id: input_boolean.aux_heater_on
+        turn_off:
+          service: input_boolean.turn_off
+          data:
+            entity_id: input_boolean.aux_heater_on
 
       cooler:
         value_template: "{{ is_state('input_boolean.cooler_on', 'on') }}"
@@ -150,6 +163,22 @@ climate:
     # initial_hvac_mode: "off"
     away_temp: 16
     precision: 0.1
+
+  - platform: dual_smart_thermostat
+    name: AUX Heat Room
+    heater: switch.heater
+    secondary_heater: switch.aux_heater
+    secondary_heater_timeout: 00:00:15
+    secondary_heater_dual_mode: true
+    openings:
+      - input_boolean.window_open
+      - input_boolean.window_open2
+    target_sensor: sensor.room_temp
+    away:
+      temperature: 24
+    anti_freeze:
+      temperature: 10
+
 
   - platform: generic_thermostat
     name: generic one
