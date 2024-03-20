@@ -101,7 +101,7 @@ max_floor_temp: 28
 
 The `dual_smart_thermostat` can turn on if the floor temperature reaches the minimum required temperature you define in order to protect the floor from freezing or to keep it on a comfortbale temperature.
 
-### Floor Temoerature COntrol Configuration
+### Floor Temperature Control Configuration
 
 ```yaml
 # Example configuration.yaml entry
@@ -318,7 +318,7 @@ _default: Dual Smart_
   `target_temp_low: <value>` The preset low temperature to use in `heat_cool` mode (float)</br>
   `target_temp_high: <value>` The preset high temperature to use in `heat_cool` mode (float)</br>
 
-### acrivity
+### activity
 
   _(optional) (list)_ Set the temperature used by `preset_mode: Activity`. If this is not specified, the preset mode feature will not be available.
 
