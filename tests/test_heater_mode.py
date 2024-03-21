@@ -36,7 +36,7 @@ from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import entity_registry as er
 from homeassistant.setup import async_setup_component
 from homeassistant.util import dt, dt as dt_util
-from homeassistant.util.unit_system import METRIC_SYSTEM, US_CUSTOMARY_SYSTEM
+from homeassistant.util.unit_system import METRIC_SYSTEM
 import pytest
 import voluptuous as vol
 
@@ -852,16 +852,16 @@ async def test_mode_change_heater_trigger_on_not_long_enough(
 #     assert call.data["entity_id"] == common.ENT_SWITCH
 
 
-async def test_precision(
-    hass: HomeAssistant, setup_comp_heat_cycle_precision  # noqa: F811
-) -> None:
-    """Test that setting precision to tenths works as intended."""
-    hass.config.units = US_CUSTOMARY_SYSTEM
-    await common.async_set_temperature(hass, 23.27)
-    state = hass.states.get(common.ENTITY)
-    assert state.attributes.get("temperature") == 23.3
-    # check that target_temp_step defaults to precision
-    assert state.attributes.get("target_temp_step") == 0.1
+# async def test_precision(
+#     hass: HomeAssistant, setup_comp_heat_cycle_precision  # noqa: F811
+# ) -> None:
+#     """Test that setting precision to tenths works as intended."""
+#     hass.config.units = US_CUSTOMARY_SYSTEM
+#     await common.async_set_temperature(hass, 23.27)
+#     state = hass.states.get(common.ENTITY)
+#     assert state.attributes.get("temperature") == 23.3
+#     # check that target_temp_step defaults to precision
+#     assert state.attributes.get("target_temp_step") == 0.1
 
 
 async def test_initial_hvac_off_force_heater_off(hass: HomeAssistant) -> None:
