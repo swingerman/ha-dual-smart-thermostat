@@ -15,7 +15,7 @@ from homeassistant.components.climate import (
     PRESET_SLEEP,
     HVACMode,
 )
-from homeassistant.components.climate.const import DOMAIN as CLIMATE
+from homeassistant.components.climate.const import ATTR_PRESET_MODE, DOMAIN as CLIMATE
 from homeassistant.const import ENTITY_MATCH_ALL, STATE_OFF, STATE_ON
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ServiceValidationError
@@ -142,6 +142,49 @@ async def test_setup_gets_current_temp_from_sensor(
     )
     await hass.async_block_till_done()
     assert hass.states.get(common.ENTITY).attributes["current_temperature"] == 18
+
+
+async def test_use_case_1(
+    hass: HomeAssistant,
+) -> None:  # noqa: F811
+    """Test that current temperature is updated on entity addition."""
+    hass.config.units = METRIC_SYSTEM
+    setup_sensor(hass, 18)
+    await hass.async_block_till_done()
+
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "heater": common.ENT_HEATER,
+                "cooler": common.ENT_COOLER,
+                "target_sensor": common.ENT_SENSOR,
+                "min_cycle_duration": timedelta(seconds=60),
+                "precision": 0.5,
+                "min_temp": 20,
+                "max_temp": 25,
+                "heat_cool_mode": True,
+                "target_temp_high": 30,
+                "target_temp_low": 10,
+                PRESET_AWAY: {
+                    "target_temp_low": 0,
+                    "target_temp_high": 50,
+                },
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes["supported_features"] == 402
+
+    await common.async_set_preset_mode(hass, PRESET_AWAY)
+
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes[ATTR_PRESET_MODE] == PRESET_AWAY
 
 
 async def test_default_setup_params(

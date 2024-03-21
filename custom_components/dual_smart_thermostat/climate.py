@@ -230,11 +230,13 @@ async def async_setup_platform(
     presets_dict = {
         key: config[value] for key, value in CONF_PRESETS.items() if value in config
     }
+    _LOGGER.debug("Presets dict: %s", presets_dict)
     presets = {
         key: values[ATTR_TEMPERATURE]
         for key, values in presets_dict.items()
         if ATTR_TEMPERATURE in values
     }
+    _LOGGER.debug("Presets: %s", presets)
     presets_range = {
         key: [values[ATTR_TARGET_TEMP_LOW], values[ATTR_TARGET_TEMP_HIGH]]
         for key, values in presets_dict.items()
@@ -242,6 +244,7 @@ async def async_setup_platform(
         and ATTR_TARGET_TEMP_HIGH in values
         and values[ATTR_TARGET_TEMP_LOW] < values[ATTR_TARGET_TEMP_HIGH]
     }
+    _LOGGER.debug("Presets range: %s", presets_range)
 
     # Try to load presets in old format and use if new format not available in config
     old_presets = {k: config[v] for k, v in CONF_PRESETS_OLD.items() if v in config}
@@ -401,11 +404,20 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             _LOGGER.debug("INIT - Setting support flag: presets - no presets set")
         self._presets = presets
         if len(presets_range):
+            _LOGGER.debug(
+                "INIT - Setting support flag: presets range: %s", presets_range
+            )
             self._preset_range_modes = [PRESET_NONE] + list(presets_range.keys())
         else:
+            _LOGGER.debug("INIT - Setting support flag: presets range none")
             self._preset_range_modes = [PRESET_NONE]
         self._presets_range = presets_range
-        self._preset_mode = PRESET_NONE
+
+        if self._preset_range_modes:
+            # if range mode is enabled, we need to add the range presets to the preset modes avoiding duplicates
+            self._attr_preset_modes = self._attr_preset_modes + list(
+                set(self._preset_range_modes) - set(self._attr_preset_modes)
+            )
 
         # aux heater last run time
         if self.aux_heater_entity_id and self.aux_heater_timeout:
