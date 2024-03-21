@@ -108,6 +108,7 @@ The `dual_smart_thermostat` can turn on if the floor temperature reaches the min
 climate:
   - platform: dual_smart_thermostat
     name: Study
+    unique_id: study
     heater: switch.study_heater
     cooler: switch.study_cooler
     target_sensor: sensor.study_temperature
@@ -147,9 +148,15 @@ preset_name:
 
 ### name
 
-_(required) (string)_ Name of thermostat
+  _(required) (string)_ Name of thermostat
 
-_default: Dual Smart_
+  _default: Dual Smart_
+
+### unique_id
+
+  _(optional) (string)_ the unique id for the thermostat. It allows you to customize it in the UI and to assign the component to an area.
+
+  _default: none
 
 ### heater
 
