@@ -387,7 +387,9 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self._unit = unit
         self._attr_unique_id = unique_id
         self._attr_preset_mode = PRESET_NONE
-        self._default_support_flags = ClimateEntityFeature.TURN_OFF
+        self._default_support_flags = (
+            ClimateEntityFeature.TURN_OFF | ClimateEntityFeature.TURN_ON
+        )
         self._enable_turn_on_off_backwards_compatibility = False
         self._attr_supported_features = self._default_support_flags
         if len(presets):

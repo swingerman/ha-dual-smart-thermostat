@@ -590,11 +590,11 @@ async def test_set_preset_mode_set_temp_keeps_preset_mode(
     state = hass.states.get(common.ENTITY)
     assert state.attributes.get("temperature") == temp
     await common.async_set_temperature(hass, target_temp)
-    assert state.attributes.get("supported_features") == 145
+    assert state.attributes.get("supported_features") == 401
     state = hass.states.get(common.ENTITY)
     assert state.attributes.get("temperature") == target_temp
     assert state.attributes.get("preset_mode") == preset
-    assert state.attributes.get("supported_features") == 145
+    assert state.attributes.get("supported_features") == 401
 
     await common.async_set_preset_mode(hass, PRESET_NONE)
     state = hass.states.get(common.ENTITY)
@@ -1094,7 +1094,7 @@ async def test_heater_mode_aux_heater(
 
     assert hass.states.get(heater_switch).state == STATE_OFF
     state = hass.states.get(common.ENTITY)
-    assert state.attributes.get("supported_features") == 193
+    assert state.attributes.get("supported_features") == 449
 
     setup_sensor(hass, 18)
     await hass.async_block_till_done()
@@ -1179,7 +1179,7 @@ async def test_heater_mode_aux_heater_keep_primary_heater_on(
 
     assert hass.states.get(heater_switch).state == STATE_OFF
     state = hass.states.get(common.ENTITY)
-    assert state.attributes.get("supported_features") == 193
+    assert state.attributes.get("supported_features") == 449
 
     setup_sensor(hass, 18)
     await hass.async_block_till_done()

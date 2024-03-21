@@ -284,11 +284,11 @@ async def test_set_preset_mode_set_temp_keeps_preset_mode(
     state = hass.states.get(common.ENTITY)
     assert state.attributes.get("temperature") == temp
     await common.async_set_temperature(hass, target_temp)
-    assert state.attributes.get("supported_features") == 145
+    assert state.attributes.get("supported_features") == 401
     state = hass.states.get(common.ENTITY)
     assert state.attributes.get("temperature") == target_temp
     assert state.attributes.get("preset_mode") == preset
-    assert state.attributes.get("supported_features") == 145
+    assert state.attributes.get("supported_features") == 401
     await common.async_set_preset_mode(hass, PRESET_NONE)
     state = hass.states.get(common.ENTITY)
     if preset == PRESET_NONE:
