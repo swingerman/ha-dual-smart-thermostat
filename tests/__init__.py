@@ -85,6 +85,30 @@ async def setup_comp_heat_floor_sensor(hass):
 
 
 @pytest.fixture
+async def setup_comp_heat_floor_opening_sensor(hass):
+    """Initialize components."""
+    hass.config.units = METRIC_SYSTEM
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "cold_tolerance": 2,
+                "hot_tolerance": 4,
+                "heater": common.ENT_SWITCH,
+                "target_sensor": common.ENT_SENSOR,
+                "floor_sensor": common.ENT_FLOOR_SENSOR,
+                "initial_hvac_mode": HVACMode.HEAT,
+                "openings": [common.ENT_OPENING_SENSOR],
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+
+@pytest.fixture
 async def setup_comp_heat_cycle(hass):
     """Initialize components."""
     hass.config.units = METRIC_SYSTEM

@@ -37,15 +37,24 @@ from homeassistant.core import (
     callback,
 )
 from homeassistant.helpers import event, restore_state
+from homeassistant.helpers.dispatcher import SignalType, async_dispatcher_connect
 from homeassistant.helpers.json import JSONEncoder
 from homeassistant.loader import bind_hass
 from homeassistant.util.async_ import run_callback_threadsafe
 import homeassistant.util.dt as dt_util
 import voluptuous as vol
 
+from custom_components.dual_smart_thermostat.climate import ATTR_HVAC_ACTION_REASON
+from custom_components.dual_smart_thermostat.const import DOMAIN as DUAL_DOMAIN
+from custom_components.dual_smart_thermostat.hvac_action_reason import (
+    SERVICE_SET_HVAC_ACTION_REASON,
+    HVACActionReason,
+)
+
 ENTITY = "climate.test"
 ENT_SENSOR = "sensor.test"
 ENT_FLOOR_SENSOR = "input_number.floor_temp"
+ENT_OPENING_SENSOR = "input_number.opneing1"
 ENT_SWITCH = "switch.test"
 ENT_HEATER = "input_boolean.test"
 ENT_COOLER = "input_boolean.test_cooler"
@@ -178,6 +187,22 @@ async def async_turn_off(hass, entity_id=ENTITY_MATCH_ALL) -> None:
         data[ATTR_ENTITY_ID] = entity_id
 
     await hass.services.async_call(DOMAIN, SERVICE_TURN_OFF, data, blocking=True)
+
+
+async def async_set_hvac_action_reason(
+    hass, entity_id, reason: HVACActionReason
+) -> None:
+    """Turn off device."""
+    data = {}
+
+    if entity_id is not None:
+        data[ATTR_ENTITY_ID] = entity_id
+    if reason is not None:
+        data[ATTR_HVAC_ACTION_REASON] = reason
+
+    await hass.services.async_call(
+        DUAL_DOMAIN, SERVICE_SET_HVAC_ACTION_REASON, data, blocking=True
+    )
 
 
 def threadsafe_callback_factory(func):
@@ -370,3 +395,20 @@ mock_service = threadsafe_callback_factory(async_mock_service)
 def get_fixture_path(filename: str, integration: str | None = None) -> pathlib.Path:
     """Get path of fixture."""
     return pathlib.Path(__file__).parent.joinpath("fixtures", filename)
+
+
+@callback
+def async_mock_signal(
+    hass: HomeAssistant, signal: SignalType[Any] | str
+) -> list[tuple[Any]]:
+    """Catch all dispatches to a signal."""
+    calls = []
+
+    @callback
+    def mock_signal_handler(*args: Any) -> None:
+        """Mock service call."""
+        calls.append(args)
+
+    async_dispatcher_connect(hass, signal, mock_signal_handler)
+
+    return calls

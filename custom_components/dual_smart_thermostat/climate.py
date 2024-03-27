@@ -47,11 +47,16 @@ from homeassistant.core import (
     DOMAIN as HA_DOMAIN,
     CoreState,
     HomeAssistant,
+    ServiceCall,
     State,
     callback,
 )
 from homeassistant.helpers import condition
 import homeassistant.helpers.config_validation as cv
+from homeassistant.helpers.dispatcher import (
+    async_dispatcher_connect,
+    async_dispatcher_send,
+)
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import (
     EventStateChangedData,
@@ -61,7 +66,8 @@ from homeassistant.helpers.event import (
 )
 from homeassistant.helpers.reload import async_setup_reload_service
 from homeassistant.helpers.restore_state import RestoreEntity
-from homeassistant.helpers.typing import ConfigType, EventType
+from homeassistant.helpers.service import extract_entity_ids
+from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType, EventType
 import voluptuous as vol
 
 from custom_components.dual_smart_thermostat.opening_manager import OpeningManager
@@ -100,10 +106,17 @@ from .const import (
     TIMED_OPENING_SCHEMA,
     ToleranceDevice,
 )
+from .hvac_action_reason import (
+    SERVICE_SET_HVAC_ACTION_REASON,
+    SET_HVAC_ACTION_REASON_SIGNAL,
+    HVACActionReason,
+    HVACActionReasonExternal,
+)
 
 ATTR_PREV_TARGET = "prev_target_temp"
 ATTR_PREV_TARGET_LOW = "prev_target_temp_low"
 ATTR_PREV_TARGET_HIGH = "prev_target_temp_high"
+ATTR_HVAC_ACTION_REASON = "hvac_action_reason"
 
 CONF_PRESETS = {
     p: f"{p.replace(' ', '_').lower()}"
@@ -192,7 +205,7 @@ async def async_setup_platform(
     hass: HomeAssistant,
     config: ConfigType,
     async_add_entities: AddEntitiesCallback,
-    discovery_info: None = None,
+    discovery_info: DiscoveryInfoType | None = None,
 ) -> None:
     """Set up the smart dual thermostat platform."""
 
@@ -296,6 +309,34 @@ async def async_setup_platform(
                 OpeningManager(hass, openings),
             )
         ]
+    )
+
+    # Service to set HVACActionReason.
+    def set_hvac_action_reason_service(call: ServiceCall) -> None:
+        """My first service."""
+        _LOGGER.debug("Received data %s", call.data)
+        reason = call.data.get(ATTR_HVAC_ACTION_REASON)
+        entity_ids = extract_entity_ids(hass, call)
+
+        # make sure its a valid external reason
+        if reason not in HVACActionReasonExternal:
+            _LOGGER.error("Invalid HVACActionReasonExternal: %s", reason)
+            return
+
+        if entity_ids:
+            # registry:EntityRegistry = await async_get_registry(hass)
+            for entity_id in entity_ids:
+                _LOGGER.debug(
+                    "SETTING HVAC ACTION REASON %s for entity: %s", reason, entity_id
+                )
+
+                async_dispatcher_send(
+                    hass, SET_HVAC_ACTION_REASON_SIGNAL.format(entity_id), reason
+                )
+
+    # Register our service with Home Assistant.
+    hass.services.async_register(
+        DOMAIN, SERVICE_SET_HVAC_ACTION_REASON, set_hvac_action_reason_service
     )
 
 
@@ -423,6 +464,10 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         if self.aux_heater_entity_id and self.aux_heater_timeout:
             self._aux_heater_last_run: datetime = None
 
+        self._HVACActionReason = HVACActionReason.NONE
+
+        self._remove_signal_hvac_action_reason = None
+
     async def async_added_to_hass(self) -> None:
         """Run when entity about to be added."""
         await super().async_added_to_hass()
@@ -476,6 +521,22 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                     self._async_opening_changed,
                 )
             )
+
+        _LOGGER.info(
+            "Setting up signal: %s",
+            SET_HVAC_ACTION_REASON_SIGNAL.format(self.entity_id),
+        )
+        self._remove_signal_hvac_action_reason = async_dispatcher_connect(
+            # The Hass Object
+            self.hass,
+            # The Signal to listen for.
+            # Try to make it unique per entity instance
+            # so include something like entity_id
+            # or other unique data from the service call
+            SET_HVAC_ACTION_REASON_SIGNAL.format(self.entity_id),
+            # Function handle to call when signal is received
+            self._set_hvac_action_reason,
+        )
 
         @callback
         def _async_startup(*_) -> None:
@@ -587,6 +648,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             self._max_floor_temp = (
                 old_state.attributes.get("max_floor_temp") or DEFAULT_MAX_FLOOR_TEMP
             )
+            self._HVACActionReason = old_state.attributes.get(ATTR_HVAC_ACTION_REASON)
 
         else:
             # No previous state, try and restore defaults
@@ -600,6 +662,11 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
         # Set correct support flag
         self._set_support_flags()
+
+    async def async_will_remove_from_hass(self) -> None:
+        """Call when entity will be removed from hass."""
+        if self._remove_signal_hvac_action_reason:
+            self._remove_signal_hvac_action_reason()
 
     @property
     def should_poll(self) -> bool:
@@ -688,6 +755,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
     @property
     def extra_state_attributes(self) -> dict:
         """Return entity specific state attributes to be saved."""
+
         attributes = {}
         if self._target_temp_low is not None:
             if self._attr_preset_mode != PRESET_NONE and self._is_range_mode():
@@ -704,6 +772,12 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                 attributes[ATTR_PREV_TARGET] = self._saved_target_temp
             else:
                 attributes[ATTR_PREV_TARGET] = self._target_temp
+
+        attributes[ATTR_HVAC_ACTION_REASON] = (
+            self._HVACActionReason or HVACActionReason.NONE
+        )
+
+        _LOGGER.debug("Extra state attributes: %s", attributes)
 
         return attributes
 
@@ -737,6 +811,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                     await self._async_cooler_turn_off()
                 if self._is_aux_heating_configured():
                     await self._async_aux_heater_turn_off()
+                self._HVACActionReason = HVACActionReason.NONE
 
             case _:
                 _LOGGER.error("Unrecognized hvac mode: %s", hvac_mode)
@@ -963,8 +1038,16 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             (too_hot or self._is_floor_hot) or self.opening_manager.any_opening_open
         ) and not self._is_floor_cold:
             _LOGGER.info("Turning off heater %s", self.heater_entity_id)
+
             await self._async_heater_turn_off()
             await self._async_aux_heater_turn_off()
+
+            if too_hot:
+                self._HVACActionReason = HVACActionReason.TARGET_TEMP_REACHED
+            if self._is_floor_hot:
+                self._HVACActionReason = HVACActionReason.OVERHEAT
+            if self.opening_manager.any_opening_open:
+                self._HVACActionReason = HVACActionReason.OPENING
 
         elif (
             self._is_aux_heating_configured()
@@ -975,6 +1058,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             if not self.aux_heater_dual_mode:
                 await self._async_heater_turn_off()
             await self._async_aux_heater_turn_on()
+            self._HVACActionReason = HVACActionReason.TARGET_TEMP_NOT_REACHED
         elif (
             time is not None
             and not self.opening_manager.any_opening_open
@@ -985,6 +1069,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                 "Keep-alive - Turning on heater (from active) %s",
                 self.heater_entity_id,
             )
+            self._HVACActionReason = HVACActionReason.TARGET_TEMP_NOT_REACHED
             await self._async_heater_turn_on()
 
     async def _async_control_heater_when_off(self, too_cold: bool, time=None) -> None:
@@ -1017,6 +1102,10 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                             self._async_control_heating_forced,
                         )
                     )
+            if self._is_floor_cold:
+                self._HVACActionReason = HVACActionReason.LIMIT
+            else:
+                self._HVACActionReason = HVACActionReason.TARGET_TEMP_NOT_REACHED
 
         elif (
             time is not None
@@ -1026,6 +1115,11 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             # The time argument is passed only in keep-alive case
             _LOGGER.info("Keep-alive - Turning off heater %s", self.heater_entity_id)
             await self._async_heater_turn_off()
+
+            if self._is_floor_hot:
+                self._HVACActionReason = HVACActionReason.OVERHEAT
+            if self.opening_manager.any_opening_open:
+                self._HVACActionReason = HVACActionReason.OPENING
 
     async def _async_control_cooling(self, time=None, force=False) -> None:
         """Check if we need to turn heating on or off."""
@@ -1067,6 +1161,11 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                 if too_cold or any_opening_open:
                     _LOGGER.info("Turning off cooler %s", control_entity)
                     await control_off()
+                    if too_cold:
+                        self._HVACActionReason = HVACActionReason.TARGET_TEMP_REACHED
+                    if any_opening_open:
+                        self._HVACActionReason = HVACActionReason.OPENING
+
                 elif time is not None and not any_opening_open:
                     # The time argument is passed only in keep-alive case
                     _LOGGER.info(
@@ -1074,14 +1173,19 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                         control_entity,
                     )
                     await control_on()
+                    self._HVACActionReason = HVACActionReason.TARGET_TEMP_NOT_REACHED
             else:
                 if too_hot and not any_opening_open:
                     _LOGGER.info("Turning on cooler (from inactive) %s", control_entity)
                     await control_on()
+                    self._HVACActionReason = HVACActionReason.TARGET_TEMP_NOT_REACHED
                 elif time is not None or any_opening_open:
                     # The time argument is passed only in keep-alive case
                     _LOGGER.info("Keep-alive - Turning off cooler %s", control_entity)
                     await control_off()
+
+                    if any_opening_open:
+                        self._HVACActionReason = HVACActionReason.OPENING
 
     async def _async_control_heat_cool(self, time=None, force=False) -> None:
         """Check if we need to turn heating on or off."""
@@ -1101,10 +1205,13 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             if self.opening_manager.any_opening_open:
                 await self._async_heater_turn_off()
                 await self._async_cooler_turn_off()
+                self._HVACActionReason = HVACActionReason.OPENING
             elif self._is_floor_hot:
                 await self._async_heater_turn_off()
+                self._HVACActionReason = HVACActionReason.OVERHEAT
             elif self._is_floor_cold:
                 await self._async_heater_turn_on()
+                self._HVACActionReason = HVACActionReason.LIMIT
             else:
                 await self.async_heater_cooler_toggle(
                     tolerance_device, too_cold, too_hot
@@ -1137,28 +1244,37 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         """Toggle heater based on temp."""
         if too_cold:
             await self._async_heater_turn_on()
+            self._HVACActionReason = HVACActionReason.TARGET_TEMP_NOT_REACHED
         elif too_hot:
             await self._async_heater_turn_off()
+            self._HVACActionReason = HVACActionReason.TARGET_TEMP_REACHED
 
     async def _async_cooler_toggle(self, too_cold, too_hot) -> None:
         """Toggle cooler based on temp."""
         if too_cold:
             await self._async_cooler_turn_off()
+            self._HVACActionReason = HVACActionReason.TARGET_TEMP_REACHED
         elif too_hot:
             await self._async_cooler_turn_on()
+            self._HVACActionReason = HVACActionReason.TARGET_TEMP_NOT_REACHED
 
     async def _async_auto_toggle(self, too_cold, too_hot) -> None:
         if too_cold:
             if not self.opening_manager.any_opening_open:
                 await self._async_heater_turn_on()
+                self._HVACActionReason = HVACActionReason.TARGET_TEMP_NOT_REACHED
             await self._async_cooler_turn_off()
+
         elif too_hot:
             if not self.opening_manager.any_opening_open:
                 await self._async_cooler_turn_on()
+                self._HVACActionReason = HVACActionReason.TARGET_TEMP_NOT_REACHED
             await self._async_heater_turn_off()
+
         else:
             await self._async_heater_turn_off()
             await self._async_cooler_turn_off()
+            self._HVACActionReason = HVACActionReason.TARGET_TEMP_REACHED
 
     @property
     def _is_floor_hot(self) -> bool:
@@ -1552,3 +1668,18 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             return False
 
         return True
+
+    @callback
+    def _set_hvac_action_reason(self, *args) -> None:
+        """My first service."""
+        reason = args[0]
+        _LOGGER.debug("Received HVACActionReasonExternal data %s", reason)
+
+        # make sure its a valid reason
+        if reason not in HVACActionReasonExternal:
+            _LOGGER.error("Invalid HVACActionReasonExternal: %s", reason)
+            return
+
+        self._HVACActionReason = reason
+
+        self.schedule_update_ha_state(True)

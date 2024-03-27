@@ -64,6 +64,7 @@
 | temp change heater trigger off long enough | X | N/A | ! |
 | mode change heater trigger off not long enough | X | N/A | ! |
 | mode change heater trigger on not long enough | X | N/A | ! |
+
 | precision | X | ! | ! |
 | init hvac off force switch off | X | ! | ! |
 | restore will turn off | X | ! | ! |
@@ -73,12 +74,20 @@
 | aux heater keep primary on | X | N/A | N/A |
 | aux heater today | ! | N/A | N/A |
 | tolerance | X | X! | ? |
-| floor temp ! | X | N/A | ? |
+| floor temp | X | N/A | ? |
 | hvac mode cycle | X | X | ? |
 
+## Hvac Action Reason
+
+| Feature | Cool Mode | Heat Mode | Heat Cool Mode |
+| --- | --- | --- | --- |
+| hvac action reason default | X | ! | ! |
+| hvac action reason service | X | ! | ! |
+| floor temp Hvac Action Reason  | X | N/A | X |
+| opening Hvac Action reason | X | X | ! |
 
 ## Openings
 
 | Feature | Cool Mode | Heat Mode | Heat Cool Mode |
 | --- | --- | --- | --- |
-} opening | X | X | ? |
+| opening | X | X | ? |

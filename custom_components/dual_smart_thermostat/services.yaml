@@ -1,3 +1,23 @@
- reload:
+reload:
    name: Reload Dual Smart Thermostat
    description: Reload all Dual Smart Thermostat entities.
+
+set_hvac_action_reason:
+  name: Sets the reason of the last hvac action.
+  description: Sets the reason of the last hvac action.
+  target:
+    entity:
+      domain: climate
+  fields:
+    hvac_action_reason:
+      required: true
+      selector:
+        select:
+          translation_key: "hac_action_reason"
+          options:
+            - "presence"
+            - "schedule"
+            - "emergency"
+            - "malfunction"
+            - "misconfiguration"
+            - ''

@@ -4,9 +4,14 @@ The `dual_smart_thermostat` is an enhanced version of generic thermostat impleme
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Default-41BDF5.svg?style=for-the-badge)](https://github.com/swingerman/ha-dual-smart-thermostat) ![Release](https://img.shields.io/github/v/release/swingerman/ha-dual-smart-thermostat?style=for-the-badge) [![Donate](https://img.shields.io/badge/Donate-PayPal-yellowgreen?style=for-the-badge&logo=paypal)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=S6NC9BYVDDJMA&source=url)
 
+## Table of contents
+
+- [Features](#features)
+- [Services](#services)
+- [Configuration variables](#configuration-variables)
+- [Installation](#installation)
 
 ## Features
-
 
 |  |  | |
 | :--- | :---: | :---: |
@@ -17,6 +22,7 @@ The `dual_smart_thermostat` is an enhanced version of generic thermostat impleme
 | **Floor Temperature Control** | <img src="docs/images/heating-coil.svg" height="30" /> <img src="docs/images/snowflake-thermometer.svg" height="30" />  <img src="docs/images/thermometer-alert.svg" height="30" />  | [<img src="docs/images/file-document-outline.svg" height="30" />](#floor-heating-temperature-control) |
 | **Window/Door sensor integration** | <img src="docs/images/window-open.svg" height="30" /> <img src="docs/images/door-open.svg" height="30" /> <img src="docs/images/chevron-right.svg" height="30" /> <img src="docs/images/timer-cog-outline.svg" height="30" /> <img src="docs/images/chevron-right.svg" height="30" /> <img src="docs/images/hvac-off.svg" height="30" /> | [<img src="docs/images/file-document-outline.svg" height="30" />](#openings) |
 | **Presets** | <img src="docs/images/sleep.svg" height="30" /> <img src="docs/images/snowflake-thermometer.svg" height="30" /> <img src="docs/images/shield-lock-outline.svg" height="30" /> | [<img src="docs/images/file-document-outline.svg" height="30" />](#presets) |
+| **HVAC Action Reason** | | [<img src="docs/images/file-document-outline.svg" height="30" />](#presets) |
 
 
 ## Heat/Cool Mode
@@ -142,7 +148,55 @@ preset_name:
   target_temp_high: 14
 ```
 
+## HVAC Action Reason
+
+
+State attribute: `hvac_action_reason`
+
+The `dual_smart_thermostat` will set the `hvac_action` attribute to `heating`, `cooling`, `idle` or `off` based on the current state of the thermostat. The `hvac_action` attribute is used to indicate the current action of the thermostat. The `dual_smart_thermostat` will also set the `hvac_action_reason` attribute based on the current state of the thermostat. The `hvac_action_reason` attribute is used to indicate the reason for the current action of the thermostat.
+
+### HVAC Action Reason values
+
+The `hvac_action_reason` attribute is grouped by [internal](#hvac-action-reason-internal-values) and [external](#hvac-action-reason-external-values) values.
+The internal values can be set by the component only and the external values can be set by the user or automations.
+
+#### HVAC Action Reason Internal values
+
+| Value | Description |
+|-------|-------------|
+| `none` | No action reason |
+| `target_temp_not_reached` | The target temperature has not been reached |
+| `target_temp_reached` | The target temperature has been reached |
+| `misconfiguration` | The thermostat is misconfigured |
+| `opening` | The thermostat is idle because an opening is open |
+| `limit` | The thermostat is idle because the floor temperature is at the limit |
+| `overheat` | The thermostat is idle because the floor temperature is too high |
+
+#### HVAC Action Reason External values
+
+| Value | Description |
+|-------|-------------|
+| `none` | No action reason |
+| `presence`| the last HVAc action was triggered by presence |
+| `schedule` | the last HVAc action was triggered by schedule |
+| `emergency` | the last HVAc action was triggered by emergency |
+| `malfunction` | the last HVAc action was triggered by malfunction |
+
+
 [all features ⤴️](#features)
+
+## Services
+
+### Set HVAC Action Reason
+
+`dial_smart_thermostat.set_hvac_action_reason` is exposed for automations to set the `hvac_action_reason` attribute. The service accepts the following parameters:
+
+| Parameter | Description | Type | Required |
+|-----------|-------------|------|----------|
+| entity_id | The entity id of the thermostat | string | yes |
+| hvac_action_reason | The reason for the current action of the thermostat | [HVACActionReasonExternal](#hvac-action-reason-external-values) | yes |
+
+
 
 ## Configuration variables
 
