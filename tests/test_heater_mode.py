@@ -40,7 +40,13 @@ from homeassistant.util.unit_system import METRIC_SYSTEM
 import pytest
 import voluptuous as vol
 
+from custom_components.dual_smart_thermostat.climate import ATTR_HVAC_ACTION_REASON
 from custom_components.dual_smart_thermostat.const import DOMAIN, PRESET_ANTI_FREEZE
+from custom_components.dual_smart_thermostat.hvac_action_reason import (
+    SET_HVAC_ACTION_REASON_SIGNAL,
+    HVACActionReason,
+    HVACActionReasonExternal,
+)
 
 from . import (  # noqa: F401
     common,
@@ -49,6 +55,7 @@ from . import (  # noqa: F401
     setup_comp_heat,
     setup_comp_heat_cycle,
     setup_comp_heat_cycle_precision,
+    setup_comp_heat_floor_opening_sensor,
     setup_comp_heat_presets,
     setup_floor_sensor,
     setup_sensor,
@@ -209,7 +216,11 @@ async def test_no_restore_state(hass: HomeAssistant) -> None:
             State(
                 "climate.test_thermostat",
                 HVACMode.OFF,
-                {ATTR_TEMPERATURE: "20", ATTR_PRESET_MODE: PRESET_AWAY},
+                {
+                    ATTR_TEMPERATURE: "20",
+                    ATTR_PRESET_MODE: PRESET_AWAY,
+                    ATTR_HVAC_ACTION_REASON: HVACActionReason.TARGET_TEMP_NOT_REACHED,
+                },
             ),
         ),
     )
@@ -233,6 +244,10 @@ async def test_no_restore_state(hass: HomeAssistant) -> None:
     state = hass.states.get("climate.test_thermostat")
     assert state.attributes[ATTR_TEMPERATURE] == 22
     assert state.state == HVACMode.OFF
+    assert (
+        state.attributes[ATTR_HVAC_ACTION_REASON]
+        == HVACActionReason.TARGET_TEMP_NOT_REACHED
+    )
 
 
 async def test_reload(hass: HomeAssistant) -> None:
@@ -1373,6 +1388,268 @@ async def test_heater_mode_floor_temp(
     setup_floor_sensor(hass, 10)
     await hass.async_block_till_done()
     assert hass.states.get(heater_switch).state == STATE_OFF
+
+
+######################
+# HVAC ACTION REASON #
+######################
+
+
+async def test_hvac_action_reason_default(
+    hass: HomeAssistant, setup_comp_heat  # noqa: F811
+) -> None:
+    """Test if action reason is set."""
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes.get(ATTR_HVAC_ACTION_REASON) == HVACActionReason.NONE
+
+
+async def test_hvac_action_reason_service(
+    hass: HomeAssistant, setup_comp_heat  # noqa: F811
+) -> None:
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes.get(ATTR_HVAC_ACTION_REASON) == HVACActionReason.NONE
+
+    signal_output_call = common.async_mock_signal(
+        hass, SET_HVAC_ACTION_REASON_SIGNAL.format(common.ENTITY)
+    )
+
+    await common.async_set_hvac_action_reason(
+        hass, common.ENTITY, HVACActionReason.SCHEDULE
+    )
+    await hass.async_block_till_done()
+
+    state = hass.states.get(common.ENTITY)
+    assert len(signal_output_call) == 1
+    assert (
+        state.attributes.get(ATTR_HVAC_ACTION_REASON)
+        == HVACActionReasonExternal.SCHEDULE
+    )
+
+
+async def test_heater_mode_floor_temp_hvac_action_reason(
+    hass: HomeAssistant, setup_comp_1  # noqa: F811
+) -> None:
+    """Test thermostat heater switch with floor temp in heating mode."""
+    heater_switch = "input_boolean.test"
+    assert await async_setup_component(
+        hass, input_boolean.DOMAIN, {"input_boolean": {"test": None}}
+    )
+
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {"name": "temp", "initial": 10, "min": 0, "max": 40, "step": 1}
+            }
+        },
+    )
+
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {
+                    "name": "floor_temp",
+                    "initial": 10,
+                    "min": 0,
+                    "max": 40,
+                    "step": 1,
+                }
+            }
+        },
+    )
+
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "heater": heater_switch,
+                "target_sensor": common.ENT_SENSOR,
+                "initial_hvac_mode": HVACMode.HEAT,
+                "floor_sensor": common.ENT_FLOOR_SENSOR,
+                "min_floor_temp": 5,
+                "max_floor_temp": 28,
+                "cold_tolerance": COLD_TOLERANCE,
+                "hot_tolerance": HOT_TOLERANCE,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    assert (
+        hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_ACTION_REASON)
+        == HVACActionReason.NONE
+    )
+
+    setup_sensor(hass, 18.6)
+    setup_floor_sensor(hass, 10)
+    await hass.async_block_till_done()
+
+    await common.async_set_temperature(hass, 18)
+    await hass.async_block_till_done()
+    assert (
+        hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_ACTION_REASON)
+        == HVACActionReason.NONE
+    )
+
+    setup_sensor(hass, 17)
+    await hass.async_block_till_done()
+    assert (
+        hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_ACTION_REASON)
+        == HVACActionReason.TARGET_TEMP_NOT_REACHED
+    )
+
+    setup_floor_sensor(hass, 28)
+    await hass.async_block_till_done()
+    assert (
+        hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_ACTION_REASON)
+        == HVACActionReason.OVERHEAT
+    )
+
+    setup_floor_sensor(hass, 26)
+    await hass.async_block_till_done()
+    assert (
+        hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_ACTION_REASON)
+        == HVACActionReason.TARGET_TEMP_NOT_REACHED
+    )
+
+    setup_sensor(hass, 22)
+    await hass.async_block_till_done()
+    assert (
+        hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_ACTION_REASON)
+        == HVACActionReason.TARGET_TEMP_REACHED
+    )
+
+    setup_floor_sensor(hass, 4)
+    await hass.async_block_till_done()
+    assert (
+        hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_ACTION_REASON)
+        == HVACActionReason.LIMIT
+    )
+
+    setup_floor_sensor(hass, 3)
+    await hass.async_block_till_done()
+    assert (
+        hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_ACTION_REASON)
+        == HVACActionReason.LIMIT
+    )
+
+    setup_floor_sensor(hass, 10)
+    await hass.async_block_till_done()
+    assert (
+        hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_ACTION_REASON)
+        == HVACActionReason.TARGET_TEMP_REACHED
+    )
+
+
+async def test_heater_mode_opening_hvac_action_reason(
+    hass: HomeAssistant, setup_comp_1  # noqa: F811
+) -> None:
+    """Test thermostat cooler switch in cooling mode."""
+    heater_switch = "input_boolean.test"
+    opening_1 = "input_boolean.opening_1"
+    opening_2 = "input_boolean.opening_2"
+
+    assert await async_setup_component(
+        hass,
+        input_boolean.DOMAIN,
+        {"input_boolean": {"test": None, "opening_1": None, "opening_2": None}},
+    )
+
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {"name": "test", "initial": 10, "min": 0, "max": 40, "step": 1}
+            }
+        },
+    )
+
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "heater": heater_switch,
+                "target_sensor": common.ENT_SENSOR,
+                "initial_hvac_mode": HVACMode.HEAT,
+                "openings": [
+                    opening_1,
+                    {"entity_id": opening_2, "timeout": {"seconds": 10}},
+                ],
+            }
+        },
+    )
+    await hass.async_block_till_done()
+    assert (
+        hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_ACTION_REASON)
+        == HVACActionReason.NONE
+    )
+
+    setup_sensor(hass, 18)
+    await hass.async_block_till_done()
+
+    await common.async_set_temperature(hass, 23)
+    await hass.async_block_till_done()
+    assert (
+        hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_ACTION_REASON)
+        == HVACActionReason.TARGET_TEMP_NOT_REACHED
+    )
+
+    setup_boolean(hass, opening_1, "open")
+    await hass.async_block_till_done()
+
+    assert (
+        hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_ACTION_REASON)
+        == HVACActionReason.OPENING
+    )
+
+    setup_boolean(hass, opening_1, "closed")
+    await hass.async_block_till_done()
+
+    assert (
+        hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_ACTION_REASON)
+        == HVACActionReason.TARGET_TEMP_NOT_REACHED
+    )
+
+    setup_boolean(hass, opening_2, "open")
+    await hass.async_block_till_done()
+
+    assert (
+        hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_ACTION_REASON)
+        == HVACActionReason.TARGET_TEMP_NOT_REACHED
+    )
+
+    # wait 10 seconds, actually 133 due to the other tests run time seems to affect this
+    # needs to separate the tests
+    await asyncio.sleep(13)
+    await hass.async_block_till_done()
+
+    assert (
+        hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_ACTION_REASON)
+        == HVACActionReason.OPENING
+    )
+
+    setup_boolean(hass, opening_2, "closed")
+    await hass.async_block_till_done()
+
+    assert (
+        hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_ACTION_REASON)
+        == HVACActionReason.TARGET_TEMP_NOT_REACHED
+    )
+
+
+############
+# OPENINGS #
+############
 
 
 @pytest.mark.parametrize(

@@ -38,6 +38,7 @@ CONF_HEAT_COOL_MODE = "heat_cool_mode"
 ATTR_TIMEOUT = "timeout"
 PRESET_ANTI_FREEZE = "Anti Freeze"
 
+
 TIMED_OPENING_SCHEMA = vol.Schema(
     {
         vol.Required(ATTR_ENTITY_ID): cv.entity_id,
