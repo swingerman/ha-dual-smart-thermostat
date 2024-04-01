@@ -40,7 +40,7 @@ If only the [`heater`](#heater) entity is set the thermostat works only in heate
 
 ## Two Stage (AUX) Heating
 
-Thwo stage or AUX heating can be anabled by cadding the [required configuration](#two-stage-heating-example) netities: [`secondary_heater`](#secondary_heater), [`secondary heater_timeout`](#secondar_heater_timeout). If these are set the feature will enable automatically.
+Two stage or AUX heating can be enabled by adding the [required configuration](#two-stage-heating-example) entities: [`secondary_heater`](#secondary_heater), [`secondary heater_timeout`](#secondar_heater_timeout). If these are set the feature will enable automatically.
 Optionally you can set [`secondary heater_dual_mode`](#secondar_heater_dual_mode) to `true` to turn on the secondary heater together with the primary heater.
 
 ### How Two Stage Heating Works?
