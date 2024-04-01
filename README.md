@@ -24,7 +24,6 @@ The `dual_smart_thermostat` is an enhanced version of generic thermostat impleme
 | **Presets** | <img src="docs/images/sleep.svg" height="30" /> <img src="docs/images/snowflake-thermometer.svg" height="30" /> <img src="docs/images/shield-lock-outline.svg" height="30" /> | [<img src="docs/images/file-document-outline.svg" height="30" />](#presets) |
 | **HVAC Action Reason** | | [<img src="docs/images/file-document-outline.svg" height="30" />](#presets) |
 
-
 ## Heat/Cool Mode
 
 If both [`heater`](#heater) and [`cooler`](#cooler) entities configured. The thermostat can control heaing and cooling and you sare able to set min/max low and min/max high temperatures.
@@ -45,7 +44,7 @@ Optionally you can set [`secondary heater_dual_mode`](#secondar_heater_dual_mode
 
 ### How Two Stage Heating Works?
 
-If the timeout ends and the [`heater`](#heater) was on for the whole time the thermostate switches to the [`secondary heater`](#secondary_heater). In this case the primarey heater ([`heater`](#heater)) will be turned off. This will be rmemebered for the day it turned on and in the next heating cycle the [`secondary heater`](#secondary_heater) will turn on automatically.
+If the timeout ends and the [`heater`](#heater) was on for the whole time the thermostate switches to the [`secondary heater`](#secondary_heater). In this case the primarey heater ([`heater`](#heater)) will be turned off. This will be remembered for the day it turned on and in the next heating cycle the [`secondary heater`](#secondary_heater) will turn on automatically.
 On the next day the primary heater will turn on again the second stage will again only turn on after a timeout.
 If the third [`secondary heater_dual_mode`](#secondar_heater_dual_mode) is set to `true` the secondary heater will be turned on together with the primary heater.
 
@@ -62,7 +61,6 @@ secondar_heater_dual_mode: true                   # <-- optional
 If only the [`cooler`](#cooler) entity is set the thermostat works only in cooling mode.
 
 [all features ⤴️](#features)
-
 
 ## Openings
 
@@ -90,6 +88,7 @@ climate:
         timeout: 00:00:30
     target_sensor: sensor.study_temperature
 ```
+
 [all features ⤴️](#features)
 
 ## Floor heating temperature control
@@ -98,6 +97,7 @@ climate:
 
 The `dual_smart_thermostat` can turn off if the floor heating reaches the maximum allowed temperature you define in order to protect the floor from overheating and damage.
 To enable this protection you need to set two variables:
+
 ```yaml
 floor_sensor: sensor.floor_temp
 max_floor_temp: 28
@@ -129,15 +129,15 @@ climate:
 
 Currrnetly supported presets are:
 
-* none
-* [home](#home)
-* [away](#away)
-* [eco](#eco)
-* [sleep](#sleep)
-* [comfort](#comfort)
-* [anti freeze](#anti_freeze)
-* [activity](#activity)
-* [boost](#boost)
+- none
+- [home](#home)
+- [away](#away)
+- [eco](#eco)
+- [sleep](#sleep)
+- [comfort](#comfort)
+- [anti freeze](#anti_freeze)
+- [activity](#activity)
+- [boost](#boost)
 
 To set presets you need to add entries for them in the configuration file like this:
 
@@ -149,7 +149,6 @@ preset_name:
 ```
 
 ## HVAC Action Reason
-
 
 State attribute: `hvac_action_reason`
 
@@ -182,7 +181,6 @@ The internal values can be set by the component only and the external values can
 | `emergency` | the last HVAc action was triggered by emergency |
 | `malfunction` | the last HVAc action was triggered by malfunction |
 
-
 [all features ⤴️](#features)
 
 ## Services
@@ -195,8 +193,6 @@ The internal values can be set by the component only and the external values can
 |-----------|-------------|------|----------|
 | entity_id | The entity id of the thermostat | string | yes |
 | hvac_action_reason | The reason for the current action of the thermostat | [HVACActionReasonExternal](#hvac-action-reason-external-values) | yes |
-
-
 
 ## Configuration variables
 
@@ -218,11 +214,11 @@ The internal values can be set by the component only and the external values can
 
 ### secondary_heater
 
-  _(optional, __required for two stage heating__) (string)_ "`entity_id` for secondary heater switch, must be a toggle device.
+  _(optional, **required for two stage heating**) (string)_ "`entity_id` for secondary heater switch, must be a toggle device.
 
-### secondar_heater_timeout
+### secondary_heater_timeout
 
-  _(optional, __required for two stage heating__) (time, integer)_  Set a minimum amount of time that the switch specified in the *heater* option must be in its ON state before secondary heater devices needs to be turned on.
+  _(optional, **required for two stage heating**) (time, integer)_  Set a minimum amount of time that the switch specified in the _heater_ option must be in its ON state before secondary heater devices needs to be turned on.
 
 ### secondar_heater_dual_mode
 
@@ -241,6 +237,7 @@ The internal values can be set by the component only and the external values can
   _(optional) (string)_  "`entity_id` for the floor temperature sensor, floor_sensor.state must be temperature."
 
 ### openings
+
   _(optional) (list)_  "list of opening `entity_id`'s and/or objects for detecting open widows or doors that will idle the thermostat until any of them are open. Note: if min_floor_temp is set and the floor temperature is below the minimum temperature, the thermostat will not idle even if any of the openings are open."
 
   `entity_id: <value>`The entity id of the opening bstate sensor (string)</br>
@@ -289,33 +286,33 @@ The internal values can be set by the component only and the external values can
 
 ### heat_cool_mode
 
-  _(optional) (boolean)_ If variable `target_temp_low` and `target_temp_high` are not set, this parameter must be set to *true* to enable the `heat_cool` mode.
+  _(optional) (boolean)_ If variable `target_temp_low` and `target_temp_high` are not set, this parameter must be set to _true_ to enable the `heat_cool` mode.
 
   _default: false_
 
 ### min_cycle_duration
 
-  _(optional) (time, integer)_  Set a minimum amount of time that the switch specified in the *heater*  and/or *cooler* option must be in its current state prior to being switched either off or on.
+  _(optional) (time, integer)_  Set a minimum amount of time that the switch specified in the _heater_  and/or _cooler_ option must be in its current state prior to being switched either off or on.
 
 ### cold_tolerance
 
-  _(optional) (float)_ Set a minimum amount of difference between the temperature read by the sensor specified in the *target_sensor* option and the target temperature that must change prior to being switched on. For example, if the target temperature is 25 and the tolerance is 0.5 the heater will start when the sensor equals or goes below 24.5.
+  _(optional) (float)_ Set a minimum amount of difference between the temperature read by the sensor specified in the _target_sensor_ option and the target temperature that must change prior to being switched on. For example, if the target temperature is 25 and the tolerance is 0.5 the heater will start when the sensor equals or goes below 24.5.
 
   _default: 0.3_
 
 ### hot_tolerance
 
-  _(optional) (float)_ Set a minimum amount of difference between the temperature read by the sensor specified in the *target_sensor* option and the target temperature that must change prior to being switched off. For example, if the target temperature is 25 and the tolerance is 0.5 the heater will stop when the sensor equals or goes above 25.5.
+  _(optional) (float)_ Set a minimum amount of difference between the temperature read by the sensor specified in the _target_sensor_ option and the target temperature that must change prior to being switched off. For example, if the target temperature is 25 and the tolerance is 0.5 the heater will stop when the sensor equals or goes above 25.5.
 
   _default: 0.3_
 
 ### keep_alive
 
-  _(optional) (time, integer)_ Set a keep-alive interval. If set, the switch specified in the *heater* and/or *cooler* option will be triggered every time the interval elapses. Use with heaters and A/C units that shut off if they don't receive a signal from their remote for a while. Use also with switches that might lose state. The keep-alive call is done with the current valid climate integration state (either on or off).
+  _(optional) (time, integer)_ Set a keep-alive interval. If set, the switch specified in the _heater_ and/or _cooler_ option will be triggered every time the interval elapses. Use with heaters and A/C units that shut off if they don't receive a signal from their remote for a while. Use also with switches that might lose state. The keep-alive call is done with the current valid climate integration state (either on or off).
 
 ### initial_hvac_mode
 
-  _(optional) (string)_ Set the initial HVAC mode. Valid values are `off`, `heat`, `cool` or `heat_cool`. Value has to be double quoted. If this parameter is not set, it is preferable to set a *keep_alive* value. This is helpful to align any discrepancies between *dual_smart_thermostat* *heater* and *cooler* state.
+  _(optional) (string)_ Set the initial HVAC mode. Valid values are `off`, `heat`, `cool` or `heat_cool`. Value has to be double quoted. If this parameter is not set, it is preferable to set a _keep_alive_ value. This is helpful to align any discrepancies between _dual_smart_thermostat_ _heater_ and _cooler_ state.
 
   **NOTE! If this is set, the saved state will not be restored after HA retstarts.**
 
@@ -398,7 +395,6 @@ The internal values can be set by the component only and the external values can
   Possible values are:
 
   `temperature: <value>` The preset temperature to use in `heat` or `cool` mode (float)</br>
-
 
 ### precision
 
@@ -519,7 +515,6 @@ climate:
     hot_tolerance: 0
 ```
 
-
 ## Full configuration example
 
 ```yaml
@@ -562,14 +557,12 @@ climate:
     target_temp_step: 0.5
 ```
 
-
 ### Donate
 
 I am happy tp help the Home Assistant community but I do it in my free time at the cost of spending less time with my family. Feel free to motivate me and appreciate my sacrifice by donating:
 
 [![Donate](https://img.shields.io/badge/Donate-PayPal-yellowgreen?style=for-the-badge&logo=paypal)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=S6NC9BYVDDJMA&source=url)
 [![coffee](https://www.buymeacoffee.com/assets/img/custom_images/black_img.png)](https://www.buymeacoffee.com/swingerman)
-
 
 ### Develpoent
 
@@ -581,13 +574,13 @@ Use pytest to run the tests:
 pytest
 ```
 
-__Specific test__
+**Specific test**
 
 ```bash
 pytest tests/test_heater_mode.py
 ```
 
-__Log Level__
+**Log Level**
 
 ```bash
 pytest --log-cli-level=DEBUG
