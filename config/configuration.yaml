@@ -166,6 +166,7 @@ climate:
 
   - platform: dual_smart_thermostat
     name: AUX Heat Room
+    entity_id: aux_heat_room
     heater: switch.heater
     secondary_heater: switch.aux_heater
     secondary_heater_timeout: 00:00:15

@@ -26,7 +26,9 @@ from homeassistant.util.unit_system import METRIC_SYSTEM
 import pytest
 import voluptuous as vol
 
+from custom_components.dual_smart_thermostat.climate import ATTR_HVAC_ACTION_REASON
 from custom_components.dual_smart_thermostat.const import DOMAIN, PRESET_ANTI_FREEZE
+from custom_components.dual_smart_thermostat.hvac_action_reason import HVACActionReason
 
 from . import (  # noqa: F401
     common,
@@ -1021,3 +1023,121 @@ async def test_hvac_mode_heat_cool_tolerances(
 
     assert hass.states.get(heater_switch).state == STATE_OFF
     assert hass.states.get(cooler_switch).state == STATE_OFF
+
+
+######################
+# HVAC ACTION REASON #
+######################
+
+
+async def test_hvac_mode_heat_cool_floor_temp_hvac_action_reason(
+    hass: HomeAssistant, setup_comp_1  # noqa: F811
+):
+    """Test thermostat heater and cooler switch in heat/cool mode. with floor temp caps"""
+
+    heater_switch = "input_boolean.heater"
+    cooler_switch = "input_boolean.cooler"
+    assert await async_setup_component(
+        hass,
+        input_boolean.DOMAIN,
+        {"input_boolean": {"heater": None, "cooler": None}},
+    )
+
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {"name": "temp", "initial": 10, "min": 0, "max": 40, "step": 1}
+            }
+        },
+    )
+
+    floor_temp_input = "input_number.floor_temp"
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {
+                    "name": "floor_temp",
+                    "initial": 10,
+                    "min": 0,
+                    "max": 40,
+                    "step": 1,
+                }
+            }
+        },
+    )
+
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "cooler": cooler_switch,
+                "heater": heater_switch,
+                "heat_cool_mode": True,
+                "target_sensor": common.ENT_SENSOR,
+                "floor_sensor": floor_temp_input,
+                "min_floor_temp": 5,
+                "max_floor_temp": 28,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    assert (
+        hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_ACTION_REASON)
+        == HVACActionReason.NONE
+    )
+
+    setup_sensor(hass, 26)
+    setup_floor_sensor(hass, 10)
+    await hass.async_block_till_done()
+
+    await common.async_set_hvac_mode(hass, HVACMode.HEAT_COOL)
+    await common.async_set_temperature(hass, 18, ENTITY_MATCH_ALL, 25, 22)
+    await hass.async_block_till_done()
+    assert (
+        hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_ACTION_REASON)
+        == HVACActionReason.TARGET_TEMP_NOT_REACHED
+    )
+
+    setup_sensor(hass, 24)
+    await hass.async_block_till_done()
+    assert (
+        hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_ACTION_REASON)
+        == HVACActionReason.TARGET_TEMP_REACHED
+    )
+
+    # Case floor temp is below min_floor_temp
+    setup_floor_sensor(hass, 4)
+    await hass.async_block_till_done()
+    assert (
+        hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_ACTION_REASON)
+        == HVACActionReason.LIMIT
+    )
+
+    # Case floor temp is above min_floor_temp
+    setup_floor_sensor(hass, 10)
+    setup_sensor(hass, 24)
+    await hass.async_block_till_done()
+    assert (
+        hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_ACTION_REASON)
+        == HVACActionReason.TARGET_TEMP_REACHED
+    )
+
+    setup_sensor(hass, 18)
+    await hass.async_block_till_done()
+    assert (
+        hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_ACTION_REASON)
+        == HVACActionReason.TARGET_TEMP_NOT_REACHED
+    )
+
+
+############
+# OPENINGS #
+############

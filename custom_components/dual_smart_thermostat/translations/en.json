@@ -1,0 +1,25 @@
+{
+    "selector": {
+        "hac_action_reason": {
+            "options": {
+                "presence": "Presence",
+                "schedule": "Schedule",
+                "emergency": "Emergency",
+                "malfunction": "Malfunction",
+                "misconfiguration": "Misconfiguration"
+            }
+        }
+    },
+    "services": {
+        "set_hvac_action_reason": {
+            "name": "Set HVAC Action Reason",
+            "description": "Sets HVAC action reason.",
+            "fields": {
+                "hvac_action_reason": {
+                    "name": "HVAC Action Reason",
+                    "description": "The reason the last HVAC action was taken."
+                }
+            }
+        }
+    }
+}
