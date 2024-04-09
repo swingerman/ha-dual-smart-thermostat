@@ -11,6 +11,7 @@ from custom_components.dual_smart_thermostat.const import (
 CONF_TARGET_SENSOR = "target_sensor"
 MOCK_HEATER_SWITCH = "input_boolean.heater"
 MOCK_COOLER_SWITCH = "input_boolean.cooler"
+MOCK_FAN_SWITCH = "input_boolean.fan"
 MOCK_TARGET_SENSOR = "sensor.target_temperature"
 
 MOCK_CONFIG_HEATER = {

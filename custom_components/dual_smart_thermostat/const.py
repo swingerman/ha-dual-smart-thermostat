@@ -1,6 +1,15 @@
 """const."""
 
 from homeassistant.backports.enum import StrEnum
+from homeassistant.components.climate.const import (
+    PRESET_ACTIVITY,
+    PRESET_AWAY,
+    PRESET_BOOST,
+    PRESET_COMFORT,
+    PRESET_ECO,
+    PRESET_HOME,
+    PRESET_SLEEP,
+)
 from homeassistant.const import ATTR_ENTITY_ID
 import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
@@ -16,6 +25,9 @@ CONF_AUX_HEATER = "secondary_heater"
 CONF_AUX_HEATING_TIMEOUT = "secondary_heater_timeout"
 CONF_AUX_HEATING_DUAL_MODE = "secondary_heater_dual_mode"
 CONF_COOLER = "cooler"
+CONF_FAN = "fan"
+CONF_FAN_ON_WITH_COOLER = "fan_turn_on_with_cooler"
+CONF_FAN_COOL_TOLERANCE = "fan_cool_tolerance"
 CONF_SENSOR = "target_sensor"
 CONF_FLOOR_SENSOR = "floor_sensor"
 CONF_MIN_TEMP = "min_temp"
@@ -35,8 +47,29 @@ CONF_PRECISION = "precision"
 CONF_TEMP_STEP = "target_temp_step"
 CONF_OPENINGS = "openings"
 CONF_HEAT_COOL_MODE = "heat_cool_mode"
+
+ATTR_PREV_TARGET = "prev_target_temp"
+ATTR_PREV_TARGET_LOW = "prev_target_temp_low"
+ATTR_PREV_TARGET_HIGH = "prev_target_temp_high"
+ATTR_HVAC_ACTION_REASON = "hvac_action_reason"
 ATTR_TIMEOUT = "timeout"
+
 PRESET_ANTI_FREEZE = "Anti Freeze"
+
+CONF_PRESETS = {
+    p: f"{p.replace(' ', '_').lower()}"
+    for p in (
+        PRESET_AWAY,
+        PRESET_COMFORT,
+        PRESET_ECO,
+        PRESET_HOME,
+        PRESET_SLEEP,
+        PRESET_ANTI_FREEZE,
+        PRESET_ACTIVITY,
+        PRESET_BOOST,
+    )
+}
+CONF_PRESETS_OLD = {k: f"{v}_temp" for k, v in CONF_PRESETS.items()}
 
 
 TIMED_OPENING_SCHEMA = vol.Schema(

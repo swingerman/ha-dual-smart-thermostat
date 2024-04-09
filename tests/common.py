@@ -44,9 +44,11 @@ from homeassistant.util.async_ import run_callback_threadsafe
 import homeassistant.util.dt as dt_util
 import voluptuous as vol
 
-from custom_components.dual_smart_thermostat.climate import ATTR_HVAC_ACTION_REASON
-from custom_components.dual_smart_thermostat.const import DOMAIN as DUAL_DOMAIN
-from custom_components.dual_smart_thermostat.hvac_action_reason import (
+from custom_components.dual_smart_thermostat.const import (
+    ATTR_HVAC_ACTION_REASON,
+    DOMAIN as DUAL_DOMAIN,
+)
+from custom_components.dual_smart_thermostat.hvac_action_reason.hvac_action_reason import (
     SERVICE_SET_HVAC_ACTION_REASON,
     HVACActionReason,
 )
@@ -58,6 +60,7 @@ ENT_OPENING_SENSOR = "input_number.opneing1"
 ENT_SWITCH = "switch.test"
 ENT_HEATER = "input_boolean.test"
 ENT_COOLER = "input_boolean.test_cooler"
+ENT_FAN = "switch.test_fan"
 MIN_TEMP = 3.0
 MAX_TEMP = 65.0
 TARGET_TEMP = 42.0

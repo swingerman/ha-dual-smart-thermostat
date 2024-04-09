@@ -26,14 +26,20 @@ from homeassistant.util.unit_system import METRIC_SYSTEM
 import pytest
 import voluptuous as vol
 
-from custom_components.dual_smart_thermostat.climate import ATTR_HVAC_ACTION_REASON
-from custom_components.dual_smart_thermostat.const import DOMAIN, PRESET_ANTI_FREEZE
-from custom_components.dual_smart_thermostat.hvac_action_reason import HVACActionReason
+from custom_components.dual_smart_thermostat.const import (
+    ATTR_HVAC_ACTION_REASON,
+    DOMAIN,
+    PRESET_ANTI_FREEZE,
+)
+from custom_components.dual_smart_thermostat.hvac_action_reason.hvac_action_reason import (
+    HVACActionReason,
+)
 
 from . import (  # noqa: F401
     common,
     setup_comp_1,
     setup_comp_dual,
+    setup_comp_dual_fan_config,
     setup_comp_dual_presets,
     setup_floor_sensor,
     setup_sensor,
@@ -212,7 +218,26 @@ async def test_get_hvac_modes(
     """Test that the operation list returns the correct modes."""
     state = hass.states.get(common.ENTITY)
     modes = state.attributes.get("hvac_modes")
-    assert modes == [HVACMode.OFF, HVACMode.HEAT, HVACMode.COOL, HVACMode.HEAT_COOL]
+    assert set(modes) == set(
+        [HVACMode.OFF, HVACMode.HEAT, HVACMode.COOL, HVACMode.HEAT_COOL]
+    )
+
+
+async def test_get_hvac_modes_fan_configured(
+    hass: HomeAssistant, setup_comp_dual_fan_config  # noqa: F811
+) -> None:
+    """Test that the operation list returns the correct modes."""
+    state = hass.states.get(common.ENTITY)
+    modes = state.attributes.get("hvac_modes")
+    assert set(modes) == set(
+        [
+            HVACMode.OFF,
+            HVACMode.HEAT,
+            HVACMode.COOL,
+            HVACMode.HEAT_COOL,
+            HVACMode.FAN_ONLY,
+        ]
+    )
 
 
 async def test_set_target_temp(
@@ -600,6 +625,9 @@ async def test_hvac_mode_heat_cool_floor_temp(
     assert hass.states.get(cooler_switch).state == STATE_OFF
 
 
+# TODO: test handling setting only target temp without low and high
+
+
 async def test_hvac_mode_cool(hass: HomeAssistant, setup_comp_1):  # noqa: F811
     """Test thermostat cooler switch in cooling mode."""
     heater_switch = "input_boolean.heater"
@@ -631,6 +659,7 @@ async def test_hvac_mode_cool(hass: HomeAssistant, setup_comp_1):  # noqa: F811
                 "cooler": cooler_switch,
                 "target_sensor": common.ENT_SENSOR,
                 "initial_hvac_mode": HVACMode.COOL,
+                "heat_cool_mode": True,
             }
         },
     )
@@ -642,7 +671,7 @@ async def test_hvac_mode_cool(hass: HomeAssistant, setup_comp_1):  # noqa: F811
     setup_sensor(hass, 23)
     await hass.async_block_till_done()
 
-    await common.async_set_temperature(hass, 18)
+    await common.async_set_temperature(hass, 18, ENTITY_MATCH_ALL, 18, 16)
     await hass.async_block_till_done()
     assert hass.states.get(heater_switch).state == STATE_OFF
     assert hass.states.get(cooler_switch).state == STATE_ON
@@ -694,6 +723,7 @@ async def test_hvac_mode_cool_cycle(
                 "target_sensor": common.ENT_SENSOR,
                 "initial_hvac_mode": HVACMode.COOL,
                 "min_cycle_duration": timedelta(seconds=15),
+                "heat_cool_mode": True,
             }
         },
     )
@@ -709,7 +739,7 @@ async def test_hvac_mode_cool_cycle(
     with patch(
         "homeassistant.helpers.condition.dt_util.utcnow", return_value=fake_changed
     ):
-        await common.async_set_temperature(hass, 18)
+        await common.async_set_temperature(hass, 18, ENTITY_MATCH_ALL, 18, 16)
         await hass.async_block_till_done()
         assert hass.states.get(heater_switch).state == STATE_OFF
         assert hass.states.get(cooler_switch).state == STATE_ON
@@ -1099,7 +1129,7 @@ async def test_hvac_mode_heat_cool_floor_temp_hvac_action_reason(
     await hass.async_block_till_done()
 
     await common.async_set_hvac_mode(hass, HVACMode.HEAT_COOL)
-    await common.async_set_temperature(hass, 18, ENTITY_MATCH_ALL, 25, 22)
+    await common.async_set_temperature(hass, None, ENTITY_MATCH_ALL, 25, 22)
     await hass.async_block_till_done()
     assert (
         hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_ACTION_REASON)
