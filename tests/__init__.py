@@ -181,6 +181,31 @@ async def setup_comp_heat_ac_cool(hass):
 
 
 @pytest.fixture
+async def setup_comp_heat_ac_cool_fan_config(hass):
+    """Initialize components."""
+    hass.config.units = METRIC_SYSTEM
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "cold_tolerance": 2,
+                "hot_tolerance": 4,
+                "ac_mode": True,
+                "heater": common.ENT_SWITCH,
+                "target_sensor": common.ENT_SENSOR,
+                "fan": common.ENT_FAN,
+                "initial_hvac_mode": HVACMode.OFF,
+                PRESET_AWAY: {"temperature": 30},
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+
+@pytest.fixture
 async def setup_comp_heat_ac_cool_presets(hass):
     """Initialize components."""
     hass.config.units = METRIC_SYSTEM
@@ -341,6 +366,31 @@ async def setup_comp_dual(hass):
 
 
 @pytest.fixture
+async def setup_comp_dual_fan_config(hass):
+    """Initialize components."""
+    hass.config.units = METRIC_SYSTEM
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "cold_tolerance": 2,
+                "hot_tolerance": 4,
+                "heat_cool_mode": True,
+                "heater": common.ENT_HEATER,
+                "cooler": common.ENT_COOLER,
+                "fan": common.ENT_FAN,
+                "target_sensor": common.ENT_SENSOR,
+                "initial_hvac_mode": HVACMode.HEAT_COOL,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+
+@pytest.fixture
 async def setup_comp_dual_presets(hass):
     """Initialize components."""
     hass.config.units = METRIC_SYSTEM
@@ -428,6 +478,22 @@ def setup_boolean(hass: HomeAssistant, entity, state):
 def setup_switch(hass, is_on):
     """Set up the test switch."""
     hass.states.async_set(common.ENT_SWITCH, STATE_ON if is_on else STATE_OFF)
+    calls = []
+
+    @callback
+    def log_call(call):
+        """Log service calls."""
+        calls.append(call)
+
+    hass.services.async_register(ha.DOMAIN, SERVICE_TURN_ON, log_call)
+    hass.services.async_register(ha.DOMAIN, SERVICE_TURN_OFF, log_call)
+
+    return calls
+
+
+def setup_fan(hass, is_on):
+    """Set up the test switch."""
+    hass.states.async_set(common.ENT_FAN, STATE_ON if is_on else STATE_OFF)
     calls = []
 
     @callback

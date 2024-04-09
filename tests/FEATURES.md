@@ -30,6 +30,7 @@
 | Feature | Cool Mode | Heat Mode | Heat Cool Mode |
 | --- | --- | --- | --- |
 | get hvac modes | X | X | X |
+| get hvac modes fan configured | N/A | X | X |
 | set target temp | X | ! | X |
 | set preset mode | X | X | X |
 | - preset away | X | X | X |
@@ -64,8 +65,7 @@
 | temp change heater trigger off long enough | X | N/A | ! |
 | mode change heater trigger off not long enough | X | N/A | ! |
 | mode change heater trigger on not long enough | X | N/A | ! |
-
-| precision | X | ! | ! |
+| precision | ! | ! | ! |
 | init hvac off force switch off | X | ! | ! |
 | restore will turn off | X | ! | ! |
 | restore will turn off when loaded second | X | ! | ! |
@@ -76,6 +76,14 @@
 | tolerance | X | X! | ? |
 | floor temp | X | N/A | ? |
 | hvac mode cycle | X | X | ? |
+| fan mode hvac fan only mode | N/A | ! | ! |
+| fan mode hvac fan only mode on | N/A | ! | ! |
+| fan mode turn fan on within tolerance | N/A | ! | ! |
+| fan mode turn fan on outside tolerance | N/A | ! | ! |
+| fan mode turn fan off within tolerance | N/A | ! | ! |
+| fan mode turn fan off outside tolerance | N/A | ! | ! |
+| fan mode turn fan on with cooler | N/A | ! | ! |
+| fan mode turn fan off with cooler | N/A | ! | ! |
 
 ## Hvac Action Reason
 
@@ -90,4 +98,5 @@
 
 | Feature | Cool Mode | Heat Mode | Heat Cool Mode |
 | --- | --- | --- | --- |
-| opening | X | X | ? |
+| opening | X | X | ! |
+| opening fan mode | N/A | ! | ! |

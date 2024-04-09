@@ -17,6 +17,7 @@ from homeassistant.components.climate import (
     PRESET_HOME,
     PRESET_NONE,
     PRESET_SLEEP,
+    HVACAction,
     HVACMode,
 )
 from homeassistant.components.climate.const import DOMAIN as CLIMATE
@@ -29,9 +30,14 @@ from homeassistant.util import dt, dt as dt_util
 from homeassistant.util.unit_system import METRIC_SYSTEM
 import pytest
 
-from custom_components.dual_smart_thermostat.climate import ATTR_HVAC_ACTION_REASON
-from custom_components.dual_smart_thermostat.const import DOMAIN, PRESET_ANTI_FREEZE
-from custom_components.dual_smart_thermostat.hvac_action_reason import HVACActionReason
+from custom_components.dual_smart_thermostat.const import (
+    ATTR_HVAC_ACTION_REASON,
+    DOMAIN,
+    PRESET_ANTI_FREEZE,
+)
+from custom_components.dual_smart_thermostat.hvac_action_reason.hvac_action_reason import (
+    HVACActionReason,
+)
 
 from . import (  # noqa: F401
     common,
@@ -40,7 +46,9 @@ from . import (  # noqa: F401
     setup_comp_heat_ac_cool,
     setup_comp_heat_ac_cool_cycle,
     setup_comp_heat_ac_cool_cycle_kepp_alive,
+    setup_comp_heat_ac_cool_fan_config,
     setup_comp_heat_ac_cool_presets,
+    setup_fan,
     setup_sensor,
     setup_switch,
 )
@@ -155,6 +163,15 @@ async def test_get_hvac_modes(
     state = hass.states.get(common.ENTITY)
     modes = state.attributes.get("hvac_modes")
     assert modes == [HVACMode.COOL, HVACMode.OFF]
+
+
+async def test_get_hvac_modes_fan_configured(
+    hass: HomeAssistant, setup_comp_heat_ac_cool_fan_config  # noqa: F811
+) -> None:
+    """Test that the operation list returns the correct modes."""
+    state = hass.states.get(common.ENTITY)
+    modes = state.attributes.get("hvac_modes")
+    assert set(modes) == set([HVACMode.COOL, HVACMode.OFF, HVACMode.FAN_ONLY])
 
 
 @pytest.mark.parametrize(
@@ -677,7 +694,7 @@ async def test_cooler_mode(hass: HomeAssistant, setup_comp_1) -> None:  # noqa: 
 async def test_cooler_mode_change(
     hass: HomeAssistant, setup_comp_1  # noqa: F811
 ) -> None:
-    """Test thermostat switch state if HVAc mode changes."""
+    """Test thermostat switch state if HVAC mode changes."""
     cooler_switch = "input_boolean.test"
     assert await async_setup_component(
         hass, input_boolean.DOMAIN, {"input_boolean": {"test": None}}
@@ -721,6 +738,54 @@ async def test_cooler_mode_change(
     setup_sensor(hass, 17)
     await hass.async_block_till_done()
     assert hass.states.get(cooler_switch).state == STATE_OFF
+
+
+async def test_cooler_mode_from_off_to_idle(
+    hass: HomeAssistant, setup_comp_1  # noqa: F811
+) -> None:
+    """Test thermostat switch state if HVAC mode changes."""
+    cooler_switch = "input_boolean.test"
+    assert await async_setup_component(
+        hass, input_boolean.DOMAIN, {"input_boolean": {"test": None}}
+    )
+
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {"name": "test", "initial": 10, "min": 0, "max": 40, "step": 1}
+            }
+        },
+    )
+
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "heater": cooler_switch,
+                "ac_mode": "true",
+                "target_sensor": common.ENT_SENSOR,
+                "initial_hvac_mode": HVACMode.OFF,
+                "target_temp": 25,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    setup_sensor(hass, 23)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+    assert hass.states.get(common.ENTITY).attributes["hvac_action"] == HVACAction.OFF
+
+    await common.async_set_hvac_mode(hass, HVACMode.COOL)
+
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+    assert hass.states.get(common.ENTITY).attributes["hvac_action"] == HVACAction.IDLE
 
 
 async def test_cooler_mode_tolerance(
@@ -842,6 +907,43 @@ async def test_cooler_mode_cycle(
     setup_sensor(hass, 17)
     await hass.async_block_till_done()
     assert hass.states.get(cooler_switch).state == result_state
+
+
+async def test_hvac_mode_fan_only(
+    hass: HomeAssistant, setup_comp_heat_ac_cool_fan_config  # noqa: F811
+) -> None:
+    """Test change mode from OFF to FAN_ONLY.
+
+    Switch turns on when temp below setpoint and mode changes.
+    """
+    await common.async_set_hvac_mode(hass, HVACMode.OFF)
+    await common.async_set_temperature(hass, 25)
+    setup_sensor(hass, 30)
+    await hass.async_block_till_done()
+    calls = setup_fan(hass, False)
+    await common.async_set_hvac_mode(hass, HVACMode.FAN_ONLY)
+    assert len(calls) == 1
+    call = calls[0]
+    assert call.domain == HASS_DOMAIN
+    assert call.service == SERVICE_TURN_ON
+    assert call.data["entity_id"] == common.ENT_FAN
+
+
+async def test_set_target_temp_ac_fan_on(
+    hass: HomeAssistant, setup_comp_heat_ac_cool_fan_config  # noqa: F811
+) -> None:
+    """Test if target temperature turn ac on."""
+    calls = setup_fan(hass, False)
+    await common.async_set_hvac_mode(hass, HVACMode.FAN_ONLY)
+    setup_sensor(hass, 30)
+    await hass.async_block_till_done()
+
+    await common.async_set_temperature(hass, 25)
+    assert len(calls) == 1
+    call = calls[0]
+    assert call.domain == HASS_DOMAIN
+    assert call.service == SERVICE_TURN_ON
+    assert call.data["entity_id"] == common.ENT_FAN
 
 
 ######################

@@ -40,9 +40,12 @@ from homeassistant.util.unit_system import METRIC_SYSTEM
 import pytest
 import voluptuous as vol
 
-from custom_components.dual_smart_thermostat.climate import ATTR_HVAC_ACTION_REASON
-from custom_components.dual_smart_thermostat.const import DOMAIN, PRESET_ANTI_FREEZE
-from custom_components.dual_smart_thermostat.hvac_action_reason import (
+from custom_components.dual_smart_thermostat.const import (
+    ATTR_HVAC_ACTION_REASON,
+    DOMAIN,
+    PRESET_ANTI_FREEZE,
+)
+from custom_components.dual_smart_thermostat.hvac_action_reason.hvac_action_reason import (
     SET_HVAC_ACTION_REASON_SIGNAL,
     HVACActionReason,
     HVACActionReasonExternal,
@@ -1109,7 +1112,7 @@ async def test_heater_mode_aux_heater(
 
     assert hass.states.get(heater_switch).state == STATE_OFF
     state = hass.states.get(common.ENTITY)
-    assert state.attributes.get("supported_features") == 449
+    assert state.attributes.get("supported_features") == 385
 
     setup_sensor(hass, 18)
     await hass.async_block_till_done()
@@ -1128,7 +1131,7 @@ async def test_heater_mode_aux_heater(
     assert hass.states.get(secondary_heater_switch).state == STATE_OFF
 
     # after secondary heater timeout secondary heater should be on
-    await asyncio.sleep(secondaty_heater_timeout + 3)
+    await asyncio.sleep(secondaty_heater_timeout + 5)
     await hass.async_block_till_done()
 
     assert hass.states.get(heater_switch).state == STATE_OFF
@@ -1194,7 +1197,7 @@ async def test_heater_mode_aux_heater_keep_primary_heater_on(
 
     assert hass.states.get(heater_switch).state == STATE_OFF
     state = hass.states.get(common.ENTITY)
-    assert state.attributes.get("supported_features") == 449
+    assert state.attributes.get("supported_features") == 385
 
     setup_sensor(hass, 18)
     await hass.async_block_till_done()

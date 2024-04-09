@@ -62,7 +62,7 @@ class OpeningManager:
 
         return _is_open
 
-    def _is_opening_open(self, opening: TIMED_OPENING_SCHEMA) -> None:  # type: ignore
+    def _is_opening_open(self, opening: TIMED_OPENING_SCHEMA) -> bool:  # type: ignore
         """If the opening is currently open."""
         opening_entity = opening[ATTR_ENTITY_ID]
         opening_entity_state = self.hass.states.get(opening_entity)
