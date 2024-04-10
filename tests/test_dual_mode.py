@@ -152,7 +152,8 @@ async def test_setup_gets_current_temp_from_sensor(
     assert hass.states.get(common.ENTITY).attributes["current_temperature"] == 18
 
 
-async def test_use_case_1(
+# issue 80
+async def test_presets_use_case_1(
     hass: HomeAssistant,
 ) -> None:  # noqa: F811
     """Test that current temperature is updated on entity addition."""
@@ -175,8 +176,6 @@ async def test_use_case_1(
                 "min_temp": 20,
                 "max_temp": 25,
                 "heat_cool_mode": True,
-                "target_temp_high": 30,
-                "target_temp_low": 10,
                 PRESET_AWAY: {
                     "target_temp_low": 0,
                     "target_temp_high": 50,
@@ -188,6 +187,7 @@ async def test_use_case_1(
 
     state = hass.states.get(common.ENTITY)
     assert state.attributes["supported_features"] == 402
+    assert state.attributes["preset_modes"] == [PRESET_NONE, PRESET_AWAY]
 
     await common.async_set_preset_mode(hass, PRESET_AWAY)
 
