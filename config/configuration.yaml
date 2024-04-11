@@ -9,6 +9,8 @@ input_boolean:
     name: AUX Heater toggle
   cooler_on:
     name: Cooler toggle
+  fan_on:
+    name: Fan toggle
   window_open:
     name: Window
   window_open2:
@@ -84,6 +86,17 @@ switch:
           service: input_boolean.turn_off
           data:
             entity_id: input_boolean.cooler_on
+
+      fan:
+        value_template: "{{ is_state('input_boolean.fan_on', 'on') }}"
+        turn_on:
+          service: input_boolean.turn_on
+          data:
+            entity_id: input_boolean.fan_on
+        turn_off:
+          service: input_boolean.turn_off
+          data:
+            entity_id: input_boolean.fan_on
 
       window:
         value_template: "{{ is_state('input_boolean.window_open', 'on') }}"
@@ -210,6 +223,23 @@ climate:
     anti_freeze:
       temperature: 10
 
+  - platform: dual_smart_thermostat
+    name: FAN Cool Room
+    entity_id: fan_cool_room
+    heater: switch.heater
+    fan: switch.fan
+    fan_cool_tolerance: 2
+    fan_turn_on_with_cooler: true
+    ac_mode: true
+    target_sensor: sensor.room_temp
+
+  - platform: dual_smart_thermostat
+    name: FAN Only Room
+    entity_id: fan_only_room
+    fan: switch.fan
+    fan_cool_tolerance: 2
+    fan_turn_on_with_cooler: true
+    target_sensor: sensor.room_temp
 
   - platform: generic_thermostat
     name: generic one
