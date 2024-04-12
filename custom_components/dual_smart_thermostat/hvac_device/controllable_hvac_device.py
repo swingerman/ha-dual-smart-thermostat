@@ -102,3 +102,7 @@ class ControlableHVACDevice(ABC):
     @property
     def HVACActionReason(self) -> HVACActionReason:
         return self._HVACActionReason
+
+    @HVACActionReason.setter
+    def HVACActionReason(self, HVACActionReason: HVACActionReason):
+        self._HVACActionReason = HVACActionReason

@@ -4,6 +4,9 @@ from homeassistant.components.climate import HVACAction, HVACMode
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import Context, HomeAssistant
 
+from custom_components.dual_smart_thermostat.hvac_action_reason.hvac_action_reason import (
+    HVACActionReason,
+)
 from custom_components.dual_smart_thermostat.hvac_device.controllable_hvac_device import (
     ControlableHVACDevice,
 )
@@ -65,7 +68,7 @@ class CoolerFanDevice(HVACDevice, ControlableHVACDevice):
         return [self.cooler_device.entity_id, self.fan_device.entity_id]
 
     def is_active(self) -> bool:
-        return self.cooler_device.is_active() or self.fan_device.is_active()
+        return self.cooler_device.is_active or self.fan_device.is_active
 
     @property
     def hvac_action(self) -> HVACAction:
@@ -116,10 +119,15 @@ class CoolerFanDevice(HVACDevice, ControlableHVACDevice):
         match self._hvac_mode:
             case HVACMode.COOL:
                 await self.cooler_device.async_control_hvac(time, force)
+                self.HVACActionReason = self.cooler_device.HVACActionReason
+            # TODO: implement dvanced fan logic
             case HVACMode.FAN_ONLY:
+                await self.cooler_device.async_turn_off()
                 await self.fan_device.async_control_hvac(time, force)
+                self.HVACActionReason = self.fan_device.HVACActionReason
             case HVACMode.OFF:
                 await self.async_turn_off()
+                self.HVACActionReason = HVACActionReason.NONE
             case _:
                 _LOGGER.warning("Invalid HVAC mode: %s", self._hvac_mode)
 
@@ -128,5 +136,10 @@ class CoolerFanDevice(HVACDevice, ControlableHVACDevice):
         pass
 
     async def async_turn_off(self):
+        _LOGGER.info(
+            "Turning off %s, %s",
+            self.cooler_device.entity_id,
+            self.fan_device.entity_id,
+        )
         await self.cooler_device.async_turn_off()
         await self.fan_device.async_turn_off()

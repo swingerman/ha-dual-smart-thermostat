@@ -85,6 +85,7 @@ from .const import (
     CONF_COOLER,
     CONF_FAN,
     CONF_FAN_COOL_TOLERANCE,
+    CONF_FAN_MODE,
     CONF_FAN_ON_WITH_COOLER,
     CONF_FLOOR_SENSOR,
     CONF_HEAT_COOL_MODE,
@@ -141,6 +142,7 @@ FLOOR_TEMPERATURE_SCHEMA = {
 
 FAN_MODE_SCHEMA = {
     vol.Optional(CONF_FAN): cv.entity_id,
+    vol.Optional(CONF_FAN_MODE): cv.boolean,
     vol.Optional(CONF_FAN_ON_WITH_COOLER): cv.boolean,
     vol.Optional(CONF_FAN_COOL_TOLERANCE): vol.Coerce(float),
 }
@@ -643,7 +645,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         _LOGGER.info("Setting hvac mode: %s", hvac_mode)
 
         if hvac_mode not in self.hvac_modes:
-            _LOGGER.erroasync_set_hvac_moder("Unrecognized hvac mode: %s", hvac_mode)
+            _LOGGER.debug("Unrecognized hvac mode: %s", hvac_mode)
             return
 
         await self.hvac_device.async_set_hvac_mode(hvac_mode)
@@ -798,6 +800,10 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
         async with self._temp_lock:
             await self.hvac_device.async_control_hvac(time, force)
+            _LOGGER.info(
+                "updating HVACActionReason: %s", self.hvac_device.HVACActionReason
+            )
+
             self._HVACActionReason = self.hvac_device.HVACActionReason
 
     async def _async_control_climate_forced(self, time=None) -> None:

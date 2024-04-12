@@ -275,7 +275,7 @@ class TemperatureManager(StateManager):
         _LOGGER.info("Setting default target temperature target mode: %s", hvac_modes)
 
         # if HVACMode.COOL in hvac_device.hvac_modes or hvac_mode == HVACMode.COOL:
-        if HVACMode.COOL in hvac_modes:
+        if HVACMode.COOL in hvac_modes or HVACMode.FAN_ONLY in hvac_modes:
             if self._target_temp_high is None:
                 self._target_temp = self.max_temp
                 _LOGGER.warning(

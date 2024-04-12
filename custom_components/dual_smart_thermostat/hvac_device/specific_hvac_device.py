@@ -75,6 +75,7 @@ class SpecificHVACDevice(HVACDevice, ControlableHVACDevice, Switchable):
             )
 
     async def async_turn_off(self):
+        _LOGGER.info("Turning off entity %s", self.entity_id)
         if self.entity_id is not None and self.hass.states.is_state(
             self.entity_id, STATE_ON
         ):
