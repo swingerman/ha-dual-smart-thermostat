@@ -209,7 +209,7 @@ climate:
 
   - platform: dual_smart_thermostat
     name: AUX Heat Room
-    entity_id: aux_heat_room
+    unique_id: aux_heat_room
     heater: switch.heater
     secondary_heater: switch.aux_heater
     secondary_heater_timeout: 00:00:15
@@ -225,17 +225,19 @@ climate:
 
   - platform: dual_smart_thermostat
     name: FAN Cool Room
-    entity_id: fan_cool_room
+    unique_id: fan_cool_room
     heater: switch.heater
     fan: switch.fan
     fan_cool_tolerance: 2
     fan_turn_on_with_cooler: true
     ac_mode: true
     target_sensor: sensor.room_temp
+    min_temp: 18
+    max_temp: 25
 
   - platform: dual_smart_thermostat
     name: FAN Only Room
-    entity_id: fan_only_room
+    unique_id: fan_only_room
     fan: switch.fan
     fan_cool_tolerance: 2
     fan_turn_on_with_cooler: true

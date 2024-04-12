@@ -12,6 +12,7 @@ from custom_components.dual_smart_thermostat.const import (
     CONF_COOLER,
     CONF_FAN,
     CONF_FAN_COOL_TOLERANCE,
+    CONF_FAN_MODE,
     CONF_FAN_ON_WITH_COOLER,
     CONF_HEAT_COOL_MODE,
     CONF_HEATER,
@@ -64,6 +65,7 @@ class HVACDeviceFactory:
                 self.cooler_entity_id = cooler_entity_id
 
         self.ac_mode = config.get(CONF_AC_MODE)
+        self.fan_mode = config.get(CONF_FAN_MODE)
         self.heat_cool_mode = config.get(CONF_HEAT_COOL_MODE)
 
         self.fan_entity_id = config.get(CONF_FAN)
@@ -83,6 +85,20 @@ class HVACDeviceFactory:
     ) -> ControlableHVACDevice:
 
         self.temperatures = temperatures
+
+        if self._is_configured_for_fan_only_mode:
+            _LOGGER.debug(
+                "Creating FanDevice device, _is_configured_for_fan_only_mode: %s",
+                self._is_configured_for_fan_only_mode,
+            )
+            return FanDevice(
+                self.hass,
+                self.heater_entity_id,
+                self.min_cycle_duration,
+                self.initial_hvac_mode,
+                temperatures,
+                openings,
+            )
 
         if self._is_configured_for_cooler_mode and not self._is_configured_for_fan_mode:
             _LOGGER.debug(
@@ -256,6 +272,15 @@ class HVACDeviceFactory:
     def _is_configured_for_cooler_mode(self) -> bool:
         """Determines if the cooler mode is configured."""
         return self.heater_entity_id is not None and self.ac_mode is True
+
+    @property
+    def _is_configured_for_fan_only_mode(self) -> bool:
+        """Determines if the fan mode is configured."""
+        return (
+            self.heater_entity_id is not None
+            and self.fan_mode is True
+            and self.fan_entity_id is None
+        )
 
     @property
     def _is_configured_for_fan_mode(self) -> bool:
