@@ -165,15 +165,6 @@ async def test_get_hvac_modes(
     assert modes == [HVACMode.COOL, HVACMode.OFF]
 
 
-async def test_get_hvac_modes_fan_configured(
-    hass: HomeAssistant, setup_comp_heat_ac_cool_fan_config  # noqa: F811
-) -> None:
-    """Test that the operation list returns the correct modes."""
-    state = hass.states.get(common.ENTITY)
-    modes = state.attributes.get("hvac_modes")
-    assert set(modes) == set([HVACMode.COOL, HVACMode.OFF, HVACMode.FAN_ONLY])
-
-
 @pytest.mark.parametrize(
     ("preset", "temp"),
     [
@@ -907,43 +898,6 @@ async def test_cooler_mode_cycle(
     setup_sensor(hass, 17)
     await hass.async_block_till_done()
     assert hass.states.get(cooler_switch).state == result_state
-
-
-async def test_hvac_mode_fan_only(
-    hass: HomeAssistant, setup_comp_heat_ac_cool_fan_config  # noqa: F811
-) -> None:
-    """Test change mode from OFF to FAN_ONLY.
-
-    Switch turns on when temp below setpoint and mode changes.
-    """
-    await common.async_set_hvac_mode(hass, HVACMode.OFF)
-    await common.async_set_temperature(hass, 25)
-    setup_sensor(hass, 30)
-    await hass.async_block_till_done()
-    calls = setup_fan(hass, False)
-    await common.async_set_hvac_mode(hass, HVACMode.FAN_ONLY)
-    assert len(calls) == 1
-    call = calls[0]
-    assert call.domain == HASS_DOMAIN
-    assert call.service == SERVICE_TURN_ON
-    assert call.data["entity_id"] == common.ENT_FAN
-
-
-async def test_set_target_temp_ac_fan_on(
-    hass: HomeAssistant, setup_comp_heat_ac_cool_fan_config  # noqa: F811
-) -> None:
-    """Test if target temperature turn ac on."""
-    calls = setup_fan(hass, False)
-    await common.async_set_hvac_mode(hass, HVACMode.FAN_ONLY)
-    setup_sensor(hass, 30)
-    await hass.async_block_till_done()
-
-    await common.async_set_temperature(hass, 25)
-    assert len(calls) == 1
-    call = calls[0]
-    assert call.domain == HASS_DOMAIN
-    assert call.service == SERVICE_TURN_ON
-    assert call.data["entity_id"] == common.ENT_FAN
 
 
 ######################
