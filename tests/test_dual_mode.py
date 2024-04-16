@@ -13,6 +13,7 @@ from homeassistant.components.climate import (
     PRESET_HOME,
     PRESET_NONE,
     PRESET_SLEEP,
+    HVACAction,
     HVACMode,
 )
 from homeassistant.components.climate.const import ATTR_PRESET_MODE, DOMAIN as CLIMATE
@@ -153,9 +154,9 @@ async def test_setup_gets_current_temp_from_sensor(
 
 
 # issue 80
-async def test_presets_use_case_1(
-    hass: HomeAssistant,
-) -> None:  # noqa: F811
+async def test_presets_use_case_80(
+    hass: HomeAssistant, setup_comp_1  # noqa: F811
+) -> None:
     """Test that current temperature is updated on entity addition."""
     hass.config.units = METRIC_SYSTEM
     setup_sensor(hass, 18)
@@ -193,6 +194,112 @@ async def test_presets_use_case_1(
 
     state = hass.states.get(common.ENTITY)
     assert state.attributes[ATTR_PRESET_MODE] == PRESET_AWAY
+
+
+# issue 150
+async def test_presets_use_case_150(
+    hass: HomeAssistant, setup_comp_1  # noqa: F811
+) -> None:  # noqa: F811
+    """Test that current temperature is updated on entity addition."""
+    hass.config.units = METRIC_SYSTEM
+    setup_sensor(hass, 18)
+    await hass.async_block_till_done()
+
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "heater": common.ENT_HEATER,
+                "cooler": common.ENT_COOLER,
+                "target_sensor": common.ENT_SENSOR,
+                "min_cycle_duration": timedelta(seconds=60),
+                "precision": 1.0,
+                "min_temp": 58,
+                "max_temp": 80,
+                "cold_tolerance": 1.0,
+                "hot_tolerance": 1.0,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes["supported_features"] == 386
+
+
+async def test_presets_use_case_150_2(
+    hass: HomeAssistant, setup_comp_1  # noqa: F811
+) -> None:  # noqa: F811
+    """Test that current temperature is updated on entity addition."""
+    hass.config.units = METRIC_SYSTEM
+
+    heater_switch = "input_boolean.heater"
+    cooler_switch = "input_boolean.cooler"
+    assert await async_setup_component(
+        hass,
+        input_boolean.DOMAIN,
+        {"input_boolean": {"heater": None, "cooler": None}},
+    )
+
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "heater": heater_switch,
+                "cooler": cooler_switch,
+                "target_sensor": common.ENT_SENSOR,
+                # "min_cycle_duration": min_cycle_duration,
+                # "keep_alive": timedelta(seconds=3),
+                "precision": 1.0,
+                "min_temp": 16,
+                "max_temp": 32,
+                "target_temp": 26.5,
+                "target_temp_low": 23,
+                "target_temp_high": 26.5,
+                "cold_tolerance": 0.5,
+                "hot_tolerance": 0.5,
+                "initial_hvac_mode": HVACMode.OFF,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes["supported_features"] == 386
+
+    modes = state.attributes.get("hvac_modes")
+    assert set(modes) == set(
+        [HVACMode.OFF, HVACMode.HEAT, HVACMode.COOL, HVACMode.HEAT_COOL]
+    )
+
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+    assert hass.states.get(common.ENTITY).attributes["hvac_action"] == HVACAction.OFF
+
+    setup_sensor(hass, 23)
+    await common.async_set_hvac_mode(hass, HVACMode.HEAT_COOL)
+    await common.async_set_temperature(hass, 18, ENTITY_MATCH_ALL, 18, 16)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(cooler_switch).state == STATE_ON
+
+    assert (
+        hass.states.get(common.ENTITY).attributes["hvac_action"] == HVACAction.COOLING
+    )
+
+    setup_sensor(hass, 1)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+    assert hass.states.get(common.ENTITY).attributes["hvac_action"] == HVACAction.IDLE
 
 
 async def test_default_setup_params(
@@ -470,6 +577,9 @@ async def test_hvac_mode_mode_heat_cool(
     assert HVACMode.HEAT_COOL in hvac_modes
     assert HVACMode.OFF in hvac_modes
 
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes["supported_features"] == 386
+
     assert hass.states.get(heater_switch).state == STATE_OFF
     assert hass.states.get(cooler_switch).state == STATE_OFF
 
@@ -477,6 +587,9 @@ async def test_hvac_mode_mode_heat_cool(
     await common.async_set_temperature(hass, 18, ENTITY_MATCH_ALL, 25, 22)
     setup_sensor(hass, 26)
     await hass.async_block_till_done()
+
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes["supported_features"] == 386
 
     assert hass.states.get(heater_switch).state == STATE_OFF
     assert hass.states.get(cooler_switch).state == STATE_ON
@@ -495,6 +608,9 @@ async def test_hvac_mode_mode_heat_cool(
     await common.async_set_hvac_mode(hass, HVACMode.HEAT)
     await common.async_set_temperature(hass, 25, ENTITY_MATCH_ALL, 25, 22)
     await hass.async_block_till_done()
+
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes["supported_features"] == 385
 
     setup_sensor(hass, 20)
     await hass.async_block_till_done()
@@ -519,6 +635,99 @@ async def test_hvac_mode_mode_heat_cool(
     await hass.async_block_till_done()
 
     assert hass.states.get(heater_switch).state == STATE_OFF
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes["supported_features"] == 385
+
+    await common.async_set_hvac_mode(hass, HVACMode.HEAT_COOL)
+    await hass.async_block_till_done()
+
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes["supported_features"] == 386
+
+
+async def test_hvac_mode_mode_heat_cool_hvac_modes_temps(
+    hass: HomeAssistant, setup_comp_1  # noqa: F811
+):
+    """Test thermostat heater and cooler switch in heat/cool mode."""
+
+    heater_switch = "input_boolean.heater"
+    cooler_switch = "input_boolean.cooler"
+    assert await async_setup_component(
+        hass,
+        input_boolean.DOMAIN,
+        {"input_boolean": {"heater": None, "cooler": None}},
+    )
+
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {"name": "test", "initial": 10, "min": 0, "max": 40, "step": 1}
+            }
+        },
+    )
+
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "cooler": cooler_switch,
+                "heater": heater_switch,
+                "heat_cool_mode": True,
+                "target_sensor": common.ENT_SENSOR,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes["supported_features"] == 386
+
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+
+    await common.async_set_hvac_mode(hass, HVACMode.HEAT_COOL)
+    await common.async_set_temperature(hass, 18, ENTITY_MATCH_ALL, 25, 22)
+    await hass.async_block_till_done()
+
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes["target_temp_low"] == 22
+    assert state.attributes["target_temp_high"] == 25
+    assert state.attributes.get("temperature") is None
+
+    # switch to heat only mode
+    await common.async_set_hvac_mode(hass, HVACMode.HEAT)
+    await common.async_set_temperature(hass, 24)
+    await hass.async_block_till_done()
+
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes.get("target_temp_low") is None
+    assert state.attributes.get("target_temp_high") is None
+    assert state.attributes.get("temperature") == 24
+
+    # switch to cool only mode
+    await common.async_set_hvac_mode(hass, HVACMode.COOL)
+    await common.async_set_temperature(hass, 26)
+    await hass.async_block_till_done()
+
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes.get("target_temp_low") is None
+    assert state.attributes.get("target_temp_high") is None
+    assert state.attributes.get("temperature") == 26
+
+    # switch back to heet cool mode
+    await common.async_set_hvac_mode(hass, HVACMode.HEAT_COOL)
+    await hass.async_block_till_done()
+
+    # check if target temperatures are kept from previous steps
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes["target_temp_low"] == 24
+    assert state.attributes["target_temp_high"] == 26
+    assert state.attributes.get("temperature") is None
 
 
 async def test_hvac_mode_heat_cool_floor_temp(

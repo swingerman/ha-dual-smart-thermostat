@@ -166,8 +166,8 @@ climate:
     precision: 0.1
 
   - platform: dual_smart_thermostat
-    name: Edge Case 1
-    unique_id: edge_case_1
+    name: Edge Case 80
+    unique_id: edge_case_80
     heater: switch.heater
     cooler: switch.cooler
     target_sensor: sensor.room_temp
@@ -179,6 +179,19 @@ climate:
     away:
       target_temp_low: 0
       target_temp_high: 50
+
+  - platform: dual_smart_thermostat
+    name: Edge Case 150
+    unique_id: edge_case_150
+    heater: switch.heater
+    cooler: switch.cooler
+    target_sensor: sensor.room_temp
+    min_cycle_duration: 60
+    precision: 1.0
+    min_temp: 58
+    max_temp: 80
+    cold_tolerance: 1.0,
+    hot_tolerance: 1.0,
 
 
   - platform: dual_smart_thermostat

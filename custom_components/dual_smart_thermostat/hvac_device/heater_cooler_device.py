@@ -137,6 +137,39 @@ class HeaterCoolerDevice(HVACDevice, ControlableHVACDevice):
             tolerance_device = ToleranceDevice.AUTO
         return too_cold, too_hot, tolerance_device
 
+    async def async_set_hvac_mode(self, hvac_mode: HVACMode):
+        _LOGGER.info("Setting hvac mode to %s of %s", hvac_mode, self.hvac_modes)
+        if hvac_mode in self.hvac_modes:
+            _LOGGER.debug("hvac mode found")
+            self._hvac_mode = hvac_mode
+
+            if hvac_mode is not HVACMode.OFF:
+                # handles HVACmode.HEAT
+                if hvac_mode in self.heater_device.hvac_modes:
+                    self.heater_device.hvac_mode = hvac_mode
+                elif hvac_mode == HVACMode.HEAT_COOL:
+                    self.heater_device.hvac_mode = HVACMode.HEAT
+                # handles HVACmode.COOL
+                if hvac_mode in self.cooler_device.hvac_modes:
+                    self.cooler_device.hvac_mode = hvac_mode
+                elif hvac_mode == HVACMode.HEAT_COOL:
+                    self.cooler_device.hvac_mode = HVACMode.COOL
+            else:
+                self.heater_device.hvac_mode = hvac_mode
+                self.cooler_device.hvac_mode = hvac_mode
+
+        else:
+            _LOGGER.debug("Hvac mode %s is not in %s", hvac_mode, self.hvac_modes)
+            self._hvac_mode = HVACMode.OFF
+
+        if self._hvac_mode == HVACMode.OFF:
+            await self.async_turn_off()
+            self._HVACActionReason = HVACActionReason.NONE
+        else:
+            await self.async_control_hvac(self, force=True)
+
+        _LOGGER.info("Hvac mode set to %s", self._hvac_mode)
+
     async def _async_control_heat_cool(self, time=None, force=False) -> None:
         """Check if we need to turn heating on or off."""
 

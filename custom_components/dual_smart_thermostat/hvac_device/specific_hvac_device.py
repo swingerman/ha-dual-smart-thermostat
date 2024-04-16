@@ -13,6 +13,7 @@ from homeassistant.const import (
 )
 from homeassistant.core import DOMAIN as HA_DOMAIN, Context, HomeAssistant
 from homeassistant.helpers import condition
+import homeassistant.util.dt as dt_util
 
 from custom_components.dual_smart_thermostat.hvac_action_reason.hvac_action_reason import (
     HVACActionReason,
@@ -92,12 +93,17 @@ class SpecificHVACDevice(HVACDevice, ControlableHVACDevice, Switchable):
             return True
         return False
 
-    @property
+    # @property
     def _ran_long_enough(self) -> bool:
         if self.is_active:
             current_state = STATE_ON
         else:
             current_state = HVACMode.OFF
+
+        _LOGGER.info("Checking if device ran long enough: %s", self.entity_id)
+        _LOGGER.info("current_state: %s", current_state)
+        _LOGGER.info("min_cycle_duration: %s", self.min_cycle_duration)
+        _LOGGER.info("time: %s", dt_util.utcnow())
 
         long_enough = condition.state(
             self.hass,
@@ -143,8 +149,15 @@ class SpecificHVACDevice(HVACDevice, ControlableHVACDevice, Switchable):
             # If the `time` argument is not none, we were invoked for
             # keep-alive purposes, and `min_cycle_duration` is irrelevant.
             if self.min_cycle_duration:
-                return self._ran_long_enough
+                _LOGGER.debug(
+                    "Checking if device ran long enough: %s", self._ran_long_enough()
+                )
+                return self._ran_long_enough()
         return True
+
+    # def needs_cycle(self) -> bool:
+    #     """Determines if the device needs to cycle."""
+    #     return self._ran_long_enough
 
     async def async_control_hvac(self, time=None, force=False):
         """Controls the HVAC of the device."""
@@ -177,6 +190,7 @@ class SpecificHVACDevice(HVACDevice, ControlableHVACDevice, Switchable):
             await self._async_control_when_inactive(time)
 
     async def _async_control_when_active(self, time=None) -> None:
+        _LOGGER.debug("%s _async_control_when_active", self.__class__.__name__)
         too_cold = self.temperatures.is_too_cold(self._target_temp_attr)
         any_opening_open = self.openings.any_opening_open
 
