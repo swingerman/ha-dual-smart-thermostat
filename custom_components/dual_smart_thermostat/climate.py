@@ -633,6 +633,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             self.presets.presets,
             self.hvac_device.hvac_modes,
             self.presets.presets_range,
+            self._hvac_mode,
         )
         self._attr_supported_features = self.features.supported_features
         _LOGGER.debug("Supported features: %s", self._attr_supported_features)
@@ -647,6 +648,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
         await self.hvac_device.async_set_hvac_mode(hvac_mode)
         self._hvac_mode = hvac_mode
+        self._set_support_flags()
 
         self._HVACActionReason = self.hvac_device.HVACActionReason
 
@@ -663,17 +665,38 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         _LOGGER.debug("Setting temperature low: %s", temp_low)
         _LOGGER.debug("Setting temperature high: %s", temp_high)
 
-        if self.features.is_target_mode:
+        if self.features.is_configured_for_heat_cool_mode:
+            if self.features.is_target_mode:
+                if temperature is None:
+                    return
+                self.temperatures.set_temperature_target(temperature)
+                self._target_temp = self.temperatures.target_temp
+
+                if self.hvac_device.hvac_mode == HVACMode.HEAT:
+                    self.temperatures.set_temperature_range(
+                        temperature, temperature, self.temperatures.target_temp_high
+                    )
+                    self._target_temp_low = self.temperatures.target_temp_low
+
+                else:
+                    self.temperatures.set_temperature_range(
+                        temperature, self.temperatures.target_temp_low, temperature
+                    )
+                    self._target_temp_high = self.temperatures.target_temp_high
+
+            elif self.features.is_range_mode:
+                self.temperatures.set_temperature_range(
+                    temperature, temp_low, temp_high
+                )
+                self._target_temp = self.temperatures.target_temp
+                self._target_temp_low = self.temperatures.target_temp_low
+                self._target_temp_high = self.temperatures.target_temp_high
+
+        else:
             if temperature is None:
                 return
             self.temperatures.set_temperature_target(temperature)
             self._target_temp = self.temperatures.target_temp
-
-        elif self.features.is_range_mode:
-            self.temperatures.set_temperature_range(temperature, temp_low, temp_high)
-            self._target_temp = self.temperatures.target_temp
-            self._target_temp_low = self.temperatures.target_temp_low
-            self._target_temp_high = self.temperatures.target_temp_high
 
         await self._async_control_climate(force=True)
         self.async_write_ha_state()
