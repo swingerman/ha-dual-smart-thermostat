@@ -730,6 +730,10 @@ async def test_cooler_mode_change(
     await hass.async_block_till_done()
     assert hass.states.get(cooler_switch).state == STATE_OFF
 
+    setup_sensor(hass, 23)
+    await hass.async_block_till_done()
+    assert hass.states.get(cooler_switch).state == STATE_ON
+
 
 async def test_cooler_mode_from_off_to_idle(
     hass: HomeAssistant, setup_comp_1  # noqa: F811
@@ -777,6 +781,56 @@ async def test_cooler_mode_from_off_to_idle(
 
     assert hass.states.get(cooler_switch).state == STATE_OFF
     assert hass.states.get(common.ENTITY).attributes["hvac_action"] == HVACAction.IDLE
+
+
+async def test_cooler_mode_off_switch_change_keeps_off(
+    hass: HomeAssistant, setup_comp_1  # noqa: F811
+) -> None:
+    """Test thermostat switch state if HVAC mode changes."""
+    cooler_switch = "input_boolean.test"
+    assert await async_setup_component(
+        hass, input_boolean.DOMAIN, {"input_boolean": {"test": None}}
+    )
+
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {"name": "test", "initial": 10, "min": 0, "max": 40, "step": 1}
+            }
+        },
+    )
+
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "heater": cooler_switch,
+                "ac_mode": "true",
+                "target_sensor": common.ENT_SENSOR,
+                "initial_hvac_mode": HVACMode.OFF,
+                "target_temp": 25,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    setup_sensor(hass, 23)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+    assert hass.states.get(common.ENTITY).attributes["hvac_action"] == HVACAction.OFF
+
+    hass.states.async_set(cooler_switch, STATE_ON)
+
+    await hass.async_block_till_done()
+
+    assert hass.states.get(cooler_switch).state == STATE_ON
+    assert hass.states.get(common.ENTITY).attributes["hvac_action"] == HVACAction.OFF
 
 
 async def test_cooler_mode_tolerance(

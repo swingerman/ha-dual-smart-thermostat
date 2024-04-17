@@ -1,7 +1,7 @@
 from datetime import timedelta
 import logging
 
-from homeassistant.components.climate import HVACMode
+from homeassistant.components.climate import HVACAction, HVACMode
 from homeassistant.core import HomeAssistant
 
 from custom_components.dual_smart_thermostat.hvac_action_reason.hvac_action_reason import (
@@ -45,6 +45,14 @@ class HeaterDevice(SpecificHVACDevice):
 
         if range_mode:
             self._target_temp_attr = "_target_temp_low"
+
+    @property
+    def hvac_action(self) -> HVACAction:
+        if self.hvac_mode == HVACMode.OFF:
+            return HVACAction.OFF
+        if self.is_active:
+            return HVACAction.HEATING
+        return HVACAction.IDLE
 
     async def async_control_hvac(self, time=None, force=False):
         _LOGGER.debug({self.__class__.__name__})
