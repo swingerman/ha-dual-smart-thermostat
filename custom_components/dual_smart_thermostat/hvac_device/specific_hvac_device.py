@@ -101,10 +101,10 @@ class SpecificHVACDevice(HVACDevice, ControlableHVACDevice, Switchable):
         else:
             current_state = HVACMode.OFF
 
-        _LOGGER.info("Checking if device ran long enough: %s", self.entity_id)
-        _LOGGER.info("current_state: %s", current_state)
-        _LOGGER.info("min_cycle_duration: %s", self.min_cycle_duration)
-        _LOGGER.info("time: %s", dt_util.utcnow())
+        _LOGGER.debug("Checking if device ran long enough: %s", self.entity_id)
+        _LOGGER.debug("current_state: %s", current_state)
+        _LOGGER.debug("min_cycle_duration: %s", self.min_cycle_duration)
+        _LOGGER.debug("time: %s", dt_util.utcnow())
 
         long_enough = condition.state(
             self.hass,

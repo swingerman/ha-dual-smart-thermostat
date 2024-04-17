@@ -18,6 +18,7 @@ from homeassistant.components.climate import (
     PRESET_HOME,
     PRESET_NONE,
     PRESET_SLEEP,
+    HVACAction,
     HVACMode,
 )
 from homeassistant.components.climate.const import ATTR_PRESET_MODE, DOMAIN as CLIMATE
@@ -1066,6 +1067,102 @@ async def test_restore_state_uncoherence_case(hass: HomeAssistant) -> None:
     await hass.async_block_till_done()
     state = hass.states.get(common.ENTITY)
     assert state.state == HVACMode.OFF
+
+
+async def test_heater_mode_from_off_to_idle(
+    hass: HomeAssistant, setup_comp_1  # noqa: F811
+) -> None:
+    """Test thermostat switch state if HVAC mode changes."""
+    heater_switch = "input_boolean.test"
+    assert await async_setup_component(
+        hass, input_boolean.DOMAIN, {"input_boolean": {"test": None}}
+    )
+
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {"name": "test", "initial": 10, "min": 0, "max": 40, "step": 1}
+            }
+        },
+    )
+
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "heater": heater_switch,
+                "target_sensor": common.ENT_SENSOR,
+                "initial_hvac_mode": HVACMode.OFF,
+                "target_temp": 25,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    setup_sensor(hass, 26)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(common.ENTITY).attributes["hvac_action"] == HVACAction.OFF
+
+    await common.async_set_hvac_mode(hass, HVACMode.HEAT)
+
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(common.ENTITY).attributes["hvac_action"] == HVACAction.IDLE
+
+
+async def test_cooler_mode_off_switch_change_keeps_off(
+    hass: HomeAssistant, setup_comp_1  # noqa: F811
+) -> None:
+    """Test thermostat switch state if HVAC mode changes."""
+    heater_switch = "input_boolean.test"
+    assert await async_setup_component(
+        hass, input_boolean.DOMAIN, {"input_boolean": {"test": None}}
+    )
+
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {"name": "test", "initial": 10, "min": 0, "max": 40, "step": 1}
+            }
+        },
+    )
+
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "heater": heater_switch,
+                "target_sensor": common.ENT_SENSOR,
+                "initial_hvac_mode": HVACMode.OFF,
+                "target_temp": 25,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    setup_sensor(hass, 26)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(common.ENTITY).attributes["hvac_action"] == HVACAction.OFF
+
+    hass.states.async_set(heater_switch, STATE_ON)
+
+    await hass.async_block_till_done()
+
+    assert hass.states.get(heater_switch).state == STATE_ON
+    assert hass.states.get(common.ENTITY).attributes["hvac_action"] == HVACAction.OFF
 
 
 async def test_heater_mode_aux_heater(

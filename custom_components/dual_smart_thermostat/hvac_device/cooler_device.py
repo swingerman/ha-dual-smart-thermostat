@@ -45,8 +45,8 @@ class CoolerDevice(SpecificHVACDevice):
 
     @property
     def hvac_action(self) -> HVACAction:
-        if self.is_active:
-            return HVACAction.COOLING
         if self.hvac_mode == HVACMode.OFF:
             return HVACAction.OFF
+        if self.is_active:
+            return HVACAction.COOLING
         return HVACAction.IDLE

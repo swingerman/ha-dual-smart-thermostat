@@ -33,6 +33,17 @@ from custom_components.dual_smart_thermostat.managers.state_manager import State
 _LOGGER = logging.getLogger(__name__)
 
 
+class TargetTemperatures:
+    temperature: float
+    temp_high: float
+    temp_low: float
+
+    def __init__(self, temperature: float, temp_high: float, temp_low: float) -> None:
+        self.temperature = temperature
+        self.temp_high = temp_high
+        self.temp_low = temp_low
+
+
 class TemperatureManager(StateManager):
 
     def __init__(
@@ -167,6 +178,18 @@ class TemperatureManager(StateManager):
     def saved_target_temp_high(self, temp: float) -> None:
         self._saved_target_temp_high = temp
 
+    def set_temperature_range_from_hvac_mode(
+        self, temperature: float, hvac_mode: HVACMode
+    ) -> None:
+
+        self.set_temperature_target(temperature)
+
+        if hvac_mode == HVACMode.HEAT:
+            self.set_temperature_range(temperature, temperature, self.target_temp_high)
+
+        else:
+            self.set_temperature_range(temperature, self.target_temp_low, temperature)
+
     def set_temperature_target(self, temperature: float) -> None:
 
         _LOGGER.info("Setting target temperature: %s", temperature)
@@ -186,6 +209,12 @@ class TemperatureManager(StateManager):
 
         if temp_high is None:
             temp_high = temperature + PRECISION_WHOLE
+
+        if temp_low > temp_high:
+            temp_low = temp_high - PRECISION_WHOLE
+
+        if temp_high < temp_low:
+            temp_high = temp_low + PRECISION_WHOLE
 
         self._target_temp = temperature
         self._target_temp_low = temp_low

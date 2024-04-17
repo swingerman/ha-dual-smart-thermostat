@@ -730,6 +730,86 @@ async def test_hvac_mode_mode_heat_cool_hvac_modes_temps(
     assert state.attributes.get("temperature") is None
 
 
+async def test_hvac_mode_mode_heat_cool_hvac_modes_temps_avoid_unrealism(
+    hass: HomeAssistant, setup_comp_1  # noqa: F811
+):
+    """Test thermostat heater and cooler switch in heat/cool mode."""
+
+    heater_switch = "input_boolean.heater"
+    cooler_switch = "input_boolean.cooler"
+    assert await async_setup_component(
+        hass,
+        input_boolean.DOMAIN,
+        {"input_boolean": {"heater": None, "cooler": None}},
+    )
+
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {"name": "test", "initial": 10, "min": 0, "max": 40, "step": 1}
+            }
+        },
+    )
+
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "cooler": cooler_switch,
+                "heater": heater_switch,
+                "heat_cool_mode": True,
+                "target_sensor": common.ENT_SENSOR,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes["supported_features"] == 386
+
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+
+    await common.async_set_hvac_mode(hass, HVACMode.HEAT_COOL)
+    await common.async_set_temperature(hass, 18, ENTITY_MATCH_ALL, 25, 22)
+    await hass.async_block_till_done()
+
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes["target_temp_low"] == 22
+    assert state.attributes["target_temp_high"] == 25
+    assert state.attributes.get("temperature") is None
+
+    # switch to heat only mode
+    await common.async_set_hvac_mode(hass, HVACMode.HEAT)
+    await common.async_set_temperature(hass, 26)
+    await hass.async_block_till_done()
+
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes.get("temperature") == 26
+
+    # switch to cool only mode
+    await common.async_set_hvac_mode(hass, HVACMode.COOL)
+    await common.async_set_temperature(hass, 21)
+    await hass.async_block_till_done()
+
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes.get("temperature") == 21
+
+    # switch back to heet cool mode
+    await common.async_set_hvac_mode(hass, HVACMode.HEAT_COOL)
+    await hass.async_block_till_done()
+
+    # check if target temperatures are kept from previous steps
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes["target_temp_low"] == 20  # temp_high - precision
+    assert state.attributes["target_temp_high"] == 21  # temp_low + precision
+
+
 async def test_hvac_mode_heat_cool_floor_temp(
     hass: HomeAssistant, setup_comp_1  # noqa: F811
 ):
@@ -833,6 +913,11 @@ async def test_hvac_mode_heat_cool_floor_temp(
     assert hass.states.get(heater_switch).state == STATE_ON
     assert hass.states.get(cooler_switch).state == STATE_OFF
 
+    setup_sensor(hass, 24)
+    await hass.async_block_till_done()
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+
 
 # TODO: test handling setting only target temp without low and high
 
@@ -880,7 +965,7 @@ async def test_hvac_mode_cool(hass: HomeAssistant, setup_comp_1):  # noqa: F811
     setup_sensor(hass, 23)
     await hass.async_block_till_done()
 
-    await common.async_set_temperature(hass, 18, ENTITY_MATCH_ALL, 18, 16)
+    await common.async_set_temperature(hass, 18)
     await hass.async_block_till_done()
     assert hass.states.get(heater_switch).state == STATE_OFF
     assert hass.states.get(cooler_switch).state == STATE_ON
@@ -889,6 +974,11 @@ async def test_hvac_mode_cool(hass: HomeAssistant, setup_comp_1):  # noqa: F811
     await hass.async_block_till_done()
     assert hass.states.get(heater_switch).state == STATE_OFF
     assert hass.states.get(cooler_switch).state == STATE_OFF
+
+    setup_sensor(hass, 23)
+    await hass.async_block_till_done()
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(cooler_switch).state == STATE_ON
 
 
 @pytest.mark.parametrize(

@@ -102,6 +102,8 @@ class HeaterCoolerDevice(HVACDevice, ControlableHVACDevice):
         self.heater_device.on_startup()
         self.cooler_device.on_startup()
 
+        self._async_control_hvac()
+
     async def async_control_hvac(self, time=None, force=False):
         _LOGGER.info({self.__class__.__name__})
         match self._hvac_mode:

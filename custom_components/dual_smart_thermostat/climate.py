@@ -67,6 +67,7 @@ from custom_components.dual_smart_thermostat.managers.preset_manager import (
     PresetManager,
 )
 from custom_components.dual_smart_thermostat.managers.temperature_manager import (
+    TargetTemperatures,
     TemperatureManager,
 )
 
@@ -667,33 +668,10 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         _LOGGER.debug("Setting temperature low: %s", temp_low)
         _LOGGER.debug("Setting temperature high: %s", temp_high)
 
+        temperatures = TargetTemperatures(temperature, temp_high, temp_low)
+
         if self.features.is_configured_for_heat_cool_mode:
-            if self.features.is_target_mode:
-                if temperature is None:
-                    return
-                self.temperatures.set_temperature_target(temperature)
-                self._target_temp = self.temperatures.target_temp
-
-                if self.hvac_device.hvac_mode == HVACMode.HEAT:
-                    self.temperatures.set_temperature_range(
-                        temperature, temperature, self.temperatures.target_temp_high
-                    )
-                    self._target_temp_low = self.temperatures.target_temp_low
-
-                else:
-                    self.temperatures.set_temperature_range(
-                        temperature, self.temperatures.target_temp_low, temperature
-                    )
-                    self._target_temp_high = self.temperatures.target_temp_high
-
-            elif self.features.is_range_mode:
-                self.temperatures.set_temperature_range(
-                    temperature, temp_low, temp_high
-                )
-                self._target_temp = self.temperatures.target_temp
-                self._target_temp_low = self.temperatures.target_temp_low
-                self._target_temp_high = self.temperatures.target_temp_high
-
+            self._set_temperatures_dual_mode(temperatures)
         else:
             if temperature is None:
                 return
@@ -702,6 +680,30 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
         await self._async_control_climate(force=True)
         self.async_write_ha_state()
+
+    def _set_temperatures_dual_mode(self, temperatures: TargetTemperatures) -> None:
+        """Set new target temperature for dual mode."""
+        temperature = temperatures.temperature
+        temp_low = temperatures.temp_low
+        temp_high = temperatures.temp_high
+
+        if self.features.is_target_mode:
+            if temperature is None:
+                return
+
+            self.temperatures.set_temperature_range_from_hvac_mode(
+                temperature, self.hvac_device.hvac_mode
+            )
+
+            self._target_temp = self.temperatures.target_temp
+            self._target_temp_low = self.temperatures.target_temp_low
+            self._target_temp_high = self.temperatures.target_temp_high
+
+        elif self.features.is_range_mode:
+            self.temperatures.set_temperature_range(temperature, temp_low, temp_high)
+            self._target_temp = self.temperatures.target_temp
+            self._target_temp_low = self.temperatures.target_temp_low
+            self._target_temp_high = self.temperatures.target_temp_high
 
     @property
     def min_temp(self) -> float:
@@ -731,7 +733,10 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             return
 
         self.temperatures.update_temp_from_state(new_state)
-        await self._async_control_climate()
+
+        if self.hvac_device.hvac_mode is not HVACMode.OFF:
+            await self._async_control_climate()
+
         self.async_write_ha_state()
 
     async def _async_sensor_floor_changed(
@@ -749,6 +754,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
     async def _check_device_initial_state(self) -> None:
         """Prevent the device from keep running if HVACMode.OFF."""
+        _LOGGER.debug("Checking device initial state")
         if self._hvac_mode == HVACMode.OFF and self._is_device_active:
             _LOGGER.warning(
                 "The climate mode is OFF, but the device is ON. Turning off device"
@@ -821,12 +827,14 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
     @callback
     def _async_switch_changed(self, event: EventType[EventStateChangedData]) -> None:
         """Handle heater switch state changes."""
+        _LOGGER.debug("Switch changed: %s", event.data)
         new_state = event.data.get("new_state")
         old_state = event.data.get("old_state")
         if new_state is None:
             return
         if old_state is None:
             self.hass.create_task(self._check_device_initial_state())
+
         self.async_write_ha_state()
 
     @property
