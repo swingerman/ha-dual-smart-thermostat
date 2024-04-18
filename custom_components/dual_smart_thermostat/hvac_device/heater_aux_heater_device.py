@@ -157,9 +157,9 @@ class HeaterAUXHeaterDevice(HVACDevice, ControlableHVACDevice):
                 await self._async_handle_aux_heater_havent_run_today()
 
             if is_floor_cold:
-                self._HVACActionReason = HVACActionReason.LIMIT
+                self._hvac_action_reason = HVACActionReason.LIMIT
             else:
-                self._HVACActionReason = HVACActionReason.TARGET_TEMP_NOT_REACHED
+                self._hvac_action_reason = HVACActionReason.TARGET_TEMP_NOT_REACHED
 
         elif time is not None or any_opening_open or is_floor_hot:
             # The time argument is passed only in keep-alive case
@@ -167,9 +167,9 @@ class HeaterAUXHeaterDevice(HVACDevice, ControlableHVACDevice):
             await self.heater_device.async_turn_off()
 
             if is_floor_hot:
-                self._HVACActionReason = HVACActionReason.OVERHEAT
+                self._hvac_action_reason = HVACActionReason.OVERHEAT
             if any_opening_open:
-                self._HVACActionReason = HVACActionReason.OPENING
+                self._hvac_action_reason = HVACActionReason.OPENING
 
     async def _async_handle_aux_heater_ran_today(self) -> None:
         _LOGGER.info("Aux heater has already ran today")
@@ -229,11 +229,11 @@ class HeaterAUXHeaterDevice(HVACDevice, ControlableHVACDevice):
             await self.aux_heater_device.async_turn_off()
 
             if too_hot:
-                self._HVACActionReason = HVACActionReason.TARGET_TEMP_REACHED
+                self._hvac_action_reason = HVACActionReason.TARGET_TEMP_REACHED
             if is_floor_hot:
-                self._HVACActionReason = HVACActionReason.OVERHEAT
+                self._hvac_action_reason = HVACActionReason.OVERHEAT
             if any_opening_open:
-                self._HVACActionReason = HVACActionReason.OPENING
+                self._hvac_action_reason = HVACActionReason.OPENING
 
         elif (
             self._first_stage_heating_timed_out()
@@ -244,11 +244,11 @@ class HeaterAUXHeaterDevice(HVACDevice, ControlableHVACDevice):
                 await self.heater_device.async_turn_off()
             await self.aux_heater_device.async_turn_on()
             self._aux_heater_last_run = datetime.datetime.now()
-            self._HVACActionReason = HVACActionReason.TARGET_TEMP_NOT_REACHED
+            self._hvac_action_reason = HVACActionReason.TARGET_TEMP_NOT_REACHED
 
         else:
             await self.heater_device.async_control_hvac(time, force=False)
-            self._HVACActionReason = self.heater_device.HVACActionReason
+            self._hvac_action_reason = self.heater_device.HVACActionReason
 
     async def async_turn_on(self):
         """self._control_hvac will handle the logic for turning on the heater and aux heater."""

@@ -286,6 +286,32 @@ async def setup_comp_heat_ac_cool_fan_config(hass: HomeAssistant) -> None:
 
 
 @pytest.fixture
+async def setup_comp_heat_ac_cool_fan_config_tolerance(hass: HomeAssistant) -> None:
+    """Initialize components."""
+    hass.config.units = METRIC_SYSTEM
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "cold_tolerance": 2,
+                "hot_tolerance": 4,
+                "ac_mode": True,
+                "heater": common.ENT_SWITCH,
+                "target_sensor": common.ENT_SENSOR,
+                "fan": common.ENT_FAN,
+                "fan_hot_tolerance": 1,
+                "initial_hvac_mode": HVACMode.OFF,
+                PRESET_AWAY: {"temperature": 30},
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+
+@pytest.fixture
 async def setup_comp_heat_ac_cool_fan_config_cycle(hass: HomeAssistant) -> None:
     """Initialize components."""
     hass.config.units = METRIC_SYSTEM

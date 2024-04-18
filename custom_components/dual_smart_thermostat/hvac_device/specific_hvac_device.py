@@ -65,6 +65,9 @@ class SpecificHVACDevice(HVACDevice, ControlableHVACDevice, Switchable):
         return [self.entity_id]
 
     async def async_turn_on(self):
+        _LOGGER.info(
+            "%s. Turning on entity %s", self.__class__.__name__, self.entity_id
+        )
         if self.entity_id is not None and self.hass.states.is_state(
             self.entity_id, STATE_OFF
         ):
@@ -75,7 +78,9 @@ class SpecificHVACDevice(HVACDevice, ControlableHVACDevice, Switchable):
             )
 
     async def async_turn_off(self):
-        _LOGGER.info("Turning off entity %s", self.entity_id)
+        _LOGGER.info(
+            "%s. Turning off entity %s", self.__class__.__name__, self.entity_id
+        )
         if self.entity_id is not None and self.hass.states.is_state(
             self.entity_id, STATE_ON
         ):
@@ -156,10 +161,6 @@ class SpecificHVACDevice(HVACDevice, ControlableHVACDevice, Switchable):
                 return self._ran_long_enough()
         return True
 
-    # def needs_cycle(self) -> bool:
-    #     """Determines if the device needs to cycle."""
-    #     return self._ran_long_enough
-
     async def async_control_hvac(self, time=None, force=False):
         """Controls the HVAC of the device."""
 
@@ -199,9 +200,9 @@ class SpecificHVACDevice(HVACDevice, ControlableHVACDevice, Switchable):
             _LOGGER.debug("Turning off entity %s", self.entity_id)
             await self.async_turn_off()
             if too_cold:
-                self._HVACActionReason = HVACActionReason.TARGET_TEMP_REACHED
+                self._hvac_action_reason = HVACActionReason.TARGET_TEMP_REACHED
             if any_opening_open:
-                self._HVACActionReason = HVACActionReason.OPENING
+                self._hvac_action_reason = HVACActionReason.OPENING
 
         elif time is not None and not any_opening_open:
             # The time argument is passed only in keep-alive case
@@ -210,23 +211,30 @@ class SpecificHVACDevice(HVACDevice, ControlableHVACDevice, Switchable):
                 self.entity_id,
             )
             await self.async_turn_on()
-            self._HVACActionReason = HVACActionReason.TARGET_TEMP_NOT_REACHED
+            self._hvac_action_reason = HVACActionReason.TARGET_TEMP_NOT_REACHED
 
     async def _async_control_when_inactive(self, time=None) -> None:
         too_hot = self.temperatures.is_too_hot(self._target_temp_attr)
         any_opening_open = self.openings.any_opening_open
 
+        _LOGGER.debug("too_hot: %s", too_hot)
+        _LOGGER.debug("any_opening_open: %s", any_opening_open)
+        _LOGGER.debug("is_active: %s", self.is_active)
+        _LOGGER.debug("time: %s", time)
+
         if too_hot and not any_opening_open:
             _LOGGER.debug("Turning on entity (from inactive) %s", self.entity_id)
             await self.async_turn_on()
-            self._HVACActionReason = HVACActionReason.TARGET_TEMP_NOT_REACHED
+            self._hvac_action_reason = HVACActionReason.TARGET_TEMP_NOT_REACHED
         elif time is not None or any_opening_open:
             # The time argument is passed only in keep-alive case
             _LOGGER.debug("Keep-alive - Turning off entity %s", self.entity_id)
             await self.async_turn_off()
 
             if any_opening_open:
-                self._HVACActionReason = HVACActionReason.OPENING
+                self._hvac_action_reason = HVACActionReason.OPENING
+        else:
+            _LOGGER.debug("No case matched")
 
     def on_startup(self):
         entity_state = self.hass.states.get(self.entity_id)

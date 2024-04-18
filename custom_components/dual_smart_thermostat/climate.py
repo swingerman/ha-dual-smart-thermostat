@@ -85,9 +85,9 @@ from .const import (
     CONF_COLD_TOLERANCE,
     CONF_COOLER,
     CONF_FAN,
-    CONF_FAN_COOL_TOLERANCE,
+    CONF_FAN_HOT_TOLERANCE,
     CONF_FAN_MODE,
-    CONF_FAN_ON_WITH_COOLER,
+    CONF_FAN_ON_WITH_AC,
     CONF_FLOOR_SENSOR,
     CONF_HEAT_COOL_MODE,
     CONF_HEATER,
@@ -144,8 +144,8 @@ FLOOR_TEMPERATURE_SCHEMA = {
 FAN_MODE_SCHEMA = {
     vol.Optional(CONF_FAN): cv.entity_id,
     vol.Optional(CONF_FAN_MODE): cv.boolean,
-    vol.Optional(CONF_FAN_ON_WITH_COOLER): cv.boolean,
-    vol.Optional(CONF_FAN_COOL_TOLERANCE): vol.Coerce(float),
+    vol.Optional(CONF_FAN_ON_WITH_AC): cv.boolean,
+    vol.Optional(CONF_FAN_HOT_TOLERANCE): vol.Coerce(float),
 }
 
 OPENINGS_SCHEMA = {
@@ -374,7 +374,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self._attr_preset_modes = preset_manager.preset_modes
 
         # hvac action reason
-        self._HVACActionReason = HVACActionReason.NONE
+        self._hvac_action_reason = HVACActionReason.NONE
         self._remove_signal_hvac_action_reason = None
 
         self._temp_lock = asyncio.Lock()
@@ -519,7 +519,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             self._hvac_mode = hvac_mode
             self.hvac_device.hvac_mode = hvac_mode
 
-            self._HVACActionReason = old_state.attributes.get(ATTR_HVAC_ACTION_REASON)
+            self._hvac_action_reason = old_state.attributes.get(ATTR_HVAC_ACTION_REASON)
 
         else:
             # No previous state, try and restore defaults
@@ -624,7 +624,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                 attributes[ATTR_PREV_TARGET] = self.temperatures.target_temp
 
         attributes[ATTR_HVAC_ACTION_REASON] = (
-            self._HVACActionReason or HVACActionReason.NONE
+            self._hvac_action_reason or HVACActionReason.NONE
         )
 
         _LOGGER.debug("Extra state attributes: %s", attributes)
@@ -653,7 +653,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self._hvac_mode = hvac_mode
         self._set_support_flags()
 
-        self._HVACActionReason = self.hvac_device.HVACActionReason
+        self._hvac_action_reason = self.hvac_device.HVACActionReason
 
         # Ensure we update the current operation after changing the mode
         self.async_write_ha_state()
@@ -810,7 +810,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                 "updating HVACActionReason: %s", self.hvac_device.HVACActionReason
             )
 
-            self._HVACActionReason = self.hvac_device.HVACActionReason
+            self._hvac_action_reason = self.hvac_device.HVACActionReason
 
     async def _async_control_climate_forced(self, time=None) -> None:
         _LOGGER.debug("_async_control_climate_forced, time %s", time)
@@ -860,6 +860,6 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             _LOGGER.error("Invalid HVACActionReasonExternal: %s", reason)
             return
 
-        self._HVACActionReason = reason
+        self._hvac_action_reason = reason
 
         self.schedule_update_ha_state(True)

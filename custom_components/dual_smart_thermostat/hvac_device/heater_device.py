@@ -85,11 +85,11 @@ class HeaterDevice(SpecificHVACDevice):
             await self.async_turn_off()
 
             if too_hot:
-                self._HVACActionReason = HVACActionReason.TARGET_TEMP_REACHED
+                self._hvac_action_reason = HVACActionReason.TARGET_TEMP_REACHED
             if is_floor_hot:
-                self._HVACActionReason = HVACActionReason.OVERHEAT
+                self._hvac_action_reason = HVACActionReason.OVERHEAT
             if self.openings.any_opening_open:
-                self._HVACActionReason = HVACActionReason.OPENING
+                self._hvac_action_reason = HVACActionReason.OPENING
 
         elif time is not None and not any_opening_open and not is_floor_hot:
             # The time argument is passed only in keep-alive case
@@ -97,7 +97,7 @@ class HeaterDevice(SpecificHVACDevice):
                 "Keep-alive - Turning on heater (from active) %s",
                 self.entity_id,
             )
-            self._HVACActionReason = HVACActionReason.TARGET_TEMP_NOT_REACHED
+            self._hvac_action_reason = HVACActionReason.TARGET_TEMP_NOT_REACHED
             await self.async_turn_on()
 
     async def _async_control_device_when_off(self, time=None) -> None:
@@ -115,9 +115,9 @@ class HeaterDevice(SpecificHVACDevice):
             await self.async_turn_on()
 
             if is_floor_cold:
-                self._HVACActionReason = HVACActionReason.LIMIT
+                self._hvac_action_reason = HVACActionReason.LIMIT
             else:
-                self._HVACActionReason = HVACActionReason.TARGET_TEMP_NOT_REACHED
+                self._hvac_action_reason = HVACActionReason.TARGET_TEMP_NOT_REACHED
 
         elif time is not None or any_opening_open or is_floor_hot:
             # The time argument is passed only in keep-alive case
@@ -125,6 +125,6 @@ class HeaterDevice(SpecificHVACDevice):
             await self.async_turn_off()
 
             if is_floor_hot:
-                self._HVACActionReason = HVACActionReason.OVERHEAT
+                self._hvac_action_reason = HVACActionReason.OVERHEAT
             if self.openings.any_opening_open:
-                self._HVACActionReason = HVACActionReason.OPENING
+                self._hvac_action_reason = HVACActionReason.OPENING
