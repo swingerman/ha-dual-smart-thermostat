@@ -38,11 +38,13 @@ class CoolerFanDevice(HVACDevice, ControlableHVACDevice):
         initial_hvac_mode: HVACMode,
         temperatures: TemperatureManager,
         openings: OpeningManager,
+        fan_on_with_cooler: bool = False,
         range_mode: bool = False,
     ) -> None:
         super().__init__(hass, temperatures, openings)
 
         self._device_type = self.__class__.__name__
+        self._fan_on_with_cooler = fan_on_with_cooler
         self.cooler_device = cooler_device
         self.fan_device = fan_device
 
@@ -118,9 +120,25 @@ class CoolerFanDevice(HVACDevice, ControlableHVACDevice):
         _LOGGER.info({self.__class__.__name__})
         match self._hvac_mode:
             case HVACMode.COOL:
-                await self.cooler_device.async_control_hvac(time, force)
-                self.HVACActionReason = self.cooler_device.HVACActionReason
-            # TODO: implement dvanced fan logic
+
+                if self._fan_on_with_cooler:
+                    await self.fan_device.async_control_hvac(time, force)
+                    await self.cooler_device.async_control_hvac(time, force)
+                    self.HVACActionReason = self.cooler_device.HVACActionReason
+                else:
+
+                    if self.temperatures.is_within_fan_tolerance:
+                        _LOGGER.info("within fan tolerance")
+                        await self.fan_device.async_control_hvac(time, force)
+                        await self.cooler_device.async_turn_off()
+                        self.HVACActionReason = self.fan_device.HVACActionReason
+
+                    else:
+                        _LOGGER.info("outside fan tolerance")
+                        await self.cooler_device.async_control_hvac(time, force)
+                        await self.fan_device.async_turn_off()
+                        self.HVACActionReason = self.cooler_device.HVACActionReason
+
             case HVACMode.FAN_ONLY:
                 await self.cooler_device.async_turn_off()
                 await self.fan_device.async_control_hvac(time, force)

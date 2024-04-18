@@ -52,6 +52,7 @@ from . import (  # noqa: F401
     setup_comp_heat_ac_cool_fan_config,
     setup_comp_heat_ac_cool_fan_config_cycle,
     setup_comp_heat_ac_cool_fan_config_presets,
+    setup_comp_heat_ac_cool_fan_config_tolerance,
     setup_comp_heat_ac_cool_presets,
     setup_fan,
     setup_sensor,
@@ -686,7 +687,7 @@ async def test_set_target_temp_cool_fan_off(
     setup_sensor(hass, 25)
     await hass.async_block_till_done()
     await common.async_set_temperature(hass, 30)
-    assert len(calls) == 8
+    assert len(calls) == 6
 
     call_switch = calls[0]
     assert call_switch.domain == HASS_DOMAIN
@@ -2048,6 +2049,73 @@ async def test_cooler_fan_mode_tolerance(
     assert hass.states.get(cooler_switch).state == STATE_OFF
 
 
+async def test_cooler_fan_ac_and_mode(
+    hass: HomeAssistant, setup_comp_1  # noqa: F811
+) -> None:
+    """Test thermostat cooler switch in cooling mode."""
+    cooler_switch = "input_boolean.test"
+    fan_switch = "input_boolean.test_fan"
+    assert await async_setup_component(
+        hass, input_boolean.DOMAIN, {"input_boolean": {"test": None, "test_fan": None}}
+    )
+
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {"name": "test", "initial": 10, "min": 0, "max": 40, "step": 1}
+            }
+        },
+    )
+
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "heater": cooler_switch,
+                "ac_mode": "true",
+                "fan": fan_switch,
+                "fan_on_with_ac": "true",
+                "target_sensor": common.ENT_SENSOR,
+                "initial_hvac_mode": HVACMode.COOL,
+                "cold_tolerance": COLD_TOLERANCE,
+                "hot_tolerance": HOT_TOLERANCE,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+    assert hass.states.get(fan_switch).state == STATE_OFF
+
+    setup_sensor(hass, 22.4)
+    await hass.async_block_till_done()
+
+    await common.async_set_temperature(hass, 22)
+    await hass.async_block_till_done()
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+    assert hass.states.get(fan_switch).state == STATE_OFF
+
+    setup_sensor(hass, 22.5)
+    await hass.async_block_till_done()
+    assert hass.states.get(fan_switch).state == STATE_ON
+    assert hass.states.get(cooler_switch).state == STATE_ON
+
+    setup_sensor(hass, 21.6)
+    await hass.async_block_till_done()
+    assert hass.states.get(fan_switch).state == STATE_ON
+    assert hass.states.get(cooler_switch).state == STATE_ON
+
+    setup_sensor(hass, 21.5)
+    await hass.async_block_till_done()
+    assert hass.states.get(fan_switch).state == STATE_OFF
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+
+
 @pytest.mark.parametrize(
     ["duration", "result_state"],
     [
@@ -2227,6 +2295,31 @@ async def test_set_target_temp_ac_fan_on(
     assert call.domain == HASS_DOMAIN
     assert call.service == SERVICE_TURN_ON
     assert call.data["entity_id"] == common.ENT_FAN
+
+
+async def test_set_target_temp_ac_on_after_fan_tolerance(
+    hass: HomeAssistant, setup_comp_heat_ac_cool_fan_config_tolerance  # noqa: F811
+) -> None:
+    """Test if target temperature turn ac on."""
+    calls = setup_switch_dual(hass, common.ENT_FAN, False, False)
+    await common.async_set_hvac_mode(hass, HVACMode.COOL)
+    setup_sensor(hass, 26)
+    await hass.async_block_till_done()
+
+    await common.async_set_temperature(hass, 21)
+    assert len(calls) == 1
+    call = calls[0]
+    assert call.domain == HASS_DOMAIN
+    assert call.service == SERVICE_TURN_ON
+    assert call.data["entity_id"] == common.ENT_FAN
+
+    await common.async_set_temperature(hass, 22)
+    await hass.async_block_till_done()
+    assert len(calls) == 2
+    call = calls[1]
+    assert call.domain == HASS_DOMAIN
+    assert call.service == SERVICE_TURN_ON
+    assert call.data["entity_id"] == common.ENT_SWITCH
 
 
 ######################

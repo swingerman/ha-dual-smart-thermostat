@@ -44,7 +44,7 @@ class HVACDevice:
         self.temperatures = temperatures
         self.openings = openings
 
-        self._HVACActionReason = None
+        self._hvac_action_reason = None
         self._active = False
         self._hvac_modes = []
 

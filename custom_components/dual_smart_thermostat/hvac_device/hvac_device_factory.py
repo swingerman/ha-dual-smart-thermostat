@@ -11,9 +11,9 @@ from custom_components.dual_smart_thermostat.const import (
     CONF_AUX_HEATING_TIMEOUT,
     CONF_COOLER,
     CONF_FAN,
-    CONF_FAN_COOL_TOLERANCE,
+    CONF_FAN_HOT_TOLERANCE,
     CONF_FAN_MODE,
-    CONF_FAN_ON_WITH_COOLER,
+    CONF_FAN_ON_WITH_AC,
     CONF_HEAT_COOL_MODE,
     CONF_HEATER,
     CONF_INITIAL_HVAC_MODE,
@@ -69,8 +69,8 @@ class HVACDeviceFactory:
         self.heat_cool_mode = config.get(CONF_HEAT_COOL_MODE)
 
         self.fan_entity_id = config.get(CONF_FAN)
-        self.fan_on_with_cooler = config.get(CONF_FAN_ON_WITH_COOLER)
-        self.fan_tolerance = config.get(CONF_FAN_COOL_TOLERANCE)
+        self.fan_on_with_cooler = config.get(CONF_FAN_ON_WITH_AC)
+        self.fan_tolerance = config.get(CONF_FAN_HOT_TOLERANCE)
 
         self.aux_heater_entity_id = config.get(CONF_AUX_HEATER)
         self.aux_heater_timeout = config.get(CONF_AUX_HEATING_TIMEOUT)
@@ -146,6 +146,7 @@ class HVACDeviceFactory:
                 self.initial_hvac_mode,
                 temperatures,
                 openings,
+                fan_on_with_cooler=self.fan_on_with_cooler,
             )
         elif self._is_configured_for_heat_cool_mode:
             return self._create_heat_cool_device(temperatures, openings)
@@ -251,6 +252,7 @@ class HVACDeviceFactory:
                 self.initial_hvac_mode,
                 temperatures,
                 openings,
+                fan_on_with_cooler=self.fan_on_with_cooler,
             )
 
         _LOGGER.info(

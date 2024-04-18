@@ -54,7 +54,7 @@ class ControlableHVACDevice(ABC):
 
         if self._hvac_mode == HVACMode.OFF:
             await self.async_turn_off()
-            self._HVACActionReason = HVACActionReason.NONE
+            self._hvac_action_reason = HVACActionReason.NONE
         else:
             await self.async_control_hvac(self, force=True)
 
@@ -101,8 +101,8 @@ class ControlableHVACDevice(ABC):
 
     @property
     def HVACActionReason(self) -> HVACActionReason:
-        return self._HVACActionReason
+        return self._hvac_action_reason
 
     @HVACActionReason.setter
-    def HVACActionReason(self, HVACActionReason: HVACActionReason):
-        self._HVACActionReason = HVACActionReason
+    def HVACActionReason(self, hvac_action_reason: HVACActionReason):
+        self._hvac_action_reason = hvac_action_reason
