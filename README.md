@@ -18,6 +18,8 @@ The `dual_smart_thermostat` is an enhanced version of generic thermostat impleme
 | **Heater/Cooler Mode** | <img src="docs/images/sun-snowflake.svg" height="30" /> | [<img src="docs/images/file-document-outline.svg" height="30" style="stroke: red" />](#heatcool-mode) |
 | **Heater Only Mode** | <img src="docs/images/radiator.svg" height="30" /> | [<img src="docs/images/file-document-outline.svg" height="30" />](#heater-only-mode) |
 | **Two Stage (AUX) Heating Mode** | <img src="docs/images/radiator.svg" height="30" /> <img src="docs/images/plus.svg" height="30" /> <img src="docs/images/radiator.svg" height="30" /> | [<img src="docs/images/file-document-outline.svg" height="30" />](#two-stage-heating) |
+| **Fan Only mode** | <img src="docs/images/air-conditioner.svg" height="30" /> | [<img src="docs/images/file-document-outline.svg" height="30" />](#fan-only-mode) |
+| **Fan With Cooler mode** | <img src="docs/images/air-conditioner.svg" height="30" /> | [<img src="docs/images/file-document-outline.svg" height="30" />](#fan-with-cooler-mode) |
 | **Cooler Only mode** | <img src="docs/images/air-conditioner.svg" height="30" /> | [<img src="docs/images/file-document-outline.svg" height="30" />](#cooler-only-mode) |
 | **Floor Temperature Control** | <img src="docs/images/heating-coil.svg" height="30" /> <img src="docs/images/snowflake-thermometer.svg" height="30" />  <img src="docs/images/thermometer-alert.svg" height="30" />  | [<img src="docs/images/file-document-outline.svg" height="30" />](#floor-heating-temperature-control) |
 | **Window/Door sensor integration** | <img src="docs/images/window-open.svg" height="30" /> <img src="docs/images/door-open.svg" height="30" /> <img src="docs/images/chevron-right.svg" height="30" /> <img src="docs/images/timer-cog-outline.svg" height="30" /> <img src="docs/images/chevron-right.svg" height="30" /> <img src="docs/images/hvac-off.svg" height="30" /> | [<img src="docs/images/file-document-outline.svg" height="30" />](#openings) |
@@ -28,6 +30,10 @@ The `dual_smart_thermostat` is an enhanced version of generic thermostat impleme
 
 If both [`heater`](#heater) and [`cooler`](#cooler) entities configured. The thermostat can control heaing and cooling and you sare able to set min/max low and min/max high temperatures.
 In this mode you can turn the thermostat to heat only, cooler only and back to heat/cool mode.
+
+## Heat/Cool With Fan Mode
+
+If the [`fan`](#fan) entity is set the thermostat can control the fan mode of the AC. The fan will turn on when the temperature is above the target temperature and the fan_hot_tolerance is not reached. If the temperature is above the target temperature and the fan_hot_tolerance is reached the AC will turn on.
 
 [all features ⤴️](#features)
 
@@ -54,6 +60,57 @@ If the third [`secondary heater_dual_mode`](#secondar_heater_dual_mode) is set t
 secondary_heater: switch.study_secondary_heater   # <-- required
 secondar_heater_timeout: 00:00:30                 # <-- required
 secondar_heater_dual_mode: true                   # <-- optional
+```
+
+## Fan Only Mode
+
+If the [`fan_mode`](#fan_mode) entity is set to true the thermostat works only in fan mode. The heater entity will be treated as a fan only device.
+
+### Fan Only Mode Example
+
+```yaml
+heater: switch.study_heater
+fan_mode: true
+```
+
+## Fan With Cooler Mode
+
+If the [`ac_mode`](#ac_mode) is set to true and the [`fan`](#fan) entity is also set, the heater entity will be treated as a cooler (AC) device with an additional fan device. This will allow not only to use a separate physical fan device but also to turn on the fan mode of an AC using advanced switches.
+With this setup, you can use the fan mode of your AC in a simpler way.
+
+### Fan With Cooler Mode Example
+
+```yaml
+heater: switch.study_heater
+ac_mode: true
+fan: switch.study_fan
+```
+
+If you also set the [`fan_hot_tolerance`](#fan_hot_tolerance) the fan will turn on when the temperature is above the target temperature and the fan_hot_tolerance is not reached. If the temperature is above the target temperature and the fan_hot_tolerance is reached the AC will turn on.
+
+### Cooler With Auto Fan Mode Example
+
+```yaml
+heater: switch.study_heater
+ac_mode: true
+fan: switch.study_fan
+fan_hot_tolerance: 0.5
+```
+
+## AC With Fan Switch Support
+
+Some AC systems have independent fan controls to cycle the house air for filtering or humidity control; without using the heating or cooling elements. Central AC systems require the thermostat to turn on both the AC wire ("Y" wire) and the air-handler/fan wire ("G" wire) in order to activate the AC
+
+This feature let's you do just that.
+
+In order to use this feature you need to set the [`heater`](#heater) entity, the [`ac_mode`](#ac_mode), the [`fan)`](#fan) entity and the [`fan_on_with_ac`](#fan_on_with_ac) to `true`.
+
+### example
+```yaml
+heater: switch.study_heater
+ac_mode: true
+fan: switch.study_fan
+fan_on_with_ac: true
 ```
 
 ## Cooler Only Mode
@@ -227,6 +284,27 @@ The internal values can be set by the component only and the external values can
 ### cooler
 
   _(optional) (string)_ "`entity_id` for cooler switch, must be a toggle device."
+
+### fan_mode
+
+  _(optional) (bool)_ If set to `true` the heater entity will be treated as a fan only device.
+
+### fan
+
+  _(optional) (string)_ "`entity_id` for fan switch, must be a toggle device."
+
+### fan_hot_tolerance
+
+  _(optional) (float)_ Set a maximum amount of difference between the temperature read by the sensor specified in the _target_sensor_ option and the target temperature and the _hot_tolerance_ that considered to be ok for the fan to be turned on. For example, if the target temperature is 25 and the hot_tolerance is 1 and the fan_hot_tolerance is 0.5 the fan will start when the sensor equals or goes above 25 but not above 25.5. In that case the AC will turn on.
+
+  _requires: `fan`_
+
+### fan_on_with_ac
+
+  _(optional) (boolean)_ If set to `true` the fan will be turned on together with the AC. This is useful for central AC systems that require the fan to be turned on together with the AC.
+
+  _requires: `fan`_
+
 
 ### target_sensor
 
