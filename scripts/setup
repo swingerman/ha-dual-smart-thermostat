@@ -4,4 +4,6 @@ set -e
 
 cd "$(dirname "$0")/.."
 
+sudo apt-get install ffmpeg
+
 python3 -m pip install --requirement requirements-dev.txt
