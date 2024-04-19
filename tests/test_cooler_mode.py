@@ -4,7 +4,6 @@ import asyncio
 import datetime
 from datetime import timedelta
 import logging
-from unittest.mock import patch
 
 from freezegun import freeze_time
 from homeassistant.components import input_boolean, input_number
@@ -942,9 +941,7 @@ async def test_cooler_mode_cycle(
     await hass.async_block_till_done()
 
     fake_changed = dt.utcnow() - duration
-    with patch(
-        "homeassistant.helpers.condition.dt_util.utcnow", return_value=fake_changed
-    ):
+    with freeze_time(fake_changed):
         await common.async_set_temperature(hass, 18)
         await hass.async_block_till_done()
         assert hass.states.get(cooler_switch).state == STATE_ON

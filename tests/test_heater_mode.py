@@ -1800,9 +1800,7 @@ async def test_heater_mode_cycle(
     await hass.async_block_till_done()
 
     fake_changed = dt.utcnow() - duration
-    with patch(
-        "homeassistant.helpers.condition.dt_util.utcnow", return_value=fake_changed
-    ):
+    with freeze_time(fake_changed):
         await common.async_set_temperature(hass, 23)
         await hass.async_block_till_done()
         assert hass.states.get(heater_switch).state == STATE_ON
