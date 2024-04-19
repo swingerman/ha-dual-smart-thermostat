@@ -143,7 +143,7 @@ class HeaterCoolerDevice(HVACDevice, ControlableHVACDevice):
         _LOGGER.info("Setting hvac mode to %s of %s", hvac_mode, self.hvac_modes)
         if hvac_mode in self.hvac_modes:
             _LOGGER.debug("hvac mode found")
-            self._hvac_mode = hvac_mode
+            self.hvac_mode = hvac_mode
 
             if hvac_mode is not HVACMode.OFF:
                 # handles HVACmode.HEAT
@@ -179,7 +179,7 @@ class HeaterCoolerDevice(HVACDevice, ControlableHVACDevice):
         if not self._active and self.temperatures.cur_temp is not None:
             self._active = True
 
-        if self.openings.any_opening_open:
+        if self.openings.any_opening_open(self.hvac_mode):
             await self.async_turn_off()
             self._hvac_action_reason = HVACActionReason.OPENING
         elif self.temperatures.is_floor_hot:

@@ -147,7 +147,7 @@ class HeaterAUXHeaterDevice(HVACDevice, ControlableHVACDevice):
         too_cold = self.temperatures.is_too_cold(self._target_temp_attr)
         is_floor_hot = self.temperatures.is_floor_hot
         is_floor_cold = self.temperatures.is_floor_cold
-        any_opening_open = self.openings.any_opening_open
+        any_opening_open = self.openings.any_opening_open(self.hvac_mode)
 
         if (too_cold and not any_opening_open and not is_floor_hot) or is_floor_cold:
 
@@ -202,7 +202,7 @@ class HeaterAUXHeaterDevice(HVACDevice, ControlableHVACDevice):
         too_hot = self.temperatures.is_too_hot(self._target_temp_attr)
         is_floor_hot = self.temperatures.is_floor_hot
         is_floor_cold = self.temperatures.is_floor_cold
-        any_opening_open = self.openings.any_opening_open
+        any_opening_open = self.openings.any_opening_open(self.hvac_mode)
         first_stage_timed_out = self._first_stage_heating_timed_out()
 
         _LOGGER.info(

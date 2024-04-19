@@ -176,7 +176,7 @@ class SpecificHVACDevice(HVACDevice, ControlableHVACDevice, Switchable):
         if not self._needs_control(time, force):
             return
 
-        any_opening_open = self.openings.any_opening_open
+        any_opening_open = self.openings.any_opening_open(self.hvac_mode)
 
         _LOGGER.info(
             "%s - async_control_hvac - is device active: %s, %s,  is opening open: %s",
@@ -194,7 +194,7 @@ class SpecificHVACDevice(HVACDevice, ControlableHVACDevice, Switchable):
     async def _async_control_when_active(self, time=None) -> None:
         _LOGGER.debug("%s _async_control_when_active", self.__class__.__name__)
         too_cold = self.temperatures.is_too_cold(self._target_temp_attr)
-        any_opening_open = self.openings.any_opening_open
+        any_opening_open = self.openings.any_opening_open(self.hvac_mode)
 
         if too_cold or any_opening_open:
             _LOGGER.debug("Turning off entity %s", self.entity_id)
@@ -215,7 +215,7 @@ class SpecificHVACDevice(HVACDevice, ControlableHVACDevice, Switchable):
 
     async def _async_control_when_inactive(self, time=None) -> None:
         too_hot = self.temperatures.is_too_hot(self._target_temp_attr)
-        any_opening_open = self.openings.any_opening_open
+        any_opening_open = self.openings.any_opening_open(self.hvac_mode)
 
         _LOGGER.debug("too_hot: %s", too_hot)
         _LOGGER.debug("any_opening_open: %s", any_opening_open)

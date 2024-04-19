@@ -48,11 +48,11 @@ class ControlableHVACDevice(ABC):
     async def async_set_hvac_mode(self, hvac_mode: HVACMode):
         _LOGGER.info("Setting hvac mode to %s of %s", hvac_mode, self.hvac_modes)
         if hvac_mode in self.hvac_modes:
-            self._hvac_mode = hvac_mode
+            self.hvac_mode = hvac_mode
         else:
-            self._hvac_mode = HVACMode.OFF
+            self.hvac_mode = HVACMode.OFF
 
-        if self._hvac_mode == HVACMode.OFF:
+        if self.hvac_mode == HVACMode.OFF:
             await self.async_turn_off()
             self._hvac_action_reason = HVACActionReason.NONE
         else:
