@@ -236,7 +236,7 @@ class SpecificHVACDevice(HVACDevice, ControlableHVACDevice, Switchable):
         else:
             _LOGGER.debug("No case matched")
 
-    def on_startup(self):
+    async def async_on_startup(self):
         entity_state = self.hass.states.get(self.entity_id)
         if entity_state and entity_state.state not in (
             STATE_UNAVAILABLE,

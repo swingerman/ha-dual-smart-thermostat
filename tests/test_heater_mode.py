@@ -628,6 +628,34 @@ async def test_set_preset_mode_set_temp_keeps_preset_mode(
 ###################
 
 
+@pytest.mark.parametrize(
+    ["from_hvac_mode", "to_hvac_mode"],
+    [
+        [HVACMode.OFF, HVACMode.HEAT],
+        [HVACMode.HEAT, HVACMode.OFF],
+    ],
+)
+async def test_toggle(
+    hass: HomeAssistant, from_hvac_mode, to_hvac_mode, setup_comp_heat  # noqa: F811
+) -> None:
+    """Test change mode from OFF to COOL.
+
+    Switch turns on when temp below setpoint and mode changes.
+    """
+    await common.async_set_hvac_mode(hass, from_hvac_mode)
+    await common.async_toggle(hass)
+    await hass.async_block_till_done()
+
+    state = hass.states.get(common.ENTITY)
+    assert state.state == to_hvac_mode
+
+    await common.async_toggle(hass)
+    await hass.async_block_till_done()
+
+    state = hass.states.get(common.ENTITY)
+    assert state.state == from_hvac_mode
+
+
 async def test_set_target_temp_heater_on(
     hass: HomeAssistant, setup_comp_heat  # noqa: F811
 ) -> None:

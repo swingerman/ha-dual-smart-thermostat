@@ -79,7 +79,7 @@ class ControlableHVACDevice(ABC):
         pass
 
     @abstractmethod
-    def on_startup(self):
+    async def async_on_startup(self):
         pass
 
     @abstractmethod

@@ -98,11 +98,11 @@ class HeaterCoolerDevice(HVACDevice, ControlableHVACDevice):
             return HVACAction.OFF
         return HVACAction.IDLE
 
-    def on_startup(self):
-        self.heater_device.on_startup()
-        self.cooler_device.on_startup()
+    async def async_on_startup(self):
+        await self.heater_device.async_on_startup()
+        await self.cooler_device.async_on_startup()
 
-        self.async_control_hvac()
+        await self.async_control_hvac()
 
     async def async_control_hvac(self, time=None, force=False):
         _LOGGER.info({self.__class__.__name__})
