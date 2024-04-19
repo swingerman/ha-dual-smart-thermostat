@@ -2,8 +2,8 @@
 
 from datetime import timedelta
 import logging
-from unittest.mock import patch
 
+from freezegun import freeze_time
 from homeassistant.components import input_boolean, input_number
 from homeassistant.components.climate import (
     PRESET_ACTIVITY,
@@ -1035,9 +1035,7 @@ async def test_hvac_mode_cool_cycle(
     await hass.async_block_till_done()
 
     fake_changed = dt.utcnow() - duration
-    with patch(
-        "homeassistant.helpers.condition.dt_util.utcnow", return_value=fake_changed
-    ):
+    with freeze_time(fake_changed):
         await common.async_set_temperature(hass, 18, ENTITY_MATCH_ALL, 18, 16)
         await hass.async_block_till_done()
         assert hass.states.get(heater_switch).state == STATE_OFF
@@ -1063,9 +1061,7 @@ async def test_hvac_mode_heat_cycle(
     heater_switch = "input_boolean.heater"
     cooler_switch = "input_boolean.cooler"
     fake_changed = dt.utcnow() - duration
-    with patch(
-        "homeassistant.helpers.condition.dt_util.utcnow", return_value=fake_changed
-    ):
+    with freeze_time(fake_changed):
         assert await async_setup_component(
             hass,
             input_boolean.DOMAIN,
@@ -1107,9 +1103,7 @@ async def test_hvac_mode_heat_cycle(
     await hass.async_block_till_done()
 
     fake_changed = dt.utcnow() - duration
-    with patch(
-        "homeassistant.helpers.condition.dt_util.utcnow", return_value=fake_changed
-    ):
+    with freeze_time(fake_changed):
         await common.async_set_temperature(hass, None, ENTITY_MATCH_ALL, 25, 22)
         await hass.async_block_till_done()
         assert hass.states.get(heater_switch).state == STATE_ON
@@ -1135,9 +1129,7 @@ async def test_hvac_mode_heat_cool_cycle(
     heater_switch = "input_boolean.heater"
     cooler_switch = "input_boolean.cooler"
     fake_changed = dt.utcnow() - duration
-    with patch(
-        "homeassistant.helpers.condition.dt_util.utcnow", return_value=fake_changed
-    ):
+    with freeze_time(fake_changed):
         assert await async_setup_component(
             hass,
             input_boolean.DOMAIN,
@@ -1179,9 +1171,7 @@ async def test_hvac_mode_heat_cool_cycle(
     await hass.async_block_till_done()
 
     fake_changed = dt.utcnow() - duration
-    with patch(
-        "homeassistant.helpers.condition.dt_util.utcnow", return_value=fake_changed
-    ):
+    with freeze_time(fake_changed):
         await common.async_set_temperature(hass, None, ENTITY_MATCH_ALL, 25, 22)
         await hass.async_block_till_done()
         assert hass.states.get(heater_switch).state == STATE_OFF
