@@ -203,8 +203,8 @@ climate:
     precision: 1.0
     min_temp: 58
     max_temp: 80
-    cold_tolerance: 1.0,
-    hot_tolerance: 1.0,
+    cold_tolerance: 1.0
+    hot_tolerance: 1.0
 
   - platform: dual_smart_thermostat
     name: AUX Heat Room
