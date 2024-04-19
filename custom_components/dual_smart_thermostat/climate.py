@@ -366,6 +366,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         # HVAC modes
         self._attr_hvac_modes = self.hvac_device.hvac_modes
         self._hvac_mode = self.hvac_device.hvac_mode
+        self._last_hvac_mode = None
 
         # presets
         self._enable_turn_on_off_backwards_compatibility = False
@@ -447,7 +448,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         )
 
         @callback
-        def _async_startup(*_) -> None:
+        async def _async_startup(*_) -> None:
             """Init on startup."""
 
             sensor_state = self.hass.states.get(self.sensor_entity_id)
@@ -470,10 +471,10 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                 self.temperatures.update_floor_temp_from_state(floor_sensor_state)
                 self.async_write_ha_state()
 
-            self.hvac_device.on_startup()
+            await self.hvac_device.async_on_startup()
 
         if self.hass.state == CoreState.running:
-            _async_startup()
+            await _async_startup()
         else:
             self.hass.bus.async_listen_once(EVENT_HOMEASSISTANT_START, _async_startup)
 
@@ -863,3 +864,24 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self._hvac_action_reason = reason
 
         self.schedule_update_ha_state(True)
+
+    async def async_turn_on(self) -> None:
+        """Turn on the device."""
+
+        if self._last_hvac_mode is not None:
+            on_hvac_mode = self._last_hvac_mode
+        else:
+            device_hvac_modes_not_off = [
+                mode for mode in self.hvac_device.hvac_modes if mode != HVACMode.OFF
+            ]
+            device_hvac_modes_not_off.sort()  # for sake of predictavility and consistency
+            on_hvac_mode = device_hvac_modes_not_off[0]
+
+        _LOGGER.debug("Turning on with hvac mode: %s", on_hvac_mode)
+        await self.async_set_hvac_mode(on_hvac_mode)
+
+    async def async_turn_off(self) -> None:
+        """Turn off the device."""
+        self._last_hvac_mode = self.hvac_device.hvac_mode
+        _LOGGER.debug("Turning off with hvac mode: %s", self._last_hvac_mode)
+        await self.async_set_hvac_mode(HVACMode.OFF)

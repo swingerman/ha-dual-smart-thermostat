@@ -341,6 +341,37 @@ async def test_turn_away_mode_on_cooling(
 ###################
 
 
+@pytest.mark.parametrize(
+    ["from_hvac_mode", "to_hvac_mode"],
+    [
+        [HVACMode.OFF, HVACMode.COOL],
+        [HVACMode.COOL, HVACMode.OFF],
+    ],
+)
+async def test_toggle(
+    hass: HomeAssistant,
+    from_hvac_mode,
+    to_hvac_mode,
+    setup_comp_heat_ac_cool,  # noqa: F811
+) -> None:
+    """Test change mode from OFF to COOL.
+
+    Switch turns on when temp below setpoint and mode changes.
+    """
+    await common.async_set_hvac_mode(hass, from_hvac_mode)
+    await common.async_toggle(hass)
+    await hass.async_block_till_done()
+
+    state = hass.states.get(common.ENTITY)
+    assert state.state == to_hvac_mode
+
+    await common.async_toggle(hass)
+    await hass.async_block_till_done()
+
+    state = hass.states.get(common.ENTITY)
+    assert state.state == from_hvac_mode
+
+
 async def test_hvac_mode_cool(
     hass: HomeAssistant, setup_comp_heat_ac_cool  # noqa: F811
 ) -> None:

@@ -90,7 +90,7 @@ class CoolerFanDevice(HVACDevice, ControlableHVACDevice):
     def hvac_mode(self, hvac_mode: HVACMode):
         self._hvac_mode = hvac_mode
 
-    def on_startup(self):
+    async def async_on_startup(self):
 
         entity_state1 = self.hass.states.get(self.cooler_device.entity_id)
         entity_state2 = self.hass.states.get(self.fan_device.entity_id)

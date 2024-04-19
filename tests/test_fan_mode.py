@@ -608,6 +608,27 @@ async def test_turn_away_mode_on_cooling(
 ###################
 
 
+async def test_toggle_fan_only(
+    hass: HomeAssistant, setup_comp_fan_only_config  # noqa: F811
+) -> None:
+    """Test change mode from OFF to COOL.
+
+    Switch turns on when temp below setpoint and mode changes.
+    """
+    await common.async_set_hvac_mode(hass, HVACMode.OFF)
+    await common.async_toggle(hass)
+    await hass.async_block_till_done()
+
+    state = hass.states.get(common.ENTITY)
+    assert state.state == HVACMode.FAN_ONLY
+
+    await common.async_toggle(hass)
+    await hass.async_block_till_done()
+
+    state = hass.states.get(common.ENTITY)
+    assert state.state == HVACMode.OFF
+
+
 async def test_hvac_mode_fan_only(
     hass: HomeAssistant, setup_comp_fan_only_config  # noqa: F811
 ) -> None:
@@ -626,6 +647,38 @@ async def test_hvac_mode_fan_only(
     assert call.domain == HASS_DOMAIN
     assert call.service == SERVICE_TURN_ON
     assert call.data["entity_id"] == common.ENT_SWITCH
+
+
+@pytest.mark.parametrize(
+    ["from_hvac_mode", "to_hvac_mode"],
+    [
+        [HVACMode.OFF, HVACMode.COOL],
+        [HVACMode.COOL, HVACMode.OFF],
+        [HVACMode.FAN_ONLY, HVACMode.OFF],
+    ],
+)
+async def test_toggle_cool_fan(
+    hass: HomeAssistant,
+    from_hvac_mode,
+    to_hvac_mode,
+    setup_comp_heat_ac_cool_fan_config,  # noqa: F811
+) -> None:
+    """Test change mode from OFF to COOL.
+
+    Switch turns on when temp below setpoint and mode changes.
+    """
+    await common.async_set_hvac_mode(hass, from_hvac_mode)
+    await common.async_toggle(hass)
+    await hass.async_block_till_done()
+
+    state = hass.states.get(common.ENTITY)
+    assert state.state == to_hvac_mode
+
+    await common.async_toggle(hass)
+    await hass.async_block_till_done()
+
+    state = hass.states.get(common.ENTITY)
+    assert state.state == from_hvac_mode
 
 
 async def test_hvac_mode_cool_fan(

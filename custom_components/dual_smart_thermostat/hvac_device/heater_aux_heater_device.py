@@ -91,7 +91,7 @@ class HeaterAUXHeaterDevice(HVACDevice, ControlableHVACDevice):
             return HVACAction.OFF
         return HVACAction.IDLE
 
-    def on_startup(self):
+    async def async_on_startup(self):
 
         entity_state1 = self.hass.states.get(self.heater_device.entity_id)
         entity_state2 = self.hass.states.get(self.aux_heater_device.entity_id)
@@ -163,7 +163,9 @@ class HeaterAUXHeaterDevice(HVACDevice, ControlableHVACDevice):
 
         elif time is not None or any_opening_open or is_floor_hot:
             # The time argument is passed only in keep-alive case
-            _LOGGER.info("Keep-alive - Turning off heater %s", self.heater_entity_id)
+            _LOGGER.info(
+                "Keep-alive - Turning off heater %s", self.heater_device.entity_id
+            )
             await self.heater_device.async_turn_off()
 
             if is_floor_hot:

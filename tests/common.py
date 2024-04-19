@@ -20,6 +20,7 @@ from homeassistant.components.climate import (
     SERVICE_SET_HVAC_MODE,
     SERVICE_SET_PRESET_MODE,
     SERVICE_SET_TEMPERATURE,
+    SERVICE_TOGGLE,
 )
 from homeassistant.const import (
     ATTR_ENTITY_ID,
@@ -159,6 +160,16 @@ async def async_set_hvac_mode(hass, hvac_mode, entity_id=ENTITY_MATCH_ALL) -> No
         data[ATTR_ENTITY_ID] = entity_id
 
     await hass.services.async_call(DOMAIN, SERVICE_SET_HVAC_MODE, data, blocking=True)
+
+
+async def async_toggle(hass, entity_id=ENTITY_MATCH_ALL) -> None:
+    """Set new target operation mode."""
+    data = {}
+
+    if entity_id is not None:
+        data[ATTR_ENTITY_ID] = entity_id
+
+    await hass.services.async_call(DOMAIN, SERVICE_TOGGLE, data, blocking=True)
 
 
 @bind_hass
