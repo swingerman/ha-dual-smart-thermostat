@@ -75,7 +75,7 @@ class HeaterDevice(SpecificHVACDevice):
         too_hot = self.temperatures.is_too_hot(self._target_temp_attr)
         is_floor_hot = self.temperatures.is_floor_hot
         is_floor_cold = self.temperatures.is_floor_cold
-        any_opening_open = self.openings.any_opening_open
+        any_opening_open = self.openings.any_opening_open(self.hvac_mode)
 
         _LOGGER.debug("_async_control_device_when_on, floor cold: %s", is_floor_cold)
 
@@ -88,7 +88,7 @@ class HeaterDevice(SpecificHVACDevice):
                 self._hvac_action_reason = HVACActionReason.TARGET_TEMP_REACHED
             if is_floor_hot:
                 self._hvac_action_reason = HVACActionReason.OVERHEAT
-            if self.openings.any_opening_open:
+            if any_opening_open:
                 self._hvac_action_reason = HVACActionReason.OPENING
 
         elif time is not None and not any_opening_open and not is_floor_hot:
@@ -107,7 +107,7 @@ class HeaterDevice(SpecificHVACDevice):
         too_cold = self.temperatures.is_too_cold(self._target_temp_attr)
         is_floor_hot = self.temperatures.is_floor_hot
         is_floor_cold = self.temperatures.is_floor_cold
-        any_opening_open = self.openings.any_opening_open
+        any_opening_open = self.openings.any_opening_open(self.hvac_mode)
 
         if (too_cold and not any_opening_open and not is_floor_hot) or is_floor_cold:
             _LOGGER.debug("Turning on heater (from inactive) %s", self.entity_id)
@@ -126,5 +126,5 @@ class HeaterDevice(SpecificHVACDevice):
 
             if is_floor_hot:
                 self._hvac_action_reason = HVACActionReason.OVERHEAT
-            if self.openings.any_opening_open:
+            if any_opening_open:
                 self._hvac_action_reason = HVACActionReason.OPENING

@@ -47,6 +47,7 @@ CONF_INITIAL_HVAC_MODE = "initial_hvac_mode"
 CONF_PRECISION = "precision"
 CONF_TEMP_STEP = "target_temp_step"
 CONF_OPENINGS = "openings"
+CONF_OPENINGS_SCOPE = "openings_scope"
 CONF_HEAT_COOL_MODE = "heat_cool_mode"
 
 ATTR_PREV_TARGET = "prev_target_temp"

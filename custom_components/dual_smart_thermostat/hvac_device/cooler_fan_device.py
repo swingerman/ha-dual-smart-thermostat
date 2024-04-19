@@ -58,6 +58,7 @@ class CoolerFanDevice(HVACDevice, ControlableHVACDevice):
 
         if initial_hvac_mode in self.hvac_modes:
             self._hvac_mode = initial_hvac_mode
+            self._set_sub_device_hvac_mode(initial_hvac_mode)
         else:
             self._hvac_mode = None
 
@@ -89,6 +90,13 @@ class CoolerFanDevice(HVACDevice, ControlableHVACDevice):
     @hvac_mode.setter
     def hvac_mode(self, hvac_mode: HVACMode):
         self._hvac_mode = hvac_mode
+        self._set_sub_device_hvac_mode(hvac_mode)
+
+    def _set_sub_device_hvac_mode(self, hvac_mode: HVACMode) -> None:
+        if hvac_mode in self.cooler_device.hvac_modes:
+            self.cooler_device.hvac_mode = hvac_mode
+        if hvac_mode in self.fan_device.hvac_modes and hvac_mode is not HVACMode.OFF:
+            self.fan_device.hvac_mode = hvac_mode
 
     async def async_on_startup(self):
 

@@ -17,7 +17,13 @@ from homeassistant.components.climate import (
     HVACMode,
 )
 from homeassistant.components.climate.const import ATTR_PRESET_MODE, DOMAIN as CLIMATE
-from homeassistant.const import ENTITY_MATCH_ALL, STATE_OFF, STATE_ON
+from homeassistant.const import (
+    ENTITY_MATCH_ALL,
+    STATE_CLOSED,
+    STATE_OFF,
+    STATE_ON,
+    STATE_OPEN,
+)
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import entity_registry as er
@@ -38,6 +44,7 @@ from custom_components.dual_smart_thermostat.hvac_action_reason.hvac_action_reas
 
 from . import (  # noqa: F401
     common,
+    setup_boolean,
     setup_comp_1,
     setup_comp_dual,
     setup_comp_dual_fan_config,
@@ -1528,3 +1535,108 @@ async def test_hvac_mode_heat_cool_floor_temp_hvac_action_reason(
 ############
 # OPENINGS #
 ############
+
+
+@pytest.mark.parametrize(
+    ["hvac_mode", "taget_temp", "oepning_scope", "switch_state", "cooler_state"],
+    [
+        ([HVACMode.HEAT, 24, ["all"], STATE_OFF, STATE_OFF]),
+        ([HVACMode.HEAT, 24, [HVACMode.HEAT], STATE_OFF, STATE_OFF]),
+        ([HVACMode.HEAT, 24, [HVACMode.COOL], STATE_ON, STATE_OFF]),
+        ([HVACMode.COOL, 18, ["all"], STATE_OFF, STATE_OFF]),
+        ([HVACMode.COOL, 18, [HVACMode.COOL], STATE_OFF, STATE_OFF]),
+        ([HVACMode.COOL, 18, [HVACMode.HEAT], STATE_OFF, STATE_ON]),
+    ],
+)
+async def test_heat_cool_mode_opening_scope(
+    hass: HomeAssistant,
+    hvac_mode,
+    taget_temp,
+    oepning_scope,
+    switch_state,
+    cooler_state,
+    setup_comp_1,  # noqa: F811
+) -> None:
+    """Test thermostat cooler switch in cooling mode."""
+    heater_switch = "input_boolean.heater"
+    cooler_switch = "input_boolean.cooler"
+    opening_1 = "input_boolean.opening_1"
+
+    assert await async_setup_component(
+        hass,
+        input_boolean.DOMAIN,
+        {"input_boolean": {"heater": None, "cooler": None, "opening_1": None}},
+    )
+
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {"name": "temp", "initial": 10, "min": 0, "max": 40, "step": 1}
+            }
+        },
+    )
+
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "cooler": cooler_switch,
+                "heater": heater_switch,
+                "heat_cool_mode": True,
+                "target_sensor": common.ENT_SENSOR,
+                "initial_hvac_mode": hvac_mode,
+                "openings": [
+                    opening_1,
+                ],
+                "openings_scope": oepning_scope,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+
+    setup_sensor(hass, 23)
+    await hass.async_block_till_done()
+
+    await common.async_set_temperature(hass, taget_temp)
+    await hass.async_block_till_done()
+
+    assert (
+        hass.states.get(heater_switch).state == STATE_ON
+        if hvac_mode == HVACMode.HEAT
+        else STATE_OFF
+    )
+
+    assert (
+        hass.states.get(cooler_switch).state == STATE_ON
+        if hvac_mode == HVACMode.COOL
+        else STATE_OFF
+    )
+
+    setup_boolean(hass, opening_1, STATE_OPEN)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(heater_switch).state == switch_state
+    assert hass.states.get(cooler_switch).state == cooler_state
+
+    setup_boolean(hass, opening_1, STATE_CLOSED)
+    await hass.async_block_till_done()
+
+    assert (
+        hass.states.get(heater_switch).state == STATE_ON
+        if hvac_mode == HVACMode.HEAT
+        else STATE_OFF
+    )
+
+    assert (
+        hass.states.get(cooler_switch).state == STATE_ON
+        if hvac_mode == HVACMode.COOL
+        else STATE_OFF
+    )

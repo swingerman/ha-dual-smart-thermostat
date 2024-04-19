@@ -1,7 +1,11 @@
 """Opening Manager for Dual Smart Thermostat."""
 
+from enum import StrEnum
+from itertools import chain
 import logging
+from typing import List
 
+from homeassistant.components.climate import HVACMode
 from homeassistant.const import (
     ATTR_ENTITY_ID,
     STATE_ON,
@@ -11,20 +15,40 @@ from homeassistant.const import (
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import condition
+from homeassistant.helpers.typing import ConfigType
 
 from custom_components.dual_smart_thermostat.const import (
     ATTR_TIMEOUT,
+    CONF_OPENINGS,
+    CONF_OPENINGS_SCOPE,
     TIMED_OPENING_SCHEMA,
 )
 
 _LOGGER = logging.getLogger(__name__)
 
 
+class OpeningHvacModeScope(StrEnum):
+    """Opening Scope Options"""
+
+    _ignore_ = "member cls"
+    cls = vars()
+    for member in chain(list(HVACMode)):
+        cls[member.name] = member.value
+
+    ALL = "all"
+
+
 class OpeningManager:
     """Opening Manager for Dual Smart Thermostat."""
 
-    def __init__(self, hass: HomeAssistant, openings) -> None:
+    def __init__(self, hass: HomeAssistant, config: ConfigType) -> None:
         self.hass = hass
+
+        openings = config.get(CONF_OPENINGS)
+        self.openings_scope: List[OpeningHvacModeScope] = config.get(
+            CONF_OPENINGS_SCOPE
+        ) or [OpeningHvacModeScope.ALL]
+
         self.openings = self.conform_openings_list(openings) if openings else []
         self.opening_entities = (
             self.conform_opnening_entities(self.openings) if openings else []
@@ -47,18 +71,35 @@ class OpeningManager:
         """Return a list of entities from a list of openings."""
         return [entry[ATTR_ENTITY_ID] for entry in openings]
 
-    @property
-    def any_opening_open(self) -> bool:
+    def any_opening_open(
+        self, hvac_mode_scope: OpeningHvacModeScope = OpeningHvacModeScope.ALL
+    ) -> bool:
         """If any opening is currently open."""
         _LOGGER.debug("_any_opening_open")
         if not self.opening_entities:
             return False
 
         _is_open = False
-        for opening in self.openings:
-            if self._is_opening_open(opening):
-                _is_open = True
-                break
+
+        _LOGGER.debug("Checking openings: %s", self.opening_entities)
+        _LOGGER.debug("hvac_mode_scope: %s", hvac_mode_scope)
+
+        if (
+            # the requester doesn't care about the scope or defaultt
+            hvac_mode_scope == OpeningHvacModeScope.ALL
+            # the requester sets it's scope and it's in the scope
+            # in case of ALL, it's always in the scope
+            or (
+                self.openings_scope is not [OpeningHvacModeScope.ALL]
+                and hvac_mode_scope in self.openings_scope
+            )
+            # the scope is not restricted at all
+            or OpeningHvacModeScope.ALL in self.openings_scope
+        ):
+            for opening in self.openings:
+                if self._is_opening_open(opening):
+                    _is_open = True
+                    break
 
         return _is_open
 

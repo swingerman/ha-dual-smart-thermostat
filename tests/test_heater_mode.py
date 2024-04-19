@@ -27,8 +27,10 @@ from homeassistant.const import (
     SERVICE_RELOAD,
     SERVICE_TURN_OFF,
     SERVICE_TURN_ON,
+    STATE_CLOSED,
     STATE_OFF,
     STATE_ON,
+    STATE_OPEN,
     STATE_UNAVAILABLE,
     STATE_UNKNOWN,
 )
@@ -1928,4 +1930,92 @@ def _mock_restore_cache(hass, temperature=20, hvac_mode=HVACMode.OFF):
                 {ATTR_TEMPERATURE: str(temperature), ATTR_PRESET_MODE: PRESET_AWAY},
             ),
         ),
+    )
+
+
+@pytest.mark.parametrize(
+    ["hvac_mode", "oepning_scope", "switch_state"],
+    [
+        ([HVACMode.HEAT, ["all"], STATE_OFF]),
+        ([HVACMode.HEAT, [HVACMode.HEAT], STATE_OFF]),
+        ([HVACMode.HEAT, [HVACMode.FAN_ONLY], STATE_ON]),
+    ],
+)
+async def test_heater_mode_opening_scope(
+    hass: HomeAssistant,
+    hvac_mode,
+    oepning_scope,
+    switch_state,
+    setup_comp_1,  # noqa: F811
+) -> None:
+    """Test thermostat cooler switch in cooling mode."""
+    heater_switch = "input_boolean.test"
+
+    opening_1 = "input_boolean.opening_1"
+
+    assert await async_setup_component(
+        hass,
+        input_boolean.DOMAIN,
+        {
+            "input_boolean": {
+                "test": None,
+                "opening_1": None,
+            }
+        },
+    )
+
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {"name": "test", "initial": 10, "min": 0, "max": 40, "step": 1}
+            }
+        },
+    )
+
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "heater": heater_switch,
+                "target_sensor": common.ENT_SENSOR,
+                "initial_hvac_mode": hvac_mode,
+                "openings": [
+                    opening_1,
+                ],
+                "openings_scope": oepning_scope,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    assert hass.states.get(heater_switch).state == STATE_OFF
+
+    setup_sensor(hass, 23)
+    await hass.async_block_till_done()
+
+    await common.async_set_temperature(hass, 24)
+    await hass.async_block_till_done()
+    assert (
+        hass.states.get(heater_switch).state == STATE_ON
+        if hvac_mode == HVACMode.HEAT
+        else STATE_OFF
+    )
+
+    setup_boolean(hass, opening_1, STATE_OPEN)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(heater_switch).state == switch_state
+
+    setup_boolean(hass, opening_1, STATE_CLOSED)
+    await hass.async_block_till_done()
+
+    assert (
+        hass.states.get(heater_switch).state == STATE_ON
+        if hvac_mode == HVACMode.HEAT
+        else STATE_OFF
     )

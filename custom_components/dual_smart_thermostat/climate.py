@@ -61,6 +61,7 @@ from custom_components.dual_smart_thermostat.managers.feature_manager import (
     FeatureManager,
 )
 from custom_components.dual_smart_thermostat.managers.opening_manager import (
+    OpeningHvacModeScope,
     OpeningManager,
 )
 from custom_components.dual_smart_thermostat.managers.preset_manager import (
@@ -100,6 +101,7 @@ from .const import (
     CONF_MIN_FLOOR_TEMP,
     CONF_MIN_TEMP,
     CONF_OPENINGS,
+    CONF_OPENINGS_SCOPE,
     CONF_PRECISION,
     CONF_PRESETS,
     CONF_PRESETS_OLD,
@@ -149,7 +151,10 @@ FAN_MODE_SCHEMA = {
 }
 
 OPENINGS_SCHEMA = {
-    vol.Optional(CONF_OPENINGS): [vol.Any(cv.entity_id, TIMED_OPENING_SCHEMA)]
+    vol.Optional(CONF_OPENINGS): [vol.Any(cv.entity_id, TIMED_OPENING_SCHEMA)],
+    vol.Optional(CONF_OPENINGS_SCOPE): vol.Any(
+        OpeningHvacModeScope, [scope.value for scope in OpeningHvacModeScope]
+    ),
 }
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
@@ -215,7 +220,6 @@ async def async_setup_platform(
     name = config[CONF_NAME]
     sensor_entity_id = config[CONF_SENSOR]
     sensor_floor_entity_id = config.get(CONF_FLOOR_SENSOR)
-    openings = config.get(CONF_OPENINGS)
     keep_alive = config.get(CONF_KEEP_ALIVE)
     presets_dict = {
         key: config[value] for key, value in CONF_PRESETS.items() if value in config
@@ -243,7 +247,7 @@ async def async_setup_platform(
     unit = hass.config.units.temperature_unit
     unique_id = config.get(CONF_UNIQUE_ID)
 
-    opening_manager = OpeningManager(hass, openings)
+    opening_manager = OpeningManager(hass, config)
 
     temperature_manager = TemperatureManager(
         hass,
