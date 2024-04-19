@@ -90,7 +90,7 @@ class OpeningManager:
             # the requester sets it's scope and it's in the scope
             # in case of ALL, it's always in the scope
             or (
-                self.openings_scope is not [OpeningHvacModeScope.ALL]
+                self.openings_scope != [OpeningHvacModeScope.ALL]
                 and hvac_mode_scope in self.openings_scope
             )
             # the scope is not restricted at all

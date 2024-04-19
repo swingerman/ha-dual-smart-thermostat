@@ -129,6 +129,22 @@ The `openings` configuration variable accepts a list of opening entities and ope
 An opening entity is a sensor that can be in two states: `on` or `off`. If the state is `on` the opening is considered open, if the state is `off` the opening is considered closed.
 The opening object can contain a timeout property that defines the time in seconds after which the opening is considered open even if the state is still `on`. This is useful if you would want to ignor windows opened only for a short time.
 
+### Openings Scope
+
+The `openings_scope` configuration variable defines the scope of the openings. If set to `all` or not defined, any open openings will turn off the current hvac device and it will be in the idle state. If set, only devices that operating in the defined HVAC modes will be turned off. For example, if set to `heat` only the heater will be turned off if any of the openings are open.
+
+### Openings Scope Configuration
+
+```yaml
+openings_scope: [heat, cool, heat_cool, fan_only]
+```
+
+```yaml
+openings_scope:
+  - heat
+  - cool
+```
+
 ## Openings Configuration
 
 ```yaml
@@ -143,6 +159,7 @@ climate:
       - binary_sensor.window2
       - entity_id: binary_sensor.window3
         timeout: 00:00:30
+    openings_scope: [heat, cool]
     target_sensor: sensor.study_temperature
 ```
 
@@ -321,6 +338,19 @@ The internal values can be set by the component only and the external values can
   `entity_id: <value>`The entity id of the opening bstate sensor (string)</br>
 
   `timeout: <value>` The time after which the opening is considered open even if the state is still `on` (timedata)</br>
+
+### openings_scope
+
+  _(optional) (array[string])_  "The scope of the openings. If set to [`all`] or not defined, any open openings will turn off the current hvac device and it will be in the idle state. If set, only devices that operating in the defined HVAC modes will be turned off. For example, if set to `heat` only the heater will be turned off if any of the openings are open."
+
+  _default: `all`_
+
+  options:
+    - `all`
+    - `heat`
+    - `cool`
+    - `heat_cool`
+    - `fan_only`
 
 ### min_temp
 
