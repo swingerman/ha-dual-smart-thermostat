@@ -183,7 +183,7 @@ class HVACDeviceFactory:
                 temperatures,
                 openings,
             )
-        _LOGGER.info(
+        _LOGGER.debug(
             "Creating HeaterDevice device, _is_configured_for_aux_heating_mode: %s",
             self._is_configured_for_aux_heating_mode,
         )
@@ -255,7 +255,7 @@ class HVACDeviceFactory:
                 fan_on_with_cooler=self.fan_on_with_cooler,
             )
 
-        _LOGGER.info(
+        _LOGGER.debug(
             "Creating HeaterCoolerDevice device, _is_configured_for_heat_cool_mode: %s, %s. %s",
             self._is_configured_for_heat_cool_mode,
             heater_device,
@@ -308,7 +308,15 @@ class HVACDeviceFactory:
     @property
     def _is_configured_for_heat_cool_mode(self) -> bool:
         """Determines if the aux heater is configured."""
-        return self.heat_cool_mode or (
-            self.temperatures.target_temp_high is not None
-            and self.temperatures.target_temp_low is not None
+        return (
+            self.heat_cool_mode
+            or (
+                hasattr(self, "cooler_entity_id")
+                and self.cooler_entity_id is not None
+                and self.heater_entity_id is not None
+            )
+            or (
+                self.temperatures.target_temp_high is not None
+                and self.temperatures.target_temp_low is not None
+            )
         )
