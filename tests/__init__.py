@@ -518,6 +518,29 @@ async def setup_comp_dual(hass: HomeAssistant) -> None:
                 "name": "test",
                 "cold_tolerance": 2,
                 "hot_tolerance": 4,
+                "heater": common.ENT_HEATER,
+                "cooler": common.ENT_COOLER,
+                "target_sensor": common.ENT_SENSOR,
+                "initial_hvac_mode": HVACMode.HEAT,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+
+@pytest.fixture
+async def setup_comp_heat_cool_1(hass: HomeAssistant) -> None:
+    """Initialize components."""
+    hass.config.units = METRIC_SYSTEM
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "cold_tolerance": 2,
+                "hot_tolerance": 4,
                 "heat_cool_mode": True,
                 "heater": common.ENT_HEATER,
                 "cooler": common.ENT_COOLER,
@@ -530,7 +553,56 @@ async def setup_comp_dual(hass: HomeAssistant) -> None:
 
 
 @pytest.fixture
+async def setup_comp_heat_cool_2(hass: HomeAssistant) -> None:
+    """Initialize components."""
+    hass.config.units = METRIC_SYSTEM
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "cold_tolerance": 2,
+                "hot_tolerance": 4,
+                "heater": common.ENT_HEATER,
+                "cooler": common.ENT_COOLER,
+                "target_sensor": common.ENT_SENSOR,
+                "initial_hvac_mode": HVACMode.HEAT_COOL,
+                "target_temp_low": 20,
+                "target_temp_high": 25,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+
+@pytest.fixture
 async def setup_comp_dual_fan_config(hass: HomeAssistant) -> None:
+    """Initialize components."""
+    hass.config.units = METRIC_SYSTEM
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "cold_tolerance": 2,
+                "hot_tolerance": 4,
+                "heater": common.ENT_HEATER,
+                "cooler": common.ENT_COOLER,
+                "fan": common.ENT_FAN,
+                "target_sensor": common.ENT_SENSOR,
+                "initial_hvac_mode": HVACMode.HEAT_COOL,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+
+@pytest.fixture
+async def setup_comp_heat_cool_fan_config(hass: HomeAssistant) -> None:
     """Initialize components."""
     hass.config.units = METRIC_SYSTEM
     assert await async_setup_component(
@@ -556,6 +628,50 @@ async def setup_comp_dual_fan_config(hass: HomeAssistant) -> None:
 
 @pytest.fixture
 async def setup_comp_dual_presets(hass: HomeAssistant) -> None:
+    """Initialize components."""
+    hass.config.units = METRIC_SYSTEM
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "cold_tolerance": 2,
+                "hot_tolerance": 4,
+                "heater": common.ENT_HEATER,
+                "cooler": common.ENT_COOLER,
+                "target_sensor": common.ENT_SENSOR,
+                "initial_hvac_mode": HVACMode.HEAT_COOL,
+                PRESET_AWAY: {
+                    "temperature": 16,
+                },
+                PRESET_COMFORT: {
+                    "temperature": 20,
+                },
+                PRESET_ECO: {
+                    "temperature": 18,
+                },
+                PRESET_HOME: {
+                    "temperature": 19,
+                },
+                PRESET_SLEEP: {
+                    "temperature": 17,
+                },
+                PRESET_ACTIVITY: {
+                    "temperature": 21,
+                },
+                "anti_freeze": {
+                    "temperature": 5,
+                },
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+
+@pytest.fixture
+async def setup_comp_heat_cool_presets(hass: HomeAssistant) -> None:
     """Initialize components."""
     hass.config.units = METRIC_SYSTEM
     assert await async_setup_component(

@@ -207,6 +207,26 @@ climate:
     hot_tolerance: 1.0
 
   - platform: dual_smart_thermostat
+    name: Edge Case 155
+    unique_id: edge_case_155
+    heater: switch.heater
+    cooler: switch.cooler
+    target_sensor: sensor.room_temp
+    openings:
+      - input_boolean.window_open
+      - input_boolean.window_open2
+    openings_scope:
+      - heat
+    min_temp: 18
+    max_temp: 27
+    target_temp: 23.0
+    hot_tolerance: 0
+    cold_tolerance: 0.20
+    precision: 0.1
+    target_temp_step: 0.5
+    initial_hvac_mode: heat
+
+  - platform: dual_smart_thermostat
     name: AUX Heat Room
     unique_id: aux_heat_room
     heater: switch.heater
@@ -227,8 +247,8 @@ climate:
     unique_id: fan_cool_room
     heater: switch.heater
     fan: switch.fan
-    fan_cool_tolerance: 2
-    fan_turn_on_with_cooler: true
+    fan_hot_tolerance: 2
+    fan_on_with_ac: true
     ac_mode: true
     target_sensor: sensor.room_temp
     min_temp: 18
@@ -238,8 +258,8 @@ climate:
     name: FAN Only Room
     unique_id: fan_only_room
     fan: switch.fan
-    fan_cool_tolerance: 2
-    fan_turn_on_with_cooler: true
+    fan_hot_tolerance: 2
+    fan_on_with_ac: true
     target_sensor: sensor.room_temp
 
   # - platform: generic_thermostat

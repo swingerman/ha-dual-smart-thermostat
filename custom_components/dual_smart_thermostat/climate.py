@@ -259,7 +259,7 @@ async def async_setup_platform(
 
     preset_manager = PresetManager(hass, config, temperature_manager, feature_manager)
 
-    device_factory = HVACDeviceFactory(hass, config)
+    device_factory = HVACDeviceFactory(hass, config, feature_manager)
 
     hvac_device = device_factory.create_device(temperature_manager, opening_manager)
 
@@ -639,8 +639,9 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
     def _set_support_flags(self) -> None:
         self.features.set_support_flags(
             self.presets.presets,
-            self.hvac_device.hvac_modes,
             self.presets.presets_range,
+            self.presets.preset_mode,
+            self.hvac_device.hvac_modes,
             self._hvac_mode,
         )
         self._attr_supported_features = self.features.supported_features

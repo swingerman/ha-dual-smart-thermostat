@@ -124,6 +124,7 @@ class SpecificHVACDevice(HVACDevice, ControlableHVACDevice, Switchable):
         """Checks if active state needs to be set true."""
         _LOGGER.debug("_active: %s", self._active)
         _LOGGER.debug("cur_temp: %s", self.temperatures.cur_temp)
+        _LOGGER.debug("_target_temp_attr: %s", self._target_temp_attr)
         target_temp = getattr(self.temperatures, self._target_temp_attr)
         _LOGGER.debug("target_temp: %s", target_temp)
 
