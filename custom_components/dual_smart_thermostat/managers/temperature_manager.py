@@ -105,6 +105,7 @@ class TemperatureManager(StateManager):
 
     @target_temp.setter
     def target_temp(self, temp: float) -> None:
+        _LOGGER.debug("Setting target temperature property: %s", temp)
         self._target_temp = temp
 
     @property

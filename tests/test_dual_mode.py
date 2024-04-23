@@ -49,6 +49,10 @@ from . import (  # noqa: F401
     setup_comp_dual,
     setup_comp_dual_fan_config,
     setup_comp_dual_presets,
+    setup_comp_heat_cool_1,
+    setup_comp_heat_cool_2,
+    setup_comp_heat_cool_fan_config,
+    setup_comp_heat_cool_presets,
     setup_floor_sensor,
     setup_sensor,
 )
@@ -234,7 +238,7 @@ async def test_presets_use_case_150(
     await hass.async_block_till_done()
 
     state = hass.states.get(common.ENTITY)
-    assert state.attributes["supported_features"] == 386
+    assert state.attributes["supported_features"] == 385
 
 
 async def test_presets_use_case_150_2(
@@ -309,8 +313,18 @@ async def test_presets_use_case_150_2(
     assert hass.states.get(common.ENTITY).attributes["hvac_action"] == HVACAction.IDLE
 
 
-async def test_default_setup_params(
+async def test_dual_default_setup_params(
     hass: HomeAssistant, setup_comp_dual  # noqa: F811
+) -> None:
+    """Test the setup with default parameters."""
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes.get("min_temp") == 7
+    assert state.attributes.get("max_temp") == 35
+    assert state.attributes.get("temperature") == 35
+
+
+async def test_heat_cool_default_setup_params(
+    hass: HomeAssistant, setup_comp_heat_cool_1  # noqa: F811
 ) -> None:
     """Test the setup with default parameters."""
     state = hass.states.get(common.ENTITY)
@@ -326,8 +340,17 @@ async def test_default_setup_params(
 ###################
 
 
-async def test_get_hvac_modes(
+async def test_get_hvac_modes_dual(
     hass: HomeAssistant, setup_comp_dual  # noqa: F811
+) -> None:
+    """Test that the operation list returns the correct modes."""
+    state = hass.states.get(common.ENTITY)
+    modes = state.attributes.get("hvac_modes")
+    assert set(modes) == set([HVACMode.OFF, HVACMode.HEAT, HVACMode.COOL])
+
+
+async def test_get_hvac_modes_heat_cool(
+    hass: HomeAssistant, setup_comp_heat_cool_1  # noqa: F811
 ) -> None:
     """Test that the operation list returns the correct modes."""
     state = hass.states.get(common.ENTITY)
@@ -337,8 +360,35 @@ async def test_get_hvac_modes(
     )
 
 
-async def test_get_hvac_modes_fan_configured(
+async def test_get_hvac_modes_heat_cool_2(
+    hass: HomeAssistant, setup_comp_heat_cool_2  # noqa: F811
+) -> None:
+    """Test that the operation list returns the correct modes."""
+    state = hass.states.get(common.ENTITY)
+    modes = state.attributes.get("hvac_modes")
+    assert set(modes) == set(
+        [HVACMode.OFF, HVACMode.HEAT, HVACMode.COOL, HVACMode.HEAT_COOL]
+    )
+
+
+async def test_dual_get_hvac_modes_fan_configured(
     hass: HomeAssistant, setup_comp_dual_fan_config  # noqa: F811
+) -> None:
+    """Test that the operation list returns the correct modes."""
+    state = hass.states.get(common.ENTITY)
+    modes = state.attributes.get("hvac_modes")
+    assert set(modes) == set(
+        [
+            HVACMode.OFF,
+            HVACMode.HEAT,
+            HVACMode.COOL,
+            HVACMode.FAN_ONLY,
+        ]
+    )
+
+
+async def test_heat_cool_get_hvac_modes_fan_configured(
+    hass: HomeAssistant, setup_comp_heat_cool_fan_config  # noqa: F811
 ) -> None:
     """Test that the operation list returns the correct modes."""
     state = hass.states.get(common.ENTITY)
@@ -354,8 +404,21 @@ async def test_get_hvac_modes_fan_configured(
     )
 
 
-async def test_set_target_temp(
+async def test_set_target_temp_dual(
     hass: HomeAssistant, setup_comp_dual  # noqa: F811
+) -> None:
+    """Test the setting of the target temperature."""
+    await common.async_set_temperature(hass, 30)
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes.get("temperature") == 30
+    with pytest.raises(vol.Invalid):
+        await common.async_set_temperature(hass, None)
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes.get("temperature") == 30
+
+
+async def test_set_target_temp_heat_cool(
+    hass: HomeAssistant, setup_comp_heat_cool_1  # noqa: F811
 ) -> None:
     """Test the setting of the target temperature."""
     await common.async_set_temperature(hass, 30, common.ENTITY, 25, 22)
@@ -370,31 +433,29 @@ async def test_set_target_temp(
 
 
 @pytest.mark.parametrize(
-    ("preset", "temp_low", "temp_high"),
+    ("preset", "temperature"),
     [
-        (PRESET_NONE, 18, 22),
-        (PRESET_AWAY, 16, 30),
-        (PRESET_COMFORT, 20, 27),
-        (PRESET_ECO, 18, 29),
-        (PRESET_HOME, 19, 23),
-        (PRESET_SLEEP, 17, 24),
-        (PRESET_ACTIVITY, 21, 28),
-        (PRESET_ANTI_FREEZE, 5, 32),
+        (PRESET_NONE, 23),
+        (PRESET_AWAY, 16),
+        (PRESET_COMFORT, 20),
+        (PRESET_ECO, 18),
+        (PRESET_HOME, 19),
+        (PRESET_SLEEP, 17),
+        (PRESET_ACTIVITY, 21),
+        (PRESET_ANTI_FREEZE, 5),
     ],
 )
-async def test_set_preset_mode(
+async def test_dual_set_preset_mode(
     hass: HomeAssistant,
     setup_comp_dual_presets,  # noqa: F811
     preset,
-    temp_low,
-    temp_high,
+    temperature,
 ) -> None:
     """Test the setting preset mode."""
-    await common.async_set_temperature(hass, 23, common.ENTITY, 22, 18)
+    await common.async_set_temperature(hass, 23)
     await common.async_set_preset_mode(hass, preset)
     state = hass.states.get(common.ENTITY)
-    assert state.attributes.get("target_temp_low") == temp_low
-    assert state.attributes.get("target_temp_high") == temp_high
+    assert state.attributes.get("temperature") == temperature
 
 
 @pytest.mark.parametrize(
@@ -410,9 +471,66 @@ async def test_set_preset_mode(
         (PRESET_ANTI_FREEZE, 5, 32),
     ],
 )
-async def test_set_preset_mode_and_restore_prev_temp(
+async def test_heat_cool_set_preset_mode(
     hass: HomeAssistant,
-    setup_comp_dual_presets,  # noqa: F811
+    setup_comp_heat_cool_presets,  # noqa: F811
+    preset,
+    temp_low,
+    temp_high,
+) -> None:
+    """Test the setting preset mode."""
+    await common.async_set_temperature(hass, 23, common.ENTITY, 22, 18)
+    await common.async_set_preset_mode(hass, preset)
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes.get("target_temp_low") == temp_low
+    assert state.attributes.get("target_temp_high") == temp_high
+
+
+@pytest.mark.parametrize(
+    ("preset", "temperature"),
+    [
+        (PRESET_NONE, 23),
+        (PRESET_AWAY, 16),
+        (PRESET_COMFORT, 20),
+        (PRESET_ECO, 18),
+        (PRESET_HOME, 19),
+        (PRESET_SLEEP, 17),
+        (PRESET_ACTIVITY, 21),
+        (PRESET_ANTI_FREEZE, 5),
+    ],
+)
+async def test_dual_set_preset_mode_and_restore_prev_temp(
+    hass: HomeAssistant, setup_comp_dual_presets, preset, temperature  # noqa: F811
+) -> None:
+    """Test the setting preset mode.
+
+    Verify original temperature is restored.
+    """
+    await common.async_set_temperature(hass, 23)
+    await common.async_set_preset_mode(hass, preset)
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes.get("temperature") == temperature
+    await common.async_set_preset_mode(hass, PRESET_NONE)
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes.get("temperature") == 23
+
+
+@pytest.mark.parametrize(
+    ("preset", "temp_low", "temp_high"),
+    [
+        (PRESET_NONE, 18, 22),
+        (PRESET_AWAY, 16, 30),
+        (PRESET_COMFORT, 20, 27),
+        (PRESET_ECO, 18, 29),
+        (PRESET_HOME, 19, 23),
+        (PRESET_SLEEP, 17, 24),
+        (PRESET_ACTIVITY, 21, 28),
+        (PRESET_ANTI_FREEZE, 5, 32),
+    ],
+)
+async def test_set_heat_cool_preset_mode_and_restore_prev_temp(
+    hass: HomeAssistant,
+    setup_comp_heat_cool_presets,  # noqa: F811
     preset,
     temp_low,
     temp_high,
@@ -433,6 +551,36 @@ async def test_set_preset_mode_and_restore_prev_temp(
 
 
 @pytest.mark.parametrize(
+    ("preset", "temperature"),
+    [
+        (PRESET_NONE, 23),
+        (PRESET_AWAY, 16),
+        (PRESET_COMFORT, 20),
+        (PRESET_ECO, 18),
+        (PRESET_HOME, 19),
+        (PRESET_SLEEP, 17),
+        (PRESET_ACTIVITY, 21),
+        (PRESET_ANTI_FREEZE, 5),
+    ],
+)
+async def test_set_dual_preset_mode_twice_and_restore_prev_temp(
+    hass: HomeAssistant, setup_comp_dual_presets, preset, temperature  # noqa: F811
+) -> None:
+    """Test the setting preset mode twice in a row.
+
+    Verify original temperature is restored.
+    """
+    await common.async_set_temperature(hass, 23)
+    await common.async_set_preset_mode(hass, preset)
+    await common.async_set_preset_mode(hass, preset)
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes.get("temperature") == temperature
+    await common.async_set_preset_mode(hass, PRESET_NONE)
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes.get("temperature") == 23
+
+
+@pytest.mark.parametrize(
     ("preset", "temp_low", "temp_high"),
     [
         (PRESET_NONE, 18, 22),
@@ -445,9 +593,9 @@ async def test_set_preset_mode_and_restore_prev_temp(
         (PRESET_ANTI_FREEZE, 5, 32),
     ],
 )
-async def test_set_preset_modet_twice_and_restore_prev_temp(
+async def test_set_heat_cool_preset_mode_twice_and_restore_prev_temp(
     hass: HomeAssistant,
-    setup_comp_dual_presets,  # noqa: F811
+    setup_comp_heat_cool_presets,  # noqa: F811
     preset,
     temp_low,
     temp_high,
@@ -468,8 +616,25 @@ async def test_set_preset_modet_twice_and_restore_prev_temp(
     assert state.attributes.get("target_temp_high") == 22
 
 
-async def test_set_preset_mode_invalid(
+async def test_set_dual_preset_mode_invalid(
     hass: HomeAssistant, setup_comp_dual_presets  # noqa: F811
+) -> None:
+    """Test an invalid mode raises an error and ignore case when checking modes."""
+    await common.async_set_temperature(hass, 23)
+    await common.async_set_preset_mode(hass, "away")
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes.get("preset_mode") == "away"
+    await common.async_set_preset_mode(hass, "none")
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes.get("preset_mode") == "none"
+    with pytest.raises(ServiceValidationError):
+        await common.async_set_preset_mode(hass, "Sleep")
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes.get("preset_mode") == "none"
+
+
+async def test_set_heat_cool_preset_mode_invalid(
+    hass: HomeAssistant, setup_comp_heat_cool_presets  # noqa: F811
 ) -> None:
     """Test an invalid mode raises an error and ignore case when checking modes."""
     await common.async_set_temperature(hass, 23, common.ENTITY, 22, 18)
@@ -486,6 +651,49 @@ async def test_set_preset_mode_invalid(
 
 
 @pytest.mark.parametrize(
+    ("preset", "temperature"),
+    [
+        (PRESET_NONE, 23),
+        (PRESET_AWAY, 16),
+        (PRESET_COMFORT, 20),
+        (PRESET_ECO, 18),
+        (PRESET_HOME, 19),
+        (PRESET_SLEEP, 17),
+        (PRESET_ACTIVITY, 21),
+        (PRESET_ANTI_FREEZE, 5),
+    ],
+)
+async def test_dual_set_preset_mode_set_temp_keeps_preset_mode(
+    hass: HomeAssistant, setup_comp_dual_presets, preset, temperature  # noqa: F811
+) -> None:
+    """Test the setting preset mode then set temperature.
+
+    Verify preset mode preserved while temperature updated.
+    """
+    test_target_temp = 33
+    await common.async_set_temperature(hass, 23)
+    await common.async_set_preset_mode(hass, preset)
+    await hass.async_block_till_done()
+
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes.get("temperature") == temperature
+    await common.async_set_temperature(
+        hass,
+        test_target_temp,
+    )
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes.get("temperature") == test_target_temp
+    assert state.attributes.get("preset_mode") == preset
+    assert state.attributes.get("supported_features") == 401
+    await common.async_set_preset_mode(hass, PRESET_NONE)
+    state = hass.states.get(common.ENTITY)
+    if preset == PRESET_NONE:
+        assert state.attributes.get("temperature") == test_target_temp
+    else:
+        assert state.attributes.get("temperature") == 23
+
+
+@pytest.mark.parametrize(
     ("preset", "temp_low", "temp_high"),
     [
         (PRESET_NONE, 18, 22),
@@ -498,9 +706,9 @@ async def test_set_preset_mode_invalid(
         (PRESET_ANTI_FREEZE, 5, 32),
     ],
 )
-async def test_set_preset_mode_set_temp_keeps_preset_mode(
+async def test_heat_cool_set_preset_mode_set_temp_keeps_preset_mode(
     hass: HomeAssistant,
-    setup_comp_dual_presets,  # noqa: F811
+    setup_comp_heat_cool_presets,  # noqa: F811
     preset,
     temp_low,
     temp_high,
@@ -551,8 +759,73 @@ async def test_set_preset_mode_set_temp_keeps_preset_mode(
         [HVACMode.HEAT, HVACMode.OFF],
     ],
 )
-async def test_toggle(
+async def test_dual_toggle(
     hass: HomeAssistant, from_hvac_mode, to_hvac_mode, setup_comp_dual  # noqa: F811
+) -> None:
+    """Test change mode from OFF to COOL.
+
+    Switch turns on when temp below setpoint and mode changes.
+    """
+    await common.async_set_hvac_mode(hass, from_hvac_mode)
+    await common.async_toggle(hass)
+    await hass.async_block_till_done()
+
+    state = hass.states.get(common.ENTITY)
+    assert state.state == to_hvac_mode
+
+    await common.async_toggle(hass)
+    await hass.async_block_till_done()
+
+    state = hass.states.get(common.ENTITY)
+    assert state.state == from_hvac_mode
+
+
+@pytest.mark.parametrize(
+    ["from_hvac_mode", "to_hvac_mode"],
+    [
+        [HVACMode.OFF, HVACMode.COOL],
+        [HVACMode.COOL, HVACMode.OFF],
+        [HVACMode.HEAT, HVACMode.OFF],
+    ],
+)
+async def test_heat_cool_toggle(
+    hass: HomeAssistant,
+    from_hvac_mode,
+    to_hvac_mode,
+    setup_comp_heat_cool_1,  # noqa: F811
+) -> None:
+    """Test change mode from OFF to COOL.
+
+    Switch turns on when temp below setpoint and mode changes.
+    """
+    await common.async_set_hvac_mode(hass, from_hvac_mode)
+    await common.async_toggle(hass)
+    await hass.async_block_till_done()
+
+    state = hass.states.get(common.ENTITY)
+    assert state.state == to_hvac_mode
+
+    await common.async_toggle(hass)
+    await hass.async_block_till_done()
+
+    state = hass.states.get(common.ENTITY)
+    assert state.state == from_hvac_mode
+
+
+@pytest.mark.parametrize(
+    ["from_hvac_mode", "to_hvac_mode"],
+    [
+        [HVACMode.OFF, HVACMode.COOL],
+        [HVACMode.COOL, HVACMode.OFF],
+        [HVACMode.FAN_ONLY, HVACMode.OFF],
+        [HVACMode.HEAT, HVACMode.OFF],
+    ],
+)
+async def test_dual_toggle_with_fan(
+    hass: HomeAssistant,
+    from_hvac_mode,
+    to_hvac_mode,
+    setup_comp_dual_fan_config,  # noqa: F811
 ) -> None:
     """Test change mode from OFF to COOL.
 
@@ -582,11 +855,11 @@ async def test_toggle(
         [HVACMode.HEAT, HVACMode.OFF],
     ],
 )
-async def test_toggle_with_fan(
+async def test_heat_cool_toggle_with_fan(
     hass: HomeAssistant,
     from_hvac_mode,
     to_hvac_mode,
-    setup_comp_dual_fan_config,  # noqa: F811
+    setup_comp_heat_cool_fan_config,  # noqa: F811
 ) -> None:
     """Test change mode from OFF to COOL.
 

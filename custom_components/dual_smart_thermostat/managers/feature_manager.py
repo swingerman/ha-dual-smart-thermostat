@@ -15,6 +15,10 @@ from custom_components.dual_smart_thermostat.const import (
     CONF_AUX_HEATER,
     CONF_AUX_HEATING_TIMEOUT,
     CONF_COOLER,
+    CONF_FAN,
+    CONF_FAN_HOT_TOLERANCE,
+    CONF_FAN_MODE,
+    CONF_FAN_ON_WITH_AC,
     CONF_HEAT_COOL_MODE,
     CONF_HEATER,
 )
@@ -37,6 +41,13 @@ class FeatureManager(StateManager):
         self._cooler_entity_id = config.get(CONF_COOLER)
         self._heater_entity_id = config.get(CONF_HEATER)
         self._ac_mode = config.get(CONF_AC_MODE)
+        if self._cooler_entity_id is not None and self._heater_entity_id is not None:
+            self._ac_mode = False
+
+        self._fan_mode = config.get(CONF_FAN_MODE)
+        self._fan_entity_id = config.get(CONF_FAN)
+        self._fan_on_with_cooler = config.get(CONF_FAN_ON_WITH_AC)
+        self._fan_tolerance = config.get(CONF_FAN_HOT_TOLERANCE)
 
         self._aux_heater_entity_id = config.get(CONF_AUX_HEATER)
         self._aux_heater_timeout = config.get(CONF_AUX_HEATING_TIMEOUT)
@@ -67,22 +78,33 @@ class FeatureManager(StateManager):
         return self._supported_features & ClimateEntityFeature.TARGET_TEMPERATURE_RANGE
 
     @property
+    def is_configured_for_cooler_mode(self) -> bool:
+        """Determines if the cooler mode is configured."""
+        return self._heater_entity_id is not None and self._ac_mode is True
+
+    @property
+    def is_configured_for_dual_mode(self) -> bool:
+        """Determined if the dual mode is configured."""
+
+        """NOTE: this doesn't mean heat/cool mode is configured, just that the dual mode is configured"""
+
+        return self._heater_entity_id is not None and self._cooler_entity_id is not None
+
+    @property
     def is_configured_for_heat_cool_mode(self) -> bool:
         """Checks if the configuration is complete for heat/cool mode."""
-        return (
-            self._heat_cool_mode
-            or (
-                self.temperatures.target_temp_high is not None
-                and self.temperatures.target_temp_low is not None
-            )
-            or (
-                self._heater_entity_id is not None
-                and self._cooler_entity_id is not None
-            )
+        _LOGGER.info("is_configured_for_heat_cool_mode")
+        _LOGGER.info("heat_cool_mode: %s", self._heat_cool_mode)
+        _LOGGER.info("target_temp_high: %s", self.temperatures.target_temp_high)
+        _LOGGER.info("target_temp_low: %s", self.temperatures.target_temp_low)
+
+        return self._heat_cool_mode or (
+            self.temperatures.target_temp_high is not None
+            and self.temperatures.target_temp_low is not None
         )
 
     @property
-    def _is_configured_for_aux_heating_mode(self) -> bool:
+    def is_configured_for_aux_heating_mode(self) -> bool:
         """Determines if the aux heater is configured."""
         if self._aux_heater_entity_id is None:
             return False
@@ -92,26 +114,44 @@ class FeatureManager(StateManager):
 
         return True
 
+    @property
+    def is_configured_for_fan_mode(self) -> bool:
+        """Determines if the fan mode is configured."""
+        return self._fan_entity_id is not None
+
+    @property
+    def is_configured_fan_mode_tolerance(self) -> bool:
+        """Determines if the fan mode is configured."""
+        return self._is_configured_for_fan_mode() and self._fan_tolerance is not None
+
+    @property
+    def is_configured_for_fan_only_mode(self) -> bool:
+        """Determines if the fan mode is configured."""
+        return (
+            self._heater_entity_id is not None
+            and self._fan_mode is True
+            and self._fan_entity_id is None
+        )
+
     def set_support_flags(
         self,
         presets: dict[str, Any],
-        hvac_modes: list[HVACMode],
         presets_range,
+        preset_mode: str,
+        hvac_modes: list[HVACMode],
         current_hvac_mode: HVACMode = None,
     ) -> None:
         """Set the correct support flags based on configuration."""
         _LOGGER.debug("Setting support flags")
 
-        preset_mode = None
-
-        if not self.is_configured_for_heat_cool_mode:
+        if not self.is_configured_for_heat_cool_mode or current_hvac_mode in (
+            HVACMode.COOL,
+            HVACMode.FAN_ONLY,
+            HVACMode.HEAT,
+        ):
             if self.is_range_mode and preset_mode != PRESET_NONE:
-                self.temperatures.target_temp_low = (
-                    self.temperatures.saved_target_temp_low
-                )
-                self.temperatures.target_temp_high = (
-                    self.temperatures.saved_target_temp_high
-                )
+                self.temperatures.target_temp_low = self._saved_target_temp_low
+                self.temperatures.target_temp_high = self._saved_target_temp_high
             self._supported_features = (
                 self._default_support_flags | ClimateEntityFeature.TARGET_TEMPERATURE
             )
@@ -121,24 +161,10 @@ class FeatureManager(StateManager):
         else:
             if self.is_target_mode and preset_mode != PRESET_NONE:
                 self.temperatures.target_temp = self.temperatures.saved_target_temp
-
-            if current_hvac_mode not in [None, HVACMode.OFF, HVACMode.HEAT_COOL]:
-                self._supported_features = (
-                    self._default_support_flags
-                    | ClimateEntityFeature.TARGET_TEMPERATURE
-                )
-
-                if current_hvac_mode == HVACMode.HEAT:
-                    self.temperatures.target_temp = self.temperatures.target_temp_low
-
-                else:  # can be COOL, FAN_ONLY
-                    self.temperatures.target_temp = self.temperatures.target_temp_high
-
-            else:
-                self._supported_features = (
-                    self._default_support_flags
-                    | ClimateEntityFeature.TARGET_TEMPERATURE_RANGE
-                )
+            self._supported_features = (
+                self._default_support_flags
+                | ClimateEntityFeature.TARGET_TEMPERATURE_RANGE
+            )
             _LOGGER.debug("Setting support flags to %s", self._supported_features)
             if len(presets_range):
                 self._supported_features |= ClimateEntityFeature.PRESET_MODE
@@ -146,7 +172,6 @@ class FeatureManager(StateManager):
                     "Setting support flags presets in range mode to %s",
                     self._supported_features,
                 )
-
         self.temperatures.set_default_target_temps(
             self.is_target_mode, self.is_range_mode, hvac_modes
         )

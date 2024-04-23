@@ -38,6 +38,7 @@ class HeaterCoolerDevice(HVACDevice, ControlableHVACDevice):
         heater_device: HeaterDevice,
         cooler_device: CoolerDevice,
         initial_hvac_mode: HVACMode,
+        heat_cool_mode: bool,
         temperatures: TemperatureManager,
         openings: OpeningManager,
     ) -> None:
@@ -51,7 +52,10 @@ class HeaterCoolerDevice(HVACDevice, ControlableHVACDevice):
             heater_device.hvac_modes, cooler_device.hvac_modes
         )
 
-        self.hvac_modes = merge_hvac_modes(device_hvac_modes, [HVACMode.HEAT_COOL])
+        if heat_cool_mode:
+            self.hvac_modes = merge_hvac_modes(device_hvac_modes, [HVACMode.HEAT_COOL])
+        else:
+            self.hvac_modes = device_hvac_modes
 
         if initial_hvac_mode in self.hvac_modes:
             self._hvac_mode = initial_hvac_mode
