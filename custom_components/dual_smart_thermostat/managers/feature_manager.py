@@ -133,6 +133,11 @@ class FeatureManager(StateManager):
             and self._fan_entity_id is None
         )
 
+    @property
+    def is_configured_for_fan_on_with_cooler(self) -> bool:
+        """Determines if the fan mode with cooler is configured."""
+        return self._fan_on_with_cooler
+
     def set_support_flags(
         self,
         presets: dict[str, Any],

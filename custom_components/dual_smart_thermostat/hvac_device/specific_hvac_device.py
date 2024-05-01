@@ -22,8 +22,12 @@ from custom_components.dual_smart_thermostat.hvac_device.controllable_hvac_devic
     ControlableHVACDevice,
 )
 from custom_components.dual_smart_thermostat.hvac_device.hvac_device import (
+    CanTargetTemperature,
     HVACDevice,
     Switchable,
+)
+from custom_components.dual_smart_thermostat.managers.feature_manager import (
+    FeatureManager,
 )
 from custom_components.dual_smart_thermostat.managers.opening_manager import (
     OpeningManager,
@@ -35,7 +39,9 @@ from custom_components.dual_smart_thermostat.managers.temperature_manager import
 _LOGGER = logging.getLogger(__name__)
 
 
-class SpecificHVACDevice(HVACDevice, ControlableHVACDevice, Switchable):
+class SpecificHVACDevice(
+    HVACDevice, ControlableHVACDevice, Switchable, CanTargetTemperature
+):
 
     _target_temp_attr: str = "_target_temp"
 
@@ -47,9 +53,11 @@ class SpecificHVACDevice(HVACDevice, ControlableHVACDevice, Switchable):
         initial_hvac_mode: HVACMode,
         temperatures: TemperatureManager,
         openings: OpeningManager,
+        features: FeatureManager,
     ) -> None:
         super().__init__(hass, temperatures, openings)
         self._device_type = self.__class__.__name__
+        self.features = features
         self.entity_id = entity_id
         self.min_cycle_duration = min_cycle_duration
 
@@ -91,6 +99,10 @@ class SpecificHVACDevice(HVACDevice, ControlableHVACDevice, Switchable):
             )
 
     @property
+    def target_temp_attr(self) -> str:
+        return self._target_temp_attr
+
+    @property
     def is_active(self) -> bool:
         """If the toggleable cooler device is currently active."""
         if self.entity_id is not None and self.hass.states.is_state(
@@ -124,8 +136,8 @@ class SpecificHVACDevice(HVACDevice, ControlableHVACDevice, Switchable):
         """Checks if active state needs to be set true."""
         _LOGGER.debug("_active: %s", self._active)
         _LOGGER.debug("cur_temp: %s", self.temperatures.cur_temp)
-        _LOGGER.debug("_target_temp_attr: %s", self._target_temp_attr)
-        target_temp = getattr(self.temperatures, self._target_temp_attr)
+        _LOGGER.debug("target_temp_attr: %s", self.target_temp_attr)
+        target_temp = getattr(self.temperatures, self.target_temp_attr)
         _LOGGER.debug("target_temp: %s", target_temp)
 
         if (
@@ -194,7 +206,7 @@ class SpecificHVACDevice(HVACDevice, ControlableHVACDevice, Switchable):
 
     async def _async_control_when_active(self, time=None) -> None:
         _LOGGER.debug("%s _async_control_when_active", self.__class__.__name__)
-        too_cold = self.temperatures.is_too_cold(self._target_temp_attr)
+        too_cold = self.temperatures.is_too_cold(self.target_temp_attr)
         any_opening_open = self.openings.any_opening_open(self.hvac_mode)
 
         if too_cold or any_opening_open:
@@ -215,7 +227,7 @@ class SpecificHVACDevice(HVACDevice, ControlableHVACDevice, Switchable):
             self._hvac_action_reason = HVACActionReason.TARGET_TEMP_NOT_REACHED
 
     async def _async_control_when_inactive(self, time=None) -> None:
-        too_hot = self.temperatures.is_too_hot(self._target_temp_attr)
+        too_hot = self.temperatures.is_too_hot(self.target_temp_attr)
         any_opening_open = self.openings.any_opening_open(self.hvac_mode)
 
         _LOGGER.debug("too_hot: %s", too_hot)

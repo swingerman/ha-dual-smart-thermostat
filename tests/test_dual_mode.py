@@ -52,9 +52,12 @@ from . import (  # noqa: F401
     setup_comp_heat_cool_1,
     setup_comp_heat_cool_2,
     setup_comp_heat_cool_fan_config,
+    setup_comp_heat_cool_fan_config_2,
     setup_comp_heat_cool_presets,
     setup_floor_sensor,
     setup_sensor,
+    setup_switch_dual,
+    setup_switch_heat_cool_fan,
 )
 
 COLD_TOLERANCE = 0.3

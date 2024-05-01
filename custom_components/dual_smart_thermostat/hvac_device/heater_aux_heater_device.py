@@ -22,6 +22,9 @@ from custom_components.dual_smart_thermostat.hvac_device.hvac_device import (
     HVACDevice,
     merge_hvac_modes,
 )
+from custom_components.dual_smart_thermostat.managers.feature_manager import (
+    FeatureManager,
+)
 from custom_components.dual_smart_thermostat.managers.opening_manager import (
     OpeningManager,
 )
@@ -46,7 +49,7 @@ class HeaterAUXHeaterDevice(HVACDevice, ControlableHVACDevice):
         initial_hvac_mode: HVACMode,
         temperatures: TemperatureManager,
         openings: OpeningManager,
-        range_mode: bool = False,
+        features: FeatureManager,
     ) -> None:
         super().__init__(hass, temperatures, openings)
 
@@ -56,7 +59,7 @@ class HeaterAUXHeaterDevice(HVACDevice, ControlableHVACDevice):
         self._aux_heater_timeout = aux_heater_timeout
         self._aux_heater_dual_mode = aux_heater_dual_mode
 
-        if range_mode:
+        if features.is_range_mode:
             self._target_temp_attr = "_target_temp_low"
 
         self._aux_heater_last_run: datetime = None

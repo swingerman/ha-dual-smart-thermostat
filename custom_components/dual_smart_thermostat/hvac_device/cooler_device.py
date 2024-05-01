@@ -7,6 +7,9 @@ from homeassistant.core import HomeAssistant
 from custom_components.dual_smart_thermostat.hvac_device.specific_hvac_device import (
     SpecificHVACDevice,
 )
+from custom_components.dual_smart_thermostat.managers.feature_manager import (
+    FeatureManager,
+)
 from custom_components.dual_smart_thermostat.managers.opening_manager import (
     OpeningManager,
 )
@@ -29,7 +32,7 @@ class CoolerDevice(SpecificHVACDevice):
         initial_hvac_mode: HVACMode,
         temperatures: TemperatureManager,
         openings: OpeningManager,
-        range_mode: bool = False,
+        features: FeatureManager,
     ) -> None:
         super().__init__(
             hass,
@@ -38,10 +41,16 @@ class CoolerDevice(SpecificHVACDevice):
             initial_hvac_mode,
             temperatures,
             openings,
+            features,
         )
 
-        if range_mode:
-            self._target_temp_attr = "_target_temp_high"
+    @property
+    def target_temp_attr(self) -> str:
+        return (
+            "_target_temp_high"
+            if self.features.is_range_mode
+            else self._target_temp_attr
+        )
 
     @property
     def hvac_action(self) -> HVACAction:

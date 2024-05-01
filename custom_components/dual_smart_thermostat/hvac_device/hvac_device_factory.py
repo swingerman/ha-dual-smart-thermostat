@@ -96,6 +96,7 @@ class HVACDeviceFactory:
                 self._initial_hvac_mode,
                 temperatures,
                 openings,
+                self._features,
             )
 
         if (
@@ -114,6 +115,7 @@ class HVACDeviceFactory:
                 self._initial_hvac_mode,
                 temperatures,
                 openings,
+                self._features,
             )
 
         elif (
@@ -127,6 +129,7 @@ class HVACDeviceFactory:
                 None,
                 temperatures,
                 openings,
+                self._features,
             )
             fan_device = FanDevice(
                 self.hass,
@@ -135,6 +138,7 @@ class HVACDeviceFactory:
                 None,
                 temperatures,
                 openings,
+                self._features,
             )
 
             _LOGGER.info(
@@ -150,7 +154,7 @@ class HVACDeviceFactory:
                 self._initial_hvac_mode,
                 temperatures,
                 openings,
-                fan_on_with_cooler=self._fan_on_with_cooler,
+                self._features,
             )
 
         elif self._features.is_configured_for_dual_mode:
@@ -168,6 +172,7 @@ class HVACDeviceFactory:
             self._initial_hvac_mode,
             temperatures,
             openings,
+            self._features,
         )
         if self._features.is_configured_for_aux_heating_mode:
             aux_heater_device = HeaterDevice(
@@ -177,6 +182,7 @@ class HVACDeviceFactory:
                 self._initial_hvac_mode,
                 temperatures,
                 openings,
+                self._features,
             )
             return HeaterAUXHeaterDevice(
                 self.hass,
@@ -187,6 +193,7 @@ class HVACDeviceFactory:
                 self._initial_hvac_mode,
                 temperatures,
                 openings,
+                self._features,
             )
         _LOGGER.info(
             "Creating HeaterDevice device, _is_configured_for_aux_heating_mode: %s",
@@ -204,7 +211,7 @@ class HVACDeviceFactory:
             self._initial_hvac_mode,
             temperatures,
             openings,
-            range_mode=self._features.is_configured_for_heat_cool_mode,
+            self._features,
         )
 
         if self._features.is_configured_for_aux_heating_mode:
@@ -215,7 +222,7 @@ class HVACDeviceFactory:
                 self._initial_hvac_mode,
                 temperatures,
                 openings,
-                range_mode=self._features.is_configured_for_heat_cool_mode,
+                self._features,
             )
             return HeaterAUXHeaterDevice(
                 self.hass,
@@ -226,6 +233,7 @@ class HVACDeviceFactory:
                 self._initial_hvac_mode,
                 temperatures,
                 openings,
+                self._features,
             )
 
         cooler_device = CoolerDevice(
@@ -235,7 +243,7 @@ class HVACDeviceFactory:
             self._initial_hvac_mode,
             temperatures,
             openings,
-            range_mode=self._features.is_configured_for_heat_cool_mode,
+            self._features,
         )
 
         cooler_fan_device = None
@@ -248,7 +256,7 @@ class HVACDeviceFactory:
                 self._initial_hvac_mode,
                 temperatures,
                 openings,
-                range_mode=self._features.is_configured_for_heat_cool_mode,
+                self._features,
             )
             cooler_fan_device = CoolerFanDevice(
                 self.hass,
@@ -257,7 +265,7 @@ class HVACDeviceFactory:
                 self._initial_hvac_mode,
                 temperatures,
                 openings,
-                fan_on_with_cooler=self._fan_on_with_cooler,
+                self._features,
             )
 
         _LOGGER.info(

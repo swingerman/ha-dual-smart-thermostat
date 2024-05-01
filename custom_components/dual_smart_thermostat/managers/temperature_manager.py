@@ -227,7 +227,6 @@ class TemperatureManager(StateManager):
         self._target_temp_low = temp_low
         self._target_temp_high = temp_high
 
-    @property
     def is_within_fan_tolerance(self, target_attr="_target_temp") -> bool:
         """Checks if the current temperature is below target."""
         if self._cur_temp is None or self._fan_hot_tolerance is None:
@@ -256,7 +255,12 @@ class TemperatureManager(StateManager):
         if self._cur_temp is None:
             return False
         target_temp = getattr(self, target_attr)
-        _LOGGER.debug("Target temp: %s, current temp: %s", target_temp, self._cur_temp)
+        _LOGGER.debug(
+            "Target temp atte: %s, Target temp: %s, current temp: %s",
+            target_attr,
+            target_temp,
+            self._cur_temp,
+        )
         return target_temp >= self._cur_temp + self._cold_tolerance
 
     def is_too_hot(self, target_attr="_target_temp") -> bool:

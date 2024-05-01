@@ -655,9 +655,10 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             _LOGGER.debug("Unrecognized hvac mode: %s", hvac_mode)
             return
 
-        await self.hvac_device.async_set_hvac_mode(hvac_mode)
         self._hvac_mode = hvac_mode
         self._set_support_flags()
+
+        await self.hvac_device.async_set_hvac_mode(hvac_mode)
 
         self._hvac_action_reason = self.hvac_device.HVACActionReason
 
