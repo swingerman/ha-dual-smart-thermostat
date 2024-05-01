@@ -18,6 +18,9 @@ from custom_components.dual_smart_thermostat.hvac_device.hvac_device import (
     HVACDevice,
     merge_hvac_modes,
 )
+from custom_components.dual_smart_thermostat.managers.feature_manager import (
+    FeatureManager,
+)
 from custom_components.dual_smart_thermostat.managers.opening_manager import (
     OpeningManager,
 )
@@ -38,18 +41,16 @@ class CoolerFanDevice(HVACDevice, ControlableHVACDevice):
         initial_hvac_mode: HVACMode,
         temperatures: TemperatureManager,
         openings: OpeningManager,
-        fan_on_with_cooler: bool = False,
-        range_mode: bool = False,
+        features: FeatureManager,
     ) -> None:
         super().__init__(hass, temperatures, openings)
 
+        self._features = features
+
         self._device_type = self.__class__.__name__
-        self._fan_on_with_cooler = fan_on_with_cooler
+        self._fan_on_with_cooler = features.is_configured_for_fan_on_with_cooler
         self.cooler_device = cooler_device
         self.fan_device = fan_device
-
-        if range_mode:
-            self._target_temp_attr = "_target_temp_high"
 
         # _hvac_modes are the combined values of the cooler_device.hvac_modes and fan_device.hvac_modes without duplicates
         self.hvac_modes = merge_hvac_modes(
@@ -135,7 +136,9 @@ class CoolerFanDevice(HVACDevice, ControlableHVACDevice):
                     self.HVACActionReason = self.cooler_device.HVACActionReason
                 else:
 
-                    if self.temperatures.is_within_fan_tolerance:
+                    if self.temperatures.is_within_fan_tolerance(
+                        self.fan_device.target_temp_attr
+                    ):
                         _LOGGER.info("within fan tolerance")
                         await self.fan_device.async_control_hvac(time, force)
                         await self.cooler_device.async_turn_off()

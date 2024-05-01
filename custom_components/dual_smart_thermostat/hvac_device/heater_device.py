@@ -10,6 +10,9 @@ from custom_components.dual_smart_thermostat.hvac_action_reason.hvac_action_reas
 from custom_components.dual_smart_thermostat.hvac_device.specific_hvac_device import (
     SpecificHVACDevice,
 )
+from custom_components.dual_smart_thermostat.managers.feature_manager import (
+    FeatureManager,
+)
 from custom_components.dual_smart_thermostat.managers.opening_manager import (
     OpeningManager,
 )
@@ -32,7 +35,7 @@ class HeaterDevice(SpecificHVACDevice):
         initial_hvac_mode: HVACMode,
         temperatures: TemperatureManager,
         openings: OpeningManager,
-        range_mode: bool = False,
+        features: FeatureManager,
     ) -> None:
         super().__init__(
             hass,
@@ -41,10 +44,16 @@ class HeaterDevice(SpecificHVACDevice):
             initial_hvac_mode,
             temperatures,
             openings,
+            features,
         )
 
-        if range_mode:
-            self._target_temp_attr = "_target_temp_low"
+    @property
+    def target_temp_attr(self) -> str:
+        return (
+            "_target_temp_low"
+            if self.features.is_range_mode
+            else self._target_temp_attr
+        )
 
     @property
     def hvac_action(self) -> HVACAction:
@@ -72,7 +81,7 @@ class HeaterDevice(SpecificHVACDevice):
 
     async def _async_control_device_when_on(self, time=None) -> None:
         """Check if we need to turn heating on or off when theheater is on."""
-        too_hot = self.temperatures.is_too_hot(self._target_temp_attr)
+        too_hot = self.temperatures.is_too_hot(self.target_temp_attr)
         is_floor_hot = self.temperatures.is_floor_hot
         is_floor_cold = self.temperatures.is_floor_cold
         any_opening_open = self.openings.any_opening_open(self.hvac_mode)
@@ -104,7 +113,7 @@ class HeaterDevice(SpecificHVACDevice):
         """Check if we need to turn heating on or off when the heater is off."""
         _LOGGER.debug("%s _async_control_device_when_off", self.__class__.__name__)
 
-        too_cold = self.temperatures.is_too_cold(self._target_temp_attr)
+        too_cold = self.temperatures.is_too_cold(self.target_temp_attr)
         is_floor_hot = self.temperatures.is_floor_hot
         is_floor_cold = self.temperatures.is_floor_cold
         any_opening_open = self.openings.any_opening_open(self.hvac_mode)

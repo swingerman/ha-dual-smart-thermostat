@@ -627,6 +627,61 @@ async def setup_comp_heat_cool_fan_config(hass: HomeAssistant) -> None:
 
 
 @pytest.fixture
+async def setup_comp_heat_cool_fan_config_tolerance(hass: HomeAssistant) -> None:
+    """Initialize components."""
+    hass.config.units = METRIC_SYSTEM
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "cold_tolerance": 2,
+                "hot_tolerance": 4,
+                "heat_cool_mode": True,
+                "heater": common.ENT_HEATER,
+                "cooler": common.ENT_COOLER,
+                "fan": common.ENT_FAN,
+                "fan_hot_tolerance": 1,
+                "target_sensor": common.ENT_SENSOR,
+                "initial_hvac_mode": HVACMode.HEAT_COOL,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+
+@pytest.fixture
+async def setup_comp_heat_cool_fan_config_2(hass: HomeAssistant) -> None:
+    """Initialize components."""
+    hass.config.units = METRIC_SYSTEM
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "cold_tolerance": 2,
+                "hot_tolerance": 4,
+                "heater": common.ENT_HEATER,
+                "cooler": common.ENT_COOLER,
+                "fan": common.ENT_FAN,
+                "target_sensor": common.ENT_SENSOR,
+                "initial_hvac_mode": HVACMode.HEAT_COOL,
+                "min_temp": 9,
+                "max_temp": 32,
+                "target_temp": 19.5,
+                "target_temp_high": 20.5,
+                "target_temp_low": 19.5,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+
+@pytest.fixture
 async def setup_comp_dual_presets(hass: HomeAssistant) -> None:
     """Initialize components."""
     hass.config.units = METRIC_SYSTEM
@@ -777,6 +832,26 @@ def setup_switch_dual(
     """Set up the test switch."""
     hass.states.async_set(common.ENT_SWITCH, STATE_ON if is_on else STATE_OFF)
     hass.states.async_set(second_switch, STATE_ON if is_second_on else STATE_OFF)
+    calls = []
+
+    @callback
+    def log_call(call) -> None:
+        """Log service calls."""
+        calls.append(call)
+
+    hass.services.async_register(ha.DOMAIN, SERVICE_TURN_ON, log_call)
+    hass.services.async_register(ha.DOMAIN, SERVICE_TURN_OFF, log_call)
+
+    return calls
+
+
+def setup_switch_heat_cool_fan(
+    hass: HomeAssistant, is_on: bool, is_cooler_on: bool, is_fan_on: bool
+) -> None:
+    """Set up the test switch."""
+    hass.states.async_set(common.ENT_SWITCH, STATE_ON if is_on else STATE_OFF)
+    hass.states.async_set(common.ENT_COOLER, STATE_ON if is_cooler_on else STATE_OFF)
+    hass.states.async_set(common.ENT_FAN, STATE_ON if is_fan_on else STATE_OFF)
     calls = []
 
     @callback

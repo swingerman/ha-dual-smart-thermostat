@@ -28,6 +28,16 @@ class Switchable(ABC):
         pass
 
 
+class CanTargetTemperature(ABC):
+
+    _target_temp_attr: str = "_target_temp"
+
+    @property
+    @abstractmethod
+    def target_temp_attr(self) -> str:
+        pass
+
+
 class HVACDevice:
 
     _active: bool
