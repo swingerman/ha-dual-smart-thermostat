@@ -656,6 +656,10 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             _LOGGER.debug("Unrecognized hvac mode: %s", hvac_mode)
             return
 
+        if hvac_mode == HVACMode.OFF:
+            self._last_hvac_mode = self.hvac_device.hvac_mode
+            _LOGGER.debug("Turning off with hvac mode: %s", self._last_hvac_mode)
+
         self._hvac_mode = hvac_mode
         self._set_support_flags()
 
@@ -870,21 +874,27 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
     async def async_turn_on(self) -> None:
         """Turn on the device."""
-
-        if self._last_hvac_mode is not None:
+        _LOGGER.debug("Turning on with last hvac mode: %s", self._last_hvac_mode)
+        if self._last_hvac_mode is not None and self._last_hvac_mode != HVACMode.OFF:
             on_hvac_mode = self._last_hvac_mode
         else:
             device_hvac_modes_not_off = [
                 mode for mode in self.hvac_device.hvac_modes if mode != HVACMode.OFF
             ]
-            device_hvac_modes_not_off.sort()  # for sake of predictavility and consistency
-            on_hvac_mode = device_hvac_modes_not_off[0]
+            device_hvac_modes_not_off.sort()  # for sake of predictability and consistency
+
+            # prioritize heat_cool mode if available
+            if (
+                HVACMode.HEAT_COOL in device_hvac_modes_not_off
+                and device_hvac_modes_not_off.index(HVACMode.HEAT_COOL) != -1
+            ):
+                on_hvac_mode = HVACMode.HEAT_COOL
+            else:
+                on_hvac_mode = device_hvac_modes_not_off[0]
 
         _LOGGER.debug("Turning on with hvac mode: %s", on_hvac_mode)
         await self.async_set_hvac_mode(on_hvac_mode)
 
     async def async_turn_off(self) -> None:
         """Turn off the device."""
-        self._last_hvac_mode = self.hvac_device.hvac_mode
-        _LOGGER.debug("Turning off with hvac mode: %s", self._last_hvac_mode)
         await self.async_set_hvac_mode(HVACMode.OFF)

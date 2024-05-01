@@ -1017,7 +1017,7 @@ async def test_heat_cool_fan_set_preset_mode_change_hvac_mode(
 @pytest.mark.parametrize(
     ["from_hvac_mode", "to_hvac_mode"],
     [
-        [HVACMode.OFF, HVACMode.COOL],
+        [HVACMode.OFF, HVACMode.HEAT],
         [HVACMode.COOL, HVACMode.OFF],
         [HVACMode.HEAT, HVACMode.OFF],
     ],
@@ -1046,7 +1046,7 @@ async def test_dual_toggle(
 @pytest.mark.parametrize(
     ["from_hvac_mode", "to_hvac_mode"],
     [
-        [HVACMode.OFF, HVACMode.COOL],
+        [HVACMode.OFF, HVACMode.HEAT_COOL],
         [HVACMode.COOL, HVACMode.OFF],
         [HVACMode.HEAT, HVACMode.OFF],
     ],
@@ -1111,7 +1111,7 @@ async def test_dual_toggle_with_fan(
 @pytest.mark.parametrize(
     ["from_hvac_mode", "to_hvac_mode"],
     [
-        [HVACMode.OFF, HVACMode.COOL],
+        [HVACMode.OFF, HVACMode.HEAT_COOL],
         [HVACMode.HEAT_COOL, HVACMode.OFF],
         [HVACMode.COOL, HVACMode.OFF],
         [HVACMode.FAN_ONLY, HVACMode.OFF],
