@@ -227,6 +227,19 @@ climate:
     initial_hvac_mode: heat
 
   - platform: dual_smart_thermostat
+    name: Edge Case 167
+    unique_id: edge_case_167
+    heater: switch.heater
+    cooler: switch.cooler
+    target_sensor: sensor.room_temp
+    min_temp: 55
+    max_temp: 110
+    heat_cool_mode: true
+    cold_tolerance: 0.3
+    hot_tolerance: 0.3
+    precision: 1.0
+
+  - platform: dual_smart_thermostat
     name: Edge Case 175
     unique_id: edge_case_175
     heater: switch.heater
