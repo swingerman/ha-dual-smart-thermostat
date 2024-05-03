@@ -142,7 +142,9 @@ class CoolerFanDevice(HVACDevice, ControlableHVACDevice):
                         _LOGGER.info("within fan tolerance")
                         await self.fan_device.async_control_hvac(time, force)
                         await self.cooler_device.async_turn_off()
-                        self.HVACActionReason = self.fan_device.HVACActionReason
+                        self.HVACActionReason = (
+                            HVACActionReason.TARGET_TEMP_NOT_REACHED_WITH_FAN
+                        )
 
                     else:
                         _LOGGER.info("outside fan tolerance")
