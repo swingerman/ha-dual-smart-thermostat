@@ -784,6 +784,66 @@ async def setup_comp_heat_cool_presets(hass: HomeAssistant) -> None:
     await hass.async_block_till_done()
 
 
+@pytest.fixture
+async def setup_comp_heat_cool_fan_presets(hass: HomeAssistant) -> None:
+    """Initialize components."""
+    hass.config.units = METRIC_SYSTEM
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "cold_tolerance": 2,
+                "hot_tolerance": 4,
+                "heat_cool_mode": True,
+                "heater": common.ENT_HEATER,
+                "cooler": common.ENT_COOLER,
+                "fan": common.ENT_FAN,
+                "target_sensor": common.ENT_SENSOR,
+                "initial_hvac_mode": HVACMode.HEAT_COOL,
+                PRESET_AWAY: {
+                    "temperature": 16,
+                    "target_temp_low": 16,
+                    "target_temp_high": 30,
+                },
+                PRESET_COMFORT: {
+                    "temperature": 20,
+                    "target_temp_low": 20,
+                    "target_temp_high": 27,
+                },
+                PRESET_ECO: {
+                    "temperature": 18,
+                    "target_temp_low": 18,
+                    "target_temp_high": 29,
+                },
+                PRESET_HOME: {
+                    "temperature": 19,
+                    "target_temp_low": 19,
+                    "target_temp_high": 23,
+                },
+                PRESET_SLEEP: {
+                    "temperature": 17,
+                    "target_temp_low": 17,
+                    "target_temp_high": 24,
+                },
+                PRESET_ACTIVITY: {
+                    "temperature": 21,
+                    "target_temp_low": 21,
+                    "target_temp_high": 28,
+                },
+                "anti_freeze": {
+                    "temperature": 5,
+                    "target_temp_low": 5,
+                    "target_temp_high": 32,
+                },
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+
 async def setup_component(hass: HomeAssistant, mock_config: dict) -> MockConfigEntry:
     """Initialize knmi for tests."""
     config_entry = MockConfigEntry(domain=DOMAIN, data=mock_config, entry_id="test")

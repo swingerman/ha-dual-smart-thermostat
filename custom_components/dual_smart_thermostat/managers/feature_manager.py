@@ -155,8 +155,12 @@ class FeatureManager(StateManager):
             HVACMode.HEAT,
         ):
             if self.is_range_mode and preset_mode != PRESET_NONE:
-                self.temperatures.target_temp_low = self._saved_target_temp_low
-                self.temperatures.target_temp_high = self._saved_target_temp_high
+                self.temperatures.target_temp_low = (
+                    self.temperatures.saved_target_temp_low
+                )
+                self.temperatures.target_temp_high = (
+                    self.temperatures.saved_target_temp_high
+                )
             self._supported_features = (
                 self._default_support_flags | ClimateEntityFeature.TARGET_TEMPERATURE
             )

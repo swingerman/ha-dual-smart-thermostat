@@ -8,6 +8,8 @@ class HVACActionReasonInternal(StrEnum):
 
     TARGET_TEMP_REACHED = "target_temp_reached"
 
+    TARGET_TEMP_NOT_REACHED_WITH_FAN = "target_temp_not_reached_with_fan"
+
     MISCONFIGURATION = "misconfiguration"
 
     OPENING = "opening"

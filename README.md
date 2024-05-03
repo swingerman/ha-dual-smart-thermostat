@@ -24,7 +24,7 @@ The `dual_smart_thermostat` is an enhanced version of generic thermostat impleme
 | **Floor Temperature Control** | <img src="docs/images/heating-coil.svg" height="30" /> <img src="docs/images/snowflake-thermometer.svg" height="30" />  <img src="docs/images/thermometer-alert.svg" height="30" />  | [<img src="docs/images/file-document-outline.svg" height="30" />](#floor-heating-temperature-control) |
 | **Window/Door sensor integration** | <img src="docs/images/window-open.svg" height="30" /> <img src="docs/images/door-open.svg" height="30" /> <img src="docs/images/chevron-right.svg" height="30" /> <img src="docs/images/timer-cog-outline.svg" height="30" /> <img src="docs/images/chevron-right.svg" height="30" /> <img src="docs/images/hvac-off.svg" height="30" /> | [<img src="docs/images/file-document-outline.svg" height="30" />](#openings) |
 | **Presets** | <img src="docs/images/sleep.svg" height="30" /> <img src="docs/images/snowflake-thermometer.svg" height="30" /> <img src="docs/images/shield-lock-outline.svg" height="30" /> | [<img src="docs/images/file-document-outline.svg" height="30" />](#presets) |
-| **HVAC Action Reason** | | [<img src="docs/images/file-document-outline.svg" height="30" />](#presets) |
+| **HVAC Action Reason** | | [<img src="docs/images/file-document-outline.svg" height="30" />](#hvac-action-reason) |
 
 ## Heat/Cool Mode
 
@@ -239,6 +239,7 @@ The internal values can be set by the component only and the external values can
 |-------|-------------|
 | `none` | No action reason |
 | `target_temp_not_reached` | The target temperature has not been reached |
+| `target_temp_not_reached_with_fan` | The target temperature has not been reached trying it with a fan |
 | `target_temp_reached` | The target temperature has been reached |
 | `misconfiguration` | The thermostat is misconfigured |
 | `opening` | The thermostat is idle because an opening is open |

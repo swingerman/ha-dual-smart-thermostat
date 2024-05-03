@@ -243,6 +243,36 @@ climate:
     target_temp_low: 19.5
 
   - platform: dual_smart_thermostat
+    name: Edge Case 178
+    unique_id: edge_case_178
+    heater: switch.heater
+    cooler: switch.cooler
+    target_sensor: sensor.room_temp
+    heat_cool_mode: true
+    target_temp_step: 0.5
+    min_temp: 9
+    max_temp: 32
+    target_temp: 19.5
+    target_temp_high: 20.5
+    target_temp_low: 19.5
+    away:
+      temperature: 12
+      target_temp_low: 12
+      target_temp_high: 22.5
+    home:
+      temperature: 20
+      target_temp_low: 19
+      target_temp_high: 20.5
+    sleep:
+      temperature: 17
+      target_temp_low: 17
+      target_temp_high: 21
+    eco:
+      temperature: 19
+      target_temp_low: 19
+      target_temp_high: 21.5
+
+  - platform: dual_smart_thermostat
     name: AUX Heat Room
     unique_id: aux_heat_room
     heater: switch.heater
