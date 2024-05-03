@@ -29,7 +29,7 @@ from homeassistant.const import (
     STATE_UNAVAILABLE,
     STATE_UNKNOWN,
 )
-from homeassistant.core import CoreState, HomeAssistant, ServiceCall, callback
+from homeassistant.core import CoreState, Event, HomeAssistant, ServiceCall, callback
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.dispatcher import (
     async_dispatcher_connect,
@@ -45,7 +45,7 @@ from homeassistant.helpers.event import (
 from homeassistant.helpers.reload import async_setup_reload_service
 from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.service import extract_entity_ids
-from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType, EventType
+from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 import voluptuous as vol
 
 from custom_components.dual_smart_thermostat.hvac_action_reason.hvac_action_reason_external import (
@@ -730,9 +730,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         # Get default temp from super class
         return super().max_temp
 
-    async def _async_sensor_changed(
-        self, event: EventType[EventStateChangedData]
-    ) -> None:
+    async def _async_sensor_changed(self, event: Event[EventStateChangedData]) -> None:
         """Handle temperature changes."""
         new_state = event.data.get("new_state")
         _LOGGER.info("Sensor change: %s", new_state)
@@ -747,7 +745,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self.async_write_ha_state()
 
     async def _async_sensor_floor_changed(
-        self, event: EventType[EventStateChangedData]
+        self, event: Event[EventStateChangedData]
     ) -> None:
         """Handle floor temperature changes."""
         new_state = event.data.get("new_state")
@@ -768,9 +766,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             )
             await self.hvac_device.async_turn_off()
 
-    async def _async_opening_changed(
-        self, event: EventType[EventStateChangedData]
-    ) -> None:
+    async def _async_opening_changed(self, event: Event[EventStateChangedData]) -> None:
         """Handle opening changes."""
         new_state = event.data.get("new_state")
         _LOGGER.info("Opening changed: %s", new_state)
@@ -832,7 +828,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self.async_write_ha_state()
 
     @callback
-    def _async_switch_changed(self, event: EventType[EventStateChangedData]) -> None:
+    def _async_switch_changed(self, event: Event[EventStateChangedData]) -> None:
         """Handle heater switch state changes."""
         _LOGGER.debug("Switch changed: %s", event.data)
         new_state = event.data.get("new_state")

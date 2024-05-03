@@ -1,7 +1,7 @@
-from enum import StrEnum
+import enum
 
 
-class HVACActionReasonInternal(StrEnum):
+class HVACActionReasonInternal(enum.StrEnum):
     """Internal HVAC Action Reason for climate devices."""
 
     TARGET_TEMP_NOT_REACHED = "target_temp_not_reached"
