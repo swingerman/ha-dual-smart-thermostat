@@ -1,6 +1,6 @@
 """Opening Manager for Dual Smart Thermostat."""
 
-from enum import StrEnum
+import enum
 from itertools import chain
 import logging
 from typing import List
@@ -27,7 +27,7 @@ from custom_components.dual_smart_thermostat.const import (
 _LOGGER = logging.getLogger(__name__)
 
 
-class OpeningHvacModeScope(StrEnum):
+class OpeningHvacModeScope(enum.StrEnum):
     """Opening Scope Options"""
 
     _ignore_ = "member cls"

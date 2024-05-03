@@ -1,7 +1,7 @@
-from enum import StrEnum
+import enum
 
 
-class HVACActionReasonExternal(StrEnum):
+class HVACActionReasonExternal(enum.StrEnum):
     """External HVAC Action Reason for climate devices."""
 
     PRESENCE = "presence"

@@ -1,4 +1,4 @@
-from enum import StrEnum
+import enum
 from itertools import chain
 
 from custom_components.dual_smart_thermostat.hvac_action_reason.hvac_action_reason_external import (
@@ -12,7 +12,7 @@ SET_HVAC_ACTION_REASON_SIGNAL = "set_hvac_action_reason_signal_{}"
 SERVICE_SET_HVAC_ACTION_REASON = "set_hvac_action_reason"
 
 
-class HVACActionReason(StrEnum):
+class HVACActionReason(enum.StrEnum):
     """HVAC Action Reason for climate devices."""
 
     _ignore_ = "member cls"

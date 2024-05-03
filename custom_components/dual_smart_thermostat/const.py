@@ -1,6 +1,7 @@
 """const."""
 
-from homeassistant.backports.enum import StrEnum
+import enum
+
 from homeassistant.components.climate.const import (
     PRESET_ACTIVITY,
     PRESET_AWAY,
@@ -82,7 +83,7 @@ TIMED_OPENING_SCHEMA = vol.Schema(
 )
 
 
-class ToleranceDevice(StrEnum):
+class ToleranceDevice(enum.StrEnum):
     """Tolerance device for climate devices."""
 
     HEATER = "heater"
