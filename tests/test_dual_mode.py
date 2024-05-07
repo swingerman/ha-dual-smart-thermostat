@@ -1256,6 +1256,100 @@ async def test_hvac_mode_mode_heat_cool(
     assert state.attributes["supported_features"] == 386
 
 
+@pytest.mark.parametrize(
+    "hvac_mode",
+    [
+        HVACMode.HEAT_COOL,
+        HVACMode.COOL,
+    ],
+)
+async def test_hvac_mode_mode_heat_cool_fan_tolerance(
+    hass: HomeAssistant, hvac_mode, setup_comp_1  # noqa: F811
+):
+    """Test thermostat heater and cooler switch in heat/cool mode."""
+
+    heater_switch = "input_boolean.heater"
+    cooler_switch = "input_boolean.cooler"
+    fan_switch = "input_boolean.fan"
+
+    assert await async_setup_component(
+        hass,
+        input_boolean.DOMAIN,
+        {"input_boolean": {"heater": None, "cooler": None, "fan": None}},
+    )
+
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {"name": "test", "initial": 10, "min": 0, "max": 40, "step": 1}
+            }
+        },
+    )
+
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "cooler": cooler_switch,
+                "heater": heater_switch,
+                "fan": fan_switch,
+                "hot_tolerance": 0.2,
+                "cold_tolerance": 0.2,
+                "fan_hot_tolerance": 0.5,
+                "heat_cool_mode": True,
+                "target_sensor": common.ENT_SENSOR,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    # switch to COOL mode and test the fan hot tolerance
+    # after the hot tolerance first the fan should turn on
+    # and outside the fan_hot_tolerance the AC
+
+    await common.async_set_hvac_mode(hass, hvac_mode)
+    await common.async_set_temperature(hass, 20, ENTITY_MATCH_ALL, 20, 18)
+    setup_sensor(hass, 20)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(fan_switch).state == STATE_OFF
+
+    setup_sensor(hass, 20.2)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(fan_switch).state == STATE_ON
+
+    setup_sensor(hass, 20.5)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(fan_switch).state == STATE_ON
+
+    setup_sensor(hass, 20.7)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(fan_switch).state == STATE_ON
+
+    setup_sensor(hass, 20.8)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(cooler_switch).state == STATE_ON
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(fan_switch).state == STATE_OFF
+
+
 async def test_hvac_mode_mode_heat_cool_hvac_modes_temps(
     hass: HomeAssistant, setup_comp_1  # noqa: F811
 ):
