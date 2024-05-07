@@ -246,7 +246,7 @@ class TemperatureManager(StateManager):
         )
 
         return (
-            self._cur_temp > too_hot_for_ac_temp
+            self._cur_temp >= too_hot_for_ac_temp
             and self._cur_temp <= too_hot_for_fan_temp
         )
 
