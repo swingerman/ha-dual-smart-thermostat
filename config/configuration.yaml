@@ -303,7 +303,8 @@ climate:
   - platform: dual_smart_thermostat
     name: FAN Only Room
     unique_id: fan_only_room
-    fan: switch.fan
+    heater: switch.fan
+    fan_mode: true
     fan_hot_tolerance: 2
     fan_on_with_ac: true
     target_sensor: sensor.room_temp

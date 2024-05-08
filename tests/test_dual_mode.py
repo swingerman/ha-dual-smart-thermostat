@@ -16,15 +16,21 @@ from homeassistant.components.climate import (
     HVACAction,
     HVACMode,
 )
-from homeassistant.components.climate.const import ATTR_PRESET_MODE, DOMAIN as CLIMATE
+from homeassistant.components.climate.const import (
+    ATTR_PRESET_MODE,
+    ATTR_TARGET_TEMP_HIGH,
+    ATTR_TARGET_TEMP_LOW,
+    DOMAIN as CLIMATE,
+)
 from homeassistant.const import (
+    ATTR_TEMPERATURE,
     ENTITY_MATCH_ALL,
     STATE_CLOSED,
     STATE_OFF,
     STATE_ON,
     STATE_OPEN,
 )
-from homeassistant.core import HomeAssistant
+from homeassistant.core import CoreState, HomeAssistant, State
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import entity_registry as er
 from homeassistant.setup import async_setup_component
@@ -552,6 +558,148 @@ async def test_set_heat_cool_preset_mode_and_restore_prev_temp(
     state = hass.states.get(common.ENTITY)
     assert state.attributes.get("target_temp_low") == 18
     assert state.attributes.get("target_temp_high") == 22
+
+
+@pytest.mark.parametrize(
+    ("preset", "temp_low", "temp_high"),
+    [
+        (PRESET_NONE, 18, 22),
+        (PRESET_AWAY, 16, 30),
+        (PRESET_COMFORT, 20, 27),
+        (PRESET_ECO, 18, 29),
+        (PRESET_HOME, 19, 23),
+        (PRESET_SLEEP, 17, 24),
+        (PRESET_ACTIVITY, 21, 28),
+        (PRESET_ANTI_FREEZE, 5, 32),
+    ],
+)
+async def test_set_heat_cool_fan_preset_mode_and_restore_prev_temp(
+    hass: HomeAssistant,
+    setup_comp_heat_cool_fan_presets,  # noqa: F811
+    preset,
+    temp_low,
+    temp_high,
+) -> None:
+    """Test the setting preset mode.
+
+    Verify original temperature is restored.
+    """
+    await common.async_set_temperature(hass, 23, common.ENTITY, 22, 18)
+    await common.async_set_preset_mode(hass, preset)
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes.get("target_temp_low") == temp_low
+    assert state.attributes.get("target_temp_high") == temp_high
+    await common.async_set_preset_mode(hass, PRESET_NONE)
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes.get("target_temp_low") == 18
+    assert state.attributes.get("target_temp_high") == 22
+
+
+@pytest.mark.parametrize(
+    "preset",
+    [PRESET_NONE, PRESET_AWAY],
+)
+async def test_set_heat_cool_fan_restore_state(
+    hass: HomeAssistant, preset  # noqa: F811
+) -> None:
+    common.mock_restore_cache(
+        hass,
+        (
+            State(
+                "climate.test_thermostat",
+                HVACMode.HEAT_COOL,
+                {
+                    ATTR_TARGET_TEMP_HIGH: "20",
+                    ATTR_TARGET_TEMP_LOW: "18",
+                    ATTR_PRESET_MODE: preset,
+                },
+            ),
+        ),
+    )
+
+    hass.set_state(CoreState.starting)
+
+    await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test_thermostat",
+                "heater": common.ENT_SWITCH,
+                "cooler": common.ENT_COOLER,
+                "fan": common.ENT_FAN,
+                "heat_cool_mode": True,
+                "target_sensor": common.ENT_SENSOR,
+                PRESET_AWAY: {
+                    "temperature": 14,
+                    "target_temp_high": 20,
+                    "target_temp_low": 18,
+                },
+            }
+        },
+    )
+    await hass.async_block_till_done()
+    state = hass.states.get("climate.test_thermostat")
+    assert state.attributes[ATTR_TARGET_TEMP_HIGH] == 20
+    assert state.attributes[ATTR_TARGET_TEMP_LOW] == 18
+    assert state.attributes[ATTR_PRESET_MODE] == preset
+    assert state.state == HVACMode.HEAT_COOL
+
+
+@pytest.mark.parametrize(
+    ["preset", "hvac_mode"],
+    [
+        [PRESET_NONE, HVACMode.HEAT],
+        [PRESET_AWAY, HVACMode.HEAT],
+        [PRESET_NONE, HVACMode.COOL],
+        [PRESET_AWAY, HVACMode.COOL],
+    ],
+)
+async def test_set_heat_cool_fan_restore_state_2(
+    hass: HomeAssistant, preset, hvac_mode  # noqa: F811
+) -> None:
+    common.mock_restore_cache(
+        hass,
+        (
+            State(
+                "climate.test_thermostat",
+                hvac_mode,
+                {
+                    ATTR_TEMPERATURE: "20",
+                    ATTR_PRESET_MODE: preset,
+                },
+            ),
+        ),
+    )
+
+    hass.set_state(CoreState.starting)
+
+    await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test_thermostat",
+                "heater": common.ENT_SWITCH,
+                "cooler": common.ENT_COOLER,
+                "fan": common.ENT_FAN,
+                "heat_cool_mode": True,
+                "target_sensor": common.ENT_SENSOR,
+                PRESET_AWAY: {
+                    "temperature": 14,
+                    "target_temp_high": 20,
+                    "target_temp_low": 18,
+                },
+            }
+        },
+    )
+    await hass.async_block_till_done()
+    state = hass.states.get("climate.test_thermostat")
+    assert state.attributes[ATTR_TEMPERATURE] == 20
+    assert state.attributes[ATTR_PRESET_MODE] == preset
+    assert state.state == hvac_mode
 
 
 @pytest.mark.parametrize(

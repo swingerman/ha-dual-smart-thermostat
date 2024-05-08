@@ -528,6 +528,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
         else:
             # No previous state, try and restore defaults
+            _LOGGER.debug("No previous state found, setting defaults")
             if not self.hvac_device.hvac_mode:
                 self.hvac_device.hvac_mode = HVACMode.OFF
             if self.hvac_device.hvac_mode == HVACMode.OFF:
