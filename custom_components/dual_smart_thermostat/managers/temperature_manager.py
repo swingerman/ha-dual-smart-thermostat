@@ -2,7 +2,12 @@ import logging
 import math
 from typing import Any
 
-from homeassistant.components.climate import DEFAULT_MAX_TEMP, DEFAULT_MIN_TEMP
+from homeassistant.components.climate import (
+    ATTR_TARGET_TEMP_HIGH,
+    ATTR_TARGET_TEMP_LOW,
+    DEFAULT_MAX_TEMP,
+    DEFAULT_MIN_TEMP,
+)
 from homeassistant.components.climate.const import HVACMode
 from homeassistant.const import ATTR_TEMPERATURE, PRECISION_WHOLE, UnitOfTemperature
 from homeassistant.core import HomeAssistant, State, callback
@@ -387,16 +392,21 @@ class TemperatureManager(StateManager):
             self._target_temp_high += PRECISION_WHOLE
 
     def apply_old_state(self, old_state: State) -> None:
+        _LOGGER.debug("Applying old state: %s", old_state)
         if old_state is None:
             return
 
         # If we have no initial temperature, restore
         if self._target_temp_low is None:
-            old_target_min = old_state.attributes.get(ATTR_PREV_TARGET_LOW)
+            old_target_min = old_state.attributes.get(
+                ATTR_PREV_TARGET_LOW
+            ) or old_state.attributes.get(ATTR_TARGET_TEMP_LOW)
             if old_target_min is not None:
                 self._target_temp_low = float(old_target_min)
         if self._target_temp_high is None:
-            old_target_max = old_state.attributes.get(ATTR_PREV_TARGET_HIGH)
+            old_target_max = old_state.attributes.get(
+                ATTR_PREV_TARGET_HIGH
+            ) or old_state.attributes.get(ATTR_TARGET_TEMP_HIGH)
             if old_target_max is not None:
                 self._target_temp_high = float(old_target_max)
         if self._target_temp is None:

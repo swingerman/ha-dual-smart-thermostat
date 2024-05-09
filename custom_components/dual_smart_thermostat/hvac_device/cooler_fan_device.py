@@ -160,7 +160,8 @@ class CoolerFanDevice(HVACDevice, ControlableHVACDevice):
                 await self.async_turn_off()
                 self.HVACActionReason = HVACActionReason.NONE
             case _:
-                _LOGGER.warning("Invalid HVAC mode: %s", self._hvac_mode)
+                if self._hvac_mode is not None:
+                    _LOGGER.warning("Invalid HVAC mode: %s", self._hvac_mode)
 
     async def async_turn_on(self):
         """self._control_hvac will handle the logic for turning on the heater and aux heater."""
