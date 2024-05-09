@@ -122,7 +122,8 @@ class HeaterCoolerDevice(HVACDevice, ControlableHVACDevice):
             case HVACMode.OFF:
                 await self.async_turn_off()
             case _:
-                _LOGGER.warning("Invalid HVAC mode: %s", self._hvac_mode)
+                if self._hvac_mode is not None:
+                    _LOGGER.warning("Invalid HVAC mode: %s", self._hvac_mode)
 
     def is_cold_or_hot(self) -> tuple[bool, bool, ToleranceDevice]:
         """Check if the floor is too cold or too hot."""
