@@ -71,6 +71,7 @@ class CoolerFanDevice(HVACDevice, ControlableHVACDevice):
     def get_device_ids(self) -> list[str]:
         return [self.cooler_device.entity_id, self.fan_device.entity_id]
 
+    @property
     def is_active(self) -> bool:
         return self.cooler_device.is_active or self.fan_device.is_active
 
@@ -127,9 +128,9 @@ class CoolerFanDevice(HVACDevice, ControlableHVACDevice):
 
     async def async_control_hvac(self, time=None, force=False):
         _LOGGER.info({self.__class__.__name__})
+        _LOGGER.debug("hvac_mode: %s", self._hvac_mode)
         match self._hvac_mode:
             case HVACMode.COOL:
-
                 if self._fan_on_with_cooler:
                     await self.fan_device.async_control_hvac(time, force)
                     await self.cooler_device.async_control_hvac(time, force)
