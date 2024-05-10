@@ -225,7 +225,6 @@ async def test_no_restore_state(hass: HomeAssistant) -> None:
                 {
                     ATTR_TEMPERATURE: "20",
                     ATTR_PRESET_MODE: PRESET_AWAY,
-                    ATTR_HVAC_ACTION_REASON: HVACActionReason.TARGET_TEMP_NOT_REACHED,
                 },
             ),
         ),
@@ -250,10 +249,6 @@ async def test_no_restore_state(hass: HomeAssistant) -> None:
     state = hass.states.get("climate.test_thermostat")
     assert state.attributes[ATTR_TEMPERATURE] == 22
     assert state.state == HVACMode.OFF
-    assert (
-        state.attributes[ATTR_HVAC_ACTION_REASON]
-        == HVACActionReason.TARGET_TEMP_NOT_REACHED
-    )
 
 
 async def test_reload(hass: HomeAssistant) -> None:

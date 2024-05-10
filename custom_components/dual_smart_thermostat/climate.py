@@ -518,11 +518,9 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                 self._attr_preset_mode = old_pres_mode
 
             self.presets.apply_old_state(old_state)
-            # self._attr_preset_mode = self.presets.preset_mode
-            # self._attr_preset_modes = self.presets.preset_modes
 
-            self._hvac_mode = hvac_mode
-            self.hvac_device.hvac_mode = hvac_mode
+            _LOGGER.debug("restoring hvac_mode: %s", hvac_mode)
+            await self.async_set_hvac_mode(hvac_mode)
 
             self._hvac_action_reason = old_state.attributes.get(ATTR_HVAC_ACTION_REASON)
 
@@ -543,6 +541,18 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
         # Set correct support flag
         self._set_support_flags()
+
+        # Reads sensor and triggers an initial control of climate
+        sensor_state = self.hass.states.get(self.sensor_entity_id)
+        if sensor_state and sensor_state.state not in (
+            STATE_UNAVAILABLE,
+            STATE_UNKNOWN,
+        ):
+            self.temperatures.update_temp_from_state(sensor_state)
+            self._target_temp = self.temperatures.target_temp
+            self.async_write_ha_state()
+
+        await self._async_control_climate(force=True)
 
     async def async_will_remove_from_hass(self) -> None:
         """Call when entity will be removed from hass."""
@@ -743,10 +753,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             return
 
         self.temperatures.update_temp_from_state(new_state)
-
-        if self.hvac_device.hvac_mode is not HVACMode.OFF:
-            await self._async_control_climate()
-
+        await self._async_control_climate()
         self.async_write_ha_state()
 
     async def _async_sensor_floor_changed(
@@ -810,7 +817,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
     async def _async_control_climate(self, time=None, force=False) -> None:
         """Control the climate device based on config."""
 
-        _LOGGER.info("_async_control_climate, time %s", time)
+        _LOGGER.info("_async_control_climate, time %s, force %s", time, force)
 
         async with self._temp_lock:
             await self.hvac_device.async_control_hvac(time, force)

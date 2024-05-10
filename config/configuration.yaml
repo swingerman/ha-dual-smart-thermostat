@@ -21,7 +21,7 @@ input_number:
     name: Room Temperature
     initial: 20
     min: 16
-    max: 30
+    max: 90
     step: .5
     icon: mdi:home-thermometer
 
@@ -110,217 +110,241 @@ switch:
             entity_id: input_boolean.window_open
 
 climate:
+  # - platform: dual_smart_thermostat
+  #   name: Heat Cool Room
+  #   unique_id: heat_cool_room
+  #   heater: switch.heater
+  #   cooler: switch.cooler
+  #   openings:
+  #    - input_boolean.window_open
+  #    - input_boolean.window_open2
+  #   target_sensor: sensor.room_temp
+  #   floor_sensor: sensor.floor_temp
+  #   min_temp: 15
+  #   max_temp: 28
+  #   target_temp: 23
+  #   target_temp_high: 26
+  #   target_temp_low: 23
+  #   max_floor_temp: 28
+  #   cold_tolerance: 0.3
+  #   hot_tolerance: 0
+  #   # min_cycle_duration:
+  #   #   seconds: 5
+  #   # keep_alive:
+  #   #   minutes: 3
+  #   heat_cool_mode: true
+  #   initial_hvac_mode: "off"
+  #   away_temp: 16
+  #   precision: 0.1
+
+  # - platform: dual_smart_thermostat
+  #   name: Heat Room
+  #   unique_id: heat_room
+  #   heater: switch.heater
+  #   target_sensor: sensor.room_temp
+  #   floor_sensor: sensor.floor_temp
+  #   openings:
+  #     - input_boolean.window_open
+  #     - input_boolean.window_open2
+  #   min_temp: 15
+  #   max_temp: 28
+  #   target_temp: 23
+  #   cold_tolerance: 0.3
+  #   hot_tolerance: 0
+  #   min_cycle_duration:
+  #     seconds: 5
+  #   keep_alive:
+  #     minutes: 3
+  #   # initial_hvac_mode: "off"
+  #   away_temp: 16
+  #   precision: 0.1
+
+  # - platform: dual_smart_thermostat
+  #   name: Cool Room
+  #   unique_id: cool_room
+  #   heater: switch.cooler
+  #   ac_mode: true
+  #   target_sensor: sensor.room_temp
+  #   min_temp: 15
+  #   max_temp: 28
+  #   target_temp: 23
+  #   cold_tolerance: 0.3
+  #   hot_tolerance: 0
+  #   min_cycle_duration:
+  #     seconds: 5
+  #   keep_alive:
+  #     minutes: 3
+  #   # initial_hvac_mode: "off"
+  #   away_temp: 16
+  #   precision: 0.1
+
+  # - platform: dual_smart_thermostat
+  #   name: Edge Case 80
+  #   unique_id: edge_case_80
+  #   heater: switch.heater
+  #   cooler: switch.cooler
+  #   target_sensor: sensor.room_temp
+  #   #min_cycle_duration: 60
+  #   precision: .5
+  #   min_temp: 20
+  #   max_temp: 25
+  #   heat_cool_mode: true
+  #   away:
+  #     target_temp_low: 0
+  #     target_temp_high: 50
+
+  # - platform: dual_smart_thermostat
+  #   name: Edge Case 150
+  #   unique_id: edge_case_150
+  #   heater: switch.heater
+  #   cooler: switch.cooler
+  #   target_sensor: sensor.room_temp
+  #   min_cycle_duration: 60
+  #   precision: 1.0
+  #   min_temp: 58
+  #   max_temp: 80
+  #   cold_tolerance: 1.0
+  #   hot_tolerance: 1.0
+
+  # - platform: dual_smart_thermostat
+  #   name: Edge Case 155
+  #   unique_id: edge_case_155
+  #   heater: switch.heater
+  #   cooler: switch.cooler
+  #   target_sensor: sensor.room_temp
+  #   openings:
+  #     - input_boolean.window_open
+  #     - input_boolean.window_open2
+  #   openings_scope:
+  #     - heat
+  #   min_temp: 18
+  #   max_temp: 27
+  #   target_temp: 23.0
+  #   hot_tolerance: 0
+  #   cold_tolerance: 0.20
+  #   precision: 0.1
+  #   target_temp_step: 0.5
+  #   initial_hvac_mode: off
+
+  # - platform: dual_smart_thermostat
+  #   name: Edge Case 167
+  #   unique_id: edge_case_167
+  #   heater: switch.heater
+  #   cooler: switch.cooler
+  #   target_sensor: sensor.room_temp
+  #   min_temp: 55
+  #   max_temp: 110
+  #   heat_cool_mode: true
+  #   cold_tolerance: 0.3
+  #   hot_tolerance: 0.3
+  #   precision: 1.0
+
+  # - platform: dual_smart_thermostat
+  #   name: Edge Case 175
+  #   unique_id: edge_case_175
+  #   heater: switch.heater
+  #   cooler: switch.cooler
+  #   target_sensor: sensor.room_temp
+  #   heat_cool_mode: true
+  #   fan: switch.fan
+  #   fan_hot_tolerance: 1
+  #   target_temp_step: 0.5
+  #   min_temp: 9
+  #   max_temp: 32
+  #   target_temp: 19.5
+  #   target_temp_high: 20.5
+  #   target_temp_low: 19.5
+
+  # - platform: dual_smart_thermostat
+  #   name: Edge Case 178
+  #   unique_id: edge_case_178
+  #   heater: switch.heater
+  #   cooler: switch.cooler
+  #   target_sensor: sensor.room_temp
+  #   heat_cool_mode: true
+  #   target_temp_step: 0.5
+  #   min_temp: 9
+  #   max_temp: 32
+  #   target_temp: 19.5
+  #   target_temp_high: 20.5
+  #   target_temp_low: 19.5
+  #   away:
+  #     temperature: 12
+  #     target_temp_low: 12
+  #     target_temp_high: 22.5
+  #   home:
+  #     temperature: 20
+  #     target_temp_low: 19
+  #     target_temp_high: 20.5
+  #   sleep:
+  #     temperature: 17
+  #     target_temp_low: 17
+  #     target_temp_high: 21
+  #   eco:
+  #     temperature: 19
+  #     target_temp_low: 19
+  #     target_temp_high: 21.5
+
   - platform: dual_smart_thermostat
-    name: Heat Cool Room
-    unique_id: heat_cool_room
+    name: Edge Case 184
+    unique_id: edge_case_184
     heater: switch.heater
     cooler: switch.cooler
-    openings:
-     - input_boolean.window_open
-     - input_boolean.window_open2
-    target_sensor: sensor.room_temp
-    floor_sensor: sensor.floor_temp
-    min_temp: 15
-    max_temp: 28
-    target_temp: 23
-    target_temp_high: 26
-    target_temp_low: 23
-    max_floor_temp: 28
-    cold_tolerance: 0.3
-    hot_tolerance: 0
-    # min_cycle_duration:
-    #   seconds: 5
-    # keep_alive:
-    #   minutes: 3
-    heat_cool_mode: true
-    initial_hvac_mode: "off"
-    away_temp: 16
-    precision: 0.1
-
-  - platform: dual_smart_thermostat
-    name: Heat Room
-    unique_id: heat_room
-    heater: switch.heater
-    target_sensor: sensor.room_temp
-    floor_sensor: sensor.floor_temp
-    openings:
-      - input_boolean.window_open
-      - input_boolean.window_open2
-    min_temp: 15
-    max_temp: 28
-    target_temp: 23
-    cold_tolerance: 0.3
-    hot_tolerance: 0
-    min_cycle_duration:
-      seconds: 5
-    keep_alive:
-      minutes: 3
-    # initial_hvac_mode: "off"
-    away_temp: 16
-    precision: 0.1
-
-  - platform: dual_smart_thermostat
-    name: Cool Room
-    unique_id: cool_room
-    heater: switch.cooler
-    ac_mode: true
-    target_sensor: sensor.room_temp
-    min_temp: 15
-    max_temp: 28
-    target_temp: 23
-    cold_tolerance: 0.3
-    hot_tolerance: 0
-    min_cycle_duration:
-      seconds: 5
-    keep_alive:
-      minutes: 3
-    # initial_hvac_mode: "off"
-    away_temp: 16
-    precision: 0.1
-
-  - platform: dual_smart_thermostat
-    name: Edge Case 80
-    unique_id: edge_case_80
-    heater: switch.heater
-    cooler: switch.cooler
-    target_sensor: sensor.room_temp
-    #min_cycle_duration: 60
-    precision: .5
-    min_temp: 20
-    max_temp: 25
-    heat_cool_mode: true
-    away:
-      target_temp_low: 0
-      target_temp_high: 50
-
-  - platform: dual_smart_thermostat
-    name: Edge Case 150
-    unique_id: edge_case_150
-    heater: switch.heater
-    cooler: switch.cooler
-    target_sensor: sensor.room_temp
-    min_cycle_duration: 60
-    precision: 1.0
-    min_temp: 58
-    max_temp: 80
-    cold_tolerance: 1.0
-    hot_tolerance: 1.0
-
-  - platform: dual_smart_thermostat
-    name: Edge Case 155
-    unique_id: edge_case_155
-    heater: switch.heater
-    cooler: switch.cooler
-    target_sensor: sensor.room_temp
-    openings:
-      - input_boolean.window_open
-      - input_boolean.window_open2
-    openings_scope:
-      - heat
-    min_temp: 18
-    max_temp: 27
-    target_temp: 23.0
-    hot_tolerance: 0
-    cold_tolerance: 0.20
-    precision: 0.1
-    target_temp_step: 0.5
-    initial_hvac_mode: heat
-
-  - platform: dual_smart_thermostat
-    name: Edge Case 167
-    unique_id: edge_case_167
-    heater: switch.heater
-    cooler: switch.cooler
-    target_sensor: sensor.room_temp
-    min_temp: 55
-    max_temp: 110
-    heat_cool_mode: true
-    cold_tolerance: 0.3
-    hot_tolerance: 0.3
-    precision: 1.0
-
-  - platform: dual_smart_thermostat
-    name: Edge Case 175
-    unique_id: edge_case_175
-    heater: switch.heater
-    cooler: switch.cooler
-    target_sensor: sensor.room_temp
-    heat_cool_mode: true
     fan: switch.fan
-    fan_hot_tolerance: 1
-    target_temp_step: 0.5
-    min_temp: 9
-    max_temp: 32
-    target_temp: 19.5
-    target_temp_high: 20.5
-    target_temp_low: 19.5
-
-  - platform: dual_smart_thermostat
-    name: Edge Case 178
-    unique_id: edge_case_178
-    heater: switch.heater
-    cooler: switch.cooler
     target_sensor: sensor.room_temp
+    min_temp: 60
+    max_temp: 85
+    fan_hot_tolerance: 0.5
     heat_cool_mode: true
-    target_temp_step: 0.5
-    min_temp: 9
-    max_temp: 32
-    target_temp: 19.5
-    target_temp_high: 20.5
-    target_temp_low: 19.5
+    min_cycle_duration:
+      seconds: 60
+    keep_alive:
+      minutes: 3
     away:
-      temperature: 12
-      target_temp_low: 12
-      target_temp_high: 22.5
+      target_temp_low: 68
+      target_temp_high: 77
     home:
-      temperature: 20
-      target_temp_low: 19
-      target_temp_high: 20.5
-    sleep:
-      temperature: 17
-      target_temp_low: 17
-      target_temp_high: 21
-    eco:
-      temperature: 19
-      target_temp_low: 19
-      target_temp_high: 21.5
+      target_temp_low: 71
+      target_temp_high: 74
+    precision: 0.1
+    target_temp_step: 0.5
 
-  - platform: dual_smart_thermostat
-    name: AUX Heat Room
-    unique_id: aux_heat_room
-    heater: switch.heater
-    secondary_heater: switch.aux_heater
-    secondary_heater_timeout: 00:00:15
-    secondary_heater_dual_mode: true
-    openings:
-      - input_boolean.window_open
-      - input_boolean.window_open2
-    target_sensor: sensor.room_temp
-    away:
-      temperature: 24
-    anti_freeze:
-      temperature: 10
+  # - platform: dual_smart_thermostat
+  #   name: AUX Heat Room
+  #   unique_id: aux_heat_room
+  #   heater: switch.heater
+  #   secondary_heater: switch.aux_heater
+  #   secondary_heater_timeout: 00:00:15
+  #   secondary_heater_dual_mode: true
+  #   openings:
+  #     - input_boolean.window_open
+  #     - input_boolean.window_open2
+  #   target_sensor: sensor.room_temp
+  #   away:
+  #     temperature: 24
+  #   anti_freeze:
+  #     temperature: 10
 
-  - platform: dual_smart_thermostat
-    name: FAN Cool Room
-    unique_id: fan_cool_room
-    heater: switch.heater
-    fan: switch.fan
-    fan_hot_tolerance: 2
-    fan_on_with_ac: true
-    ac_mode: true
-    target_sensor: sensor.room_temp
-    min_temp: 18
-    max_temp: 25
+  # - platform: dual_smart_thermostat
+  #   name: FAN Cool Room
+  #   unique_id: fan_cool_room
+  #   heater: switch.heater
+  #   fan: switch.fan
+  #   fan_hot_tolerance: 2
+  #   fan_on_with_ac: true
+  #   ac_mode: true
+  #   target_sensor: sensor.room_temp
+  #   min_temp: 18
+  #   max_temp: 25
 
-  - platform: dual_smart_thermostat
-    name: FAN Only Room
-    unique_id: fan_only_room
-    heater: switch.fan
-    fan_mode: true
-    fan_hot_tolerance: 2
-    fan_on_with_ac: true
-    target_sensor: sensor.room_temp
+  # - platform: dual_smart_thermostat
+  #   name: FAN Only Room
+  #   unique_id: fan_only_room
+  #   heater: switch.fan
+  #   fan_mode: true
+  #   fan_hot_tolerance: 2
+  #   fan_on_with_ac: true
+  #   target_sensor: sensor.room_temp
 
   # - platform: generic_thermostat
   #   name: generic one
