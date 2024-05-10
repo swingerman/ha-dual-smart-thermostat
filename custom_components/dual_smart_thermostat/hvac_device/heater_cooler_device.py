@@ -190,7 +190,7 @@ class HeaterCoolerDevice(HVACDevice, ControlableHVACDevice):
         if self.openings.any_opening_open(self.hvac_mode):
             await self.async_turn_off()
             self._hvac_action_reason = HVACActionReason.OPENING
-        elif self.temperatures.is_floor_hot:
+        elif self.temperatures.is_floor_hot and self.heater_device.is_active:
             await self.heater_device.async_turn_off()
             self._hvac_action_reason = HVACActionReason.OVERHEAT
         elif self.temperatures.is_floor_cold:
