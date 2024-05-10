@@ -21,8 +21,8 @@ input_number:
     name: Room Temperature
     initial: 20
     min: 16
-    max: 90
-    step: .5
+    max: 30
+    step: .1
     icon: mdi:home-thermometer
 
   room_floor_temp:
@@ -30,7 +30,7 @@ input_number:
     initial: 20
     min: 16
     max: 30
-    step: .5
+    step: .1
     icon: mdi:thermometer
 
   outside_temp:
@@ -38,7 +38,7 @@ input_number:
     initial: 20
     min: 0
     max: 30
-    step: .5
+    step: .1
     icon: mdi:thermometer-lines
 
 sensor:
@@ -285,29 +285,49 @@ climate:
   #     target_temp_low: 19
   #     target_temp_high: 21.5
 
+  # - platform: dual_smart_thermostat
+  #   name: Edge Case 184
+  #   unique_id: edge_case_184
+  #   heater: switch.heater
+  #   cooler: switch.cooler
+  #   fan: switch.fan
+  #   target_sensor: sensor.room_temp
+  #   min_temp: 60
+  #   max_temp: 85
+  #   fan_hot_tolerance: 0.5
+  #   heat_cool_mode: true
+  #   min_cycle_duration:
+  #     seconds: 60
+  #   keep_alive:
+  #     minutes: 3
+  #   away:
+  #     target_temp_low: 68
+  #     target_temp_high: 77
+  #   home:
+  #     target_temp_low: 71
+  #     target_temp_high: 74
+  #   precision: 0.1
+  #   target_temp_step: 0.5
+
   - platform: dual_smart_thermostat
-    name: Edge Case 184
-    unique_id: edge_case_184
+    name: Edge Case 181
+    unique_id: edge_case_181
     heater: switch.heater
     cooler: switch.cooler
     fan: switch.fan
     target_sensor: sensor.room_temp
-    min_temp: 60
-    max_temp: 85
-    fan_hot_tolerance: 0.5
+    floor_sensor: sensor.floor_temp
     heat_cool_mode: true
-    min_cycle_duration:
-      seconds: 60
-    keep_alive:
-      minutes: 3
-    away:
-      target_temp_low: 68
-      target_temp_high: 77
-    home:
-      target_temp_low: 71
-      target_temp_high: 74
+    max_floor_temp: 26
+    min_floor_temp: 10
+    fan_hot_tolerance: 0.7
+    target_temp_step: 0.1
     precision: 0.1
-    target_temp_step: 0.5
+    min_temp: 9
+    max_temp: 32
+    target_temp: 20
+    cold_tolerance: 0.3
+    hot_tolerance: 0.3
 
   # - platform: dual_smart_thermostat
   #   name: AUX Heat Room
