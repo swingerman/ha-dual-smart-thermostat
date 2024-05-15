@@ -104,7 +104,7 @@ class SpecificHVACDevice(
 
     @property
     def is_active(self) -> bool:
-        """If the toggleable cooler device is currently active."""
+        """If the toggleable hvac device is currently active."""
         if self.entity_id is not None and self.hass.states.is_state(
             self.entity_id, STATE_ON
         ):
@@ -189,14 +189,12 @@ class SpecificHVACDevice(
         if not self._needs_control(time, force):
             return
 
-        any_opening_open = self.openings.any_opening_open(self.hvac_mode)
-
-        _LOGGER.info(
+        _LOGGER.debug(
             "%s - async_control_hvac - is device active: %s, %s,  is opening open: %s",
             self._device_type,
             self.entity_id,
             self.is_active,
-            any_opening_open,
+            self.openings.any_opening_open(self.hvac_mode),
         )
 
         if self.is_active:
@@ -208,16 +206,21 @@ class SpecificHVACDevice(
         _LOGGER.debug("%s _async_control_when_active", self.__class__.__name__)
         too_cold = self.temperatures.is_too_cold(self.target_temp_attr)
         any_opening_open = self.openings.any_opening_open(self.hvac_mode)
+        is_sensor_safety_timed_out = self.temperatures.is_sensor_safety_timed_out
 
-        if too_cold or any_opening_open:
+        if too_cold or any_opening_open or is_sensor_safety_timed_out:
             _LOGGER.debug("Turning off entity %s", self.entity_id)
             await self.async_turn_off()
             if too_cold:
                 self._hvac_action_reason = HVACActionReason.TARGET_TEMP_REACHED
             if any_opening_open:
                 self._hvac_action_reason = HVACActionReason.OPENING
+            if is_sensor_safety_timed_out:
+                self._hvac_action_reason = HVACActionReason.TEMPERATURE_SENSOR_TIMED_OUT
 
-        elif time is not None and not any_opening_open:
+        elif (
+            time is not None and not any_opening_open and not is_sensor_safety_timed_out
+        ):
             # The time argument is passed only in keep-alive case
             _LOGGER.debug(
                 "Keep-alive - Turning on entity (from active) %s",
@@ -234,6 +237,10 @@ class SpecificHVACDevice(
         _LOGGER.debug("any_opening_open: %s", any_opening_open)
         _LOGGER.debug("is_active: %s", self.is_active)
         _LOGGER.debug("time: %s", time)
+        _LOGGER.debug(
+            "is sensor safety timed out: %s",
+            self.temperatures.is_sensor_safety_timed_out,
+        )
 
         if too_hot and not any_opening_open:
             _LOGGER.debug("Turning on entity (from inactive) %s", self.entity_id)

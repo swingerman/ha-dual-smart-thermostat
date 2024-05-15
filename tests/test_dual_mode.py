@@ -25,12 +25,15 @@ from homeassistant.components.climate.const import (
 from homeassistant.const import (
     ATTR_TEMPERATURE,
     ENTITY_MATCH_ALL,
+    SERVICE_TURN_OFF,
     STATE_CLOSED,
     STATE_OFF,
     STATE_ON,
     STATE_OPEN,
+    STATE_UNAVAILABLE,
+    STATE_UNKNOWN,
 )
-from homeassistant.core import CoreState, HomeAssistant, State
+from homeassistant.core import DOMAIN as HASS_DOMAIN, CoreState, HomeAssistant, State
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import entity_registry as er
 from homeassistant.setup import async_setup_component
@@ -47,6 +50,9 @@ from custom_components.dual_smart_thermostat.const import (
 from custom_components.dual_smart_thermostat.hvac_action_reason.hvac_action_reason import (
     HVACActionReason,
 )
+from custom_components.dual_smart_thermostat.hvac_action_reason.hvac_action_reason_internal import (
+    HVACActionReasonInternal,
+)
 
 from . import (  # noqa: F401
     common,
@@ -61,6 +67,7 @@ from . import (  # noqa: F401
     setup_comp_heat_cool_fan_config_2,
     setup_comp_heat_cool_fan_presets,
     setup_comp_heat_cool_presets,
+    setup_comp_heat_cool_safety_delay,
     setup_floor_sensor,
     setup_sensor,
     setup_switch_dual,
@@ -800,6 +807,133 @@ async def test_set_heat_cool_preset_mode_invalid(
         await common.async_set_preset_mode(hass, "Sleep")
     state = hass.states.get(common.ENTITY)
     assert state.attributes.get("preset_mode") == "none"
+
+
+@pytest.mark.parametrize(
+    "sensor_state",
+    [STATE_UNAVAILABLE, STATE_UNKNOWN],
+)
+async def test_sensor_unknown_secure_heat_cool_off_outside_delay_cooler(
+    hass: HomeAssistant, sensor_state, setup_comp_heat_cool_safety_delay  # noqa: F811
+) -> None:
+    fake_changed = dt.utcnow() - timedelta(minutes=3)
+    with freeze_time(fake_changed):
+        setup_sensor(hass, 28)
+        await common.async_set_hvac_mode(hass, HVACMode.HEAT_COOL)
+        await common.async_set_temperature(hass, 30, common.ENTITY, 25, 22)
+        calls = setup_switch_dual(hass, common.ENT_COOLER, False, True)
+        hass.states.async_set(common.ENT_SENSOR, sensor_state)
+        await hass.async_block_till_done()
+
+    await common.async_set_temperature(hass, 30, common.ENTITY, 25, 22)
+    assert len(calls) == 1
+    call = calls[0]
+    assert call.domain == HASS_DOMAIN
+    assert call.service == SERVICE_TURN_OFF
+    assert call.data["entity_id"] == common.ENT_COOLER
+
+
+@pytest.mark.parametrize(
+    "sensor_state",
+    [STATE_UNAVAILABLE, STATE_UNKNOWN],
+)
+async def test_sensor_unknown_secure_heat_cool_off_outside_delay_heater(
+    hass: HomeAssistant, sensor_state, setup_comp_heat_cool_safety_delay  # noqa: F811
+) -> None:
+    fake_changed = dt.utcnow() - timedelta(minutes=3)
+    with freeze_time(fake_changed):
+        setup_sensor(hass, 18)
+        await common.async_set_hvac_mode(hass, HVACMode.HEAT_COOL)
+        await common.async_set_temperature(hass, 30, common.ENTITY, 25, 22)
+        calls = setup_switch_dual(hass, common.ENT_COOLER, True, False)
+
+        await hass.async_block_till_done()
+        hass.states.async_set(common.ENT_SENSOR, sensor_state)
+
+    await common.async_set_temperature(hass, 30, common.ENTITY, 25, 23)
+    assert len(calls) == 1
+    call = calls[0]
+    assert call.domain == HASS_DOMAIN
+    assert call.service == SERVICE_TURN_OFF
+    assert call.data["entity_id"] == common.ENT_SWITCH
+
+
+@pytest.mark.parametrize(
+    ["sensor_state", "sensor_value", "affected_switch"],
+    [
+        (STATE_UNAVAILABLE, 28, common.ENT_COOLER),
+        (STATE_UNKNOWN, 28, common.ENT_COOLER),
+        (28, 28, common.ENT_COOLER),
+        (STATE_UNKNOWN, 18, common.ENT_SWITCH),
+        (STATE_UNKNOWN, 18, common.ENT_SWITCH),
+        (18, 18, common.ENT_SWITCH),
+    ],
+)
+async def test_sensor_unknown_secure_heat_cool_off_outside_delay(
+    hass: HomeAssistant,
+    sensor_state,
+    sensor_value,
+    affected_switch,
+    setup_comp_heat_cool_safety_delay,  # noqa: F811
+) -> None:
+    temp_high = 25
+    temp_low = 22
+    fake_changed = dt.utcnow() - timedelta(minutes=3)
+    with freeze_time(fake_changed):
+        setup_sensor(hass, sensor_value)
+        await common.async_set_hvac_mode(hass, HVACMode.HEAT_COOL)
+        await common.async_set_temperature(hass, 30, common.ENTITY, temp_high, temp_low)
+        calls = setup_switch_dual(
+            hass, common.ENT_COOLER, sensor_value < temp_low, sensor_value > temp_high
+        )
+
+        await hass.async_block_till_done()
+        hass.states.async_set(common.ENT_SENSOR, sensor_state)
+
+    await common.async_set_temperature(hass, 30, common.ENTITY, temp_high, temp_low)
+    assert len(calls) == 1
+    call = calls[0]
+    assert call.domain == HASS_DOMAIN
+    assert call.service == SERVICE_TURN_OFF
+    assert call.data["entity_id"] == affected_switch
+
+
+@pytest.mark.parametrize(
+    ["sensor_state", "sensor_value"],
+    [
+        (STATE_UNAVAILABLE, 28),
+        (STATE_UNKNOWN, 28),
+        (28, 28),
+        (STATE_UNKNOWN, 18),
+        (STATE_UNKNOWN, 18),
+        (18, 18),
+    ],
+)
+async def test_sensor_unknown_secure_heat_cool_off_outside_delay_reason(
+    hass: HomeAssistant,
+    sensor_state,
+    sensor_value,
+    setup_comp_heat_cool_safety_delay,  # noqa: F811
+) -> None:
+    temp_high = 25
+    temp_low = 22
+    fake_changed = dt.utcnow() - timedelta(minutes=3)
+    with freeze_time(fake_changed):
+        setup_sensor(hass, sensor_value)
+        await common.async_set_hvac_mode(hass, HVACMode.HEAT_COOL)
+        await common.async_set_temperature(hass, 30, common.ENTITY, temp_high, temp_low)
+        calls = setup_switch_dual(  # noqa: F841
+            hass, common.ENT_COOLER, sensor_value < temp_low, sensor_value > temp_high
+        )
+
+        await hass.async_block_till_done()
+        hass.states.async_set(common.ENT_SENSOR, sensor_state)
+
+    await common.async_set_temperature(hass, 30, common.ENTITY, temp_high, temp_low)
+    assert (
+        hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_ACTION_REASON)
+        == HVACActionReasonInternal.TEMPERATURE_SENSOR_TIMED_OUT
+    )
 
 
 @pytest.mark.parametrize(

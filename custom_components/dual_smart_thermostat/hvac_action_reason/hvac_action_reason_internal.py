@@ -17,3 +17,5 @@ class HVACActionReasonInternal(enum.StrEnum):
     LIMIT = "limit"
 
     OVERHEAT = "overheat"
+
+    TEMPERATURE_SENSOR_TIMED_OUT = "temperature_sensor_timed_out"

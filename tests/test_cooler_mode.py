@@ -27,6 +27,8 @@ from homeassistant.const import (
     STATE_OFF,
     STATE_ON,
     STATE_OPEN,
+    STATE_UNAVAILABLE,
+    STATE_UNKNOWN,
 )
 from homeassistant.core import DOMAIN as HASS_DOMAIN, HomeAssistant
 from homeassistant.exceptions import ServiceValidationError
@@ -44,6 +46,9 @@ from custom_components.dual_smart_thermostat.const import (
 from custom_components.dual_smart_thermostat.hvac_action_reason.hvac_action_reason import (
     HVACActionReason,
 )
+from custom_components.dual_smart_thermostat.hvac_action_reason.hvac_action_reason_internal import (
+    HVACActionReasonInternal,
+)
 
 from . import (  # noqa: F401
     common,
@@ -54,6 +59,7 @@ from . import (  # noqa: F401
     setup_comp_heat_ac_cool_cycle_kepp_alive,
     setup_comp_heat_ac_cool_fan_config,
     setup_comp_heat_ac_cool_presets,
+    setup_comp_heat_ac_cool_safety_delay,
     setup_fan,
     setup_sensor,
     setup_switch,
@@ -670,6 +676,57 @@ async def test_mode_change_ac_trigger_on_not_long_enough_2(
     assert call.domain == "homeassistant"
     assert call.service == SERVICE_TURN_ON
     assert call.data["entity_id"] == common.ENT_SWITCH
+
+
+@pytest.mark.parametrize(
+    "sensor_state",
+    [30, STATE_UNAVAILABLE, STATE_UNKNOWN],
+)
+async def test_sensor_unknown_secure_ac_off_outside_delay(
+    hass: HomeAssistant,
+    sensor_state,
+    setup_comp_heat_ac_cool_safety_delay,  # noqa: F811
+) -> None:
+    """Test if sensor unavailable for defined delay turns off AC."""
+    fake_changed = dt.utcnow() - timedelta(minutes=3)
+    with freeze_time(fake_changed):
+        setup_sensor(hass, 30)
+        await common.async_set_temperature(hass, 25)
+        calls = setup_switch(hass, True)
+        hass.states.async_set(common.ENT_SENSOR, sensor_state)
+        await hass.async_block_till_done()
+
+    await common.async_set_temperature(hass, 25)
+    assert len(calls) == 1
+    call = calls[0]
+    assert call.domain == HASS_DOMAIN
+    assert call.service == SERVICE_TURN_OFF
+    assert call.data["entity_id"] == common.ENT_SWITCH
+
+
+@pytest.mark.parametrize(
+    "sensor_state",
+    [30, STATE_UNAVAILABLE, STATE_UNKNOWN],
+)
+async def test_sensor_unknown_secure_ac_off_outside_delay_reason(
+    hass: HomeAssistant,
+    sensor_state,
+    setup_comp_heat_ac_cool_safety_delay,  # noqa: F811
+) -> None:
+    """Test if sensor unavailable for defined delay turns off AC."""
+    fake_changed = dt.utcnow() - timedelta(minutes=3)
+    with freeze_time(fake_changed):
+        setup_sensor(hass, 30)
+        await common.async_set_temperature(hass, 25)
+        calls = setup_switch(hass, True)  # noqa: F841
+        hass.states.async_set(common.ENT_SENSOR, sensor_state)
+        await hass.async_block_till_done()
+
+    await common.async_set_temperature(hass, 25)
+    assert (
+        hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_ACTION_REASON)
+        == HVACActionReasonInternal.TEMPERATURE_SENSOR_TIMED_OUT
+    )
 
 
 async def test_cooler_mode(hass: HomeAssistant, setup_comp_1) -> None:  # noqa: F811

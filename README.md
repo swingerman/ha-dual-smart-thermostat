@@ -245,6 +245,7 @@ The internal values can be set by the component only and the external values can
 | `opening` | The thermostat is idle because an opening is open |
 | `limit` | The thermostat is idle because the floor temperature is at the limit |
 | `overheat` | The thermostat is idle because the floor temperature is too high |
+| `TEMPERATURE_SENSOR_TIMED_OUT` | The thermostat is idle because the temperature sensor is not provided data for the defined time that could indicate a malfunctioning sensor |
 
 #### HVAC Action Reason External values
 
@@ -327,6 +328,10 @@ The internal values can be set by the component only and the external values can
 ### target_sensor
 
   _(required) (string)_  "`entity_id` for a temperature sensor, target_sensor.state must be temperature."
+
+### target_sensor_safety_delay
+
+  _(optional) (timedelta)_  Set a delay for the target sensor to be considered valid. If the sensor is not available for the specified time the thermostat will be turned off.
 
 ### floor_sensor
 
