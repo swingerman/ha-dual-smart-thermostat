@@ -106,6 +106,7 @@ from .const import (
     CONF_PRESETS,
     CONF_PRESETS_OLD,
     CONF_SENSOR,
+    CONF_SENSOR_SAFETY_DELAY,
     CONF_TARGET_TEMP,
     CONF_TARGET_TEMP_HIGH,
     CONF_TARGET_TEMP_LOW,
@@ -162,6 +163,9 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Required(CONF_HEATER): cv.entity_id,
         vol.Optional(CONF_COOLER): cv.entity_id,
         vol.Required(CONF_SENSOR): cv.entity_id,
+        vol.Optional(CONF_SENSOR_SAFETY_DELAY): vol.All(
+            cv.time_period, cv.positive_timedelta
+        ),
         vol.Optional(CONF_AC_MODE): cv.boolean,
         vol.Optional(CONF_HEAT_COOL_MODE): cv.boolean,
         vol.Optional(CONF_MAX_TEMP): vol.Coerce(float),

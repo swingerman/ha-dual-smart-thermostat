@@ -66,6 +66,9 @@ class HeaterDevice(SpecificHVACDevice):
     async def async_control_hvac(self, time=None, force=False):
         _LOGGER.debug({self.__class__.__name__})
         _LOGGER.debug("async_control_hvac")
+        _LOGGER.debug(
+            "sensor safety timed out: %s", self.temperatures.is_sensor_safety_timed_out
+        )
         self._set_self_active()
 
         if not self._needs_control(time, force):
@@ -84,11 +87,19 @@ class HeaterDevice(SpecificHVACDevice):
         too_hot = self.temperatures.is_too_hot(self.target_temp_attr)
         is_floor_hot = self.temperatures.is_floor_hot
         is_floor_cold = self.temperatures.is_floor_cold
+        is_sensor_safety_timed_out = self.temperatures.is_sensor_safety_timed_out
         any_opening_open = self.openings.any_opening_open(self.hvac_mode)
 
         _LOGGER.debug("_async_control_device_when_on, floor cold: %s", is_floor_cold)
+        _LOGGER.debug("_async_control_device_when_on, too_hot: %s", too_hot)
+        _LOGGER.debug(
+            "is sensor safety timed out: %s",
+            self.temperatures.is_sensor_safety_timed_out,
+        )
 
-        if ((too_hot or is_floor_hot) or any_opening_open) and not is_floor_cold:
+        if (
+            (too_hot or is_floor_hot) or any_opening_open or is_sensor_safety_timed_out
+        ) and not is_floor_cold:
             _LOGGER.debug("Turning off heater %s", self.entity_id)
 
             await self.async_turn_off()
@@ -99,8 +110,15 @@ class HeaterDevice(SpecificHVACDevice):
                 self._hvac_action_reason = HVACActionReason.OVERHEAT
             if any_opening_open:
                 self._hvac_action_reason = HVACActionReason.OPENING
+            if is_sensor_safety_timed_out:
+                self._hvac_action_reason = HVACActionReason.TEMPERATURE_SENSOR_TIMED_OUT
 
-        elif time is not None and not any_opening_open and not is_floor_hot:
+        elif (
+            time is not None
+            and not any_opening_open
+            and not is_floor_hot
+            and not is_sensor_safety_timed_out
+        ):
             # The time argument is passed only in keep-alive case
             _LOGGER.info(
                 "Keep-alive - Turning on heater (from active) %s",
