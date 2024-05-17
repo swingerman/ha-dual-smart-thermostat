@@ -34,6 +34,7 @@ from custom_components.dual_smart_thermostat.const import (
     CONF_MAX_TEMP,
     CONF_MIN_FLOOR_TEMP,
     CONF_MIN_TEMP,
+    CONF_OUTSIDE_SENSOR,
     CONF_PRECISION,
     CONF_SENSOR,
     CONF_SENSOR_SAFETY_DELAY,
@@ -60,6 +61,7 @@ class TargetTemperatures:
 
 
 class TemperatureManager(StateManager):
+    """Class to manage the temperatures of the thermostat."""
 
     def __init__(
         self,
@@ -70,6 +72,7 @@ class TemperatureManager(StateManager):
         self.hass = hass
         self._sensor_floor = config.get(CONF_FLOOR_SENSOR)
         self._sensor = config.get(CONF_SENSOR)
+        self._outside_sensor = config.get(CONF_OUTSIDE_SENSOR)
         self._sensor_safety_delay = config.get(CONF_SENSOR_SAFETY_DELAY)
 
         self._min_temp = config.get(CONF_MIN_TEMP)
@@ -96,6 +99,7 @@ class TemperatureManager(StateManager):
 
         self._cur_temp = None
         self._cur_floor_temp = None
+        self._cur_outside_temp = None
 
     @property
     def cur_temp(self) -> float:
@@ -113,6 +117,10 @@ class TemperatureManager(StateManager):
     @cur_floor_temp.setter
     def cur_floor_temp(self, temperature) -> None:
         self._cur_floor_temp = temperature
+
+    @property
+    def cur_outside_temp(self) -> float:
+        return self._cur_outside_temp
 
     @property
     def target_temp(self) -> float:
@@ -265,6 +273,19 @@ class TemperatureManager(StateManager):
             and self._cur_temp <= too_hot_for_fan_temp
         )
 
+    @property
+    def is_warmer_outside(self) -> bool:
+        """Checks if the outside temperature is warmer or equal than the inside temperature."""
+        if self._cur_temp is None or self._outside_sensor is None:
+            return False
+
+        outside_state = self.hass.states.get(self._outside_sensor)
+        if outside_state is None:
+            return False
+
+        outside_temp = float(outside_state.state)
+        return outside_temp >= self._cur_temp
+
     def is_too_cold(self, target_attr="_target_temp") -> bool:
         """Checks if the current temperature is below target."""
         if self._cur_temp is None:
@@ -375,6 +396,17 @@ class TemperatureManager(StateManager):
             self._cur_floor_temp = cur_floor_temp
         except ValueError as ex:
             _LOGGER.error("Unable to update from floor temp sensor: %s", ex)
+
+    @callback
+    def update_outside_temp_from_state(self, state: State):
+        """Update ermostat with latest outside temp state from outside temp sensor."""
+        try:
+            cur_outside_temp = float(state.state)
+            if not math.isfinite(cur_outside_temp):
+                raise ValueError(f"Sensor has illegal state {state.state}")
+            self._cur_outside_temp = cur_outside_temp
+        except ValueError as ex:
+            _LOGGER.error("Unable to update from outside temp sensor: %s", ex)
 
     def set_default_target_temps(
         self, is_target_mode: bool, is_range_mode: bool, hvac_modes: list[HVACMode]

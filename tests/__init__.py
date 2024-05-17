@@ -938,6 +938,11 @@ def setup_floor_sensor(hass: HomeAssistant, temp: float) -> None:
     hass.states.async_set(common.ENT_FLOOR_SENSOR, temp)
 
 
+def setup_outside_sensor(hass: HomeAssistant, temp: float) -> None:
+    """Set up the test sensor."""
+    hass.states.async_set(common.ENT_OUTSIDE_SENSOR, temp)
+
+
 def setup_boolean(hass: HomeAssistant, entity, state) -> None:
     """Set up the test sensor."""
     hass.states.async_set(entity, state)

@@ -57,6 +57,7 @@ from custom_components.dual_smart_thermostat.hvac_action_reason.hvac_action_reas
 ENTITY = "climate.test"
 ENT_SENSOR = "sensor.test"
 ENT_FLOOR_SENSOR = "input_number.floor_temp"
+ENT_OUTSIDE_SENSOR = "input_number.outside_temp"
 ENT_OPENING_SENSOR = "input_number.opneing1"
 ENT_SWITCH = "switch.test"
 ENT_HEATER = "input_boolean.test"

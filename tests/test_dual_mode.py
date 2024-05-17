@@ -69,6 +69,7 @@ from . import (  # noqa: F401
     setup_comp_heat_cool_presets,
     setup_comp_heat_cool_safety_delay,
     setup_floor_sensor,
+    setup_outside_sensor,
     setup_sensor,
     setup_switch_dual,
     setup_switch_heat_cool_fan,
@@ -1476,6 +1477,226 @@ async def test_hvac_mode_mode_heat_cool_fan_tolerance(
     assert hass.states.get(heater_switch).state == STATE_OFF
     assert hass.states.get(fan_switch).state == STATE_ON
 
+    setup_sensor(hass, 20.8)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(cooler_switch).state == STATE_ON
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(fan_switch).state == STATE_OFF
+
+
+@pytest.mark.parametrize(
+    "hvac_mode",
+    [
+        HVACMode.HEAT_COOL,
+        HVACMode.COOL,
+    ],
+)
+async def test_hvac_mode_mode_heat_cool_ignore_fan_tolerance(
+    hass: HomeAssistant, hvac_mode, setup_comp_1  # noqa: F811
+):
+    """Test thermostat heater and cooler switch in heat/cool mode."""
+
+    heater_switch = "input_boolean.heater"
+    cooler_switch = "input_boolean.cooler"
+    fan_switch = "input_boolean.fan"
+
+    assert await async_setup_component(
+        hass,
+        input_boolean.DOMAIN,
+        {"input_boolean": {"heater": None, "cooler": None, "fan": None}},
+    )
+
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {"name": "test", "initial": 10, "min": 0, "max": 40, "step": 1},
+                "outside_temp": {
+                    "name": "test",
+                    "initial": 10,
+                    "min": 0,
+                    "max": 40,
+                    "step": 1,
+                },
+            }
+        },
+    )
+
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "cooler": cooler_switch,
+                "heater": heater_switch,
+                "fan": fan_switch,
+                "hot_tolerance": 0.2,
+                "cold_tolerance": 0.2,
+                "fan_hot_tolerance": 0.5,
+                "fan_air_outside": True,
+                "heat_cool_mode": True,
+                "target_sensor": common.ENT_SENSOR,
+                "outside_sensor": common.ENT_OUTSIDE_SENSOR,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    # switch to COOL mode and test the fan hot tolerance
+    # after the hot tolerance first the fan should turn on
+    # and outside the fan_hot_tolerance the AC
+
+    await common.async_set_hvac_mode(hass, hvac_mode)
+    await common.async_set_temperature(hass, 20, ENTITY_MATCH_ALL, 20, 18)
+
+    # below hot_tolerance
+    setup_sensor(hass, 20)
+    setup_outside_sensor(hass, 21)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(fan_switch).state == STATE_OFF
+
+    # within hot_tolerance and fan_hot_tolerance
+    setup_sensor(hass, 20.2)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(cooler_switch).state == STATE_ON
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(fan_switch).state == STATE_OFF
+
+    # within hot_tolerance and fan_hot_tolerance
+    setup_sensor(hass, 20.5)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(cooler_switch).state == STATE_ON
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(fan_switch).state == STATE_OFF
+
+    # within hot_tolerance and fan_hot_tolerance
+    setup_sensor(hass, 20.7)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(cooler_switch).state == STATE_ON
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(fan_switch).state == STATE_OFF
+
+    # outside fan_hot_tolerance, within hot_tolerance
+    setup_sensor(hass, 20.8)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(cooler_switch).state == STATE_ON
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(fan_switch).state == STATE_OFF
+
+
+@pytest.mark.parametrize(
+    "hvac_mode",
+    [
+        HVACMode.HEAT_COOL,
+        HVACMode.COOL,
+    ],
+)
+async def test_hvac_mode_mode_heat_cool_dont_ignore_fan_tolerance(
+    hass: HomeAssistant, hvac_mode, setup_comp_1  # noqa: F811
+):
+    """Test thermostat heater and cooler switch in heat/cool mode."""
+
+    heater_switch = "input_boolean.heater"
+    cooler_switch = "input_boolean.cooler"
+    fan_switch = "input_boolean.fan"
+
+    assert await async_setup_component(
+        hass,
+        input_boolean.DOMAIN,
+        {"input_boolean": {"heater": None, "cooler": None, "fan": None}},
+    )
+
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {"name": "test", "initial": 10, "min": 0, "max": 40, "step": 1},
+                "outside_temp": {
+                    "name": "test",
+                    "initial": 10,
+                    "min": 0,
+                    "max": 40,
+                    "step": 1,
+                },
+            }
+        },
+    )
+
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "cooler": cooler_switch,
+                "heater": heater_switch,
+                "fan": fan_switch,
+                "hot_tolerance": 0.2,
+                "cold_tolerance": 0.2,
+                "fan_hot_tolerance": 0.5,
+                "fan_air_outside": True,
+                "heat_cool_mode": True,
+                "target_sensor": common.ENT_SENSOR,
+                "outside_sensor": common.ENT_OUTSIDE_SENSOR,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    # switch to COOL mode and test the fan hot tolerance
+    # after the hot tolerance first the fan should turn on
+    # and outside the fan_hot_tolerance the AC
+
+    await common.async_set_hvac_mode(hass, hvac_mode)
+    await common.async_set_temperature(hass, 20, ENTITY_MATCH_ALL, 20, 18)
+
+    # below hot_tolerance
+    setup_sensor(hass, 20)
+    setup_outside_sensor(hass, 18)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(fan_switch).state == STATE_OFF
+
+    # within hot_tolerance and fan_hot_tolerance
+    setup_sensor(hass, 20.2)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(fan_switch).state == STATE_ON
+
+    # within hot_tolerance and fan_hot_tolerance
+    setup_sensor(hass, 20.5)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(fan_switch).state == STATE_ON
+
+    # within hot_tolerance and fan_hot_tolerance
+    setup_sensor(hass, 20.7)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(fan_switch).state == STATE_ON
+
+    # outside fan_hot_tolerance, within hot_tolerance
     setup_sensor(hass, 20.8)
     await hass.async_block_till_done()
 

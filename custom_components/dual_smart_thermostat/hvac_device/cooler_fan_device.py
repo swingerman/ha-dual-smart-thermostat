@@ -137,18 +137,23 @@ class CoolerFanDevice(HVACDevice, ControlableHVACDevice):
                     self.HVACActionReason = self.cooler_device.HVACActionReason
                 else:
 
-                    if self.temperatures.is_within_fan_tolerance(
+                    is_within_fan_tolerance = self.temperatures.is_within_fan_tolerance(
                         self.fan_device.target_temp_attr
+                    )
+                    is_warmer_outside = self.temperatures.is_warmer_outside
+                    is_fan_air_outside = self.fan_device.fan_air_surce_outside
+
+                    if is_within_fan_tolerance and not (
+                        is_fan_air_outside and is_warmer_outside
                     ):
-                        _LOGGER.info("within fan tolerance")
+                        _LOGGER.debug("within fan tolerance")
                         await self.fan_device.async_control_hvac(time, force)
                         await self.cooler_device.async_turn_off()
                         self.HVACActionReason = (
                             HVACActionReason.TARGET_TEMP_NOT_REACHED_WITH_FAN
                         )
-
                     else:
-                        _LOGGER.info("outside fan tolerance")
+                        _LOGGER.debug("outside fan tolerance")
                         await self.cooler_device.async_control_hvac(time, force)
                         await self.fan_device.async_turn_off()
                         self.HVACActionReason = self.cooler_device.HVACActionReason
