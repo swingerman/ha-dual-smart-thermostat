@@ -16,6 +16,7 @@ from custom_components.dual_smart_thermostat.const import (
     CONF_AUX_HEATING_TIMEOUT,
     CONF_COOLER,
     CONF_FAN,
+    CONF_FAN_AIR_OUTSIDE,
     CONF_FAN_HOT_TOLERANCE,
     CONF_FAN_MODE,
     CONF_FAN_ON_WITH_AC,
@@ -48,6 +49,7 @@ class FeatureManager(StateManager):
         self._fan_entity_id = config.get(CONF_FAN)
         self._fan_on_with_cooler = config.get(CONF_FAN_ON_WITH_AC)
         self._fan_tolerance = config.get(CONF_FAN_HOT_TOLERANCE)
+        self._fan_air_outside = config.get(CONF_FAN_AIR_OUTSIDE)
 
         self._aux_heater_entity_id = config.get(CONF_AUX_HEATER)
         self._aux_heater_timeout = config.get(CONF_AUX_HEATING_TIMEOUT)
@@ -137,6 +139,10 @@ class FeatureManager(StateManager):
     def is_configured_for_fan_on_with_cooler(self) -> bool:
         """Determines if the fan mode with cooler is configured."""
         return self._fan_on_with_cooler
+
+    @property
+    def is_fan_uses_outside_air(self) -> bool:
+        return self._fan_air_outside
 
     def set_support_flags(
         self,

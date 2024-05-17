@@ -86,6 +86,7 @@ from .const import (
     CONF_COLD_TOLERANCE,
     CONF_COOLER,
     CONF_FAN,
+    CONF_FAN_AIR_OUTSIDE,
     CONF_FAN_HOT_TOLERANCE,
     CONF_FAN_MODE,
     CONF_FAN_ON_WITH_AC,
@@ -102,6 +103,7 @@ from .const import (
     CONF_MIN_TEMP,
     CONF_OPENINGS,
     CONF_OPENINGS_SCOPE,
+    CONF_OUTSIDE_SENSOR,
     CONF_PRECISION,
     CONF_PRESETS,
     CONF_PRESETS_OLD,
@@ -149,6 +151,7 @@ FAN_MODE_SCHEMA = {
     vol.Optional(CONF_FAN_MODE): cv.boolean,
     vol.Optional(CONF_FAN_ON_WITH_AC): cv.boolean,
     vol.Optional(CONF_FAN_HOT_TOLERANCE): vol.Coerce(float),
+    vol.Optional(CONF_FAN_AIR_OUTSIDE): cv.boolean,
 }
 
 OPENINGS_SCHEMA = {
@@ -166,6 +169,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Optional(CONF_SENSOR_SAFETY_DELAY): vol.All(
             cv.time_period, cv.positive_timedelta
         ),
+        vol.Optional(CONF_OUTSIDE_SENSOR): cv.entity_id,
         vol.Optional(CONF_AC_MODE): cv.boolean,
         vol.Optional(CONF_HEAT_COOL_MODE): cv.boolean,
         vol.Optional(CONF_MAX_TEMP): vol.Coerce(float),
@@ -224,6 +228,7 @@ async def async_setup_platform(
     name = config[CONF_NAME]
     sensor_entity_id = config[CONF_SENSOR]
     sensor_floor_entity_id = config.get(CONF_FLOOR_SENSOR)
+    sensor_outside_entity_id = config.get(CONF_OUTSIDE_SENSOR)
     keep_alive = config.get(CONF_KEEP_ALIVE)
     presets_dict = {
         key: config[value] for key, value in CONF_PRESETS.items() if value in config
@@ -273,6 +278,7 @@ async def async_setup_platform(
                 name,
                 sensor_entity_id,
                 sensor_floor_entity_id,
+                sensor_outside_entity_id,
                 keep_alive,
                 precision,
                 unit,
@@ -323,6 +329,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         name,
         sensor_entity_id,
         sensor_floor_entity_id,
+        sensor_outside_entity_id,
         keep_alive,
         precision,
         unit,
@@ -356,6 +363,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         # sensors
         self.sensor_entity_id = sensor_entity_id
         self.sensor_floor_entity_id = sensor_floor_entity_id
+        self.sensor_outside_entity_id = sensor_outside_entity_id
 
         self._keep_alive = keep_alive
 
@@ -420,6 +428,18 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                     self.hass,
                     [self.sensor_floor_entity_id],
                     self._async_sensor_floor_changed,
+                )
+            )
+
+        if self.sensor_outside_entity_id is not None:
+            _LOGGER.debug(
+                "Adding outside sensor listener: %s", self.sensor_outside_entity_id
+            )
+            self.async_on_remove(
+                async_track_state_change_event(
+                    self.hass,
+                    [self.sensor_outside_entity_id],
+                    self._async_sensor_outside_changed,
                 )
             )
 
@@ -766,6 +786,19 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         """Handle floor temperature changes."""
         new_state = event.data.get("new_state")
         _LOGGER.info("Sensor floor change: %s", new_state)
+        if new_state is None or new_state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
+            return
+
+        self.temperatures.update_floor_temp_from_state(new_state)
+        await self._async_control_climate()
+        self.async_write_ha_state()
+
+    async def _async_sensor_outside_changed(
+        self, event: Event[EventStateChangedData]
+    ) -> None:
+        """Handle outside temperature changes."""
+        new_state = event.data.get("new_state")
+        _LOGGER.info("Sensor outside change: %s", new_state)
         if new_state is None or new_state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
             return
 

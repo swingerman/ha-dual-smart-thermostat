@@ -85,10 +85,11 @@ heater: switch.study_heater
 ac_mode: true
 fan: switch.study_fan
 ```
+#### Fan Hot Toelerance
 
 If you also set the [`fan_hot_tolerance`](#fan_hot_tolerance) the fan will turn on when the temperature is above the target temperature and the fan_hot_tolerance is not reached. If the temperature is above the target temperature and the fan_hot_tolerance is reached the AC will turn on.
 
-### Cooler With Auto Fan Mode Example
+##### Cooler With Auto Fan Mode Example
 
 ```yaml
 heater: switch.study_heater
@@ -97,6 +98,10 @@ fan: switch.study_fan
 fan_hot_tolerance: 0.5
 ```
 
+#### Outside Temperature And Fan Hot Tolerance
+
+If you set the [`fan_hot_tolerance`](#fan_hot_tolerance), [`outside_sensor`](#outside_sensor)  and the [`fan_air_outside`](#fan_air_outside) the fan will turn on only if the outside temperature is colder than the inside temperature and the fan_hot_tolerance is not reached. If the outside temperature is colder than the inside temperature and the fan_hot_tolerance is reached the AC will turn on.
+
 ## AC With Fan Switch Support
 
 Some AC systems have independent fan controls to cycle the house air for filtering or humidity control; without using the heating or cooling elements. Central AC systems require the thermostat to turn on both the AC wire ("Y" wire) and the air-handler/fan wire ("G" wire) in order to activate the AC
@@ -104,6 +109,8 @@ Some AC systems have independent fan controls to cycle the house air for filteri
 This feature let's you do just that.
 
 In order to use this feature you need to set the [`heater`](#heater) entity, the [`ac_mode`](#ac_mode), the [`fan)`](#fan) entity and the [`fan_on_with_ac`](#fan_on_with_ac) to `true`.
+
+
 
 ### example
 ```yaml
@@ -324,6 +331,11 @@ The internal values can be set by the component only and the external values can
 
   _requires: `fan`_
 
+### fan_air_outside
+
+  _(optional) (boolean)_ "If set to `true` the fan will be turned on only if the outside temperature is colder than the inside temperature and the `fan_hot_tolerance` is not reached. If the outside temperature is colder than the inside temperature and the `fan_hot_tolerance` is reached the AC will turn on."
+
+  _requires: `fan` , `sensor_outside`_
 
 ### target_sensor
 
@@ -336,6 +348,10 @@ The internal values can be set by the component only and the external values can
 ### floor_sensor
 
   _(optional) (string)_  "`entity_id` for the floor temperature sensor, floor_sensor.state must be temperature."
+
+### outside_sensor
+
+  _(optional) (string)_  "`entity_id` for the outside temperature sensor, oustide_sensor.state must be temperature."
 
 ### openings
 
