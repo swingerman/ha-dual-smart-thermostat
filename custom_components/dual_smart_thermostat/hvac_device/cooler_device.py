@@ -7,14 +7,14 @@ from homeassistant.core import HomeAssistant
 from custom_components.dual_smart_thermostat.hvac_device.specific_hvac_device import (
     SpecificHVACDevice,
 )
+from custom_components.dual_smart_thermostat.managers.environment_manager import (
+    EnvironmentManager,
+)
 from custom_components.dual_smart_thermostat.managers.feature_manager import (
     FeatureManager,
 )
 from custom_components.dual_smart_thermostat.managers.opening_manager import (
     OpeningManager,
-)
-from custom_components.dual_smart_thermostat.managers.temperature_manager import (
-    TemperatureManager,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -30,7 +30,7 @@ class CoolerDevice(SpecificHVACDevice):
         entity_id: str,
         min_cycle_duration: timedelta,
         initial_hvac_mode: HVACMode,
-        temperatures: TemperatureManager,
+        environment: EnvironmentManager,
         openings: OpeningManager,
         features: FeatureManager,
     ) -> None:
@@ -39,7 +39,7 @@ class CoolerDevice(SpecificHVACDevice):
             entity_id,
             min_cycle_duration,
             initial_hvac_mode,
-            temperatures,
+            environment,
             openings,
             features,
         )

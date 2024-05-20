@@ -57,6 +57,10 @@ from custom_components.dual_smart_thermostat.hvac_device.controllable_hvac_devic
 from custom_components.dual_smart_thermostat.hvac_device.hvac_device_factory import (
     HVACDeviceFactory,
 )
+from custom_components.dual_smart_thermostat.managers.environment_manager import (
+    EnvironmentManager,
+    TargetTemperatures,
+)
 from custom_components.dual_smart_thermostat.managers.feature_manager import (
     FeatureManager,
 )
@@ -66,10 +70,6 @@ from custom_components.dual_smart_thermostat.managers.opening_manager import (
 )
 from custom_components.dual_smart_thermostat.managers.preset_manager import (
     PresetManager,
-)
-from custom_components.dual_smart_thermostat.managers.temperature_manager import (
-    TargetTemperatures,
-    TemperatureManager,
 )
 
 from . import DOMAIN, PLATFORMS
@@ -85,6 +85,8 @@ from .const import (
     CONF_AUX_HEATING_TIMEOUT,
     CONF_COLD_TOLERANCE,
     CONF_COOLER,
+    CONF_DEHUMIDIFIER,
+    CONF_DRY_TOLERANCE,
     CONF_FAN,
     CONF_FAN_AIR_OUTSIDE,
     CONF_FAN_HOT_TOLERANCE,
@@ -97,10 +99,13 @@ from .const import (
     CONF_INITIAL_HVAC_MODE,
     CONF_KEEP_ALIVE,
     CONF_MAX_FLOOR_TEMP,
+    CONF_MAX_HUMIDITY,
     CONF_MAX_TEMP,
     CONF_MIN_DUR,
     CONF_MIN_FLOOR_TEMP,
+    CONF_MIN_HUMIDITY,
     CONF_MIN_TEMP,
+    CONF_MOIST_TOLERANCE,
     CONF_OPENINGS,
     CONF_OPENINGS_SCOPE,
     CONF_OUTSIDE_SENSOR,
@@ -109,6 +114,7 @@ from .const import (
     CONF_PRESETS_OLD,
     CONF_SENSOR,
     CONF_SENSOR_SAFETY_DELAY,
+    CONF_TARGET_HUMIDITY,
     CONF_TARGET_TEMP,
     CONF_TARGET_TEMP_HIGH,
     CONF_TARGET_TEMP_LOW,
@@ -161,6 +167,15 @@ OPENINGS_SCHEMA = {
     ),
 }
 
+HYGROSTAT_SCHEMA = {
+    vol.Optional(CONF_DEHUMIDIFIER): cv.entity_id,
+    vol.Optional(CONF_MIN_HUMIDITY): vol.Coerce(float),
+    vol.Optional(CONF_MAX_HUMIDITY): vol.Coerce(float),
+    vol.Optional(CONF_TARGET_HUMIDITY): vol.Coerce(float),
+    vol.Optional(CONF_DRY_TOLERANCE): vol.Coerce(float),
+    vol.Optional(CONF_MOIST_TOLERANCE): vol.Coerce(float),
+}
+
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
         vol.Required(CONF_HEATER): cv.entity_id,
@@ -208,6 +223,8 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(FLOOR_TEMPERATURE_SCHEMA)
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(OPENINGS_SCHEMA)
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(FAN_MODE_SCHEMA)
+
+PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(HYGROSTAT_SCHEMA)
 
 # Add the old presets schema to avoid breaking change
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
@@ -258,19 +275,19 @@ async def async_setup_platform(
 
     opening_manager = OpeningManager(hass, config)
 
-    temperature_manager = TemperatureManager(
+    environment_manager = EnvironmentManager(
         hass,
         config,
         presets,
     )
 
-    feature_manager = FeatureManager(hass, config, temperature_manager)
+    feature_manager = FeatureManager(hass, config, environment_manager)
 
-    preset_manager = PresetManager(hass, config, temperature_manager, feature_manager)
+    preset_manager = PresetManager(hass, config, environment_manager, feature_manager)
 
     device_factory = HVACDeviceFactory(hass, config, feature_manager)
 
-    hvac_device = device_factory.create_device(temperature_manager, opening_manager)
+    hvac_device = device_factory.create_device(environment_manager, opening_manager)
 
     async_add_entities(
         [
@@ -285,7 +302,7 @@ async def async_setup_platform(
                 unique_id,
                 hvac_device,
                 preset_manager,
-                temperature_manager,
+                environment_manager,
                 opening_manager,
                 feature_manager,
             )
@@ -336,7 +353,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         unique_id,
         hvac_device: ControlableHVACDevice,
         preset_manager: PresetManager,
-        temperature_manager: TemperatureManager,
+        environment_manager: EnvironmentManager,
         opening_manager: OpeningManager,
         feature_manager: FeatureManager,
     ) -> None:
@@ -352,7 +369,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self.presets = preset_manager
 
         # temperature manager
-        self.temperatures = temperature_manager
+        self.environment = environment_manager
 
         # feature manager
         self.features = feature_manager
@@ -367,16 +384,16 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
         self._keep_alive = keep_alive
 
-        # temperatures
+        # environment
         self._temp_precision = precision
-        self._target_temp = self.temperatures.target_temp
-        self._target_temp_high = self.temperatures.target_temp_high
-        self._target_temp_low = self.temperatures.target_temp_low
+        self._target_temp = self.environment.target_temp
+        self._target_temp_high = self.environment.target_temp_high
+        self._target_temp_low = self.environment.target_temp_low
         self._attr_temperature_unit = unit
 
         # temperature limits
-        self._min_temp = self.temperatures.min_temp
-        self._max_temp = self.temperatures.max_temp
+        self._min_temp = self.environment.min_temp
+        self._max_temp = self.environment.max_temp
         self._unit = unit
 
         # HVAC modes
@@ -489,14 +506,14 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                 STATE_UNAVAILABLE,
                 STATE_UNKNOWN,
             ):
-                self.temperatures.update_temp_from_state(sensor_state)
+                self.environment.update_temp_from_state(sensor_state)
                 self.async_write_ha_state()
 
             if floor_sensor_state and floor_sensor_state.state not in (
                 STATE_UNAVAILABLE,
                 STATE_UNKNOWN,
             ):
-                self.temperatures.update_floor_temp_from_state(floor_sensor_state)
+                self.environment.update_floor_temp_from_state(floor_sensor_state)
                 self.async_write_ha_state()
 
             await self.hvac_device.async_on_startup()
@@ -509,7 +526,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         # Check If we have an old state
         if (old_state := await self.async_get_last_state()) is not None:
             # If we have no initial temperature, restore
-            self.temperatures.apply_old_state(old_state)
+            self.environment.apply_old_state(old_state)
 
             hvac_mode = self._hvac_mode or old_state.state or HVACMode.OFF
 
@@ -521,7 +538,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             )
             self._attr_supported_features = self.features.supported_features
 
-            self.temperatures.set_default_target_temps(
+            self.environment.set_default_target_temps(
                 self.features.is_target_mode,
                 self.features.is_range_mode,
                 self.hvac_device.hvac_modes,
@@ -554,14 +571,14 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             if not self.hvac_device.hvac_mode:
                 self.hvac_device.hvac_mode = HVACMode.OFF
             if self.hvac_device.hvac_mode == HVACMode.OFF:
-                self.temperatures.set_default_target_temps(
+                self.environment.set_default_target_temps(
                     self.features.is_target_mode,
                     self.features.is_range_mode,
                     self.hvac_device.hvac_modes,
                 )
 
-            if self.temperatures.max_floor_temp is None:
-                self.temperatures.max_floor_temp = DEFAULT_MAX_FLOOR_TEMP
+            if self.environment.max_floor_temp is None:
+                self.environment.max_floor_temp = DEFAULT_MAX_FLOOR_TEMP
 
         # Set correct support flag
         self._set_support_flags()
@@ -572,8 +589,8 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             STATE_UNAVAILABLE,
             STATE_UNKNOWN,
         ):
-            self.temperatures.update_temp_from_state(sensor_state)
-            self._target_temp = self.temperatures.target_temp
+            self.environment.update_temp_from_state(sensor_state)
+            self._target_temp = self.environment.target_temp
             self.async_write_ha_state()
 
         await self._async_control_climate(force=True)
@@ -598,20 +615,20 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
     @property
     def target_temperature_step(self) -> float:
         """Return the supported step of target temperature."""
-        if self.temperatures.target_temperature_step is not None:
-            return self.temperatures.target_temperature_step
+        if self.environment.target_temperature_step is not None:
+            return self.environment.target_temperature_step
         # if a target_temperature_step is not defined, fallback to equal the precision
         return self.precision
 
     @property
     def current_temperature(self) -> float | None:
         """Return the sensor temperature."""
-        return self.temperatures.cur_temp
+        return self.environment.cur_temp
 
     @property
     def current_floor_temperature(self) -> float | None:
         """Return the sensor temperature."""
-        return self.temperatures.cur_floor_temp
+        return self.environment.cur_floor_temp
 
     @property
     def hvac_mode(self) -> HVACMode | None:
@@ -626,17 +643,17 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
     @property
     def target_temperature(self) -> float | None:
         """Return the temperature we try to reach."""
-        return self.temperatures.target_temp
+        return self.environment.target_temp
 
     @property
     def target_temperature_high(self) -> float | None:
         """Return the upper bound temperature."""
-        return self.temperatures.target_temp_high
+        return self.environment.target_temp_high
 
     @property
     def target_temperature_low(self) -> float | None:
         """Return the lower bound temperature."""
-        return self.temperatures.target_temp_low
+        return self.environment.target_temp_low
 
     @property
     def extra_state_attributes(self) -> dict:
@@ -646,22 +663,22 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         if self._target_temp_low is not None:
             if self._attr_preset_mode != PRESET_NONE and self.features.is_range_mode:
                 attributes[ATTR_PREV_TARGET_LOW] = (
-                    self.temperatures.saved_target_temp_low
+                    self.environment.saved_target_temp_low
                 )
             else:
-                attributes[ATTR_PREV_TARGET_LOW] = self.temperatures.target_temp_low
+                attributes[ATTR_PREV_TARGET_LOW] = self.environment.target_temp_low
         if self._target_temp_high is not None:
             if self._attr_preset_mode != PRESET_NONE and self.features.is_range_mode:
                 attributes[ATTR_PREV_TARGET_HIGH] = (
-                    self.temperatures.saved_target_temp_high
+                    self.environment.saved_target_temp_high
                 )
             else:
-                attributes[ATTR_PREV_TARGET_HIGH] = self.temperatures.target_temp_high
+                attributes[ATTR_PREV_TARGET_HIGH] = self.environment.target_temp_high
         if self._target_temp is not None:
             if self._attr_preset_mode != PRESET_NONE and self.features.is_target_mode:
-                attributes[ATTR_PREV_TARGET] = self.temperatures.saved_target_temp
+                attributes[ATTR_PREV_TARGET] = self.environment.saved_target_temp
             else:
-                attributes[ATTR_PREV_TARGET] = self.temperatures.target_temp
+                attributes[ATTR_PREV_TARGET] = self.environment.target_temp
 
         attributes[ATTR_HVAC_ACTION_REASON] = (
             self._hvac_action_reason or HVACActionReason.NONE
@@ -721,8 +738,8 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         else:
             if temperature is None:
                 return
-            self.temperatures.set_temperature_target(temperature)
-            self._target_temp = self.temperatures.target_temp
+            self.environment.set_temperature_target(temperature)
+            self._target_temp = self.environment.target_temp
 
         await self._async_control_climate(force=True)
         self.async_write_ha_state()
@@ -737,25 +754,25 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             if temperature is None:
                 return
 
-            self.temperatures.set_temperature_range_from_hvac_mode(
+            self.environment.set_temperature_range_from_hvac_mode(
                 temperature, self.hvac_device.hvac_mode
             )
 
-            self._target_temp = self.temperatures.target_temp
-            self._target_temp_low = self.temperatures.target_temp_low
-            self._target_temp_high = self.temperatures.target_temp_high
+            self._target_temp = self.environment.target_temp
+            self._target_temp_low = self.environment.target_temp_low
+            self._target_temp_high = self.environment.target_temp_high
 
         elif self.features.is_range_mode:
-            self.temperatures.set_temperature_range(temperature, temp_low, temp_high)
-            self._target_temp = self.temperatures.target_temp
-            self._target_temp_low = self.temperatures.target_temp_low
-            self._target_temp_high = self.temperatures.target_temp_high
+            self.environment.set_temperature_range(temperature, temp_low, temp_high)
+            self._target_temp = self.environment.target_temp
+            self._target_temp_low = self.environment.target_temp_low
+            self._target_temp_high = self.environment.target_temp_high
 
     @property
     def min_temp(self) -> float:
         """Return the minimum temperature."""
         if self._min_temp is not None:
-            return self.temperatures.min_temp
+            return self.environment.min_temp
 
         # get default temp from super class
         return super().min_temp
@@ -764,7 +781,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
     def max_temp(self) -> float:
         """Return the maximum temperature."""
         if self._max_temp is not None:
-            return self.temperatures.max_temp
+            return self.environment.max_temp
 
         # Get default temp from super class
         return super().max_temp
@@ -776,7 +793,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         if new_state is None or new_state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
             return
 
-        self.temperatures.update_temp_from_state(new_state)
+        self.environment.update_temp_from_state(new_state)
         await self._async_control_climate()
         self.async_write_ha_state()
 
@@ -789,7 +806,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         if new_state is None or new_state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
             return
 
-        self.temperatures.update_floor_temp_from_state(new_state)
+        self.environment.update_floor_temp_from_state(new_state)
         await self._async_control_climate()
         self.async_write_ha_state()
 
@@ -802,7 +819,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         if new_state is None or new_state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
             return
 
-        self.temperatures.update_floor_temp_from_state(new_state)
+        self.environment.update_floor_temp_from_state(new_state)
         await self._async_control_climate()
         self.async_write_ha_state()
 

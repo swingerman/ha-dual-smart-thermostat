@@ -4,11 +4,11 @@ import logging
 from homeassistant.components.climate import HVACMode
 from homeassistant.core import Context, HomeAssistant
 
+from custom_components.dual_smart_thermostat.managers.environment_manager import (
+    EnvironmentManager,
+)
 from custom_components.dual_smart_thermostat.managers.opening_manager import (
     OpeningManager,
-)
-from custom_components.dual_smart_thermostat.managers.temperature_manager import (
-    TemperatureManager,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -47,11 +47,11 @@ class HVACDevice:
     def __init__(
         self,
         hass: HomeAssistant,
-        temperatures: TemperatureManager,
+        environment: EnvironmentManager,
         openings: OpeningManager,
     ) -> None:
         self.hass = hass
-        self.temperatures = temperatures
+        self.environment = environment
         self.openings = openings
 
         self._hvac_action_reason = None

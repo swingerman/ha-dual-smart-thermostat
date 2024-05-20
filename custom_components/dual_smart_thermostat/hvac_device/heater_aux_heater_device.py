@@ -22,14 +22,14 @@ from custom_components.dual_smart_thermostat.hvac_device.hvac_device import (
     HVACDevice,
     merge_hvac_modes,
 )
+from custom_components.dual_smart_thermostat.managers.environment_manager import (
+    EnvironmentManager,
+)
 from custom_components.dual_smart_thermostat.managers.feature_manager import (
     FeatureManager,
 )
 from custom_components.dual_smart_thermostat.managers.opening_manager import (
     OpeningManager,
-)
-from custom_components.dual_smart_thermostat.managers.temperature_manager import (
-    TemperatureManager,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -47,11 +47,11 @@ class HeaterAUXHeaterDevice(HVACDevice, ControlableHVACDevice):
         aux_heater_timeout: timedelta,
         aux_heater_dual_mode: bool,
         initial_hvac_mode: HVACMode,
-        temperatures: TemperatureManager,
+        environment: EnvironmentManager,
         openings: OpeningManager,
         features: FeatureManager,
     ) -> None:
-        super().__init__(hass, temperatures, openings)
+        super().__init__(hass, environment, openings)
 
         self._device_type = self.__class__.__name__
         self.heater_device = heater_device
@@ -147,9 +147,9 @@ class HeaterAUXHeaterDevice(HVACDevice, ControlableHVACDevice):
         """Check if we need to turn heating on or off when the heater is off."""
         _LOGGER.debug("%s _async_control_devices_when_off", self.__class__.__name__)
 
-        too_cold = self.temperatures.is_too_cold(self._target_temp_attr)
-        is_floor_hot = self.temperatures.is_floor_hot
-        is_floor_cold = self.temperatures.is_floor_cold
+        too_cold = self.environment.is_too_cold(self._target_temp_attr)
+        is_floor_hot = self.environment.is_floor_hot
+        is_floor_cold = self.environment.is_floor_cold
         any_opening_open = self.openings.any_opening_open(self.hvac_mode)
 
         if (too_cold and not any_opening_open and not is_floor_hot) or is_floor_cold:
@@ -202,9 +202,9 @@ class HeaterAUXHeaterDevice(HVACDevice, ControlableHVACDevice):
         """Check if we need to turn heating on or off when the heater is off."""
         _LOGGER.debug("%s _async_control_devices_when_on", self.__class__.__name__)
 
-        too_hot = self.temperatures.is_too_hot(self._target_temp_attr)
-        is_floor_hot = self.temperatures.is_floor_hot
-        is_floor_cold = self.temperatures.is_floor_cold
+        too_hot = self.environment.is_too_hot(self._target_temp_attr)
+        is_floor_hot = self.environment.is_floor_hot
+        is_floor_cold = self.environment.is_floor_cold
         any_opening_open = self.openings.any_opening_open(self.hvac_mode)
         first_stage_timed_out = self._first_stage_heating_timed_out()
 

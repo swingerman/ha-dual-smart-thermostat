@@ -60,7 +60,7 @@ class TargetTemperatures:
         self.temp_low = temp_low
 
 
-class TemperatureManager(StateManager):
+class EnvironmentManager(StateManager):
     """Class to manage the temperatures of the thermostat."""
 
     def __init__(
