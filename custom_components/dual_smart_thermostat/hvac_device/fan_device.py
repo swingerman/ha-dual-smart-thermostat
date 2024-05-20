@@ -20,7 +20,7 @@ class FanDevice(CoolerDevice):
         entity_id,
         min_cycle_duration,
         initial_hvac_mode,
-        temperatures,
+        environment,
         openings,
         features,
     ) -> None:
@@ -29,7 +29,7 @@ class FanDevice(CoolerDevice):
             entity_id,
             min_cycle_duration,
             initial_hvac_mode,
-            temperatures,
+            environment,
             openings,
             features,
         )

@@ -11,13 +11,13 @@ from homeassistant.core import State
 from homeassistant.helpers.typing import ConfigType
 
 from custom_components.dual_smart_thermostat.const import CONF_PRESETS, CONF_PRESETS_OLD
+from custom_components.dual_smart_thermostat.managers.environment_manager import (
+    EnvironmentManager,
+)
 from custom_components.dual_smart_thermostat.managers.feature_manager import (
     FeatureManager,
 )
 from custom_components.dual_smart_thermostat.managers.state_manager import StateManager
-from custom_components.dual_smart_thermostat.managers.temperature_manager import (
-    TemperatureManager,
-)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -27,11 +27,11 @@ class PresetManager(StateManager):
         self,
         hass,
         config: ConfigType,
-        temperatures: TemperatureManager,
+        environment: EnvironmentManager,
         features: FeatureManager,
     ) -> None:
         self.hass = hass
-        self._temperatures = temperatures
+        self._environment = environment
         self._features = features
 
         self._current_preset = config.get("current_preset")
@@ -130,36 +130,34 @@ class PresetManager(StateManager):
             self._set_presets_when_have_preset_mode(preset_mode)
 
     def _set_presets_when_no_preset_mode(self):
-        """Sets target temperatures when preset is none."""
+        """Sets target environment when preset is none."""
         _LOGGER.debug("Setting presets when no preset mode")
         self._preset_mode = PRESET_NONE
         if self._features.is_range_mode:
-            self._temperatures.target_temp_low = (
-                self._temperatures.saved_target_temp_low
-            )
-            self._temperatures.target_temp_high = (
-                self._temperatures.saved_target_temp_high
+            self._environment.target_temp_low = self._environment.saved_target_temp_low
+            self._environment.target_temp_high = (
+                self._environment.saved_target_temp_high
             )
         else:
-            self._temperatures.target_temp = self._temperatures.saved_target_temp
+            self._environment.target_temp = self._environment.saved_target_temp
 
     def _set_presets_when_have_preset_mode(self, preset_mode: str):
         """Sets target temperatures when have preset is not none."""
         _LOGGER.debug("Setting presets when have preset mode")
         if self._features.is_range_mode:
             if self._preset_mode == PRESET_NONE:
-                self._temperatures.saved_target_temp_low = (
-                    self._temperatures.target_temp_low
+                self._environment.saved_target_temp_low = (
+                    self._environment.target_temp_low
                 )
-                self._temperatures.saved_target_temp_high = (
-                    self._temperatures.target_temp_high
+                self._environment.saved_target_temp_high = (
+                    self._environment.target_temp_high
                 )
-            self._temperatures.target_temp_low = self._presets_range[preset_mode][0]
-            self._temperatures.target_temp_high = self._presets_range[preset_mode][1]
+            self._environment.target_temp_low = self._presets_range[preset_mode][0]
+            self._environment.target_temp_high = self._presets_range[preset_mode][1]
         else:
             if self._preset_mode == PRESET_NONE:
-                self._temperatures.saved_target_temp = self._temperatures.target_temp
-            self._temperatures.target_temp = self._presets[preset_mode]
+                self._environment.saved_target_temp = self._environment.target_temp
+            self._environment.target_temp = self._presets[preset_mode]
         self._preset_mode = preset_mode
 
     def apply_old_state(self, old_state: State):
@@ -170,14 +168,14 @@ class PresetManager(StateManager):
         if self._features.is_range_mode:
             if self._preset_modes and old_pres_mode in self._presets_range:
                 self._preset_mode = old_pres_mode
-                self._temperatures.saved_target_temp_low = (
-                    self._temperatures.target_temp_low
+                self._environment.saved_target_temp_low = (
+                    self._environment.target_temp_low
                 )
-                self._temperatures.saved_target_temp_high = (
-                    self._temperatures.target_temp_high
+                self._environment.saved_target_temp_high = (
+                    self._environment.target_temp_high
                 )
 
             elif self._preset_modes and old_pres_mode in self._presets:
                 _LOGGER.debug("Restoring previous preset mode: %s", old_pres_mode)
                 self._preset_mode = old_pres_mode
-                self._temperatures.saved_target_temp = self._temperatures.target_temp
+                self._environment.saved_target_temp = self._environment.target_temp

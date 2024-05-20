@@ -20,11 +20,11 @@ from custom_components.dual_smart_thermostat.hvac_device.hvac_device import (
     HVACDevice,
     merge_hvac_modes,
 )
+from custom_components.dual_smart_thermostat.managers.environment_manager import (
+    EnvironmentManager,
+)
 from custom_components.dual_smart_thermostat.managers.opening_manager import (
     OpeningManager,
-)
-from custom_components.dual_smart_thermostat.managers.temperature_manager import (
-    TemperatureManager,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -39,10 +39,10 @@ class HeaterCoolerDevice(HVACDevice, ControlableHVACDevice):
         cooler_device: CoolerDevice,
         initial_hvac_mode: HVACMode,
         heat_cool_mode: bool,
-        temperatures: TemperatureManager,
+        environment: EnvironmentManager,
         openings: OpeningManager,
     ) -> None:
-        super().__init__(hass, temperatures, openings)
+        super().__init__(hass, environment, openings)
         self._device_type = self.__class__.__name__
         self.heater_device = heater_device
         self.cooler_device = cooler_device
@@ -134,16 +134,16 @@ class HeaterCoolerDevice(HVACDevice, ControlableHVACDevice):
         _LOGGER.debug("cooler_device.is_active: %s", self.cooler_device.is_active)
 
         if self.heater_device.is_active:
-            too_cold = self.temperatures.is_too_cold("_target_temp_low")
-            too_hot = self.temperatures.is_too_hot("_target_temp_low")
+            too_cold = self.environment.is_too_cold("_target_temp_low")
+            too_hot = self.environment.is_too_hot("_target_temp_low")
             tolerance_device = ToleranceDevice.HEATER
         elif self.cooler_device.is_active:
-            too_cold = self.temperatures.is_too_cold("_target_temp_high")
-            too_hot = self.temperatures.is_too_hot("_target_temp_high")
+            too_cold = self.environment.is_too_cold("_target_temp_high")
+            too_hot = self.environment.is_too_hot("_target_temp_high")
             tolerance_device = ToleranceDevice.COOLER
         else:
-            too_cold = self.temperatures.is_too_cold("_target_temp_low")
-            too_hot = self.temperatures.is_too_hot("_target_temp_high")
+            too_cold = self.environment.is_too_cold("_target_temp_low")
+            too_hot = self.environment.is_too_hot("_target_temp_high")
             tolerance_device = ToleranceDevice.AUTO
         return too_cold, too_hot, tolerance_device
 
@@ -184,16 +184,16 @@ class HeaterCoolerDevice(HVACDevice, ControlableHVACDevice):
         """Check if we need to turn heating on or off."""
 
         _LOGGER.info("_async_control_heat_cool")
-        if not self._active and self.temperatures.cur_temp is not None:
+        if not self._active and self.environment.cur_temp is not None:
             self._active = True
 
         if self.openings.any_opening_open(self.hvac_mode):
             await self.async_turn_off()
             self._hvac_action_reason = HVACActionReason.OPENING
-        elif self.temperatures.is_floor_hot and self.heater_device.is_active:
+        elif self.environment.is_floor_hot and self.heater_device.is_active:
             await self.heater_device.async_turn_off()
             self._hvac_action_reason = HVACActionReason.OVERHEAT
-        elif self.temperatures.is_floor_cold:
+        elif self.environment.is_floor_cold:
             await self.heater_device.async_turn_on()
             self._hvac_action_reason = HVACActionReason.LIMIT
         else:

@@ -34,14 +34,14 @@ from custom_components.dual_smart_thermostat.hvac_device.heater_cooler_device im
 from custom_components.dual_smart_thermostat.hvac_device.heater_device import (
     HeaterDevice,
 )
+from custom_components.dual_smart_thermostat.managers.environment_manager import (
+    EnvironmentManager,
+)
 from custom_components.dual_smart_thermostat.managers.feature_manager import (
     FeatureManager,
 )
 from custom_components.dual_smart_thermostat.managers.opening_manager import (
     OpeningManager,
-)
-from custom_components.dual_smart_thermostat.managers.temperature_manager import (
-    TemperatureManager,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -79,10 +79,10 @@ class HVACDeviceFactory:
         self._initial_hvac_mode = config.get(CONF_INITIAL_HVAC_MODE)
 
     def create_device(
-        self, temperatures: TemperatureManager, openings: OpeningManager
+        self, environment: EnvironmentManager, openings: OpeningManager
     ) -> ControlableHVACDevice:
 
-        self.temperatures = temperatures
+        self.environment = environment
 
         if self._features.is_configured_for_fan_only_mode:
             _LOGGER.info(
@@ -94,7 +94,7 @@ class HVACDeviceFactory:
                 self._heater_entity_id,
                 self._min_cycle_duration,
                 self._initial_hvac_mode,
-                temperatures,
+                environment,
                 openings,
                 self._features,
             )
@@ -113,7 +113,7 @@ class HVACDeviceFactory:
                 self._heater_entity_id,
                 self._min_cycle_duration,
                 self._initial_hvac_mode,
-                temperatures,
+                environment,
                 openings,
                 self._features,
             )
@@ -127,7 +127,7 @@ class HVACDeviceFactory:
                 self._heater_entity_id,
                 self._min_cycle_duration,
                 None,
-                temperatures,
+                environment,
                 openings,
                 self._features,
             )
@@ -136,7 +136,7 @@ class HVACDeviceFactory:
                 self._fan_entity_id,
                 self._min_cycle_duration,
                 None,
-                temperatures,
+                environment,
                 openings,
                 self._features,
             )
@@ -152,25 +152,25 @@ class HVACDeviceFactory:
                 cooler_device,
                 fan_device,
                 self._initial_hvac_mode,
-                temperatures,
+                environment,
                 openings,
                 self._features,
             )
 
         elif self._features.is_configured_for_dual_mode:
-            return self._create_heat_cool_device(temperatures, openings)
+            return self._create_heat_cool_device(environment, openings)
         else:
-            return self._create_heater_device(temperatures, openings)
+            return self._create_heater_device(environment, openings)
 
     def _create_heater_device(
-        self, temperatures: TemperatureManager, openings: OpeningManager
+        self, environment: EnvironmentManager, openings: OpeningManager
     ) -> HeaterDevice:
         heater_device = HeaterDevice(
             self.hass,
             self._heater_entity_id,
             self._min_cycle_duration,
             self._initial_hvac_mode,
-            temperatures,
+            environment,
             openings,
             self._features,
         )
@@ -180,7 +180,7 @@ class HVACDeviceFactory:
                 self._aux_heater_entity_id,
                 self._min_cycle_duration,
                 self._initial_hvac_mode,
-                temperatures,
+                environment,
                 openings,
                 self._features,
             )
@@ -191,7 +191,7 @@ class HVACDeviceFactory:
                 self._aux_heater_timeout,
                 self._aux_heater_dual_mode,
                 self._initial_hvac_mode,
-                temperatures,
+                environment,
                 openings,
                 self._features,
             )
@@ -202,14 +202,14 @@ class HVACDeviceFactory:
         return heater_device
 
     def _create_heat_cool_device(
-        self, temperatures: TemperatureManager, openings: OpeningManager
+        self, environment: EnvironmentManager, openings: OpeningManager
     ) -> HeaterDevice:
         heater_device = HeaterDevice(
             self.hass,
             self._heater_entity_id,
             self._min_cycle_duration,
             self._initial_hvac_mode,
-            temperatures,
+            environment,
             openings,
             self._features,
         )
@@ -220,7 +220,7 @@ class HVACDeviceFactory:
                 self._aux_heater_entity_id,
                 self._min_cycle_duration,
                 self._initial_hvac_mode,
-                temperatures,
+                environment,
                 openings,
                 self._features,
             )
@@ -231,7 +231,7 @@ class HVACDeviceFactory:
                 self._aux_heater_timeout,
                 self._aux_heater_dual_mode,
                 self._initial_hvac_mode,
-                temperatures,
+                environment,
                 openings,
                 self._features,
             )
@@ -241,7 +241,7 @@ class HVACDeviceFactory:
             self._cooler_entity_id,
             self._min_cycle_duration,
             self._initial_hvac_mode,
-            temperatures,
+            environment,
             openings,
             self._features,
         )
@@ -254,7 +254,7 @@ class HVACDeviceFactory:
                 self._fan_entity_id,
                 self._min_cycle_duration,
                 self._initial_hvac_mode,
-                temperatures,
+                environment,
                 openings,
                 self._features,
             )
@@ -263,7 +263,7 @@ class HVACDeviceFactory:
                 cooler_device,
                 fan_device,
                 self._initial_hvac_mode,
-                temperatures,
+                environment,
                 openings,
                 self._features,
             )
@@ -280,6 +280,6 @@ class HVACDeviceFactory:
             cooler_fan_device if cooler_fan_device else cooler_device,
             self._initial_hvac_mode,
             self._features.is_configured_for_heat_cool_mode,
-            temperatures,
+            environment,
             openings,
         )

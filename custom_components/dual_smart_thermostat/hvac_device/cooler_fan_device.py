@@ -18,14 +18,14 @@ from custom_components.dual_smart_thermostat.hvac_device.hvac_device import (
     HVACDevice,
     merge_hvac_modes,
 )
+from custom_components.dual_smart_thermostat.managers.environment_manager import (
+    EnvironmentManager,
+)
 from custom_components.dual_smart_thermostat.managers.feature_manager import (
     FeatureManager,
 )
 from custom_components.dual_smart_thermostat.managers.opening_manager import (
     OpeningManager,
-)
-from custom_components.dual_smart_thermostat.managers.temperature_manager import (
-    TemperatureManager,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -39,11 +39,11 @@ class CoolerFanDevice(HVACDevice, ControlableHVACDevice):
         cooler_device: CoolerDevice,
         fan_device: FanDevice,
         initial_hvac_mode: HVACMode,
-        temperatures: TemperatureManager,
+        environment: EnvironmentManager,
         openings: OpeningManager,
         features: FeatureManager,
     ) -> None:
-        super().__init__(hass, temperatures, openings)
+        super().__init__(hass, environment, openings)
 
         self._features = features
 
@@ -137,10 +137,10 @@ class CoolerFanDevice(HVACDevice, ControlableHVACDevice):
                     self.HVACActionReason = self.cooler_device.HVACActionReason
                 else:
 
-                    is_within_fan_tolerance = self.temperatures.is_within_fan_tolerance(
+                    is_within_fan_tolerance = self.environment.is_within_fan_tolerance(
                         self.fan_device.target_temp_attr
                     )
-                    is_warmer_outside = self.temperatures.is_warmer_outside
+                    is_warmer_outside = self.environment.is_warmer_outside
                     is_fan_air_outside = self.fan_device.fan_air_surce_outside
 
                     if is_within_fan_tolerance and not (
