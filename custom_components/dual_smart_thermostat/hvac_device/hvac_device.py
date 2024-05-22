@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 import logging
+from typing import Self
 
 from homeassistant.components.climate import HVACMode
 from homeassistant.core import Context, HomeAssistant
@@ -60,3 +61,12 @@ class HVACDevice:
 
     def set_context(self, context: Context):
         self._context = context
+
+    # _hvac_modes are the combined values of the device.hvac_modes without duplicates
+    def init_hvac_modes(
+        self, hvac_devices: list[Self]
+    ):  # list[ControlledHVACDevice] not typed because circular dependency error
+        device_hvac_modes = []
+        for device in hvac_devices:
+            device_hvac_modes = merge_hvac_modes(device.hvac_modes, device_hvac_modes)
+        self.hvac_modes = device_hvac_modes

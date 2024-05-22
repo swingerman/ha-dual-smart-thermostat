@@ -13,8 +13,10 @@ from homeassistant.helpers.typing import ConfigType
 from custom_components.dual_smart_thermostat.const import (
     CONF_AC_MODE,
     CONF_AUX_HEATER,
+    CONF_AUX_HEATING_DUAL_MODE,
     CONF_AUX_HEATING_TIMEOUT,
     CONF_COOLER,
+    CONF_DRYER,
     CONF_FAN,
     CONF_FAN_AIR_OUTSIDE,
     CONF_FAN_HOT_TOLERANCE,
@@ -22,6 +24,7 @@ from custom_components.dual_smart_thermostat.const import (
     CONF_FAN_ON_WITH_AC,
     CONF_HEAT_COOL_MODE,
     CONF_HEATER,
+    CONF_HUMIDITY_SENSOR,
 )
 from custom_components.dual_smart_thermostat.managers.environment_manager import (
     EnvironmentManager,
@@ -51,8 +54,12 @@ class FeatureManager(StateManager):
         self._fan_tolerance = config.get(CONF_FAN_HOT_TOLERANCE)
         self._fan_air_outside = config.get(CONF_FAN_AIR_OUTSIDE)
 
+        self._dryer_entity_id = config.get(CONF_DRYER)
+        self._humidity_sensor_entity_id = config.get(CONF_HUMIDITY_SENSOR)
+
         self._aux_heater_entity_id = config.get(CONF_AUX_HEATER)
         self._aux_heater_timeout = config.get(CONF_AUX_HEATING_TIMEOUT)
+        self._aux_heater_dual_mode = config.get(CONF_AUX_HEATING_DUAL_MODE)
 
         self._heat_cool_mode = config.get(CONF_HEAT_COOL_MODE)
         self._default_support_flags = (
@@ -117,6 +124,16 @@ class FeatureManager(StateManager):
         return True
 
     @property
+    def aux_heater_timeout(self) -> int:
+        """Return the aux heater timeout."""
+        return self._aux_heater_timeout
+
+    @property
+    def aux_heater_dual_mode(self) -> bool:
+        """Return the aux heater dual mode."""
+        return self._aux_heater_dual_mode
+
+    @property
     def is_configured_for_fan_mode(self) -> bool:
         """Determines if the fan mode is configured."""
         return self._fan_entity_id is not None
@@ -143,6 +160,14 @@ class FeatureManager(StateManager):
     @property
     def is_fan_uses_outside_air(self) -> bool:
         return self._fan_air_outside
+
+    @property
+    def is_configured_for_dryer_mode(self) -> bool:
+        """Determines if the dryer mode is configured."""
+        return (
+            self._dryer_entity_id is not None
+            and self._humidity_sensor_entity_id is not None
+        )
 
     def set_support_flags(
         self,
@@ -190,6 +215,9 @@ class FeatureManager(StateManager):
         self.environment.set_default_target_temps(
             self.is_target_mode, self.is_range_mode, hvac_modes
         )
+
+        if self.is_configured_for_dryer_mode:
+            self._supported_features |= ClimateEntityFeature.TARGET_HUMIDITY
 
     def apply_old_state(self, old_state: State, hvac_mode, presets_range) -> None:
         if old_state is None:
