@@ -85,8 +85,8 @@ from .const import (
     CONF_AUX_HEATING_TIMEOUT,
     CONF_COLD_TOLERANCE,
     CONF_COOLER,
-    CONF_DEHUMIDIFIER,
     CONF_DRY_TOLERANCE,
+    CONF_DRYER,
     CONF_FAN,
     CONF_FAN_AIR_OUTSIDE,
     CONF_FAN_HOT_TOLERANCE,
@@ -96,6 +96,7 @@ from .const import (
     CONF_HEAT_COOL_MODE,
     CONF_HEATER,
     CONF_HOT_TOLERANCE,
+    CONF_HUMIDITY_SENSOR,
     CONF_INITIAL_HVAC_MODE,
     CONF_KEEP_ALIVE,
     CONF_MAX_FLOOR_TEMP,
@@ -168,7 +169,8 @@ OPENINGS_SCHEMA = {
 }
 
 HYGROSTAT_SCHEMA = {
-    vol.Optional(CONF_DEHUMIDIFIER): cv.entity_id,
+    vol.Optional(CONF_DRYER): cv.entity_id,
+    vol.Optional(CONF_HUMIDITY_SENSOR): cv.entity_id,
     vol.Optional(CONF_MIN_HUMIDITY): vol.Coerce(float),
     vol.Optional(CONF_MAX_HUMIDITY): vol.Coerce(float),
     vol.Optional(CONF_TARGET_HUMIDITY): vol.Coerce(float),
@@ -246,6 +248,7 @@ async def async_setup_platform(
     sensor_entity_id = config[CONF_SENSOR]
     sensor_floor_entity_id = config.get(CONF_FLOOR_SENSOR)
     sensor_outside_entity_id = config.get(CONF_OUTSIDE_SENSOR)
+    sensor_humidity_entity_id = config.get(CONF_HUMIDITY_SENSOR)
     keep_alive = config.get(CONF_KEEP_ALIVE)
     presets_dict = {
         key: config[value] for key, value in CONF_PRESETS.items() if value in config
@@ -285,6 +288,7 @@ async def async_setup_platform(
 
     preset_manager = PresetManager(hass, config, environment_manager, feature_manager)
 
+    # device_factory = HVACDeviceFactory(hass, config, feature_manager)
     device_factory = HVACDeviceFactory(hass, config, feature_manager)
 
     hvac_device = device_factory.create_device(environment_manager, opening_manager)
@@ -296,6 +300,7 @@ async def async_setup_platform(
                 sensor_entity_id,
                 sensor_floor_entity_id,
                 sensor_outside_entity_id,
+                sensor_humidity_entity_id,
                 keep_alive,
                 precision,
                 unit,
@@ -347,6 +352,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         sensor_entity_id,
         sensor_floor_entity_id,
         sensor_outside_entity_id,
+        sensor_humidity_entity_id,
         keep_alive,
         precision,
         unit,
@@ -381,6 +387,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self.sensor_entity_id = sensor_entity_id
         self.sensor_floor_entity_id = sensor_floor_entity_id
         self.sensor_outside_entity_id = sensor_outside_entity_id
+        self.sensor_humidity_entity_id = sensor_humidity_entity_id
 
         self._keep_alive = keep_alive
 
@@ -391,9 +398,6 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self._target_temp_low = self.environment.target_temp_low
         self._attr_temperature_unit = unit
 
-        # temperature limits
-        self._min_temp = self.environment.min_temp
-        self._max_temp = self.environment.max_temp
         self._unit = unit
 
         # HVAC modes
@@ -457,6 +461,18 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                     self.hass,
                     [self.sensor_outside_entity_id],
                     self._async_sensor_outside_changed,
+                )
+            )
+
+        if self.sensor_humidity_entity_id is not None:
+            _LOGGER.debug(
+                "Adding humidity sensor listener: %s", self.sensor_humidity_entity_id
+            )
+            self.async_on_remove(
+                async_track_state_change_event(
+                    self.hass,
+                    [self.sensor_humidity_entity_id],
+                    self._async_sensor_humidity_changed,
                 )
             )
 
@@ -626,6 +642,11 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         return self.environment.cur_temp
 
     @property
+    def current_humidity(self) -> float | None:
+        """Return the sensor humidity."""
+        return self.environment.cur_humidity
+
+    @property
     def current_floor_temperature(self) -> float | None:
         """Return the sensor temperature."""
         return self.environment.cur_floor_temp
@@ -654,6 +675,42 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
     def target_temperature_low(self) -> float | None:
         """Return the lower bound temperature."""
         return self.environment.target_temp_low
+
+    @property
+    def min_temp(self) -> float:
+        """Return the minimum temperature."""
+        if self.environment.min_temp is not None:
+            return self.environment.min_temp
+
+        # get default temp from super class
+        return super().min_temp
+
+    @property
+    def max_temp(self) -> float:
+        """Return the maximum temperature."""
+        if self.environment.max_temp is not None:
+            return self.environment.max_temp
+
+        # Get default temp from super class
+        return super().max_temp
+
+    @property
+    def min_humidity(self) -> float:
+        """Return the minimum humidity."""
+        if self.environment.min_humidity is not None:
+            return self.environment.min_humidity
+
+        # get default from super class
+        return super().min_humidity
+
+    @property
+    def max_humidity(self) -> float:
+        """Return the maximum humidity."""
+        if self.environment.max_humidity is not None:
+            return self.environment.max_humidity
+
+        # get default from supe rclass
+        return super().max_humidity
 
     @property
     def extra_state_attributes(self) -> dict:
@@ -768,24 +825,6 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             self._target_temp_low = self.environment.target_temp_low
             self._target_temp_high = self.environment.target_temp_high
 
-    @property
-    def min_temp(self) -> float:
-        """Return the minimum temperature."""
-        if self._min_temp is not None:
-            return self.environment.min_temp
-
-        # get default temp from super class
-        return super().min_temp
-
-    @property
-    def max_temp(self) -> float:
-        """Return the maximum temperature."""
-        if self._max_temp is not None:
-            return self.environment.max_temp
-
-        # Get default temp from super class
-        return super().max_temp
-
     async def _async_sensor_changed(self, event: Event[EventStateChangedData]) -> None:
         """Handle temperature changes."""
         new_state = event.data.get("new_state")
@@ -816,6 +855,19 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         """Handle outside temperature changes."""
         new_state = event.data.get("new_state")
         _LOGGER.info("Sensor outside change: %s", new_state)
+        if new_state is None or new_state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
+            return
+
+        self.environment.update_outside_temp_from_state(new_state)
+        await self._async_control_climate()
+        self.async_write_ha_state()
+
+    async def _async_sensor_humidity_changed(
+        self, event: Event[EventStateChangedData]
+    ) -> None:
+        """Handle outside temperature changes."""
+        new_state = event.data.get("new_state")
+        _LOGGER.info("Sensor humidity change: %s", new_state)
         if new_state is None or new_state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
             return
 

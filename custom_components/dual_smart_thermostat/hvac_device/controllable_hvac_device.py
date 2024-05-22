@@ -43,6 +43,7 @@ class ControlableHVACDevice(ABC):
 
     @hvac_mode.setter
     def hvac_mode(self, hvac_mode: HVACMode):
+        _LOGGER.debug("%s: Setting hvac mode to %s", self.__class__.__name__, hvac_mode)
         self._hvac_mode = hvac_mode
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode):

@@ -34,6 +34,9 @@ from custom_components.dual_smart_thermostat.hvac_device.heater_cooler_device im
 from custom_components.dual_smart_thermostat.hvac_device.heater_device import (
     HeaterDevice,
 )
+from custom_components.dual_smart_thermostat.hvac_device.multi_hvac_device import (
+    MultiHvacDevice,
+)
 from custom_components.dual_smart_thermostat.managers.environment_manager import (
     EnvironmentManager,
 )
@@ -149,8 +152,7 @@ class HVACDeviceFactory:
 
             return CoolerFanDevice(
                 self.hass,
-                cooler_device,
-                fan_device,
+                [cooler_device, fan_device],
                 self._initial_hvac_mode,
                 environment,
                 openings,
@@ -158,12 +160,15 @@ class HVACDeviceFactory:
             )
 
         elif self._features.is_configured_for_dual_mode:
-            return self._create_heat_cool_device(environment, openings)
+            return self._create_heat_cool_device(environment, openings, self._features)
         else:
-            return self._create_heater_device(environment, openings)
+            return self._create_heater_device(environment, openings, self._features)
 
     def _create_heater_device(
-        self, environment: EnvironmentManager, openings: OpeningManager
+        self,
+        environment: EnvironmentManager,
+        openings: OpeningManager,
+        features: FeatureManager,
     ) -> HeaterDevice:
         heater_device = HeaterDevice(
             self.hass,
@@ -172,7 +177,7 @@ class HVACDeviceFactory:
             self._initial_hvac_mode,
             environment,
             openings,
-            self._features,
+            features,
         )
         if self._features.is_configured_for_aux_heating_mode:
             aux_heater_device = HeaterDevice(
@@ -182,18 +187,15 @@ class HVACDeviceFactory:
                 self._initial_hvac_mode,
                 environment,
                 openings,
-                self._features,
+                features,
             )
             return HeaterAUXHeaterDevice(
                 self.hass,
-                heater_device,
-                aux_heater_device,
-                self._aux_heater_timeout,
-                self._aux_heater_dual_mode,
+                [heater_device, aux_heater_device],
                 self._initial_hvac_mode,
                 environment,
                 openings,
-                self._features,
+                features,
             )
         _LOGGER.info(
             "Creating HeaterDevice device, _is_configured_for_aux_heating_mode: %s",
@@ -202,8 +204,13 @@ class HVACDeviceFactory:
         return heater_device
 
     def _create_heat_cool_device(
-        self, environment: EnvironmentManager, openings: OpeningManager
-    ) -> HeaterDevice:
+        self,
+        environment: EnvironmentManager,
+        openings: OpeningManager,
+        features: FeatureManager,
+    ) -> ControlableHVACDevice:
+        devices = []
+
         heater_device = HeaterDevice(
             self.hass,
             self._heater_entity_id,
@@ -211,7 +218,7 @@ class HVACDeviceFactory:
             self._initial_hvac_mode,
             environment,
             openings,
-            self._features,
+            features,
         )
 
         if self._features.is_configured_for_aux_heating_mode:
@@ -222,18 +229,17 @@ class HVACDeviceFactory:
                 self._initial_hvac_mode,
                 environment,
                 openings,
-                self._features,
+                features,
             )
-            return HeaterAUXHeaterDevice(
-                self.hass,
-                heater_device,
-                aux_heater_device,
-                self._aux_heater_timeout,
-                self._aux_heater_dual_mode,
-                self._initial_hvac_mode,
-                environment,
-                openings,
-                self._features,
+            devices.append(
+                HeaterAUXHeaterDevice(
+                    self.hass,
+                    [heater_device, aux_heater_device],
+                    self._initial_hvac_mode,
+                    environment,
+                    openings,
+                    features,
+                )
             )
 
         cooler_device = CoolerDevice(
@@ -243,7 +249,7 @@ class HVACDeviceFactory:
             self._initial_hvac_mode,
             environment,
             openings,
-            self._features,
+            features,
         )
 
         cooler_fan_device = None
@@ -256,16 +262,15 @@ class HVACDeviceFactory:
                 self._initial_hvac_mode,
                 environment,
                 openings,
-                self._features,
+                features,
             )
             cooler_fan_device = CoolerFanDevice(
                 self.hass,
-                cooler_device,
-                fan_device,
+                [cooler_device, fan_device],
                 self._initial_hvac_mode,
                 environment,
                 openings,
-                self._features,
+                features,
             )
 
         _LOGGER.info(
@@ -274,12 +279,29 @@ class HVACDeviceFactory:
             heater_device,
             cooler_fan_device if cooler_fan_device else cooler_device,
         )
-        return HeaterCoolerDevice(
+
+        sub_deices = [heater_device]
+        if cooler_fan_device:
+            sub_deices.append(cooler_fan_device)
+        else:
+            sub_deices.append(cooler_device)
+
+        devices.append(
+            HeaterCoolerDevice(
+                self.hass,
+                sub_deices,
+                self._initial_hvac_mode,
+                environment,
+                openings,
+                features,
+            )
+        )
+
+        return MultiHvacDevice(
             self.hass,
-            heater_device,
-            cooler_fan_device if cooler_fan_device else cooler_device,
+            devices,
             self._initial_hvac_mode,
-            self._features.is_configured_for_heat_cool_mode,
             environment,
             openings,
+            features,
         )

@@ -27,17 +27,22 @@ from custom_components.dual_smart_thermostat.const import (
     ATTR_PREV_TARGET_HIGH,
     ATTR_PREV_TARGET_LOW,
     CONF_COLD_TOLERANCE,
+    CONF_DRY_TOLERANCE,
     CONF_FAN_HOT_TOLERANCE,
     CONF_FLOOR_SENSOR,
     CONF_HOT_TOLERANCE,
     CONF_MAX_FLOOR_TEMP,
+    CONF_MAX_HUMIDITY,
     CONF_MAX_TEMP,
     CONF_MIN_FLOOR_TEMP,
+    CONF_MIN_HUMIDITY,
     CONF_MIN_TEMP,
+    CONF_MOIST_TOLERANCE,
     CONF_OUTSIDE_SENSOR,
     CONF_PRECISION,
     CONF_SENSOR,
     CONF_SENSOR_SAFETY_DELAY,
+    CONF_TARGET_HUMIDITY,
     CONF_TARGET_TEMP,
     CONF_TARGET_TEMP_HIGH,
     CONF_TARGET_TEMP_LOW,
@@ -78,6 +83,12 @@ class EnvironmentManager(StateManager):
         self._min_temp = config.get(CONF_MIN_TEMP)
         self._max_temp = config.get(CONF_MAX_TEMP)
 
+        self._min_humidity = config.get(CONF_MIN_HUMIDITY)
+        self._max_himidity = config.get(CONF_MAX_HUMIDITY)
+        self._target_humidity = config.get(CONF_TARGET_HUMIDITY)
+        self._moist_tolerance = config.get(CONF_MOIST_TOLERANCE)
+        self._dry_tolerance = config.get(CONF_DRY_TOLERANCE)
+
         self._max_floor_temp = config.get(CONF_MAX_FLOOR_TEMP)
         self._min_floor_temp = config.get(CONF_MIN_FLOOR_TEMP)
 
@@ -100,6 +111,7 @@ class EnvironmentManager(StateManager):
         self._cur_temp = None
         self._cur_floor_temp = None
         self._cur_outside_temp = None
+        self._cur_humidity = None
 
     @property
     def cur_temp(self) -> float:
@@ -208,6 +220,26 @@ class EnvironmentManager(StateManager):
     def fan_cold_tolerance(self) -> float:
         return self._fan_hot_tolerance
 
+    @property
+    def max_humidity(self) -> float:
+        return self._max_himidity
+
+    @property
+    def min_humidity(self) -> float:
+        return self._min_humidity
+
+    @property
+    def target_humidity(self) -> float:
+        return self._target_humidity
+
+    @target_humidity.setter
+    def target_humidity(self, humidity: float) -> None:
+        self._target_humidity = humidity
+
+    @property
+    def cur_humidity(self) -> float:
+        return self._cur_humidity
+
     def set_temperature_range_from_hvac_mode(
         self, temperature: float, hvac_mode: HVACMode
     ) -> None:
@@ -310,6 +342,20 @@ class EnvironmentManager(StateManager):
         return self._cur_temp >= target_temp + self._hot_tolerance
 
     @property
+    def is_too_moist(self) -> bool:
+        """Checks if the current humidity is above target."""
+        if self._cur_humidity is None:
+            return False
+        return self._cur_humidity >= self._target_humidity + self._moist_tolerance
+
+    @property
+    def is_too_dry(self) -> bool:
+        """Checks if the current humidity is below target."""
+        if self._cur_humidity is None:
+            return False
+        return self._cur_humidity <= self._target_humidity - self._dry_tolerance
+
+    @property
     def is_floor_hot(self) -> bool:
         """If the floor temp is above limit."""
         if (
@@ -399,7 +445,7 @@ class EnvironmentManager(StateManager):
 
     @callback
     def update_outside_temp_from_state(self, state: State):
-        """Update ermostat with latest outside temp state from outside temp sensor."""
+        """Update thermostat with latest outside temp state from outside temp sensor."""
         try:
             cur_outside_temp = float(state.state)
             if not math.isfinite(cur_outside_temp):
@@ -407,6 +453,17 @@ class EnvironmentManager(StateManager):
             self._cur_outside_temp = cur_outside_temp
         except ValueError as ex:
             _LOGGER.error("Unable to update from outside temp sensor: %s", ex)
+
+    @callback
+    def update_humidity_from_state(self, state: State):
+        """Update thermostat with latest humidity state from humidity sensor."""
+        try:
+            cur_humidity = float(state.state)
+            if not math.isfinite(cur_humidity):
+                raise ValueError(f"Sensor has illegal state {state.state}")
+            self._cur_humidity = cur_humidity
+        except ValueError as ex:
+            _LOGGER.error("Unable to update from humidity sensor: %s", ex)
 
     def set_default_target_temps(
         self, is_target_mode: bool, is_range_mode: bool, hvac_modes: list[HVACMode]

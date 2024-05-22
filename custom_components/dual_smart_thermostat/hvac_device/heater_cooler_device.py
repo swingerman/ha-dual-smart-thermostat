@@ -1,27 +1,23 @@
 import logging
 
-from homeassistant.components.climate import HVACAction, HVACMode
-from homeassistant.core import Context, HomeAssistant
+from homeassistant.components.climate import HVACMode
+from homeassistant.core import HomeAssistant
 
 from custom_components.dual_smart_thermostat.const import ToleranceDevice
 from custom_components.dual_smart_thermostat.hvac_action_reason.hvac_action_reason import (
     HVACActionReason,
 )
-from custom_components.dual_smart_thermostat.hvac_device.controllable_hvac_device import (
-    ControlableHVACDevice,
-)
-from custom_components.dual_smart_thermostat.hvac_device.cooler_device import (
-    CoolerDevice,
-)
-from custom_components.dual_smart_thermostat.hvac_device.heater_device import (
-    HeaterDevice,
-)
 from custom_components.dual_smart_thermostat.hvac_device.hvac_device import (
-    HVACDevice,
     merge_hvac_modes,
+)
+from custom_components.dual_smart_thermostat.hvac_device.multi_hvac_device import (
+    MultiHvacDevice,
 )
 from custom_components.dual_smart_thermostat.managers.environment_manager import (
     EnvironmentManager,
+)
+from custom_components.dual_smart_thermostat.managers.feature_manager import (
+    FeatureManager,
 )
 from custom_components.dual_smart_thermostat.managers.opening_manager import (
     OpeningManager,
@@ -30,101 +26,65 @@ from custom_components.dual_smart_thermostat.managers.opening_manager import (
 _LOGGER = logging.getLogger(__name__)
 
 
-class HeaterCoolerDevice(HVACDevice, ControlableHVACDevice):
+class HeaterCoolerDevice(MultiHvacDevice):
 
     def __init__(
         self,
         hass: HomeAssistant,
-        heater_device: HeaterDevice,
-        cooler_device: CoolerDevice,
+        devices: list,
         initial_hvac_mode: HVACMode,
-        heat_cool_mode: bool,
         environment: EnvironmentManager,
         openings: OpeningManager,
+        features: FeatureManager,
     ) -> None:
-        super().__init__(hass, environment, openings)
-        self._device_type = self.__class__.__name__
-        self.heater_device = heater_device
-        self.cooler_device = cooler_device
-
-        # _hvac_modes are the combined values of the heater_device.hvac_modes and cooler_device.hvac_modes without duplicates
-        device_hvac_modes = merge_hvac_modes(
-            heater_device.hvac_modes, cooler_device.hvac_modes
+        super().__init__(
+            hass, devices, initial_hvac_mode, environment, openings, features
         )
 
-        if heat_cool_mode:
-            self.hvac_modes = merge_hvac_modes(device_hvac_modes, [HVACMode.HEAT_COOL])
-        else:
-            self.hvac_modes = device_hvac_modes
+        self._device_type = self.__class__.__name__
 
-        if initial_hvac_mode in self.hvac_modes:
-            self._hvac_mode = initial_hvac_mode
-        else:
-            self._hvac_mode = None
+        self.heater_device = next(
+            device for device in devices if HVACMode.HEAT in device.hvac_modes
+        )
+        self.cooler_device = next(
+            device for device in devices if HVACMode.COOL in device.hvac_modes
+        )
 
-    def set_context(self, context: Context):
-        self.heater_device.set_context(context)
-        self.cooler_device.set_context(context)
-        self._context = context
+        if self.heater_device is None or self.cooler_device is None:
+            _LOGGER.error("Heater or cooler device is not found")
+            return
 
-    def get_device_ids(self) -> list[str]:
-        device_ids = []
-        if (
-            hasattr(self.heater_device, "entity_id")
-            and self.heater_device.entity_id is not None
-        ):
-            device_ids.append(self.heater_device.entity_id)
-        else:
-            device_ids += self.heater_device.get_device_ids()
+        if self._features.is_configured_for_heat_cool_mode:
+            self.hvac_modes = merge_hvac_modes(self.hvac_modes, [HVACMode.HEAT_COOL])
 
-        if (
-            hasattr(self.cooler_device, "entity_id")
-            and self.cooler_device.entity_id is not None
-        ):
-            device_ids.append(self.cooler_device.entity_id)
-        else:
-            device_ids += self.cooler_device.get_device_ids()
-
-        return device_ids
+        self.set_initial_hvac_mode(initial_hvac_mode)
 
     @property
-    def is_active(self) -> bool:
-        return self.heater_device.is_active or self.cooler_device.is_active
+    def hvac_mode(self) -> HVACMode:
+        return self._hvac_mode
 
-    @property
-    def hvac_action(self) -> HVACAction:
-        if self.heater_device.is_active:
-            return HVACAction.HEATING
-        if self.cooler_device.is_active:
-            # cooler can be coler/fan device
-            return self.cooler_device.hvac_action
-        if self.hvac_mode == HVACMode.OFF:
-            return HVACAction.OFF
-        return HVACAction.IDLE
+    @hvac_mode.setter
+    def hvac_mode(self, hvac_mode: HVACMode):
+        if hvac_mode == HVACMode.HEAT_COOL:
+            self.heater_device.hvac_mode = HVACMode.HEAT
+            self.cooler_device.hvac_mode = HVACMode.COOL
+        else:
+            self.set_sub_devices_hvac_mode(hvac_mode)
+        self._hvac_mode = hvac_mode
 
-    async def async_on_startup(self):
-        await self.heater_device.async_on_startup()
-        await self.cooler_device.async_on_startup()
+    async def async_control_hvac(self, time=None, force: bool = False):
 
-        await self.async_control_hvac(force=True)
+        _LOGGER.debug(
+            "async_control_hvac. hvac_mode: %s, force: %s", self._hvac_mode, force
+        )
 
-    async def async_control_hvac(self, time=None, force=False):
-        _LOGGER.info({self.__class__.__name__})
-        _LOGGER.debug("async_control_hvac, time: %s, force: %s", time, force)
-        match self._hvac_mode:
-            case HVACMode.COOL | HVACMode.FAN_ONLY:
-                await self.heater_device.async_turn_off()
-                await self.cooler_device.async_control_hvac(time, force)
-            case HVACMode.HEAT:
-                await self.cooler_device.async_turn_off()
-                await self.heater_device.async_control_hvac(time, force)
-            case HVACMode.HEAT_COOL:
-                await self._async_control_heat_cool(time, force)
-            case HVACMode.OFF:
-                await self.async_turn_off()
-            case _:
-                if self._hvac_mode is not None:
-                    _LOGGER.warning("Invalid HVAC mode: %s", self._hvac_mode)
+        supports_heat_cool = HVACMode.HEAT_COOL in self.hvac_modes
+
+        if supports_heat_cool and self.hvac_mode == HVACMode.HEAT_COOL:
+            await self._async_control_heat_cool(time, force)
+            return
+
+        await super().async_control_hvac(time, force)
 
     def is_cold_or_hot(self) -> tuple[bool, bool, ToleranceDevice]:
         """Check if the floor is too cold or too hot."""
@@ -148,42 +108,19 @@ class HeaterCoolerDevice(HVACDevice, ControlableHVACDevice):
         return too_cold, too_hot, tolerance_device
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode):
-        _LOGGER.info("Setting hvac mode to %s of %s", hvac_mode, self.hvac_modes)
-        if hvac_mode in self.hvac_modes:
-            _LOGGER.debug("hvac mode found")
-            self.hvac_mode = hvac_mode
 
-            if hvac_mode is not HVACMode.OFF:
-                # handles HVACmode.HEAT
-                if hvac_mode in self.heater_device.hvac_modes:
-                    self.heater_device.hvac_mode = hvac_mode
-                elif hvac_mode == HVACMode.HEAT_COOL:
-                    self.heater_device.hvac_mode = HVACMode.HEAT
-                # handles HVACmode.COOL
-                if hvac_mode in self.cooler_device.hvac_modes:
-                    self.cooler_device.hvac_mode = hvac_mode
-                elif hvac_mode == HVACMode.HEAT_COOL:
-                    self.cooler_device.hvac_mode = HVACMode.COOL
-            else:
-                self.heater_device.hvac_mode = hvac_mode
-                self.cooler_device.hvac_mode = hvac_mode
+        _LOGGER.debug("async_set_hvac_mode %s", hvac_mode)
+        if hvac_mode == HVACMode.HEAT_COOL:
+            _LOGGER.debug("async_set_hvac_mode heat_cool setting devices hvac_modes")
+            self.heater_device.hvac_mode = HVACMode.HEAT
+            self.cooler_device.hvac_mode = HVACMode.COOL
 
-        else:
-            _LOGGER.debug("Hvac mode %s is not in %s", hvac_mode, self.hvac_modes)
-            self._hvac_mode = HVACMode.OFF
-
-        if self._hvac_mode == HVACMode.OFF:
-            await self.async_turn_off()
-            self._hvac_action_reason = HVACActionReason.NONE
-        else:
-            await self.async_control_hvac(self, force=True)
-
-        _LOGGER.info("Hvac mode set to %s", self._hvac_mode)
+        await super().async_set_hvac_mode(hvac_mode)
 
     async def _async_control_heat_cool(self, time=None, force=False) -> None:
         """Check if we need to turn heating on or off."""
 
-        _LOGGER.info("_async_control_heat_cool")
+        _LOGGER.info("_async_control_heat_cool. time: %s, force: %s", time, force)
         if not self._active and self.environment.cur_temp is not None:
             self._active = True
 
@@ -206,7 +143,7 @@ class HeaterCoolerDevice(HVACDevice, ControlableHVACDevice):
 
     async def async_heater_cooler_toggle(self, time=None, force=False) -> None:
         """Toggle heater cooler based on temp and tolarance."""
-        _LOGGER.debug("async_heater_cooler_toggle")
+        _LOGGER.debug("async_heater_cooler_toggle time: %s, force: %s", time, force)
         too_cold, too_hot, tolerance_device = self.is_cold_or_hot()
 
         _LOGGER.debug(
@@ -231,6 +168,7 @@ class HeaterCoolerDevice(HVACDevice, ControlableHVACDevice):
     ) -> None:
         _LOGGER.debug("_async_auto_toggle")
         _LOGGER.debug("too_cold: %s, too_hot: %s", too_cold, too_hot)
+        _LOGGER.debug("time: %s, force: %s", time, force)
         if too_cold:
             await self.heater_device.async_control_hvac(time, force)
             self._hvac_action_reason = self.heater_device.HVACActionReason
@@ -243,13 +181,6 @@ class HeaterCoolerDevice(HVACDevice, ControlableHVACDevice):
             await self.heater_device.async_turn_off()
             await self.cooler_device.async_turn_off()
             self._hvac_action_reason = HVACActionReason.TARGET_TEMP_REACHED
-
-    async def async_turn_on(self):
-        await self.async_control_hvac(force=True)
-
-    async def async_turn_off(self):
-        await self.heater_device.async_turn_off()
-        await self.cooler_device.async_turn_off()
 
     async def _async_check_device_initial_state(self) -> None:
         """Child devices on_startup handles this."""
