@@ -22,9 +22,9 @@ from custom_components.dual_smart_thermostat.hvac_device.controllable_hvac_devic
     ControlableHVACDevice,
 )
 from custom_components.dual_smart_thermostat.hvac_device.hvac_device import (
-    CanTargetTemperature,
     HVACDevice,
     Switchable,
+    TargetsEnvironmentAttribute,
 )
 from custom_components.dual_smart_thermostat.managers.environment_manager import (
     EnvironmentManager,
@@ -40,10 +40,10 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class SpecificHVACDevice(
-    HVACDevice, ControlableHVACDevice, Switchable, CanTargetTemperature
+    HVACDevice, ControlableHVACDevice, Switchable, TargetsEnvironmentAttribute
 ):
 
-    _target_temp_attr: str = "_target_temp"
+    _target_env_attr: str = "_target_temp"
 
     def __init__(
         self,
@@ -99,8 +99,8 @@ class SpecificHVACDevice(
             )
 
     @property
-    def target_temp_attr(self) -> str:
-        return self._target_temp_attr
+    def target_env_attr(self) -> str:
+        return self._target_env_attr
 
     @property
     def is_active(self) -> bool:
@@ -111,7 +111,6 @@ class SpecificHVACDevice(
             return True
         return False
 
-    # @property
     def _ran_long_enough(self) -> bool:
         if self.is_active:
             current_state = STATE_ON
@@ -136,8 +135,8 @@ class SpecificHVACDevice(
         """Checks if active state needs to be set true."""
         _LOGGER.debug("_active: %s", self._active)
         _LOGGER.debug("cur_temp: %s", self.environment.cur_temp)
-        _LOGGER.debug("target_temp_attr: %s", self.target_temp_attr)
-        target_temp = getattr(self.environment, self.target_temp_attr)
+        _LOGGER.debug("target_env_attr: %s", self.target_env_attr)
+        target_temp = getattr(self.environment, self.target_env_attr)
         _LOGGER.debug("target_temp: %s", target_temp)
 
         if (
@@ -202,16 +201,24 @@ class SpecificHVACDevice(
         else:
             await self._async_control_when_inactive(time)
 
+    def is_below_target_env_attr(self) -> bool:
+        """is too cold?"""
+        return self.environment.is_too_cold(self.target_env_attr)
+
+    def is_above_target_env_attr(self) -> bool:
+        """is too hot?"""
+        return self.environment.is_too_hot(self.target_env_attr)
+
     async def _async_control_when_active(self, time=None) -> None:
         _LOGGER.debug("%s _async_control_when_active", self.__class__.__name__)
-        too_cold = self.environment.is_too_cold(self.target_temp_attr)
+        below_env_attr = self.is_below_target_env_attr()
         any_opening_open = self.openings.any_opening_open(self.hvac_mode)
         is_sensor_safety_timed_out = self.environment.is_sensor_safety_timed_out
 
-        if too_cold or any_opening_open or is_sensor_safety_timed_out:
+        if below_env_attr or any_opening_open or is_sensor_safety_timed_out:
             _LOGGER.debug("Turning off entity %s", self.entity_id)
             await self.async_turn_off()
-            if too_cold:
+            if below_env_attr:
                 self._hvac_action_reason = HVACActionReason.TARGET_TEMP_REACHED
             if any_opening_open:
                 self._hvac_action_reason = HVACActionReason.OPENING
@@ -230,10 +237,10 @@ class SpecificHVACDevice(
             self._hvac_action_reason = HVACActionReason.TARGET_TEMP_NOT_REACHED
 
     async def _async_control_when_inactive(self, time=None) -> None:
-        too_hot = self.environment.is_too_hot(self.target_temp_attr)
+        above_env_attr = self.is_above_target_env_attr()
         any_opening_open = self.openings.any_opening_open(self.hvac_mode)
 
-        _LOGGER.debug("too_hot: %s", too_hot)
+        _LOGGER.debug("above_env_attr: %s", above_env_attr)
         _LOGGER.debug("any_opening_open: %s", any_opening_open)
         _LOGGER.debug("is_active: %s", self.is_active)
         _LOGGER.debug("time: %s", time)
@@ -242,7 +249,7 @@ class SpecificHVACDevice(
             self.environment.is_sensor_safety_timed_out,
         )
 
-        if too_hot and not any_opening_open:
+        if above_env_attr and not any_opening_open:
             _LOGGER.debug("Turning on entity (from inactive) %s", self.entity_id)
             await self.async_turn_on()
             self._hvac_action_reason = HVACActionReason.TARGET_TEMP_NOT_REACHED

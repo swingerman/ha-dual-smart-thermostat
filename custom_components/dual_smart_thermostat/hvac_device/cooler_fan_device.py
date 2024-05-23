@@ -78,7 +78,7 @@ class CoolerFanDevice(MultiHvacDevice):
                 else:
 
                     is_within_fan_tolerance = self.environment.is_within_fan_tolerance(
-                        self.fan_device.target_temp_attr
+                        self.fan_device.target_env_attr
                     )
                     is_warmer_outside = self.environment.is_warmer_outside
                     is_fan_air_outside = self.fan_device.fan_air_surce_outside

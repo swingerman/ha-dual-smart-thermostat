@@ -11,6 +11,8 @@ input_boolean:
     name: Cooler toggle
   fan_on:
     name: Fan toggle
+  dryer_on:
+    name: Fan toggle
   window_open:
     name: Window
   window_open2:
@@ -41,6 +43,14 @@ input_number:
     step: .1
     icon: mdi:thermometer-lines
 
+  humidity:
+    name: humidity
+    initial: 40
+    min: 20
+    max: 90
+    step: .1
+    icon: mdi:thermometer-water
+
 sensor:
   - platform: template
     sensors:
@@ -50,6 +60,12 @@ sensor:
       floor_temp:
         value_template: "{{ states.input_number.room_floor_temp.state | int | round(1) }}"
         entity_id: input_number.room_floor_temp
+      outside_temp:
+        value_template: "{{ states.input_number.outside_temp.state | int | round(1) }}"
+        entity_id: input_number.outside_temp
+      humidity:
+        value_template: "{{ states.input_number.humidity.state | int | round(1) }}"
+        entity_id: input_number.humidity
 
 switch:
   - platform: template
@@ -97,6 +113,17 @@ switch:
           service: input_boolean.turn_off
           data:
             entity_id: input_boolean.fan_on
+
+      dryer:
+        value_template: "{{ is_state('input_boolean.dryer_on', 'on') }}"
+        turn_on:
+          service: input_boolean.turn_on
+          data:
+            entity_id: input_boolean.dryer_on
+        turn_off:
+          service: input_boolean.turn_off
+          data:
+            entity_id: input_boolean.dryer_on
 
       window:
         value_template: "{{ is_state('input_boolean.window_open', 'on') }}"
@@ -322,6 +349,24 @@ climate:
     min_floor_temp: 10
     fan_hot_tolerance: 0.7
     target_temp_step: 0.1
+    precision: 0.1
+    min_temp: 9
+    max_temp: 32
+    target_temp: 20
+    cold_tolerance: 0.3
+    hot_tolerance: 0.3
+
+  - platform: dual_smart_thermostat
+    name: Dual Humidity
+    unique_id: dual_humidity
+    heater: switch.heater
+    cooler: switch.cooler
+    dryer: switch.dryer
+    target_sensor: sensor.room_temp
+    humidity_sensor: sensor.humidity
+    heat_cool_mode: true
+    target_temp_step: 0.1
+    target_sensor_safety_delay: "00:10"
     precision: 0.1
     min_temp: 9
     max_temp: 32

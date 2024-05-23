@@ -48,11 +48,9 @@ class HeaterDevice(SpecificHVACDevice):
         )
 
     @property
-    def target_temp_attr(self) -> str:
+    def target_env_attr(self) -> str:
         return (
-            "_target_temp_low"
-            if self.features.is_range_mode
-            else self._target_temp_attr
+            "_target_temp_low" if self.features.is_range_mode else self._target_env_attr
         )
 
     @property
@@ -84,7 +82,7 @@ class HeaterDevice(SpecificHVACDevice):
 
     async def _async_control_device_when_on(self, time=None) -> None:
         """Check if we need to turn heating on or off when theheater is on."""
-        too_hot = self.environment.is_too_hot(self.target_temp_attr)
+        too_hot = self.environment.is_too_hot(self.target_env_attr)
         is_floor_hot = self.environment.is_floor_hot
         is_floor_cold = self.environment.is_floor_cold
         is_sensor_safety_timed_out = self.environment.is_sensor_safety_timed_out
@@ -131,7 +129,7 @@ class HeaterDevice(SpecificHVACDevice):
         """Check if we need to turn heating on or off when the heater is off."""
         _LOGGER.debug("%s _async_control_device_when_off", self.__class__.__name__)
 
-        too_cold = self.environment.is_too_cold(self.target_temp_attr)
+        too_cold = self.environment.is_too_cold(self.target_env_attr)
         is_floor_hot = self.environment.is_floor_hot
         is_floor_cold = self.environment.is_floor_cold
         any_opening_open = self.openings.any_opening_open(self.hvac_mode)

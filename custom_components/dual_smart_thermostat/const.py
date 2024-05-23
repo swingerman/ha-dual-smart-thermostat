@@ -27,12 +27,13 @@ CONF_AUX_HEATING_TIMEOUT = "secondary_heater_timeout"
 CONF_AUX_HEATING_DUAL_MODE = "secondary_heater_dual_mode"
 CONF_COOLER = "cooler"
 
-CONF_DEHUMIDIFIER = "dehumidifier"
+CONF_DRYER = "dryer"
 CONF_MIN_HUMIDITY = "min_humidity"
 CONF_MAX_HUMIDITY = "max_humidity"
 CONF_TARGET_HUMIDITY = "target_humidity"
 CONF_DRY_TOLERANCE = "dry_tolerance"
 CONF_MOIST_TOLERANCE = "moist_tolerance"
+CONF_HUMIDITY_SENSOR = "humidity_sensor"
 
 CONF_FAN = "fan"
 CONF_FAN_MODE = "fan_mode"
@@ -99,4 +100,5 @@ class ToleranceDevice(enum.StrEnum):
 
     HEATER = "heater"
     COOLER = "cooler"
+    DRYER = "dryer"
     AUTO = "auto"

@@ -30,7 +30,7 @@ _LOGGER = logging.getLogger(__name__)
 
 class HeaterAUXHeaterDevice(MultiHvacDevice):
 
-    _target_temp_attr: str = "_target_temp"
+    _target_env_attr: str = "_target_temp"
 
     def __init__(
         self,
@@ -52,7 +52,7 @@ class HeaterAUXHeaterDevice(MultiHvacDevice):
         self._aux_heater_dual_mode = self._features.aux_heater_dual_mode
 
         if features.is_range_mode:
-            self._target_temp_attr = "_target_temp_low"
+            self._target_env_attr = "_target_temp_low"
 
         self._aux_heater_last_run: datetime = None
 
@@ -83,7 +83,7 @@ class HeaterAUXHeaterDevice(MultiHvacDevice):
         """Check if we need to turn heating on or off when the heater is off."""
         _LOGGER.debug("%s _async_control_devices_when_off", self.__class__.__name__)
 
-        too_cold = self.environment.is_too_cold(self._target_temp_attr)
+        too_cold = self.environment.is_too_cold(self._target_env_attr)
         is_floor_hot = self.environment.is_floor_hot
         is_floor_cold = self.environment.is_floor_cold
         any_opening_open = self.openings.any_opening_open(self.hvac_mode)
@@ -138,7 +138,7 @@ class HeaterAUXHeaterDevice(MultiHvacDevice):
         """Check if we need to turn heating on or off when the heater is off."""
         _LOGGER.debug("%s _async_control_devices_when_on", self.__class__.__name__)
 
-        too_hot = self.environment.is_too_hot(self._target_temp_attr)
+        too_hot = self.environment.is_too_hot(self._target_env_attr)
         is_floor_hot = self.environment.is_floor_hot
         is_floor_cold = self.environment.is_floor_cold
         any_opening_open = self.openings.any_opening_open(self.hvac_mode)

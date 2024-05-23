@@ -29,13 +29,13 @@ class Switchable(ABC):
         pass
 
 
-class CanTargetTemperature(ABC):
+class TargetsEnvironmentAttribute(ABC):
 
-    _target_temp_attr: str = "_target_temp"
+    _target_env_attr: str = "_target_temp"
 
     @property
     @abstractmethod
-    def target_temp_attr(self) -> str:
+    def target_env_attr(self) -> str:
         pass
 
 

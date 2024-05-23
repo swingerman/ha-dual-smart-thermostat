@@ -9,6 +9,7 @@ from custom_components.dual_smart_thermostat.const import (
     CONF_AUX_HEATING_DUAL_MODE,
     CONF_AUX_HEATING_TIMEOUT,
     CONF_COOLER,
+    CONF_DRYER,
     CONF_FAN,
     CONF_FAN_ON_WITH_AC,
     CONF_HEATER,
@@ -24,6 +25,7 @@ from custom_components.dual_smart_thermostat.hvac_device.cooler_device import (
 from custom_components.dual_smart_thermostat.hvac_device.cooler_fan_device import (
     CoolerFanDevice,
 )
+from custom_components.dual_smart_thermostat.hvac_device.dryer_device import DryerDevice
 from custom_components.dual_smart_thermostat.hvac_device.fan_device import FanDevice
 from custom_components.dual_smart_thermostat.hvac_device.heater_aux_heater_device import (
     HeaterAUXHeaterDevice,
@@ -72,6 +74,8 @@ class HVACDeviceFactory:
 
         self._fan_entity_id = config.get(CONF_FAN)
         self._fan_on_with_cooler = config.get(CONF_FAN_ON_WITH_AC)
+
+        self._dryer_entity_id = config.get(CONF_DRYER)
 
         self._aux_heater_entity_id = config.get(CONF_AUX_HEATER)
         self._aux_heater_dual_mode = config.get(CONF_AUX_HEATING_DUAL_MODE)
@@ -296,6 +300,19 @@ class HVACDeviceFactory:
                 features,
             )
         )
+
+        if features.is_configured_for_dryer_mode:
+            devices.append(
+                DryerDevice(
+                    self.hass,
+                    self._dryer_entity_id,
+                    self._min_cycle_duration,
+                    self._initial_hvac_mode,
+                    environment,
+                    openings,
+                    features,
+                )
+            )
 
         return MultiHvacDevice(
             self.hass,

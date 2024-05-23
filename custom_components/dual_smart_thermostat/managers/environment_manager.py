@@ -86,8 +86,8 @@ class EnvironmentManager(StateManager):
         self._min_humidity = config.get(CONF_MIN_HUMIDITY)
         self._max_himidity = config.get(CONF_MAX_HUMIDITY)
         self._target_humidity = config.get(CONF_TARGET_HUMIDITY)
-        self._moist_tolerance = config.get(CONF_MOIST_TOLERANCE)
-        self._dry_tolerance = config.get(CONF_DRY_TOLERANCE)
+        self._moist_tolerance = config.get(CONF_MOIST_TOLERANCE) or 0
+        self._dry_tolerance = config.get(CONF_DRY_TOLERANCE) or 0
 
         self._max_floor_temp = config.get(CONF_MAX_FLOOR_TEMP)
         self._min_floor_temp = config.get(CONF_MIN_FLOOR_TEMP)
@@ -239,6 +239,10 @@ class EnvironmentManager(StateManager):
     @property
     def cur_humidity(self) -> float:
         return self._cur_humidity
+
+    def set_temperature_range_from_saved(self) -> None:
+        self.target_temp_low = self.saved_target_temp_low
+        self.target_temp_high = self.saved_target_temp_high
 
     def set_temperature_range_from_hvac_mode(
         self, temperature: float, hvac_mode: HVACMode
@@ -464,6 +468,14 @@ class EnvironmentManager(StateManager):
             self._cur_humidity = cur_humidity
         except ValueError as ex:
             _LOGGER.error("Unable to update from humidity sensor: %s", ex)
+
+    def set_default_target_humidity(self) -> None:
+        """Set default values for target humidity."""
+        if self._target_humidity is not None:
+            return
+
+        _LOGGER.info("Setting default target humidity")
+        self._target_humidity = 50
 
     def set_default_target_temps(
         self, is_target_mode: bool, is_range_mode: bool, hvac_modes: list[HVACMode]
