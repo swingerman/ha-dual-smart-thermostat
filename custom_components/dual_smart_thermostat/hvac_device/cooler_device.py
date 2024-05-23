@@ -45,11 +45,11 @@ class CoolerDevice(SpecificHVACDevice):
         )
 
     @property
-    def target_temp_attr(self) -> str:
+    def target_env_attr(self) -> str:
         return (
             "_target_temp_high"
             if self.features.is_range_mode
-            else self._target_temp_attr
+            else self._target_env_attr
         )
 
     @property

@@ -398,6 +398,9 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self._target_temp_low = self.environment.target_temp_low
         self._attr_temperature_unit = unit
 
+        self._target_humidity = self.environment.target_humidity
+        self._cur_humidity = self.environment.cur_humidity
+
         self._unit = unit
 
         # HVAC modes
@@ -647,6 +650,11 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         return self.environment.cur_humidity
 
     @property
+    def target_humidity(self) -> float | None:
+        """Return the target humidity."""
+        return self.environment.target_humidity
+
+    @property
     def current_floor_temperature(self) -> float | None:
         """Return the sensor temperature."""
         return self.environment.cur_floor_temp
@@ -770,6 +778,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
         self._hvac_mode = hvac_mode
         self._set_support_flags()
+        self._target_humidity = self.environment.target_humidity
 
         await self.hvac_device.async_set_hvac_mode(hvac_mode)
 
@@ -797,6 +806,15 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                 return
             self.environment.set_temperature_target(temperature)
             self._target_temp = self.environment.target_temp
+
+        await self._async_control_climate(force=True)
+        self.async_write_ha_state()
+
+    async def async_set_humidity(self, humidity: float) -> None:
+        """Set new target humidity."""
+        _LOGGER.debug("Setting humidity: %s", humidity)
+        self.environment.target_humidity = humidity
+        self._target_humidity = self.environment.target_humidity
 
         await self._async_control_climate(force=True)
         self.async_write_ha_state()
@@ -871,7 +889,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         if new_state is None or new_state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
             return
 
-        self.environment.update_floor_temp_from_state(new_state)
+        self.environment.update_humidity_from_state(new_state)
         await self._async_control_climate()
         self.async_write_ha_state()
 

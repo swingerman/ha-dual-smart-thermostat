@@ -186,18 +186,19 @@ class FeatureManager(StateManager):
             HVACMode.HEAT,
         ):
             if self.is_range_mode and preset_mode != PRESET_NONE:
-                self.environment.target_temp_low = (
-                    self.environment.saved_target_temp_low
-                )
-                self.environment.target_temp_high = (
-                    self.environment.saved_target_temp_high
-                )
+                self.environment.set_temperature_range_from_saved()
             self._supported_features = (
                 self._default_support_flags | ClimateEntityFeature.TARGET_TEMPERATURE
             )
             if len(presets):
                 _LOGGER.debug("Setting support flags to %s", self._supported_features)
                 self._supported_features |= ClimateEntityFeature.PRESET_MODE
+        elif current_hvac_mode == HVACMode.DRY:
+            self._supported_features = (
+                self._default_support_flags | ClimateEntityFeature.TARGET_HUMIDITY
+            )
+            self.environment.set_default_target_humidity()
+
         else:
             if self.is_target_mode and preset_mode != PRESET_NONE:
                 self.environment.target_temp = self.environment.saved_target_temp
