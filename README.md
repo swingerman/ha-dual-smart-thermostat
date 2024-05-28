@@ -15,16 +15,17 @@ The `dual_smart_thermostat` is an enhanced version of generic thermostat impleme
 
 |  |  | |
 | :--- | :---: | :---: |
-| **Heater/Cooler Mode** | <img src="docs/images/sun-snowflake.svg" height="30" /> | [<img src="docs/images/file-document-outline.svg" height="30" style="stroke: red" />](#heatcool-mode) |
-| **Heater Only Mode** | <img src="docs/images/radiator.svg" height="30" /> | [<img src="docs/images/file-document-outline.svg" height="30" />](#heater-only-mode) |
-| **Two Stage (AUX) Heating Mode** | <img src="docs/images/radiator.svg" height="30" /> <img src="docs/images/plus.svg" height="30" /> <img src="docs/images/radiator.svg" height="30" /> | [<img src="docs/images/file-document-outline.svg" height="30" />](#two-stage-heating) |
-| **Fan Only mode** | <img src="docs/images/air-conditioner.svg" height="30" /> | [<img src="docs/images/file-document-outline.svg" height="30" />](#fan-only-mode) |
-| **Fan With Cooler mode** | <img src="docs/images/air-conditioner.svg" height="30" /> | [<img src="docs/images/file-document-outline.svg" height="30" />](#fan-with-cooler-mode) |
-| **Cooler Only mode** | <img src="docs/images/air-conditioner.svg" height="30" /> | [<img src="docs/images/file-document-outline.svg" height="30" />](#cooler-only-mode) |
-| **Floor Temperature Control** | <img src="docs/images/heating-coil.svg" height="30" /> <img src="docs/images/snowflake-thermometer.svg" height="30" />  <img src="docs/images/thermometer-alert.svg" height="30" />  | [<img src="docs/images/file-document-outline.svg" height="30" />](#floor-heating-temperature-control) |
-| **Window/Door sensor integration** | <img src="docs/images/window-open.svg" height="30" /> <img src="docs/images/door-open.svg" height="30" /> <img src="docs/images/chevron-right.svg" height="30" /> <img src="docs/images/timer-cog-outline.svg" height="30" /> <img src="docs/images/chevron-right.svg" height="30" /> <img src="docs/images/hvac-off.svg" height="30" /> | [<img src="docs/images/file-document-outline.svg" height="30" />](#openings) |
-| **Presets** | <img src="docs/images/sleep.svg" height="30" /> <img src="docs/images/snowflake-thermometer.svg" height="30" /> <img src="docs/images/shield-lock-outline.svg" height="30" /> | [<img src="docs/images/file-document-outline.svg" height="30" />](#presets) |
-| **HVAC Action Reason** | | [<img src="docs/images/file-document-outline.svg" height="30" />](#hvac-action-reason) |
+| **Heater/Cooler Mode** | ![cooler](docs/images/sun-snowflake-custom.png) | [docs](#heatcool-mode) |
+| **Heater Only Mode** | ![heating](/docs/images/fire-custom.png) | [docs](#heater-only-mode) |
+| **Two Stage (AUX) Heating Mode** | ![heating](/docs/images/fire-custom.png) ![heating](/docs/images/radiator-custom.png) | [docs](#two-stage-heating) |
+| **Fan Only mode** | ![fan](/docs/images/fan-custom.png) | [docs](#fan-only-mode) |
+| **Fan With Cooler mode** | ![fan](/docs/images/fan-custom.png)  ![cool](/docs/images/snowflake-custom.png) | [docs](#fan-with-cooler-mode) |
+| **Cooler Only mode** | ![cool](/docs/images/snowflake-custom.png) | [docs](#cooler-only-mode) |
+| **Dry mode** | ![humidity](docs/images/water-percent-custom.png) | [docs](#dry-mode) |
+| **Floor Temperature Control** | ![heating-coil](docs/images/heating-coil-custom.png) ![snowflake-thermometer](docs/images/snowflake-thermometer-custom.png)  ![thermometer-alert](docs/images/thermometer-alert-custom.png) | [docs](#floor-heating-temperature-control) |
+| **Window/Door sensor integration** | ![window-open](docs/images/window-open-custom.png)  ![window-open](docs/images/door-open-custom.png) ![chevron-right](docs/images/chevron-right-custom.png) ![timer-cog](docs/images/timer-cog-outline-custom.png)  ![chevron-right](docs/images/chevron-right-custom.png) ![hvac-off](docs/images/hvac-off-custom.png)| [docs](#openings) |
+| **Presets** |  | [docs](#presets) |
+| **HVAC Action Reason** | | [docs](#hvac-action-reason) |
 
 ## Heat/Cool Mode
 
@@ -111,7 +112,6 @@ This feature let's you do just that.
 In order to use this feature you need to set the [`heater`](#heater) entity, the [`ac_mode`](#ac_mode), the [`fan)`](#fan) entity and the [`fan_on_with_ac`](#fan_on_with_ac) to `true`.
 
 
-
 ### example
 ```yaml
 heater: switch.study_heater
@@ -125,6 +125,35 @@ fan_on_with_ac: true
 If only the [`cooler`](#cooler) entity is set the thermostat works only in cooling mode.
 
 [all features ⤴️](#features)
+
+## Dry mode
+
+If the [`dryer`](#dryer) entity is set the thermostat can switch to dry mode. The dryer will turn on when the humidity is above the target humidity and the [`moist_tolerance`](#moist_tolerance) is not reached. If the humidity is above the target humidity and the [`moist_tolerance`](#moist_tolerance) is reached the dryer will stop.
+
+
+### Dry Mode Example with cooler
+
+```yaml
+heater: switch.study_heater
+target_sensor: sensor.study_temperature
+ac_mode: true
+dryer: switch.study_dryer
+humidity_sensor: sensor.study_humidity
+moist_tolerance: 5
+dry_tolerance: 5
+```
+
+### Dryer example in dual mode
+
+```yaml
+heater: switch.study_heater
+cooler: switch.study_cooler
+target_sensor: sensor.study_temperature
+dryer: switch.study_dryer
+humidity_sensor: sensor.study_humidity
+moist_tolerance: 5
+dry_tolerance: 5
+```
 
 ## Openings
 
@@ -143,7 +172,7 @@ The `openings_scope` configuration variable defines the scope of the openings. I
 ### Openings Scope Configuration
 
 ```yaml
-openings_scope: [heat, cool, heat_cool, fan_only]
+openings_scope: [heat, cool, heat_cool, fan_only, dry]
 ```
 
 ```yaml
@@ -248,11 +277,14 @@ The internal values can be set by the component only and the external values can
 | `target_temp_not_reached` | The target temperature has not been reached |
 | `target_temp_not_reached_with_fan` | The target temperature has not been reached trying it with a fan |
 | `target_temp_reached` | The target temperature has been reached |
+| `target_humidity_reached` | The target humidity has been reached |
+| `target_humidity_not_reached` | The target humidity has not been reached |
 | `misconfiguration` | The thermostat is misconfigured |
 | `opening` | The thermostat is idle because an opening is open |
 | `limit` | The thermostat is idle because the floor temperature is at the limit |
 | `overheat` | The thermostat is idle because the floor temperature is too high |
-| `TEMPERATURE_SENSOR_TIMED_OUT` | The thermostat is idle because the temperature sensor is not provided data for the defined time that could indicate a malfunctioning sensor |
+| `temperature_sensor_stalled` | The thermostat is idle because the temperature sensor is not provided data for the defined time that could indicate a malfunctioning sensor |
+| `humidity_sensor_sstalled` | The thermostat is idle because the temperature sensor is not provided data for the defined time that could indicate a malfunctioning sensor |
 
 #### HVAC Action Reason External values
 
@@ -337,11 +369,32 @@ The internal values can be set by the component only and the external values can
 
   _requires: `fan` , `sensor_outside`_
 
+
+### dryer
+
+  _(optional) (string)_ "`entity_id` for dryer switch, must be a toggle device."
+
+### moist_tolerance
+
+  _(optional) (float)_ Set a minimum amount of difference between the humidity read by the sensor specified in the _humidity_sensor_ option and the target humidity that must change prior to being switched on. For example, if the target humidity is 50 and the tolerance is 5 the dryer will start when the sensor equals or goes below 45.
+
+  _requires: `dryer`, `humidity_sensor`_
+
+### dry_tolerance
+
+  _(optional) (float)_ Set a minimum amount of difference between the humidity read by the sensor specified in the _humidity_sensor_ option and the target humidity that must change prior to being switched off. For example, if the target humidity is 50 and the tolerance is 5 the dryer will stop when the sensor equals or goes above 55.
+
+  _requires: `dryer`, `humidity_sensor`_
+
+### humidity_sensor
+
+  _(optional) (string)_ "`entity_id` for a humidity sensor, humidity_sensor.state must be humidity."
+
 ### target_sensor
 
   _(required) (string)_  "`entity_id` for a temperature sensor, target_sensor.state must be temperature."
 
-### target_sensor_safety_delay
+### sensor_stale_duration
 
   _(optional) (timedelta)_  Set a delay for the target sensor to be considered valid. If the sensor is not available for the specified time the thermostat will be turned off.
 

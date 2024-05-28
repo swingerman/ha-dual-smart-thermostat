@@ -1,6 +1,8 @@
 """Adds support for dual smart thermostat units."""
 
 import asyncio
+from collections.abc import Callable
+from datetime import datetime, timedelta
 import logging
 
 from homeassistant.components.climate import (
@@ -15,6 +17,7 @@ from homeassistant.components.climate.const import (
     ATTR_TARGET_TEMP_LOW,
     PRESET_NONE,
 )
+from homeassistant.components.humidifier import ATTR_HUMIDITY
 from homeassistant.const import (
     ATTR_ENTITY_ID,
     ATTR_TEMPERATURE,
@@ -29,7 +32,14 @@ from homeassistant.const import (
     STATE_UNAVAILABLE,
     STATE_UNKNOWN,
 )
-from homeassistant.core import CoreState, Event, HomeAssistant, ServiceCall, callback
+from homeassistant.core import (
+    CoreState,
+    Event,
+    HomeAssistant,
+    ServiceCall,
+    State,
+    callback,
+)
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.dispatcher import (
     async_dispatcher_connect,
@@ -75,6 +85,7 @@ from custom_components.dual_smart_thermostat.managers.preset_manager import (
 from . import DOMAIN, PLATFORMS
 from .const import (
     ATTR_HVAC_ACTION_REASON,
+    ATTR_PREV_HUMIDITY,
     ATTR_PREV_TARGET,
     ATTR_PREV_TARGET_HIGH,
     ATTR_PREV_TARGET_LOW,
@@ -114,7 +125,7 @@ from .const import (
     CONF_PRESETS,
     CONF_PRESETS_OLD,
     CONF_SENSOR,
-    CONF_SENSOR_SAFETY_DELAY,
+    CONF_STALE_DURATION,
     CONF_TARGET_HUMIDITY,
     CONF_TARGET_TEMP,
     CONF_TARGET_TEMP_HIGH,
@@ -135,6 +146,7 @@ _LOGGER = logging.getLogger(__name__)
 
 PRESET_SCHEMA = {
     vol.Optional(ATTR_TEMPERATURE): vol.Coerce(float),
+    vol.Optional(ATTR_HUMIDITY): vol.Coerce(float),
     vol.Optional(ATTR_TARGET_TEMP_LOW): vol.Coerce(float),
     vol.Optional(ATTR_TARGET_TEMP_HIGH): vol.Coerce(float),
 }
@@ -183,7 +195,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Required(CONF_HEATER): cv.entity_id,
         vol.Optional(CONF_COOLER): cv.entity_id,
         vol.Required(CONF_SENSOR): cv.entity_id,
-        vol.Optional(CONF_SENSOR_SAFETY_DELAY): vol.All(
+        vol.Optional(CONF_STALE_DURATION): vol.All(
             cv.time_period, cv.positive_timedelta
         ),
         vol.Optional(CONF_OUTSIDE_SENSOR): cv.entity_id,
@@ -206,6 +218,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
                 HVACMode.OFF,
                 HVACMode.HEAT_COOL,
                 HVACMode.FAN_ONLY,
+                HVACMode.DRY,
             ]
         ),
         vol.Optional(CONF_PRECISION): vol.In(
@@ -249,6 +262,7 @@ async def async_setup_platform(
     sensor_floor_entity_id = config.get(CONF_FLOOR_SENSOR)
     sensor_outside_entity_id = config.get(CONF_OUTSIDE_SENSOR)
     sensor_humidity_entity_id = config.get(CONF_HUMIDITY_SENSOR)
+    sensor_stale_duration: timedelta | None = config.get(CONF_STALE_DURATION)
     keep_alive = config.get(CONF_KEEP_ALIVE)
     presets_dict = {
         key: config[value] for key, value in CONF_PRESETS.items() if value in config
@@ -288,7 +302,6 @@ async def async_setup_platform(
 
     preset_manager = PresetManager(hass, config, environment_manager, feature_manager)
 
-    # device_factory = HVACDeviceFactory(hass, config, feature_manager)
     device_factory = HVACDeviceFactory(hass, config, feature_manager)
 
     hvac_device = device_factory.create_device(environment_manager, opening_manager)
@@ -301,6 +314,7 @@ async def async_setup_platform(
                 sensor_floor_entity_id,
                 sensor_outside_entity_id,
                 sensor_humidity_entity_id,
+                sensor_stale_duration,
                 keep_alive,
                 precision,
                 unit,
@@ -353,6 +367,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         sensor_floor_entity_id,
         sensor_outside_entity_id,
         sensor_humidity_entity_id,
+        sensor_stale_duration,
         keep_alive,
         precision,
         unit,
@@ -391,6 +406,10 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
         self._keep_alive = keep_alive
 
+        self._sensor_stale_duration = sensor_stale_duration
+        self._remove_stale_tracking: Callable[[], None] | None = None
+        self._remove_humidity_stale_tracking: Callable[[], None] | None = None
+
         # environment
         self._temp_precision = precision
         self._target_temp = self.environment.target_temp
@@ -427,7 +446,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         # Add listener
         self.async_on_remove(
             async_track_state_change_event(
-                self.hass, [self.sensor_entity_id], self._async_sensor_changed
+                self.hass, [self.sensor_entity_id], self._async_sensor_changed_event
             )
         )
 
@@ -436,7 +455,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             _LOGGER.info("Adding switch listener: %s", switch_entities)
             self.async_on_remove(
                 async_track_state_change_event(
-                    self.hass, switch_entities, self._async_switch_changed
+                    self.hass, switch_entities, self._async_switch_changed_event
                 )
             )
 
@@ -451,7 +470,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                 async_track_state_change_event(
                     self.hass,
                     [self.sensor_floor_entity_id],
-                    self._async_sensor_floor_changed,
+                    self._async_sensor_floor_changed_event,
                 )
             )
 
@@ -463,7 +482,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                 async_track_state_change_event(
                     self.hass,
                     [self.sensor_outside_entity_id],
-                    self._async_sensor_outside_changed,
+                    self._async_sensor_outside_changed_event,
                 )
             )
 
@@ -475,7 +494,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                 async_track_state_change_event(
                     self.hass,
                     [self.sensor_humidity_entity_id],
-                    self._async_sensor_humidity_changed,
+                    self._async_sensor_humidity_changed_event,
                 )
             )
 
@@ -603,21 +622,20 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self._set_support_flags()
 
         # Reads sensor and triggers an initial control of climate
-        sensor_state = self.hass.states.get(self.sensor_entity_id)
-        if sensor_state and sensor_state.state not in (
-            STATE_UNAVAILABLE,
-            STATE_UNKNOWN,
-        ):
-            self.environment.update_temp_from_state(sensor_state)
-            self._target_temp = self.environment.target_temp
-            self.async_write_ha_state()
+        should_control_climate = await self._async_update_sensors_initial_state()
 
-        await self._async_control_climate(force=True)
+        if should_control_climate:
+            await self._async_control_climate(force=True)
 
     async def async_will_remove_from_hass(self) -> None:
         """Call when entity will be removed from hass."""
         if self._remove_signal_hvac_action_reason:
             self._remove_signal_hvac_action_reason()
+        if self._remove_stale_tracking:
+            self._remove_stale_tracking()
+        if self._remove_humidity_stale_tracking:
+            self._remove_humidity_stale_tracking()
+        return await super().async_will_remove_from_hass()
 
     @property
     def should_poll(self) -> bool:
@@ -745,6 +763,9 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             else:
                 attributes[ATTR_PREV_TARGET] = self.environment.target_temp
 
+        if self._cur_humidity is not None:
+            attributes[ATTR_PREV_HUMIDITY] = self.environment.target_humidity
+
         attributes[ATTR_HVAC_ACTION_REASON] = (
             self._hvac_action_reason or HVACActionReason.NONE
         )
@@ -763,6 +784,49 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         )
         self._attr_supported_features = self.features.supported_features
         _LOGGER.debug("Supported features: %s", self._attr_supported_features)
+
+    async def _async_update_sensors_initial_state(self) -> bool:
+        """Update sensors initial state."""
+        should_contorl_climate = False
+        sensor_state = self.hass.states.get(self.sensor_entity_id)
+        if sensor_state and sensor_state.state not in (
+            STATE_UNAVAILABLE,
+            STATE_UNKNOWN,
+        ):
+            self.environment.update_temp_from_state(sensor_state)
+            should_contorl_climate = True
+
+        if self.sensor_floor_entity_id:
+            sensor_floor_state = self.hass.states.get(self.sensor_floor_entity_id)
+            if sensor_floor_state and sensor_floor_state.state not in (
+                STATE_UNAVAILABLE,
+                STATE_UNKNOWN,
+            ):
+                self.environment.update_floor_temp_from_state(sensor_floor_state)
+                should_contorl_climate = True
+
+        if self.sensor_outside_entity_id:
+            sensor_outside_state = self.hass.states.get(self.sensor_outside_entity_id)
+            if sensor_outside_state and sensor_outside_state.state not in (
+                STATE_UNAVAILABLE,
+                STATE_UNKNOWN,
+            ):
+                self.environment.update_outside_temp_from_state(sensor_outside_state)
+                should_contorl_climate = True
+
+        if self.sensor_humidity_entity_id:
+            sensor_humidity_state = self.hass.states.get(self.sensor_humidity_entity_id)
+            if sensor_humidity_state and sensor_humidity_state.state not in (
+                STATE_UNAVAILABLE,
+                STATE_UNKNOWN,
+            ):
+                self.environment.update_humidity_from_state(sensor_humidity_state)
+                should_contorl_climate = True
+
+        if should_contorl_climate:
+            self.async_write_ha_state()
+
+        return should_contorl_climate
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Call climate mode based on current mode."""
@@ -843,54 +907,133 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             self._target_temp_low = self.environment.target_temp_low
             self._target_temp_high = self.environment.target_temp_high
 
-    async def _async_sensor_changed(self, event: Event[EventStateChangedData]) -> None:
+    async def _async_sensor_changed_event(
+        self, event: Event[EventStateChangedData]
+    ) -> None:
+        """Handle ambient teperature changes."""
+        data = event.data
+
+        await self._async_sensor_changed(data["new_state"])
+
+    async def _async_sensor_changed(
+        self, new_state: State | None, trigger_control=True
+    ) -> None:
         """Handle temperature changes."""
-        new_state = event.data.get("new_state")
         _LOGGER.info("Sensor change: %s", new_state)
         if new_state is None or new_state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
             return
 
+        if self._sensor_stale_duration:
+            if self._remove_stale_tracking:
+                self._remove_stale_tracking()
+            self._remove_stale_tracking = async_track_time_interval(
+                self.hass,
+                self._async_sensor_not_responding,
+                self._sensor_stale_duration,
+            )
+
         self.environment.update_temp_from_state(new_state)
-        await self._async_control_climate()
+        if trigger_control:
+            await self._async_control_climate()
         self.async_write_ha_state()
 
-    async def _async_sensor_floor_changed(
+    async def _async_sensor_not_responding(self, now: datetime | None = None) -> None:
+        """Handle sensor stale event."""
+
+        state = self.hass.states.get(self.sensor_entity_id)
+        _LOGGER.debug(
+            "Sensor has not been updated for %s",
+            now - state.last_updated if now and state else "---",
+        )
+        _LOGGER.warning("Sensor is stalled, call the emergency stop")
+        if self._is_device_active:
+            await self.hvac_device.async_turn_off()
+            self._hvac_action_reason = HVACActionReason.TEMPERATURE_SENSOR_STALLED
+            self.async_write_ha_state()
+
+    async def _async_humidity_sensor_not_responding(
+        self, now: datetime | None = None
+    ) -> None:
+        """Handle humidity sensor stale event."""
+
+        state = self.hass.states.get(self.sensor_humidity_entity_id)
+        _LOGGER.debug(
+            "HUmidity sensor has not been updated for %s",
+            now - state.last_updated if now and state else "---",
+        )
+        _LOGGER.warning("Humidity Sensor is stalled, call the emergency stop")
+        if self._is_device_active:
+            await self.hvac_device.async_turn_off()
+            self._hvac_action_reason = HVACActionReason.HUMIDITY_SENSOR_STALLED
+            self.async_write_ha_state()
+
+    async def _async_sensor_floor_changed_event(
         self, event: Event[EventStateChangedData]
     ) -> None:
+        data = event.data
+
+        await self._async_sensor_floor_changed(data["new_state"])
+
+    async def _async_sensor_floor_changed(
+        self, new_state: State | None, trigger_control=True
+    ) -> None:
         """Handle floor temperature changes."""
-        new_state = event.data.get("new_state")
         _LOGGER.info("Sensor floor change: %s", new_state)
         if new_state is None or new_state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
             return
 
         self.environment.update_floor_temp_from_state(new_state)
-        await self._async_control_climate()
+        if trigger_control:
+            await self._async_control_climate()
         self.async_write_ha_state()
 
-    async def _async_sensor_outside_changed(
+    async def _async_sensor_outside_changed_event(
         self, event: Event[EventStateChangedData]
     ) -> None:
+        data = event.data
+
+        await self._async_sensor_outside_changed(data["new_state"])
+
+    async def _async_sensor_outside_changed(
+        self, new_state: State | None, trigger_control=True
+    ) -> None:
         """Handle outside temperature changes."""
-        new_state = event.data.get("new_state")
         _LOGGER.info("Sensor outside change: %s", new_state)
         if new_state is None or new_state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
             return
 
         self.environment.update_outside_temp_from_state(new_state)
-        await self._async_control_climate()
+        if trigger_control:
+            await self._async_control_climate()
         self.async_write_ha_state()
 
-    async def _async_sensor_humidity_changed(
+    async def _async_sensor_humidity_changed_event(
         self, event: Event[EventStateChangedData]
     ) -> None:
-        """Handle outside temperature changes."""
-        new_state = event.data.get("new_state")
+        data = event.data
+
+        await self._async_sensor_humidity_changed(data["new_state"])
+
+    async def _async_sensor_humidity_changed(
+        self, new_state: State | None, trigger_control=True
+    ) -> None:
+        """Handle humidity changes."""
         _LOGGER.info("Sensor humidity change: %s", new_state)
         if new_state is None or new_state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
             return
 
+        if self._sensor_stale_duration:
+            if self._remove_humidity_stale_tracking:
+                self._remove_humidity_stale_tracking()
+            self._remove_humidity_stale_tracking = async_track_time_interval(
+                self.hass,
+                self._async_humidity_sensor_not_responding,
+                self._sensor_stale_duration,
+            )
+
         self.environment.update_humidity_from_state(new_state)
-        await self._async_control_climate()
+        if trigger_control:
+            await self._async_control_climate()
         self.async_write_ha_state()
 
     async def _check_device_initial_state(self) -> None:
@@ -964,11 +1107,20 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self.async_write_ha_state()
 
     @callback
-    def _async_switch_changed(self, event: Event[EventStateChangedData]) -> None:
+    def _async_switch_changed_event(self, event: Event[EventStateChangedData]) -> None:
         """Handle heater switch state changes."""
-        _LOGGER.debug("Switch changed: %s", event.data)
-        new_state = event.data.get("new_state")
-        old_state = event.data.get("old_state")
+
+        data = event.data
+        self._async_switch_changed(data["old_state"], data["new_state"])
+
+    @callback
+    def _async_switch_changed(
+        self, old_state: State | None, new_state: State | None
+    ) -> None:
+        """Handle heater switch state changes."""
+        _LOGGER.debug(
+            "Switch changed: old_state: %s, new_state: %s", old_state, new_state
+        )
         if new_state is None:
             return
         if old_state is None:

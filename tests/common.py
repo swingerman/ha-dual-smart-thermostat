@@ -17,11 +17,13 @@ from homeassistant.components.climate import (
     ATTR_TARGET_TEMP_LOW,
     DOMAIN,
     SERVICE_SET_AUX_HEAT,
+    SERVICE_SET_HUMIDITY,
     SERVICE_SET_HVAC_MODE,
     SERVICE_SET_PRESET_MODE,
     SERVICE_SET_TEMPERATURE,
     SERVICE_TOGGLE,
 )
+from homeassistant.components.humidifier import ATTR_HUMIDITY
 from homeassistant.const import (
     ATTR_ENTITY_ID,
     ATTR_TEMPERATURE,
@@ -59,10 +61,12 @@ ENT_SENSOR = "sensor.test"
 ENT_FLOOR_SENSOR = "input_number.floor_temp"
 ENT_OUTSIDE_SENSOR = "input_number.outside_temp"
 ENT_OPENING_SENSOR = "input_number.opneing1"
+ENT_HUMIDITY_SENSOR = "input_number.humidity"
 ENT_SWITCH = "switch.test"
 ENT_HEATER = "input_boolean.test"
 ENT_COOLER = "input_boolean.test_cooler"
 ENT_FAN = "switch.test_fan"
+ENT_DRYER = "switch.test_dryer"
 MIN_TEMP = 3.0
 MAX_TEMP = 65.0
 TARGET_TEMP = 42.0
@@ -126,6 +130,24 @@ async def async_set_temperature(
     await hass.services.async_call(
         DOMAIN, SERVICE_SET_TEMPERATURE, kwargs, blocking=True
     )
+
+
+async def async_set_humidity(
+    hass,
+    humidity=None,
+    entity_id=ENTITY_MATCH_ALL,
+) -> None:
+    """Set new target temperature."""
+    kwargs = {
+        key: value
+        for key, value in [
+            (ATTR_ENTITY_ID, entity_id),
+            (ATTR_HUMIDITY, humidity),
+        ]
+        if value is not None
+    }
+    _LOGGER.debug("set_humidity start data=%s", kwargs)
+    await hass.services.async_call(DOMAIN, SERVICE_SET_HUMIDITY, kwargs, blocking=True)
 
 
 @bind_hass

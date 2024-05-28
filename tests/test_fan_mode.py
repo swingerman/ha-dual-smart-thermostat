@@ -1,6 +1,5 @@
 """The tests for the dual_smart_thermostat."""
 
-import asyncio
 import datetime
 from datetime import timedelta
 import logging
@@ -2738,9 +2737,10 @@ async def test_fan_mode_opening_hvac_action_reason(
         == HVACActionReason.TARGET_TEMP_NOT_REACHED
     )
 
-    # wait 10 seconds, actually 133 due to the other tests run time seems to affect this
-    # needs to separate the tests
-    await asyncio.sleep(13)
+    # wait 10 seconds
+    common.async_fire_time_changed(
+        hass, dt_util.utcnow() + datetime.timedelta(minutes=10)
+    )
     await hass.async_block_till_done()
 
     assert (
@@ -2857,9 +2857,10 @@ async def test_cooler_fan_mode_opening_hvac_action_reason(
         == HVACActionReason.TARGET_TEMP_NOT_REACHED
     )
 
-    # wait 10 seconds, actually 133 due to the other tests run time seems to affect this
-    # needs to separate the tests
-    await asyncio.sleep(13)
+    # wait 10 seconds
+    common.async_fire_time_changed(
+        hass, dt_util.utcnow() + datetime.timedelta(minutes=10)
+    )
     await hass.async_block_till_done()
 
     assert (
@@ -2949,9 +2950,10 @@ async def test_fan_mode_opening(
 
     assert hass.states.get(cooler_switch).state == STATE_ON
 
-    # wait 10 seconds, actually 133 due to the other tests run time seems to affect this
-    # needs to separate the tests
-    await asyncio.sleep(13)
+    # wait 10 seconds
+    common.async_fire_time_changed(
+        hass, dt_util.utcnow() + datetime.timedelta(minutes=10)
+    )
     await hass.async_block_till_done()
 
     assert hass.states.get(cooler_switch).state == STATE_OFF
@@ -3076,9 +3078,10 @@ async def test_cooler_fan_mode_opening(
         else STATE_ON
     )
 
-    # wait 10 seconds, actually 133 due to the other tests run time seems to affect this
-    # needs to separate the tests
-    await asyncio.sleep(13)
+    # wait 10 seconds
+    common.async_fire_time_changed(
+        hass, dt_util.utcnow() + datetime.timedelta(minutes=10)
+    )
     await hass.async_block_till_done()
 
     assert hass.states.get(cooler_switch).state == STATE_OFF

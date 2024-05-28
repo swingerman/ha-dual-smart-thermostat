@@ -366,7 +366,7 @@ climate:
     humidity_sensor: sensor.humidity
     heat_cool_mode: true
     target_temp_step: 0.1
-    target_sensor_safety_delay: "00:10"
+    sensor_stale_duration: "00:10"
     precision: 0.1
     min_temp: 9
     max_temp: 32

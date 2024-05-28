@@ -218,6 +218,7 @@ class FeatureManager(StateManager):
         )
 
         if self.is_configured_for_dryer_mode:
+
             self._supported_features |= ClimateEntityFeature.TARGET_HUMIDITY
 
     def apply_old_state(self, old_state: State, hvac_mode, presets_range) -> None:

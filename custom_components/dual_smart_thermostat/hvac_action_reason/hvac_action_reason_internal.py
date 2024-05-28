@@ -10,6 +10,10 @@ class HVACActionReasonInternal(enum.StrEnum):
 
     TARGET_TEMP_NOT_REACHED_WITH_FAN = "target_temp_not_reached_with_fan"
 
+    TARGET_HUMIDITY_NOT_REACHED = "target_humidity_not_reached"
+
+    TARGET_HUMIDITY_REACHED = "target_humidity_reached"
+
     MISCONFIGURATION = "misconfiguration"
 
     OPENING = "opening"
@@ -18,4 +22,6 @@ class HVACActionReasonInternal(enum.StrEnum):
 
     OVERHEAT = "overheat"
 
-    TEMPERATURE_SENSOR_TIMED_OUT = "temperature_sensor_timed_out"
+    TEMPERATURE_SENSOR_STALLED = "temperature_sensor_stalled"
+
+    HUMIDITY_SENSOR_STALLED = "humidity_sensor_stalled"

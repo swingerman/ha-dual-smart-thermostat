@@ -1,5 +1,6 @@
 """The tests for the dual_smart_thermostat."""
 
+import datetime
 from datetime import timedelta
 import logging
 
@@ -37,7 +38,7 @@ from homeassistant.core import DOMAIN as HASS_DOMAIN, CoreState, HomeAssistant, 
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import entity_registry as er
 from homeassistant.setup import async_setup_component
-from homeassistant.util import dt
+from homeassistant.util import dt, dt as dt_util
 from homeassistant.util.unit_system import METRIC_SYSTEM
 import pytest
 import voluptuous as vol
@@ -69,6 +70,7 @@ from . import (  # noqa: F401
     setup_comp_heat_cool_presets,
     setup_comp_heat_cool_safety_delay,
     setup_floor_sensor,
+    setup_humidity_sensor,
     setup_outside_sensor,
     setup_sensor,
     setup_switch_dual,
@@ -814,19 +816,26 @@ async def test_set_heat_cool_preset_mode_invalid(
     "sensor_state",
     [STATE_UNAVAILABLE, STATE_UNKNOWN],
 )
-async def test_sensor_unknown_secure_heat_cool_off_outside_delay_cooler(
+@pytest.mark.parametrize("expected_lingering_timers", [True])
+async def test_sensor_unknown_secure_heat_cool_off_outside_stale_duration_cooler(
     hass: HomeAssistant, sensor_state, setup_comp_heat_cool_safety_delay  # noqa: F811
 ) -> None:
-    fake_changed = dt.utcnow() - timedelta(minutes=3)
-    with freeze_time(fake_changed):
-        setup_sensor(hass, 28)
-        await common.async_set_hvac_mode(hass, HVACMode.HEAT_COOL)
-        await common.async_set_temperature(hass, 30, common.ENTITY, 25, 22)
-        calls = setup_switch_dual(hass, common.ENT_COOLER, False, True)
-        hass.states.async_set(common.ENT_SENSOR, sensor_state)
-        await hass.async_block_till_done()
 
+    setup_sensor(hass, 28)
+    await common.async_set_hvac_mode(hass, HVACMode.HEAT_COOL)
     await common.async_set_temperature(hass, 30, common.ENTITY, 25, 22)
+    calls = setup_switch_dual(hass, common.ENT_COOLER, False, True)
+
+    # set up sensor in th edesired state
+    hass.states.async_set(common.ENT_SENSOR, sensor_state)
+    await hass.async_block_till_done()
+
+    # Wait 3 minutes
+    common.async_fire_time_changed(
+        hass, dt_util.utcnow() + datetime.timedelta(minutes=3)
+    )
+    await hass.async_block_till_done()
+
     assert len(calls) == 1
     call = calls[0]
     assert call.domain == HASS_DOMAIN
@@ -838,20 +847,27 @@ async def test_sensor_unknown_secure_heat_cool_off_outside_delay_cooler(
     "sensor_state",
     [STATE_UNAVAILABLE, STATE_UNKNOWN],
 )
-async def test_sensor_unknown_secure_heat_cool_off_outside_delay_heater(
+@pytest.mark.parametrize("expected_lingering_timers", [True])
+async def test_sensor_unknown_secure_heat_cool_off_outside_stale_duration_heater(
     hass: HomeAssistant, sensor_state, setup_comp_heat_cool_safety_delay  # noqa: F811
 ) -> None:
-    fake_changed = dt.utcnow() - timedelta(minutes=3)
-    with freeze_time(fake_changed):
-        setup_sensor(hass, 18)
-        await common.async_set_hvac_mode(hass, HVACMode.HEAT_COOL)
-        await common.async_set_temperature(hass, 30, common.ENTITY, 25, 22)
-        calls = setup_switch_dual(hass, common.ENT_COOLER, True, False)
 
-        await hass.async_block_till_done()
-        hass.states.async_set(common.ENT_SENSOR, sensor_state)
+    setup_sensor(hass, 18)
+    await common.async_set_hvac_mode(hass, HVACMode.HEAT_COOL)
+    await common.async_set_temperature(hass, 30, common.ENTITY, 25, 22)
+    calls = setup_switch_dual(hass, common.ENT_COOLER, True, False)
+    await hass.async_block_till_done()
 
-    await common.async_set_temperature(hass, 30, common.ENTITY, 25, 23)
+    # set up sensor in th edesired state
+    hass.states.async_set(common.ENT_SENSOR, sensor_state)
+    await hass.async_block_till_done()
+
+    # Wait 3 minutes
+    common.async_fire_time_changed(
+        hass, dt_util.utcnow() + datetime.timedelta(minutes=3)
+    )
+    await hass.async_block_till_done()
+
     assert len(calls) == 1
     call = calls[0]
     assert call.domain == HASS_DOMAIN
@@ -870,7 +886,8 @@ async def test_sensor_unknown_secure_heat_cool_off_outside_delay_heater(
         (18, 18, common.ENT_SWITCH),
     ],
 )
-async def test_sensor_unknown_secure_heat_cool_off_outside_delay(
+@pytest.mark.parametrize("expected_lingering_timers", [True])
+async def test_sensor_unknown_secure_heat_cool_off_outside_stale_duration(
     hass: HomeAssistant,
     sensor_state,
     sensor_value,
@@ -879,19 +896,25 @@ async def test_sensor_unknown_secure_heat_cool_off_outside_delay(
 ) -> None:
     temp_high = 25
     temp_low = 22
-    fake_changed = dt.utcnow() - timedelta(minutes=3)
-    with freeze_time(fake_changed):
-        setup_sensor(hass, sensor_value)
-        await common.async_set_hvac_mode(hass, HVACMode.HEAT_COOL)
-        await common.async_set_temperature(hass, 30, common.ENTITY, temp_high, temp_low)
-        calls = setup_switch_dual(
-            hass, common.ENT_COOLER, sensor_value < temp_low, sensor_value > temp_high
-        )
 
-        await hass.async_block_till_done()
-        hass.states.async_set(common.ENT_SENSOR, sensor_state)
-
+    setup_sensor(hass, sensor_value)
+    await common.async_set_hvac_mode(hass, HVACMode.HEAT_COOL)
     await common.async_set_temperature(hass, 30, common.ENTITY, temp_high, temp_low)
+    calls = setup_switch_dual(
+        hass, common.ENT_COOLER, sensor_value < temp_low, sensor_value > temp_high
+    )
+    await hass.async_block_till_done()
+
+    # set up sensor in th edesired state
+    hass.states.async_set(common.ENT_SENSOR, sensor_state)
+    await hass.async_block_till_done()
+
+    # Wait 3 minutes
+    common.async_fire_time_changed(
+        hass, dt_util.utcnow() + datetime.timedelta(minutes=3)
+    )
+    await hass.async_block_till_done()
+
     assert len(calls) == 1
     call = calls[0]
     assert call.domain == HASS_DOMAIN
@@ -910,7 +933,8 @@ async def test_sensor_unknown_secure_heat_cool_off_outside_delay(
         (18, 18),
     ],
 )
-async def test_sensor_unknown_secure_heat_cool_off_outside_delay_reason(
+@pytest.mark.parametrize("expected_lingering_timers", [True])
+async def test_sensor_unknown_secure_heat_cool_off_outside_stale_duration_reason(
     hass: HomeAssistant,
     sensor_state,
     sensor_value,
@@ -918,22 +942,28 @@ async def test_sensor_unknown_secure_heat_cool_off_outside_delay_reason(
 ) -> None:
     temp_high = 25
     temp_low = 22
-    fake_changed = dt.utcnow() - timedelta(minutes=3)
-    with freeze_time(fake_changed):
-        setup_sensor(hass, sensor_value)
-        await common.async_set_hvac_mode(hass, HVACMode.HEAT_COOL)
-        await common.async_set_temperature(hass, 30, common.ENTITY, temp_high, temp_low)
-        calls = setup_switch_dual(  # noqa: F841
-            hass, common.ENT_COOLER, sensor_value < temp_low, sensor_value > temp_high
-        )
 
-        await hass.async_block_till_done()
-        hass.states.async_set(common.ENT_SENSOR, sensor_state)
-
+    setup_sensor(hass, sensor_value)
+    await common.async_set_hvac_mode(hass, HVACMode.HEAT_COOL)
     await common.async_set_temperature(hass, 30, common.ENTITY, temp_high, temp_low)
+    calls = setup_switch_dual(  # noqa: F841
+        hass, common.ENT_COOLER, sensor_value < temp_low, sensor_value > temp_high
+    )
+    await hass.async_block_till_done()
+
+    # set up sensor in th edesired state
+    hass.states.async_set(common.ENT_SENSOR, sensor_state)
+    await hass.async_block_till_done()
+
+    # Wait 3 minutes
+    common.async_fire_time_changed(
+        hass, dt_util.utcnow() + datetime.timedelta(minutes=3)
+    )
+    await hass.async_block_till_done()
+
     assert (
         hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_ACTION_REASON)
-        == HVACActionReasonInternal.TEMPERATURE_SENSOR_TIMED_OUT
+        == HVACActionReasonInternal.TEMPERATURE_SENSOR_STALLED
     )
 
 
@@ -2402,6 +2432,106 @@ async def test_hvac_mode_heat_cool_switch_preset_modes(
     # await common.async_set_hvac_mode(hass, HVACMode.COOL)
     # await hass.async_block_till_done()
     # assert hass.states.get("climate.test").state == HVAC_MODE_COOL
+
+
+async def test_hvac_mode_heat_cool_dry_mode(
+    hass: HomeAssistant, setup_comp_1  # noqa: F811
+):
+    """Test thermostat heatre, cooler and dryer mode"""
+
+    heater_switch = "input_boolean.heater"
+    cooler_switch = "input_boolean.cooler"
+    dryer_switch = "input_boolean.dryer"
+    assert await async_setup_component(
+        hass,
+        input_boolean.DOMAIN,
+        {
+            "input_boolean": {"heater": None, "cooler": None, "dryer": None},
+        },
+    )
+
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {"name": "test", "initial": 10, "min": 0, "max": 40, "step": 1},
+                "humidity": {
+                    "name": "test_humidity",
+                    "initial": 50,
+                    "min": 10,
+                    "max": 99,
+                    "step": 1,
+                },
+            }
+        },
+    )
+
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "cooler": cooler_switch,
+                "heater": heater_switch,
+                "dryer": dryer_switch,
+                "target_sensor": common.ENT_SENSOR,
+                "humidity_sensor": common.ENT_HUMIDITY_SENSOR,
+                "heat_cool_mode": True,
+                "initial_hvac_mode": HVACMode.HEAT_COOL,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+    assert hass.states.get(dryer_switch).state == STATE_OFF
+
+    setup_sensor(hass, 24)
+    setup_humidity_sensor(hass, 60)
+    await hass.async_block_till_done()
+
+    setup_sensor(hass, 23)
+    await hass.async_block_till_done()
+
+    await common.async_set_temperature(hass, 18)
+    await hass.async_block_till_done()
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(cooler_switch).state == STATE_ON
+
+    setup_sensor(hass, 17)
+    await hass.async_block_till_done()
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+    assert hass.states.get(dryer_switch).state == STATE_OFF
+
+    setup_sensor(hass, 23)
+    await hass.async_block_till_done()
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(cooler_switch).state == STATE_ON
+    assert hass.states.get(dryer_switch).state == STATE_OFF
+
+    await common.async_set_hvac_mode(hass, HVACMode.DRY)
+    await common.async_set_humidity(hass, 55)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+    assert hass.states.get(dryer_switch).state == STATE_ON
+    assert (
+        hass.states.get(common.ENTITY).attributes.get("hvac_action")
+        == HVACAction.DRYING
+    )
+
+    await common.async_set_hvac_mode(hass, HVACMode.HEAT_COOL)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(cooler_switch).state == STATE_ON
+    assert hass.states.get(dryer_switch).state == STATE_OFF
 
 
 async def test_hvac_mode_heat_cool_tolerances(
