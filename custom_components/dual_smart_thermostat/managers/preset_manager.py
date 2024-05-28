@@ -120,9 +120,10 @@ class PresetManager(StateManager):
             raise ValueError(
                 f"Got unsupported preset_mode {preset_mode}. Must be one of {self.preset_modes}"
             )
-        if preset_mode == self._preset_mode:
-            # I don't think we need to call async_write_ha_state if we didn't change the state
+        if preset_mode == PRESET_NONE and preset_mode == self._preset_mode:
             return
+        # if preset_mode == self._preset_mode we still need to continue
+        # to set the target environment to the preset mode
         if preset_mode == PRESET_NONE:
             self._set_presets_when_no_preset_mode()
         else:
