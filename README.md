@@ -46,7 +46,7 @@ If only the [`heater`](#heater) entity is set the thermostat works only in heate
 
 ## Two Stage (AUX) Heating
 
-Two stage or AUX heating can be enabled by adding the [required configuration](#two-stage-heating-example) entities: [`secondary_heater`](#secondary_heater), [`secondary heater_timeout`](#secondar_heater_timeout). If these are set the feature will enable automatically.
+Two stage or AUX heating can be enabled by adding the [required configuration](#two-stage-heating-example) entities: [`secondary_heater`](#secondary_heater), [`secondary heater_timeout`](#secondary_heater_timeout). If these are set the feature will enable automatically.
 Optionally you can set [`secondary heater_dual_mode`](#secondar_heater_dual_mode) to `true` to turn on the secondary heater together with the primary heater.
 
 ### How Two Stage Heating Works?
@@ -59,8 +59,8 @@ If the third [`secondary heater_dual_mode`](#secondar_heater_dual_mode) is set t
 
 ```yaml
 secondary_heater: switch.study_secondary_heater   # <-- required
-secondar_heater_timeout: 00:00:30                 # <-- required
-secondar_heater_dual_mode: true                   # <-- optional
+secondary_heater_timeout: 00:00:30                 # <-- required
+secondary_heater_timeout: true                   # <-- optional
 ```
 
 ## Fan Only Mode
@@ -608,7 +608,7 @@ climate:
 
 ## Two Stage Heateing Mode Example
 
-For two stage heating both the `heater` and `secondary_heater` must be defined. The `secondary_heater` will be turned on only if the `heater` is on for the amount of time defined in `secondar_heater_timeout`.
+For two stage heating both the `heater` and `secondary_heater` must be defined. The `secondary_heater` will be turned on only if the `heater` is on for the amount of time defined in `secondary_heater_timeout`.
 
 ```yaml
 climate:
@@ -617,7 +617,7 @@ climate:
     heater: switch.study_heater
 
     secondary_heater: switch.study_secondary_heater # <-requred
-    secondar_heater_timeout: 00:00:30 # <-requred
+    secondary_heater_timeout: 00:00:30 # <-requred
 
     target_sensor: sensor.study_temperature
     initial_hvac_mode: "heat"
@@ -707,7 +707,7 @@ climate:
     heater: switch.study_heater
     cooler: switch.study_cooler
     secondary_heater: switch.study_secondary_heater
-    secondar_heater_timeout: 00:00:30
+    secondary_heater_timeout: 00:00:30
     target_sensor: sensor.study_temperature
     floor_sensor: sensor.floor_temp
     max_floor_temp: 28
