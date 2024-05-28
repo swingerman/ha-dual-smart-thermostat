@@ -573,6 +573,63 @@ async def test_set_heat_cool_preset_mode_and_restore_prev_temp(
 @pytest.mark.parametrize(
     ("preset", "temp_low", "temp_high"),
     [
+        (PRESET_AWAY, 16, 30),
+        (PRESET_COMFORT, 20, 27),
+        (PRESET_ECO, 18, 29),
+        (PRESET_HOME, 19, 23),
+        (PRESET_SLEEP, 17, 24),
+        (PRESET_ACTIVITY, 21, 28),
+        (PRESET_ANTI_FREEZE, 5, 32),
+    ],
+)
+async def test_set_heat_cool_preset_mode_and_restore_prev_temp_2(
+    hass: HomeAssistant,
+    setup_comp_heat_cool_presets,  # noqa: F811
+    preset,
+    temp_low,
+    temp_high,
+) -> None:
+    """Test the setting preset mode.
+
+    Verify original temperature is restored.
+    And verifies that if the preset set again it's temps are match the preset
+    """
+    await common.async_set_temperature(hass, 23, common.ENTITY, 22, 18)
+    await common.async_set_preset_mode(hass, preset)
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes.get("target_temp_low") == temp_low
+    assert state.attributes.get("target_temp_high") == temp_high
+
+    # set temperature updates targets and keeps preset
+    await common.async_set_temperature(hass, 23, common.ENTITY, 24, 17)
+    await hass.async_block_till_done()
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes.get("target_temp_low") == 17
+    assert state.attributes.get("target_temp_high") == 24
+    assert state.attributes.get("preset_mode") == preset
+
+    # set preset moe again should set the temps to the preset
+    await common.async_set_preset_mode(hass, preset)
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes.get("target_temp_low") == temp_low
+    assert state.attributes.get("target_temp_high") == temp_high
+
+    # preset non should restore the original temps
+    await common.async_set_preset_mode(hass, PRESET_NONE)
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes.get("target_temp_low") == 18
+    assert state.attributes.get("target_temp_high") == 22
+
+    # set preset moe again should set the temps to the preset
+    await common.async_set_preset_mode(hass, preset)
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes.get("target_temp_low") == temp_low
+    assert state.attributes.get("target_temp_high") == temp_high
+
+
+@pytest.mark.parametrize(
+    ("preset", "temp_low", "temp_high"),
+    [
         (PRESET_NONE, 18, 22),
         (PRESET_AWAY, 16, 30),
         (PRESET_COMFORT, 20, 27),
