@@ -6,6 +6,7 @@ from homeassistant.components.climate.const import (
     ATTR_TARGET_TEMP_LOW,
     PRESET_NONE,
 )
+from homeassistant.components.humidifier import ATTR_HUMIDITY
 from homeassistant.const import ATTR_TEMPERATURE
 from homeassistant.core import State
 from homeassistant.helpers.typing import ConfigType
@@ -43,11 +44,9 @@ class PresetManager(StateManager):
             key: config[value] for key, value in CONF_PRESETS.items() if value in config
         }
         _LOGGER.debug("Presets dict: %s", presets_dict)
-        presets = {
-            key: values[ATTR_TEMPERATURE]
-            for key, values in presets_dict.items()
-            if ATTR_TEMPERATURE in values
-        }
+        presets = presets_dict
+
+        _LOGGER.debug("Presets generated: %s", presets)
         # Try to load presets in old format and use if new format not available in config
         old_presets = {k: config[v] for k, v in CONF_PRESETS_OLD.items() if v in config}
         if old_presets:
@@ -141,6 +140,9 @@ class PresetManager(StateManager):
         else:
             self._environment.target_temp = self._environment.saved_target_temp
 
+        if self._environment.saved_target_humidity:
+            self._environment.target_humidity = self._environment.saved_target_humidity
+
     def _set_presets_when_have_preset_mode(self, preset_mode: str):
         """Sets target temperatures when have preset is not none."""
         _LOGGER.debug("Setting presets when have preset mode")
@@ -157,8 +159,20 @@ class PresetManager(StateManager):
         else:
             if self._preset_mode == PRESET_NONE:
                 self._environment.saved_target_temp = self._environment.target_temp
-            self._environment.target_temp = self._presets[preset_mode]
+            self._environment.target_temp = self._presets[preset_mode][ATTR_TEMPERATURE]
+
+        if self._features.is_configured_for_dryer_mode:
+            if self._preset_mode == PRESET_NONE:
+                self._environment.saved_target_humidity = (
+                    self._environment.target_humidity
+                )
+            self._environment.target_humidity = self._presets[preset_mode][
+                ATTR_HUMIDITY
+            ]
+
         self._preset_mode = preset_mode
+
+        # if self._features.is_configured_for_dryer_mode:
 
     def apply_old_state(self, old_state: State):
         if old_state is None:

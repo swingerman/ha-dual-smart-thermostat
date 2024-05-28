@@ -62,6 +62,7 @@ class HVACDeviceFactory:
         self._features = features
 
         self._heater_entity_id = config[CONF_HEATER]
+        self._cooler_entity_id = None
         if cooler_entity_id := config.get(CONF_COOLER):
             if cooler_entity_id == self._heater_entity_id:
                 _LOGGER.warning(
@@ -90,174 +91,33 @@ class HVACDeviceFactory:
     ) -> ControlableHVACDevice:
 
         self.environment = environment
+        dryer_device = None
+        fan_device = None
+        cooler_device = None
+        heater_device = None
+        aux_heater_device = None
+
+        if self._features.is_configured_for_dryer_mode:
+            dryer_device = DryerDevice(
+                self.hass,
+                self._dryer_entity_id,
+                self._min_cycle_duration,
+                self._initial_hvac_mode,
+                environment,
+                openings,
+                self._features,
+            )
 
         if self._features.is_configured_for_fan_only_mode:
-            _LOGGER.info(
-                "Creating FanDevice device, _is_configured_for_fan_only_mode: %s",
-                self._features.is_configured_for_fan_only_mode,
-            )
-            return FanDevice(
-                self.hass,
-                self._heater_entity_id,
-                self._min_cycle_duration,
-                self._initial_hvac_mode,
-                environment,
-                openings,
-                self._features,
-            )
-
-        if (
-            self._features.is_configured_for_cooler_mode
-            and not self._features.is_configured_for_fan_mode
-        ):
-            _LOGGER.info(
-                "Creating Cooler device, _is_configured_for_cooler_mode: %s, _is_configured_for_fan_mode: %s",
-                True,
-                False,
-            )
-            return CoolerDevice(
-                self.hass,
-                self._heater_entity_id,
-                self._min_cycle_duration,
-                self._initial_hvac_mode,
-                environment,
-                openings,
-                self._features,
-            )
-
-        elif (
-            self._features.is_configured_for_cooler_mode
-            and self._features.is_configured_for_fan_mode
-        ):
-            cooler_device = CoolerDevice(
-                self.hass,
-                self._heater_entity_id,
-                self._min_cycle_duration,
-                None,
-                environment,
-                openings,
-                self._features,
-            )
             fan_device = FanDevice(
                 self.hass,
-                self._fan_entity_id,
+                self._heater_entity_id,
                 self._min_cycle_duration,
-                None,
-                environment,
-                openings,
-                self._features,
-            )
-
-            _LOGGER.info(
-                "Creating CoolerFanDevice device, _is_configured_for_cooler_mode: %s, _is_configured_for_fan_mode: %s",
-                self._features.is_configured_for_cooler_mode,
-                self._features.is_configured_for_fan_mode,
-            )
-
-            return CoolerFanDevice(
-                self.hass,
-                [cooler_device, fan_device],
                 self._initial_hvac_mode,
                 environment,
                 openings,
                 self._features,
             )
-
-        elif self._features.is_configured_for_dual_mode:
-            return self._create_heat_cool_device(environment, openings, self._features)
-        else:
-            return self._create_heater_device(environment, openings, self._features)
-
-    def _create_heater_device(
-        self,
-        environment: EnvironmentManager,
-        openings: OpeningManager,
-        features: FeatureManager,
-    ) -> HeaterDevice:
-        heater_device = HeaterDevice(
-            self.hass,
-            self._heater_entity_id,
-            self._min_cycle_duration,
-            self._initial_hvac_mode,
-            environment,
-            openings,
-            features,
-        )
-        if self._features.is_configured_for_aux_heating_mode:
-            aux_heater_device = HeaterDevice(
-                self.hass,
-                self._aux_heater_entity_id,
-                self._min_cycle_duration,
-                self._initial_hvac_mode,
-                environment,
-                openings,
-                features,
-            )
-            return HeaterAUXHeaterDevice(
-                self.hass,
-                [heater_device, aux_heater_device],
-                self._initial_hvac_mode,
-                environment,
-                openings,
-                features,
-            )
-        _LOGGER.info(
-            "Creating HeaterDevice device, _is_configured_for_aux_heating_mode: %s",
-            self._features.is_configured_for_aux_heating_mode,
-        )
-        return heater_device
-
-    def _create_heat_cool_device(
-        self,
-        environment: EnvironmentManager,
-        openings: OpeningManager,
-        features: FeatureManager,
-    ) -> ControlableHVACDevice:
-        devices = []
-
-        heater_device = HeaterDevice(
-            self.hass,
-            self._heater_entity_id,
-            self._min_cycle_duration,
-            self._initial_hvac_mode,
-            environment,
-            openings,
-            features,
-        )
-
-        if self._features.is_configured_for_aux_heating_mode:
-            aux_heater_device = HeaterDevice(
-                self.hass,
-                self._aux_heater_entity_id,
-                self._min_cycle_duration,
-                self._initial_hvac_mode,
-                environment,
-                openings,
-                features,
-            )
-            devices.append(
-                HeaterAUXHeaterDevice(
-                    self.hass,
-                    [heater_device, aux_heater_device],
-                    self._initial_hvac_mode,
-                    environment,
-                    openings,
-                    features,
-                )
-            )
-
-        cooler_device = CoolerDevice(
-            self.hass,
-            self._cooler_entity_id,
-            self._min_cycle_duration,
-            self._initial_hvac_mode,
-            environment,
-            openings,
-            features,
-        )
-
-        cooler_fan_device = None
-
         if self._features.is_configured_for_fan_mode:
             fan_device = FanDevice(
                 self.hass,
@@ -266,59 +126,140 @@ class HVACDeviceFactory:
                 self._initial_hvac_mode,
                 environment,
                 openings,
-                features,
+                self._features,
             )
-            cooler_fan_device = CoolerFanDevice(
+
+        if self._features.is_configured_for_aux_heating_mode:
+            aux_heater_device = HeaterDevice(
+                self.hass,
+                self._aux_heater_entity_id,
+                self._min_cycle_duration,
+                self._initial_hvac_mode,
+                environment,
+                openings,
+                self._features,
+            )
+
+        if self._features.is_configured_for_dual_mode:
+            cooler_entity_id = self._cooler_entity_id
+        else:
+            cooler_entity_id = self._heater_entity_id
+
+        if (
+            self._features.is_configured_for_cooler_mode
+            or self._cooler_entity_id is not None
+        ):
+            cooler_device = self._create_cooler_device(
+                environment, openings, cooler_entity_id, fan_device
+            )
+
+        if (
+            self._heater_entity_id
+            and not self._features.is_configured_for_cooler_mode
+            and not self._features.is_configured_for_fan_only_mode
+        ):
+            heater_device = HeaterDevice(
+                self.hass,
+                self._heater_entity_id,
+                self._min_cycle_duration,
+                self._initial_hvac_mode,
+                environment,
+                openings,
+                self._features,
+            )
+
+        if aux_heater_device and heater_device:
+            heater_device = HeaterAUXHeaterDevice(
+                self.hass,
+                [heater_device, aux_heater_device],
+                self._initial_hvac_mode,
+                environment,
+                openings,
+                self._features,
+            )
+
+        _LOGGER.debug(
+            "heater_device: %s, cooler_device: %s", heater_device, cooler_device
+        )
+
+        if heater_device is not None and cooler_device is not None:
+            _LOGGER.info("Creating heater cooler device")
+            heater_cooler_device = HeaterCoolerDevice(
+                self.hass,
+                [heater_device, cooler_device],
+                self._initial_hvac_mode,
+                environment,
+                openings,
+                self._features,
+            )
+
+            if dryer_device:
+                return MultiHvacDevice(
+                    self.hass,
+                    [heater_cooler_device, dryer_device],
+                    self._initial_hvac_mode,
+                    environment,
+                    openings,
+                    self._features,
+                )
+            else:
+                return heater_cooler_device
+
+        if heater_device:
+            if dryer_device:
+                return MultiHvacDevice(
+                    self.hass,
+                    [heater_device, dryer_device],
+                    self._initial_hvac_mode,
+                    environment,
+                    openings,
+                    self._features,
+                )
+            else:
+                return heater_device
+
+        if cooler_device:
+            if dryer_device:
+                return MultiHvacDevice(
+                    self.hass,
+                    [cooler_device, dryer_device],
+                    self._initial_hvac_mode,
+                    environment,
+                    openings,
+                    self._features,
+                )
+            else:
+                return cooler_device
+
+        if fan_device:
+            return fan_device
+
+    def _create_cooler_device(
+        self,
+        environment: EnvironmentManager,
+        openings: OpeningManager,
+        cooler_entitiy_id: str,
+        fan_device: FanDevice | None,
+    ) -> CoolerDevice:
+
+        cooler_device = CoolerDevice(
+            self.hass,
+            cooler_entitiy_id,
+            self._min_cycle_duration,
+            self._initial_hvac_mode,
+            environment,
+            openings,
+            self._features,
+        )
+
+        if fan_device:
+            cooler_device = CoolerFanDevice(
                 self.hass,
                 [cooler_device, fan_device],
                 self._initial_hvac_mode,
                 environment,
                 openings,
-                features,
+                self._features,
             )
 
-        _LOGGER.info(
-            "Creating HeaterCoolerDevice device, _is_configured_for_heat_cool_mode: %s, %s. %s",
-            self._features.is_configured_for_heat_cool_mode,
-            heater_device,
-            cooler_fan_device if cooler_fan_device else cooler_device,
-        )
-
-        sub_deices = [heater_device]
-        if cooler_fan_device:
-            sub_deices.append(cooler_fan_device)
-        else:
-            sub_deices.append(cooler_device)
-
-        devices.append(
-            HeaterCoolerDevice(
-                self.hass,
-                sub_deices,
-                self._initial_hvac_mode,
-                environment,
-                openings,
-                features,
-            )
-        )
-
-        if features.is_configured_for_dryer_mode:
-            devices.append(
-                DryerDevice(
-                    self.hass,
-                    self._dryer_entity_id,
-                    self._min_cycle_duration,
-                    self._initial_hvac_mode,
-                    environment,
-                    openings,
-                    features,
-                )
-            )
-
-        return MultiHvacDevice(
-            self.hass,
-            devices,
-            self._initial_hvac_mode,
-            environment,
-            openings,
-            features,
-        )
+        return cooler_device

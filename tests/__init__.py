@@ -76,7 +76,7 @@ async def setup_comp_heat_safety_delay(hass: HomeAssistant) -> None:
                 "hot_tolerance": 4,
                 "heater": common.ENT_SWITCH,
                 "target_sensor": common.ENT_SENSOR,
-                "target_sensor_safety_delay": datetime.timedelta(minutes=2),
+                "sensor_stale_duration": datetime.timedelta(minutes=2),
                 "initial_hvac_mode": HVACMode.HEAT,
             }
         },
@@ -219,7 +219,7 @@ async def setup_comp_heat_ac_cool_safety_delay(hass: HomeAssistant) -> None:
                 "ac_mode": True,
                 "heater": common.ENT_SWITCH,
                 "target_sensor": common.ENT_SENSOR,
-                "target_sensor_safety_delay": datetime.timedelta(minutes=2),
+                "sensor_stale_duration": datetime.timedelta(minutes=2),
                 "initial_hvac_mode": HVACMode.COOL,
                 PRESET_AWAY: {"temperature": 30},
             }
@@ -849,7 +849,7 @@ async def setup_comp_heat_cool_safety_delay(hass: HomeAssistant) -> None:
                 "heater": common.ENT_SWITCH,
                 "cooler": common.ENT_COOLER,
                 "target_sensor": common.ENT_SENSOR,
-                "target_sensor_safety_delay": datetime.timedelta(minutes=2),
+                "sensor_stale_duration": datetime.timedelta(minutes=2),
                 "initial_hvac_mode": HVACMode.HEAT_COOL,
             }
         },
@@ -934,13 +934,18 @@ def setup_sensor(hass: HomeAssistant, temp: float) -> None:
 
 
 def setup_floor_sensor(hass: HomeAssistant, temp: float) -> None:
-    """Set up the test sensor."""
+    """Set up the test floor sensor."""
     hass.states.async_set(common.ENT_FLOOR_SENSOR, temp)
 
 
 def setup_outside_sensor(hass: HomeAssistant, temp: float) -> None:
-    """Set up the test sensor."""
+    """Set up the test outside sensor."""
     hass.states.async_set(common.ENT_OUTSIDE_SENSOR, temp)
+
+
+def setup_humidity_sensor(hass: HomeAssistant, humidity: float) -> None:
+    """Set up the test humidity sensor."""
+    hass.states.async_set(common.ENT_HUMIDITY_SENSOR, humidity)
 
 
 def setup_boolean(hass: HomeAssistant, entity, state) -> None:

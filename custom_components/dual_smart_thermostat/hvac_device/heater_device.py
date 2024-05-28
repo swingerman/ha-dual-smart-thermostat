@@ -85,19 +85,12 @@ class HeaterDevice(SpecificHVACDevice):
         too_hot = self.environment.is_too_hot(self.target_env_attr)
         is_floor_hot = self.environment.is_floor_hot
         is_floor_cold = self.environment.is_floor_cold
-        is_sensor_safety_timed_out = self.environment.is_sensor_safety_timed_out
         any_opening_open = self.openings.any_opening_open(self.hvac_mode)
 
         _LOGGER.debug("_async_control_device_when_on, floor cold: %s", is_floor_cold)
         _LOGGER.debug("_async_control_device_when_on, too_hot: %s", too_hot)
-        _LOGGER.debug(
-            "is sensor safety timed out: %s",
-            self.environment.is_sensor_safety_timed_out,
-        )
 
-        if (
-            (too_hot or is_floor_hot) or any_opening_open or is_sensor_safety_timed_out
-        ) and not is_floor_cold:
+        if ((too_hot or is_floor_hot) or any_opening_open) and not is_floor_cold:
             _LOGGER.debug("Turning off heater %s", self.entity_id)
 
             await self.async_turn_off()
@@ -108,15 +101,8 @@ class HeaterDevice(SpecificHVACDevice):
                 self._hvac_action_reason = HVACActionReason.OVERHEAT
             if any_opening_open:
                 self._hvac_action_reason = HVACActionReason.OPENING
-            if is_sensor_safety_timed_out:
-                self._hvac_action_reason = HVACActionReason.TEMPERATURE_SENSOR_TIMED_OUT
 
-        elif (
-            time is not None
-            and not any_opening_open
-            and not is_floor_hot
-            and not is_sensor_safety_timed_out
-        ):
+        elif time is not None and not any_opening_open and not is_floor_hot:
             # The time argument is passed only in keep-alive case
             _LOGGER.info(
                 "Keep-alive - Turning on heater (from active) %s",

@@ -743,19 +743,26 @@ async def test_temp_change_heater_off_outside_tolerance(
     "sensor_state",
     [18, STATE_UNAVAILABLE, STATE_UNKNOWN],
 )
-async def test_sensor_unknown_secure_heater_off_outside_delay(
+@pytest.mark.parametrize("expected_lingering_timers", [True])
+async def test_sensor_unknown_secure_heater_off_outside_stale_duration(
     hass: HomeAssistant, sensor_state, setup_comp_heat_safety_delay  # noqa: F811
 ) -> None:
     """Test if sensor unavailable for defined delay turns off heater."""
-    fake_changed = dt.utcnow() - timedelta(minutes=3)
-    with freeze_time(fake_changed):
-        setup_sensor(hass, 18)
-        await common.async_set_temperature(hass, 30)
-        calls = setup_switch(hass, True)
-        hass.states.async_set(common.ENT_SENSOR, sensor_state)
-        await hass.async_block_till_done()
 
+    setup_sensor(hass, 18)
     await common.async_set_temperature(hass, 30)
+    calls = setup_switch(hass, True)
+
+    # set up sensor in th edesired state
+    hass.states.async_set(common.ENT_SENSOR, sensor_state)
+    await hass.async_block_till_done()
+
+    # Wait 3 minutes
+    common.async_fire_time_changed(
+        hass, dt_util.utcnow() + datetime.timedelta(minutes=3)
+    )
+    await hass.async_block_till_done()
+
     assert len(calls) == 1
     call = calls[0]
     assert call.domain == HASS_DOMAIN
@@ -767,22 +774,30 @@ async def test_sensor_unknown_secure_heater_off_outside_delay(
     "sensor_state",
     [18, STATE_UNAVAILABLE, STATE_UNKNOWN],
 )
-async def test_sensor_unknown_secure_heater_off_outside_delay_reason(
+@pytest.mark.parametrize("expected_lingering_timers", [True])
+async def test_sensor_unknown_secure_heater_off_outside_stale_duration_reason(
     hass: HomeAssistant, sensor_state, setup_comp_heat_safety_delay  # noqa: F811
 ) -> None:
     """Test if sensor unavailable for defined delay turns off heater."""
-    fake_changed = dt.utcnow() - timedelta(minutes=3)
-    with freeze_time(fake_changed):
-        setup_sensor(hass, 28)
-        await common.async_set_temperature(hass, 30)
-        calls = setup_switch(hass, True)  # noqa: F841
-        hass.states.async_set(common.ENT_SENSOR, sensor_state)
-        await hass.async_block_till_done()
 
+    setup_sensor(hass, 28)
     await common.async_set_temperature(hass, 30)
+    calls = setup_switch(hass, True)  # noqa: F841
+    await hass.async_block_till_done()
+
+    # set up sensor in th edesired state
+    hass.states.async_set(common.ENT_SENSOR, sensor_state)
+    await hass.async_block_till_done()
+
+    # Wait 3 minutes
+    common.async_fire_time_changed(
+        hass, dt_util.utcnow() + datetime.timedelta(minutes=3)
+    )
+    await hass.async_block_till_done()
+
     assert (
         hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_ACTION_REASON)
-        == HVACActionReasonInternal.TEMPERATURE_SENSOR_TIMED_OUT
+        == HVACActionReasonInternal.TEMPERATURE_SENSOR_STALLED
     )
 
 
@@ -1804,9 +1819,11 @@ async def test_heater_mode_opening_hvac_action_reason(
         == HVACActionReason.TARGET_TEMP_NOT_REACHED
     )
 
-    # wait 10 seconds, actually 133 due to the other tests run time seems to affect this
-    # needs to separate the tests
-    await asyncio.sleep(13)
+    # wait 10 seconds
+    common.async_fire_time_changed(
+        hass, dt_util.utcnow() + datetime.timedelta(minutes=10)
+    )
+
     await hass.async_block_till_done()
 
     assert (
@@ -1953,9 +1970,10 @@ async def test_heater_mode_opening(
 
     assert hass.states.get(heater_switch).state == STATE_ON
 
-    # wait 10 seconds, actually 133 due to the other tests run time seems to affect this
-    # needs to separate the tests
-    await asyncio.sleep(13)
+    # wait 10 seconds
+    common.async_fire_time_changed(
+        hass, dt_util.utcnow() + datetime.timedelta(minutes=10)
+    )
     await hass.async_block_till_done()
 
     assert hass.states.get(heater_switch).state == STATE_OFF

@@ -2,6 +2,9 @@ import logging
 
 from homeassistant.components.climate import HVACAction, HVACMode
 
+from custom_components.dual_smart_thermostat.hvac_action_reason.hvac_action_reason import (
+    HVACActionReason,
+)
 from custom_components.dual_smart_thermostat.hvac_device.specific_hvac_device import (
     SpecificHVACDevice,
 )
@@ -43,6 +46,7 @@ class DryerDevice(SpecificHVACDevice):
             return HVACAction.DRYING
         return HVACAction.IDLE
 
+    # override
     def _set_self_active(self) -> None:
         """Checks if active state needs to be set true."""
         _LOGGER.debug("_active: %s", self._active)
@@ -58,15 +62,25 @@ class DryerDevice(SpecificHVACDevice):
         ):
             self._active = True
             _LOGGER.debug(
-                "Obtained current and target temperature. Device active. %s, %s",
+                "Obtained current and target humidity. Device active. %s, %s",
                 self.environment.cur_humidity,
                 target_humidity,
             )
 
+    # override
+    def target_env_attr_reached_reason(self) -> HVACActionReason:
+        return HVACActionReason.TARGET_HUMIDITY_REACHED
+
+    # override
+    def target_env_attr_not_reached_reason(self) -> HVACActionReason:
+        return HVACActionReason.TARGET_HUMIDITY_NOT_REACHED
+
+    # override
     def is_below_target_env_attr(self) -> bool:
         """is too dry?"""
         return self.environment.is_too_dry
 
+    # override
     def is_above_target_env_attr(self) -> bool:
         """is too moist?"""
         return self.environment.is_too_moist

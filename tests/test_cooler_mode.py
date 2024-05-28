@@ -1,6 +1,5 @@
 """The tests for the dual_smart_thermostat."""
 
-import asyncio
 import datetime
 from datetime import timedelta
 import logging
@@ -682,21 +681,27 @@ async def test_mode_change_ac_trigger_on_not_long_enough_2(
     "sensor_state",
     [30, STATE_UNAVAILABLE, STATE_UNKNOWN],
 )
-async def test_sensor_unknown_secure_ac_off_outside_delay(
+@pytest.mark.parametrize("expected_lingering_timers", [True])
+async def test_sensor_unknown_secure_ac_off_outside_stale_duration(
     hass: HomeAssistant,
     sensor_state,
     setup_comp_heat_ac_cool_safety_delay,  # noqa: F811
 ) -> None:
     """Test if sensor unavailable for defined delay turns off AC."""
-    fake_changed = dt.utcnow() - timedelta(minutes=3)
-    with freeze_time(fake_changed):
-        setup_sensor(hass, 30)
-        await common.async_set_temperature(hass, 25)
-        calls = setup_switch(hass, True)
-        hass.states.async_set(common.ENT_SENSOR, sensor_state)
-        await hass.async_block_till_done()
-
+    setup_sensor(hass, 30)
     await common.async_set_temperature(hass, 25)
+    calls = setup_switch(hass, True)
+
+    # set up sensor in th edesired state
+    hass.states.async_set(common.ENT_SENSOR, sensor_state)
+    await hass.async_block_till_done()
+
+    # Wait 3 minutes
+    common.async_fire_time_changed(
+        hass, dt_util.utcnow() + datetime.timedelta(minutes=3)
+    )
+    await hass.async_block_till_done()
+
     assert len(calls) == 1
     call = calls[0]
     assert call.domain == HASS_DOMAIN
@@ -708,24 +713,31 @@ async def test_sensor_unknown_secure_ac_off_outside_delay(
     "sensor_state",
     [30, STATE_UNAVAILABLE, STATE_UNKNOWN],
 )
-async def test_sensor_unknown_secure_ac_off_outside_delay_reason(
+@pytest.mark.parametrize("expected_lingering_timers", [True])
+async def test_sensor_unknown_secure_ac_off_outside_stale_duration_reason(
     hass: HomeAssistant,
     sensor_state,
     setup_comp_heat_ac_cool_safety_delay,  # noqa: F811
 ) -> None:
     """Test if sensor unavailable for defined delay turns off AC."""
-    fake_changed = dt.utcnow() - timedelta(minutes=3)
-    with freeze_time(fake_changed):
-        setup_sensor(hass, 30)
-        await common.async_set_temperature(hass, 25)
-        calls = setup_switch(hass, True)  # noqa: F841
-        hass.states.async_set(common.ENT_SENSOR, sensor_state)
-        await hass.async_block_till_done()
 
+    setup_sensor(hass, 30)
     await common.async_set_temperature(hass, 25)
+    calls = setup_switch(hass, True)  # noqa: F841
+
+    # set up sensor in th edesired state
+    hass.states.async_set(common.ENT_SENSOR, sensor_state)
+    await hass.async_block_till_done()
+
+    # Wait 3 minutes
+    common.async_fire_time_changed(
+        hass, dt_util.utcnow() + datetime.timedelta(minutes=3)
+    )
+    await hass.async_block_till_done()
+
     assert (
         hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_ACTION_REASON)
-        == HVACActionReasonInternal.TEMPERATURE_SENSOR_TIMED_OUT
+        == HVACActionReasonInternal.TEMPERATURE_SENSOR_STALLED
     )
 
 
@@ -1134,9 +1146,10 @@ async def test_cooler_mode_opening_hvac_action_reason(
         == HVACActionReason.TARGET_TEMP_NOT_REACHED
     )
 
-    # wait 10 seconds, actually 133 due to the other tests run time seems to affect this
-    # needs to separate the tests
-    await asyncio.sleep(13)
+    # wait 10 seconds
+    common.async_fire_time_changed(
+        hass, dt_util.utcnow() + datetime.timedelta(minutes=10)
+    )
     await hass.async_block_till_done()
 
     assert (
@@ -1228,7 +1241,9 @@ async def test_cooler_mode_opening(
 
     # wait 10 seconds, actually 133 due to the other tests run time seems to affect this
     # needs to separate the tests
-    await asyncio.sleep(13)
+    common.async_fire_time_changed(
+        hass, dt_util.utcnow() + datetime.timedelta(minutes=10)
+    )
     await hass.async_block_till_done()
 
     assert hass.states.get(cooler_switch).state == STATE_OFF

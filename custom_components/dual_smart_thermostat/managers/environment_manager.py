@@ -1,3 +1,4 @@
+from datetime import timedelta
 import logging
 import math
 from typing import Any
@@ -41,7 +42,7 @@ from custom_components.dual_smart_thermostat.const import (
     CONF_OUTSIDE_SENSOR,
     CONF_PRECISION,
     CONF_SENSOR,
-    CONF_SENSOR_SAFETY_DELAY,
+    CONF_STALE_DURATION,
     CONF_TARGET_HUMIDITY,
     CONF_TARGET_TEMP,
     CONF_TARGET_TEMP_HIGH,
@@ -78,7 +79,7 @@ class EnvironmentManager(StateManager):
         self._sensor_floor = config.get(CONF_FLOOR_SENSOR)
         self._sensor = config.get(CONF_SENSOR)
         self._outside_sensor = config.get(CONF_OUTSIDE_SENSOR)
-        self._sensor_safety_delay = config.get(CONF_SENSOR_SAFETY_DELAY)
+        self._sensor_stale_duration: timedelta | None = config.get(CONF_STALE_DURATION)
 
         self._min_temp = config.get(CONF_MIN_TEMP)
         self._max_temp = config.get(CONF_MAX_TEMP)
@@ -112,6 +113,7 @@ class EnvironmentManager(StateManager):
         self._cur_floor_temp = None
         self._cur_outside_temp = None
         self._cur_humidity = None
+        self._saved_target_humidity = None
 
     @property
     def cur_temp(self) -> float:
@@ -215,6 +217,14 @@ class EnvironmentManager(StateManager):
     @saved_target_temp_high.setter
     def saved_target_temp_high(self, temp: float) -> None:
         self._saved_target_temp_high = temp
+
+    @property
+    def saved_target_humidity(self) -> float:
+        return self._saved_target_humidity
+
+    @saved_target_humidity.setter
+    def saved_target_humidity(self, humidity: float) -> None:
+        self._saved_target_humidity = humidity
 
     @property
     def fan_cold_tolerance(self) -> float:
@@ -388,25 +398,27 @@ class EnvironmentManager(StateManager):
         """If the sensor safety delay has timed out."""
         sensor_state = self.hass.states.get(self._sensor)
 
-        if self._sensor_safety_delay is None or sensor_state is None:
+        if self._sensor_stale_duration is None or sensor_state is None:
             return False
 
         """Checks when the sensor was last updated. If the sensor has not been
-        updated in the last sensor_safety_delay seconds, the sensor is considered
+        updated in the last sensor_stale_duration seconds, the sensor is considered
         timed out."""
 
         time_diff = dt_util.utcnow() - sensor_state.last_changed
         is_value_state = sensor_state not in (STATE_UNKNOWN, STATE_UNAVAILABLE)
         timed_out_temp = is_value_state and (
-            time_diff.total_seconds() > self._sensor_safety_delay.total_seconds()
+            time_diff.total_seconds() > self._sensor_stale_duration.total_seconds()
         )
 
-        _LOGGER.debug("time diff: %s, delay: %s", time_diff, self._sensor_safety_delay)
+        _LOGGER.debug(
+            "time diff: %s, delay: %s", time_diff, self._sensor_stale_duration
+        )
         _LOGGER.debug(
             "timed out temp: %s, dif_seconds: %s, delay_seconds: %s",
             timed_out_temp,
             time_diff.total_seconds(),
-            self._sensor_safety_delay.total_seconds(),
+            self._sensor_stale_duration.total_seconds(),
         )
 
         return (
@@ -415,13 +427,13 @@ class EnvironmentManager(StateManager):
                 self.hass,
                 self._sensor,
                 STATE_UNKNOWN,
-                self._sensor_safety_delay,
+                self._sensor_stale_duration,
             )
             or condition.state(
                 self.hass,
                 self._sensor,
                 STATE_UNAVAILABLE,
-                self._sensor_safety_delay,
+                self._sensor_stale_duration,
             )
         )
 

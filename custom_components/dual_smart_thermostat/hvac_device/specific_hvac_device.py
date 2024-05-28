@@ -209,32 +209,33 @@ class SpecificHVACDevice(
         """is too hot?"""
         return self.environment.is_too_hot(self.target_env_attr)
 
+    def target_env_attr_reached_reason(self) -> HVACActionReason:
+        return HVACActionReason.TARGET_TEMP_REACHED
+
+    def target_env_attr_not_reached_reason(self) -> HVACActionReason:
+        return HVACActionReason.TARGET_TEMP_NOT_REACHED
+
     async def _async_control_when_active(self, time=None) -> None:
         _LOGGER.debug("%s _async_control_when_active", self.__class__.__name__)
         below_env_attr = self.is_below_target_env_attr()
         any_opening_open = self.openings.any_opening_open(self.hvac_mode)
-        is_sensor_safety_timed_out = self.environment.is_sensor_safety_timed_out
 
-        if below_env_attr or any_opening_open or is_sensor_safety_timed_out:
+        if below_env_attr or any_opening_open:
             _LOGGER.debug("Turning off entity %s", self.entity_id)
             await self.async_turn_off()
             if below_env_attr:
-                self._hvac_action_reason = HVACActionReason.TARGET_TEMP_REACHED
+                self._hvac_action_reason = self.target_env_attr_reached_reason()
             if any_opening_open:
                 self._hvac_action_reason = HVACActionReason.OPENING
-            if is_sensor_safety_timed_out:
-                self._hvac_action_reason = HVACActionReason.TEMPERATURE_SENSOR_TIMED_OUT
 
-        elif (
-            time is not None and not any_opening_open and not is_sensor_safety_timed_out
-        ):
+        elif time is not None and not any_opening_open:
             # The time argument is passed only in keep-alive case
             _LOGGER.debug(
                 "Keep-alive - Turning on entity (from active) %s",
                 self.entity_id,
             )
             await self.async_turn_on()
-            self._hvac_action_reason = HVACActionReason.TARGET_TEMP_NOT_REACHED
+            self._hvac_action_reason = self.target_env_attr_not_reached_reason()
 
     async def _async_control_when_inactive(self, time=None) -> None:
         above_env_attr = self.is_above_target_env_attr()
@@ -244,15 +245,11 @@ class SpecificHVACDevice(
         _LOGGER.debug("any_opening_open: %s", any_opening_open)
         _LOGGER.debug("is_active: %s", self.is_active)
         _LOGGER.debug("time: %s", time)
-        _LOGGER.debug(
-            "is sensor safety timed out: %s",
-            self.environment.is_sensor_safety_timed_out,
-        )
 
         if above_env_attr and not any_opening_open:
             _LOGGER.debug("Turning on entity (from inactive) %s", self.entity_id)
             await self.async_turn_on()
-            self._hvac_action_reason = HVACActionReason.TARGET_TEMP_NOT_REACHED
+            self._hvac_action_reason = self.target_env_attr_not_reached_reason()
         elif time is not None or any_opening_open:
             # The time argument is passed only in keep-alive case
             _LOGGER.debug("Keep-alive - Turning off entity %s", self.entity_id)

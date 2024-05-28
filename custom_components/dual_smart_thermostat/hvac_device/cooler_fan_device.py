@@ -49,7 +49,6 @@ class CoolerFanDevice(MultiHvacDevice):
 
         if self.fan_device is None or self.cooler_device is None:
             _LOGGER.error("Fan or cooler device is not found")
-            return
 
     @property
     def hvac_mode(self) -> HVACMode:
