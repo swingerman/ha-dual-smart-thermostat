@@ -214,7 +214,7 @@ class FeatureManager(StateManager):
                     self._supported_features,
                 )
         self.environment.set_default_target_temps(
-            self.is_target_mode, self.is_range_mode, hvac_modes
+            self.is_target_mode, self.is_range_mode, current_hvac_mode
         )
 
         if self.is_configured_for_dryer_mode:
