@@ -324,9 +324,9 @@ async def test_set_target_temp_ac_off(
     """Test if target temperature turn ac off."""
     calls = setup_switch(hass, True)
     setup_sensor(hass, 25)
-    await hass.async_block_till_done()
     await common.async_set_temperature(hass, 30)
-    assert len(calls) == 2
+    await hass.async_block_till_done()
+    assert len(calls) == 1
     call = calls[0]
     assert call.domain == HASS_DOMAIN
     assert call.service == SERVICE_TURN_OFF

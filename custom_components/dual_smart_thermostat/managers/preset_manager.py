@@ -132,6 +132,12 @@ class PresetManager(StateManager):
     def _set_presets_when_no_preset_mode(self):
         """Sets target environment when preset is none."""
         _LOGGER.debug("Setting presets when no preset mode")
+        _LOGGER.debug(
+            "saved_target_temp_low: %s", self._environment.saved_target_temp_low
+        )
+        _LOGGER.debug(
+            "saved_target_temp_high: %s", self._environment.saved_target_temp_high
+        )
         self._preset_mode = PRESET_NONE
         if self._features.is_range_mode:
             self._environment.target_temp_low = self._environment.saved_target_temp_low

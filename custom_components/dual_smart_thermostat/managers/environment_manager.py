@@ -159,6 +159,7 @@ class EnvironmentManager(StateManager):
 
     @target_temp_low.setter
     def target_temp_low(self, temp: float) -> None:
+        _LOGGER.debug("Setting target temperature low: %s", temp)
         self._target_temp_low = temp
 
     @property
@@ -187,7 +188,6 @@ class EnvironmentManager(StateManager):
 
     @max_floor_temp.setter
     def max_floor_temp(self, temp: float) -> None:
-        _LOGGER.debug("Setting max floor temp property: %s", temp)
         self._max_floor_temp = temp
 
     @property
@@ -208,6 +208,7 @@ class EnvironmentManager(StateManager):
 
     @saved_target_temp_low.setter
     def saved_target_temp_low(self, temp: float) -> None:
+        _LOGGER.debug("Setting saved target temp low: %s", temp)
         self._saved_target_temp_low = temp
 
     @property
@@ -277,8 +278,13 @@ class EnvironmentManager(StateManager):
     def set_temperature_range(
         self, temperature: float, temp_low: float, temp_high: float
     ) -> None:
-        # if temp_low is None or temp_high is None:
-        #     return
+
+        _LOGGER.debug(
+            "Setting target temperature range: %s, %s, %s",
+            temperature,
+            temp_low,
+            temp_high,
+        )
 
         if temp_low is None:
             temp_low = temperature - PRECISION_WHOLE
@@ -490,47 +496,66 @@ class EnvironmentManager(StateManager):
         self._target_humidity = 50
 
     def set_default_target_temps(
-        self, is_target_mode: bool, is_range_mode: bool, hvac_modes: list[HVACMode]
+        self, is_target_mode: bool, is_range_mode: bool, hvac_mode: HVACMode
     ) -> None:
         """Set default values for target temperatures."""
         _LOGGER.debug(
             "Setting default target temperatures, target mode: %s, range mode: %s, hvac_mode: %s",
             is_target_mode,
             is_range_mode,
-            hvac_modes,
+            hvac_mode,
         )
         if is_target_mode:
-            self._set_default_temps_target_mode(hvac_modes)
+            self._set_default_temps_target_mode(hvac_mode)
 
         elif is_range_mode:
             self._set_default_temps_range_mode()
 
-    def _set_default_temps_target_mode(self, hvac_modes: list[HVACMode]) -> None:
-        if self._target_temp is not None:
-            return
+    def _set_default_temps_target_mode(self, hvac_mode: HVACMode) -> None:
 
-        _LOGGER.info("Setting default target temperature target mode: %s", hvac_modes)
+        _LOGGER.info(
+            "Setting default target temperature target mode: %s, target_temp: %s",
+            hvac_mode,
+            self._target_temp,
+        )
+        _LOGGER.debug(
+            "saved target temp low: %s, saved target temp high: %s",
+            self._saved_target_temp_low,
+            self._saved_target_temp_high,
+        )
 
-        # if HVACMode.COOL in hvac_device.hvac_modes or hvac_mode == HVACMode.COOL:
-        if HVACMode.COOL in hvac_modes or HVACMode.FAN_ONLY in hvac_modes:
-            if self._target_temp_high is None:
+        if hvac_mode == HVACMode.COOL or hvac_mode == HVACMode.FAN_ONLY:
+            if self._saved_target_temp_high is None:
+                if self._target_temp is not None:
+                    return
                 self._target_temp = self.max_temp
                 _LOGGER.warning(
-                    "Undefined target temperature, falling back to %s",
+                    "Undefined target high temperature, falling back to %s",
                     self._target_temp,
                 )
             else:
-                self._target_temp = self._target_temp_high
-            return
+                _LOGGER.debug(
+                    "Setting target temp to saved target temp high: %s",
+                    self._saved_target_temp_high,
+                )
+                self._target_temp = self._saved_target_temp_high
+            # return
 
-        if self._target_temp_low is None:
-            self._target_temp = self.min_temp
-            _LOGGER.warning(
-                "Undefined target temperature, falling back to %s",
-                self._target_temp,
-            )
-        else:
-            self._target_temp = self._target_temp_low
+        if hvac_mode == HVACMode.HEAT:
+            if self._saved_target_temp_low is None:
+                if self._target_temp is not None:
+                    return
+                self._target_temp = self.min_temp
+                _LOGGER.warning(
+                    "Undefined target low temperature, falling back to %s",
+                    self._target_temp,
+                )
+            else:
+                _LOGGER.debug(
+                    "Setting target temp to saved target temp low: %s",
+                    self._saved_target_temp_low,
+                )
+                self._target_temp = self._saved_target_temp_low
 
     def _set_default_temps_range_mode(self) -> None:
         if self._target_temp_low is not None and self._target_temp_high is not None:

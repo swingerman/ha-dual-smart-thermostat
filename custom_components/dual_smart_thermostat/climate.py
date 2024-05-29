@@ -579,7 +579,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             self.environment.set_default_target_temps(
                 self.features.is_target_mode,
                 self.features.is_range_mode,
-                self.hvac_device.hvac_modes,
+                self._hvac_mode,
             )
 
             # restore previous preset mode if available
@@ -612,7 +612,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                 self.environment.set_default_target_temps(
                     self.features.is_target_mode,
                     self.features.is_range_mode,
-                    self.hvac_device.hvac_modes,
+                    self._hvac_mode,
                 )
 
             if self.environment.max_floor_temp is None:
@@ -903,6 +903,17 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
         elif self.features.is_range_mode:
             self.environment.set_temperature_range(temperature, temp_low, temp_high)
+
+            # setting saved targets to current so while changing hvac mode
+            # other hvac modes can pick them up
+            if self.presets.preset_mode == PRESET_NONE:
+                self.environment.saved_target_temp_low = (
+                    self.environment.target_temp_low
+                )
+                self.environment.saved_target_temp_high = (
+                    self.environment.target_temp_high
+                )
+
             self._target_temp = self.environment.target_temp
             self._target_temp_low = self.environment.target_temp_low
             self._target_temp_high = self.environment.target_temp_high

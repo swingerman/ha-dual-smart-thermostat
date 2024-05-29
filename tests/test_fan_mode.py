@@ -728,9 +728,9 @@ async def test_set_target_temp_fan_off(
     """Test if target temperature turn fan off."""
     calls = setup_switch(hass, True)
     setup_sensor(hass, 25)
-    await hass.async_block_till_done()
     await common.async_set_temperature(hass, 30)
-    assert len(calls) == 2
+    await hass.async_block_till_done()
+    assert len(calls) == 1
     call = calls[0]
     assert call.domain == HASS_DOMAIN
     assert call.service == SERVICE_TURN_OFF
@@ -782,8 +782,8 @@ async def test_set_target_temp_cooler_on(
     setup_sensor(hass, 30)
     # only turns on if in COOL mode
     await common.async_set_hvac_mode(hass, HVACMode.COOL)
-    await hass.async_block_till_done()
     await common.async_set_temperature(hass, 25)
+    await hass.async_block_till_done()
     assert len(calls) == 1
     call = calls[0]
     assert call.domain == HASS_DOMAIN
@@ -799,8 +799,8 @@ async def test_set_target_temp_cooler_fan_on(
     setup_sensor(hass, 30)
     # only turns on if in COOL mode
     await common.async_set_hvac_mode(hass, HVACMode.FAN_ONLY)
-    await hass.async_block_till_done()
     await common.async_set_temperature(hass, 25)
+    await hass.async_block_till_done()
     assert len(calls) == 1
     call = calls[0]
     assert call.domain == HASS_DOMAIN
@@ -2343,9 +2343,9 @@ async def test_set_target_temp_ac_fan_on(
     calls = setup_fan(hass, False)
     await common.async_set_hvac_mode(hass, HVACMode.FAN_ONLY)
     setup_sensor(hass, 30)
+    await common.async_set_temperature(hass, 25)
     await hass.async_block_till_done()
 
-    await common.async_set_temperature(hass, 25)
     assert len(calls) == 1
     call = calls[0]
     assert call.domain == HASS_DOMAIN
@@ -2360,9 +2360,9 @@ async def test_set_target_temp_ac_on_after_fan_tolerance(
     calls = setup_switch_dual(hass, common.ENT_FAN, False, False)
     await common.async_set_hvac_mode(hass, HVACMode.COOL)
     setup_sensor(hass, 26)
+    await common.async_set_temperature(hass, 21)
     await hass.async_block_till_done()
 
-    await common.async_set_temperature(hass, 21)
     assert len(calls) == 1
     call = calls[0]
     assert call.domain == HASS_DOMAIN
