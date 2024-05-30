@@ -64,9 +64,6 @@ class HeaterDevice(SpecificHVACDevice):
     async def async_control_hvac(self, time=None, force=False):
         _LOGGER.debug({self.__class__.__name__})
         _LOGGER.debug("async_control_hvac")
-        _LOGGER.debug(
-            "sensor safety timed out: %s", self.environment.is_sensor_safety_timed_out
-        )
         self._set_self_active()
 
         if not self._needs_control(time, force):

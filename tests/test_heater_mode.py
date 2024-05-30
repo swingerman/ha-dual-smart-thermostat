@@ -769,6 +769,17 @@ async def test_sensor_unknown_secure_heater_off_outside_stale_duration(
     assert call.service == SERVICE_TURN_OFF
     assert call.data["entity_id"] == common.ENT_SWITCH
 
+    # Turns back on if sensor is restored
+    calls = setup_switch(hass, False)
+    setup_sensor(hass, 19)
+    await hass.async_block_till_done()
+
+    assert len(calls) == 1
+    call = calls[0]
+    assert call.domain == HASS_DOMAIN
+    assert call.service == SERVICE_TURN_ON
+    assert call.data["entity_id"] == common.ENT_SWITCH
+
 
 @pytest.mark.parametrize(
     "sensor_state",
