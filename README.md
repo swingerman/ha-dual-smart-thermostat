@@ -251,9 +251,19 @@ Currrnetly supported presets are:
 
 To set presets you need to add entries for them in the configuration file like this:
 
+You have 4 options here:
+
+1. Set the `temperature` for heat, cool or fan-only mode
+2. Set the `target_temp_low` and `target_temp_high` for heat_cool mode. If `temperature` is not set but `target_temp_low` and `target_temp_high` are set, the `temperature` will be picked based on hvac mode. For heat mode it will be `target_temp_low` and for cool, fan_only mode it will be `target_temp_high`
+3. Set the `humidity` for dry mode
+4. Set all above
+
+### Presets Configuration
+
 ```yaml
 preset_name:
   temperature: 13
+  humidity: 50 # <-- only if dry mode configured
   target_temp_low: 12
   target_temp_high: 14
 ```

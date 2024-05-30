@@ -264,27 +264,6 @@ async def async_setup_platform(
     sensor_humidity_entity_id = config.get(CONF_HUMIDITY_SENSOR)
     sensor_stale_duration: timedelta | None = config.get(CONF_STALE_DURATION)
     keep_alive = config.get(CONF_KEEP_ALIVE)
-    presets_dict = {
-        key: config[value] for key, value in CONF_PRESETS.items() if value in config
-    }
-    _LOGGER.debug("Presets dict: %s", presets_dict)
-    presets = {
-        key: values[ATTR_TEMPERATURE]
-        for key, values in presets_dict.items()
-        if ATTR_TEMPERATURE in values
-    }
-    _LOGGER.debug("Presets: %s", presets)
-
-    # Try to load presets in old format and use if new format not available in config
-    old_presets = {k: config[v] for k, v in CONF_PRESETS_OLD.items() if v in config}
-    if old_presets:
-        _LOGGER.warning(
-            "Found deprecated presets settings in configuration. "
-            "Please remove and replace with new presets settings format. "
-            "Read documentation in integration repository for more details"
-        )
-        if not presets_dict:
-            presets = old_presets
 
     precision = config.get(CONF_PRECISION)
     unit = hass.config.units.temperature_unit
@@ -295,7 +274,6 @@ async def async_setup_platform(
     environment_manager = EnvironmentManager(
         hass,
         config,
-        presets,
     )
 
     feature_manager = FeatureManager(hass, config, environment_manager)
@@ -779,7 +757,6 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             self.presets.presets,
             self.presets.presets_range,
             self.presets.preset_mode,
-            self.hvac_device.hvac_modes,
             self._hvac_mode,
         )
         self._attr_supported_features = self.features.supported_features
@@ -1145,7 +1122,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         return self.hvac_device.is_active
 
     async def async_set_preset_mode(self, preset_mode: str) -> None:
-        self.presets.set_preset_mode(preset_mode)
+        self.presets.set_preset_mode(preset_mode, self.hvac_device.hvac_mode)
 
         self._attr_preset_mode = self.presets.preset_mode
         await self._async_control_climate(force=True)

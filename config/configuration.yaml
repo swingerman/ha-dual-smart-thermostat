@@ -373,6 +373,14 @@ climate:
     target_temp: 20
     cold_tolerance: 0.3
     hot_tolerance: 0.3
+    away:
+      target_temp_high: 30
+      target_temp_low: 23
+      humidity: 55
+    sleep:
+      target_temp_high: 26
+      target_temp_low: 18
+      humidity: 60
 
   # - platform: dual_smart_thermostat
   #   name: AUX Heat Room

@@ -174,7 +174,6 @@ class FeatureManager(StateManager):
         presets: dict[str, Any],
         presets_range,
         preset_mode: str,
-        hvac_modes: list[HVACMode],
         current_hvac_mode: HVACMode = None,
     ) -> None:
         """Set the correct support flags based on configuration."""
@@ -185,14 +184,19 @@ class FeatureManager(StateManager):
             HVACMode.FAN_ONLY,
             HVACMode.HEAT,
         ):
-            if self.is_range_mode and preset_mode != PRESET_NONE:
-                self.environment.set_temperature_range_from_saved()
             self._supported_features = (
                 self._default_support_flags | ClimateEntityFeature.TARGET_TEMPERATURE
             )
             if len(presets):
-                _LOGGER.debug("Setting support flags to %s", self._supported_features)
+                _LOGGER.debug(
+                    "Setting support target mode flags to %s", self._supported_features
+                )
                 self._supported_features |= ClimateEntityFeature.PRESET_MODE
+
+                self.environment.set_temepratures_from_hvac_mode_and_presets(
+                    current_hvac_mode, preset_mode, presets_range
+                )
+
         elif current_hvac_mode == HVACMode.DRY:
             self._supported_features = (
                 self._default_support_flags | ClimateEntityFeature.TARGET_HUMIDITY
@@ -213,12 +217,13 @@ class FeatureManager(StateManager):
                     "Setting support flags presets in range mode to %s",
                     self._supported_features,
                 )
-        self.environment.set_default_target_temps(
-            self.is_target_mode, self.is_range_mode, current_hvac_mode
-        )
+
+        if preset_mode == PRESET_NONE:
+            self.environment.set_default_target_temps(
+                self.is_target_mode, self.is_range_mode, current_hvac_mode
+            )
 
         if self.is_configured_for_dryer_mode:
-
             self._supported_features |= ClimateEntityFeature.TARGET_HUMIDITY
 
     def apply_old_state(self, old_state: State, hvac_mode, presets_range) -> None:
