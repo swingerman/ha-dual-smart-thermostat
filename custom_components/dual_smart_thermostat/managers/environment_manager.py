@@ -10,17 +10,9 @@ from homeassistant.components.climate import (
     DEFAULT_MIN_TEMP,
 )
 from homeassistant.components.climate.const import PRESET_NONE, HVACMode
-from homeassistant.const import (
-    ATTR_TEMPERATURE,
-    PRECISION_WHOLE,
-    STATE_UNAVAILABLE,
-    STATE_UNKNOWN,
-    UnitOfTemperature,
-)
+from homeassistant.const import ATTR_TEMPERATURE, PRECISION_WHOLE, UnitOfTemperature
 from homeassistant.core import HomeAssistant, State, callback
-from homeassistant.helpers import condition
 from homeassistant.helpers.typing import ConfigType
-import homeassistant.util.dt as dt_util
 from homeassistant.util.unit_conversion import TemperatureConverter
 
 from custom_components.dual_smart_thermostat.const import (
@@ -393,50 +385,6 @@ class EnvironmentManager(StateManager):
         ):
             return True
         return False
-
-    @property
-    def is_sensor_safety_timed_out(self) -> bool:
-        """If the sensor safety delay has timed out."""
-        sensor_state = self.hass.states.get(self._sensor)
-
-        if self._sensor_stale_duration is None or sensor_state is None:
-            return False
-
-        """Checks when the sensor was last updated. If the sensor has not been
-        updated in the last sensor_stale_duration seconds, the sensor is considered
-        timed out."""
-
-        time_diff = dt_util.utcnow() - sensor_state.last_changed
-        is_value_state = sensor_state not in (STATE_UNKNOWN, STATE_UNAVAILABLE)
-        timed_out_temp = is_value_state and (
-            time_diff.total_seconds() > self._sensor_stale_duration.total_seconds()
-        )
-
-        _LOGGER.debug(
-            "time diff: %s, delay: %s", time_diff, self._sensor_stale_duration
-        )
-        _LOGGER.debug(
-            "timed out temp: %s, dif_seconds: %s, delay_seconds: %s",
-            timed_out_temp,
-            time_diff.total_seconds(),
-            self._sensor_stale_duration.total_seconds(),
-        )
-
-        return (
-            timed_out_temp
-            or condition.state(
-                self.hass,
-                self._sensor,
-                STATE_UNKNOWN,
-                self._sensor_stale_duration,
-            )
-            or condition.state(
-                self.hass,
-                self._sensor,
-                STATE_UNAVAILABLE,
-                self._sensor_stale_duration,
-            )
-        )
 
     @callback
     def update_temp_from_state(self, state: State) -> None:

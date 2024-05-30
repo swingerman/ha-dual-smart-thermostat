@@ -933,8 +933,8 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             "Sensor has not been updated for %s",
             now - state.last_updated if now and state else "---",
         )
-        _LOGGER.warning("Sensor is stalled, call the emergency stop")
         if self._is_device_active:
+            _LOGGER.warning("Sensor is stalled, call the emergency stop")
             await self.hvac_device.async_turn_off()
             self._hvac_action_reason = HVACActionReason.TEMPERATURE_SENSOR_STALLED
             self.async_write_ha_state()
