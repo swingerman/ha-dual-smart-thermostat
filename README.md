@@ -406,7 +406,9 @@ The internal values can be set by the component only and the external values can
 
 ### sensor_stale_duration
 
-  _(optional) (timedelta)_  Set a delay for the target sensor to be considered valid. If the sensor is not available for the specified time the thermostat will be turned off.
+  _(optional) (timedelta)_  Set a delay for the target sensor to be considered not stalled. If the sensor is not available for the specified time or doesn't get updated the thermostat will be turned off.
+
+  _requires: `target_sensor` and/or `huidity_sensor`_
 
 ### floor_sensor
 
