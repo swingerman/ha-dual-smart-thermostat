@@ -9,7 +9,7 @@ from homeassistant.components.climate import (
     DEFAULT_MAX_TEMP,
     DEFAULT_MIN_TEMP,
 )
-from homeassistant.components.climate.const import HVACMode
+from homeassistant.components.climate.const import PRESET_NONE, HVACMode
 from homeassistant.const import (
     ATTR_TEMPERATURE,
     PRECISION_WHOLE,
@@ -69,12 +69,7 @@ class TargetTemperatures:
 class EnvironmentManager(StateManager):
     """Class to manage the temperatures of the thermostat."""
 
-    def __init__(
-        self,
-        hass: HomeAssistant,
-        config: ConfigType,
-        presets: dict[str, Any],
-    ):
+    def __init__(self, hass: HomeAssistant, config: ConfigType):
         self.hass = hass
         self._sensor_floor = config.get(CONF_FLOOR_SENSOR)
         self._sensor = config.get(CONF_SENSOR)
@@ -102,7 +97,7 @@ class EnvironmentManager(StateManager):
         self._hot_tolerance = config.get(CONF_HOT_TOLERANCE)
         self._fan_hot_tolerance = config.get(CONF_FAN_HOT_TOLERANCE)
 
-        self._saved_target_temp = self.target_temp or next(iter(presets.values()), None)
+        self._saved_target_temp = self.target_temp or None
         self._saved_target_temp_low = None
         self._saved_target_temp_high = None
         self._temp_precision = config.get(CONF_PRECISION)
@@ -580,6 +575,27 @@ class EnvironmentManager(StateManager):
             self._target_temp_low -= PRECISION_WHOLE
         else:
             self._target_temp_high += PRECISION_WHOLE
+
+    def set_temepratures_from_hvac_mode_and_presets(
+        self, hvac_mode: HVACMode, preset_mode: str, presets_range: dict[str, Any]
+    ) -> None:
+        if preset_mode is None or preset_mode is PRESET_NONE:
+            return
+
+        _LOGGER.debug(
+            "Setting temperatures from hvac mode and presets: %s, %s, %s",
+            hvac_mode,
+            preset_mode,
+            presets_range,
+        )
+
+        if hvac_mode == HVACMode.HEAT and presets_range[preset_mode][0] is not None:
+            self._target_temp = presets_range[preset_mode][0]
+        elif (
+            hvac_mode in [HVACMode.COOL, HVACMode.FAN_ONLY]
+            and presets_range[preset_mode][0] is not None
+        ):
+            self._target_temp = presets_range[preset_mode][1]
 
     def apply_old_state(self, old_state: State) -> None:
         _LOGGER.debug("Applying old state: %s", old_state)

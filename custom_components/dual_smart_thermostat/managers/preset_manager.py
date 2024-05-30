@@ -5,6 +5,7 @@ from homeassistant.components.climate.const import (
     ATTR_TARGET_TEMP_HIGH,
     ATTR_TARGET_TEMP_LOW,
     PRESET_NONE,
+    HVACMode,
 )
 from homeassistant.components.humidifier import ATTR_HUMIDITY
 from homeassistant.const import ATTR_TEMPERATURE
@@ -93,6 +94,11 @@ class PresetManager(StateManager):
                 set(self._preset_range_modes) - set(self._preset_modes)
             )
 
+        # sets the target environment to the preset mode
+        self._environment.saved_target_temp = self._environment.target_temp or next(
+            iter(presets.values()), None
+        )
+
     @property
     def presets(self):
         return self._presets
@@ -113,7 +119,7 @@ class PresetManager(StateManager):
     def has_presets(self):
         return len(self.presets) > 0
 
-    def set_preset_mode(self, preset_mode: str) -> None:
+    def set_preset_mode(self, preset_mode: str, hvac_mode: HVACMode) -> None:
         """Set new preset mode."""
         _LOGGER.debug("Setting preset mode: %s", preset_mode)
         if preset_mode not in (self.preset_modes or []):
@@ -127,7 +133,7 @@ class PresetManager(StateManager):
         if preset_mode == PRESET_NONE:
             self._set_presets_when_no_preset_mode()
         else:
-            self._set_presets_when_have_preset_mode(preset_mode)
+            self._set_presets_when_have_preset_mode(preset_mode, hvac_mode)
 
     def _set_presets_when_no_preset_mode(self):
         """Sets target environment when preset is none."""
@@ -150,7 +156,7 @@ class PresetManager(StateManager):
         if self._environment.saved_target_humidity:
             self._environment.target_humidity = self._environment.saved_target_humidity
 
-    def _set_presets_when_have_preset_mode(self, preset_mode: str):
+    def _set_presets_when_have_preset_mode(self, preset_mode: str, hvac_mode: HVACMode):
         """Sets target temperatures when have preset is not none."""
         _LOGGER.debug("Setting presets when have preset mode")
         if self._features.is_range_mode:
@@ -166,7 +172,16 @@ class PresetManager(StateManager):
         else:
             if self._preset_mode == PRESET_NONE:
                 self._environment.saved_target_temp = self._environment.target_temp
-            self._environment.target_temp = self._presets[preset_mode][ATTR_TEMPERATURE]
+            # handles when temperature is set in preset
+            if self._presets[preset_mode].get(ATTR_TEMPERATURE) is not None:
+                self._environment.target_temp = self._presets[preset_mode][
+                    ATTR_TEMPERATURE
+                ]
+            # handles when temperature is not set in preset but temp range is set
+            else:
+                self._environment.set_temepratures_from_hvac_mode_and_presets(
+                    hvac_mode, preset_mode, self._presets_range
+                )
 
         if self._features.is_configured_for_dryer_mode:
             if self._preset_mode == PRESET_NONE:
