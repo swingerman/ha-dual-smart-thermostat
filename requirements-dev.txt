@@ -1,6 +1,6 @@
 -r requirements.txt
 pip>=21.0,<24.1
-pytest-homeassistant-custom-component==0.13.114
+pytest-homeassistant-custom-component==0.13.133
 pre-commit
 isort
 black
