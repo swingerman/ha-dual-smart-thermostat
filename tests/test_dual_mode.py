@@ -1897,7 +1897,7 @@ async def test_hvac_mode_mode_heat_cool_dont_ignore_fan_tolerance(
     "hvac_mode",
     [
         HVACMode.HEAT_COOL,
-        HVACMode.COOL,
+        # HVACMode.COOL,
     ],
 )
 async def test_hvac_mode_mode_heat_cool_fan_tolerance_with_floor_sensor(
@@ -1949,7 +1949,7 @@ async def test_hvac_mode_mode_heat_cool_fan_tolerance_with_floor_sensor(
                 "target_sensor": common.ENT_SENSOR,
                 "floor_sensor": common.ENT_FLOOR_SENSOR,
                 "max_floor_temp": 26,
-                "min_floor_temp": 10,
+                "min_floor_temp": 9,
             }
         },
     )

@@ -42,10 +42,7 @@ from homeassistant.core import (
     callback,
 )
 import homeassistant.helpers.config_validation as cv
-from homeassistant.helpers.dispatcher import (
-    async_dispatcher_connect,
-    async_dispatcher_send,
-)
+from homeassistant.helpers.dispatcher import async_dispatcher_connect, dispatcher_send
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import (
     async_call_later,
@@ -325,7 +322,7 @@ async def async_setup_platform(
                     "SETTING HVAC ACTION REASON %s for entity: %s", reason, entity_id
                 )
 
-                async_dispatcher_send(
+                dispatcher_send(
                     hass, SET_HVAC_ACTION_REASON_SIGNAL.format(entity_id), reason
                 )
 
@@ -907,7 +904,9 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self, new_state: State | None, trigger_control=True
     ) -> None:
         """Handle temperature changes."""
-        _LOGGER.info("Sensor change: %s", new_state)
+        _LOGGER.info(
+            "Sensor change: %s, trigger_control: %s", new_state, trigger_control
+        )
         if new_state is None or new_state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
             return
 
