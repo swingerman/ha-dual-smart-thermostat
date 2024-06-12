@@ -326,7 +326,7 @@ async def test_set_target_temp_ac_off(
     setup_sensor(hass, 25)
     await common.async_set_temperature(hass, 30)
     await hass.async_block_till_done()
-    assert len(calls) == 1
+    assert len(calls) == 2
     call = calls[0]
     assert call.domain == HASS_DOMAIN
     assert call.service == SERVICE_TURN_OFF

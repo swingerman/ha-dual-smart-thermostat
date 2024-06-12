@@ -359,6 +359,7 @@ def mock_restore_cache(hass: HomeAssistant, states: Sequence[State]) -> None:
     _LOGGER.debug("Restore cache: %s", data.last_states)
     assert len(data.last_states) == len(states), f"Duplicate entity_id? {states}"
 
+    restore_state.async_get.cache_clear()
     hass.data[key] = data
 
 

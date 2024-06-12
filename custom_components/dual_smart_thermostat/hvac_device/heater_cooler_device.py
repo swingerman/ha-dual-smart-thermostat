@@ -131,6 +131,7 @@ class HeaterCoolerDevice(MultiHvacDevice):
             await self.heater_device.async_turn_off()
             self._hvac_action_reason = HVACActionReason.OVERHEAT
         elif self.environment.is_floor_cold:
+            _LOGGER.debug("Floor is cold")
             await self.heater_device.async_turn_on()
             self._hvac_action_reason = HVACActionReason.LIMIT
         else:
