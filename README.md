@@ -29,7 +29,7 @@ The `dual_smart_thermostat` is an enhanced version of generic thermostat impleme
 
 ## Heat/Cool Mode
 
-If both [`heater`](#heater) and [`cooler`](#cooler) entities configured. The thermostat can control heaing and cooling and you sare able to set min/max low and min/max high temperatures.
+If both [`heater`](#heater) and [`cooler`](#cooler) entities configured. The thermostat can control heating and cooling and you are able to set min/max low and min/max high temperatures.
 In this mode you can turn the thermostat to heat only, cooler only and back to heat/cool mode.
 
 ## Heat/Cool With Fan Mode
@@ -51,7 +51,7 @@ Optionally you can set [`secondary heater_dual_mode`](#secondar_heater_dual_mode
 
 ### How Two Stage Heating Works?
 
-If the timeout ends and the [`heater`](#heater) was on for the whole time the thermostate switches to the [`secondary heater`](#secondary_heater). In this case the primarey heater ([`heater`](#heater)) will be turned off. This will be remembered for the day it turned on and in the next heating cycle the [`secondary heater`](#secondary_heater) will turn on automatically.
+If the timeout ends and the [`heater`](#heater) was on for the whole time the thermostat switches to the [`secondary heater`](#secondary_heater). In this case the primary heater ([`heater`](#heater)) will be turned off. This will be remembered for the day it turned on and in the next heating cycle the [`secondary heater`](#secondary_heater) will turn on automatically.
 On the next day the primary heater will turn on again the second stage will again only turn on after a timeout.
 If the third [`secondary heater_dual_mode`](#secondar_heater_dual_mode) is set to `true` the secondary heater will be turned on together with the primary heater.
 
@@ -86,7 +86,7 @@ heater: switch.study_heater
 ac_mode: true
 fan: switch.study_fan
 ```
-#### Fan Hot Toelerance
+#### Fan Hot Tolerance
 
 If you also set the [`fan_hot_tolerance`](#fan_hot_tolerance) the fan will turn on when the temperature is above the target temperature and the fan_hot_tolerance is not reached. If the temperature is above the target temperature and the fan_hot_tolerance is reached the AC will turn on.
 
@@ -107,7 +107,7 @@ If you set the [`fan_hot_tolerance`](#fan_hot_tolerance), [`outside_sensor`](#ou
 
 Some AC systems have independent fan controls to cycle the house air for filtering or humidity control; without using the heating or cooling elements. Central AC systems require the thermostat to turn on both the AC wire ("Y" wire) and the air-handler/fan wire ("G" wire) in order to activate the AC
 
-This feature let's you do just that.
+This feature lets you do just that.
 
 In order to use this feature you need to set the [`heater`](#heater) entity, the [`ac_mode`](#ac_mode), the [`fan)`](#fan) entity and the [`fan_on_with_ac`](#fan_on_with_ac) to `true`.
 
@@ -163,7 +163,7 @@ The `openings` configuration variable accepts a list of opening entities and ope
 ### Opening entities and objects
 
 An opening entity is a sensor that can be in two states: `on` or `off`. If the state is `on` the opening is considered open, if the state is `off` the opening is considered closed.
-The opening object can contain a timeout property that defines the time in seconds after which the opening is considered open even if the state is still `on`. This is useful if you would want to ignor windows opened only for a short time.
+The opening object can contain a timeout property that defines the time in seconds after which the opening is considered open even if the state is still `on`. This is useful if you would want to ignore windows opened only for a short time.
 
 ### Openings Scope
 
@@ -215,7 +215,7 @@ max_floor_temp: 28
 
 ### Minimum floor temperature
 
-The `dual_smart_thermostat` can turn on if the floor temperature reaches the minimum required temperature you define in order to protect the floor from freezing or to keep it on a comfortbale temperature.
+The `dual_smart_thermostat` can turn on if the floor temperature reaches the minimum required temperature you define in order to protect the floor from freezing or to keep it on a comfortable temperature.
 
 ### Floor Temperature Control Configuration
 
@@ -237,7 +237,7 @@ climate:
 
 ## Presets
 
-Currrnetly supported presets are:
+Currently supported presets are:
 
 - none
 - [home](#home)
@@ -509,7 +509,7 @@ The internal values can be set by the component only and the external values can
 
   _(optional) (string)_ Set the initial HVAC mode. Valid values are `off`, `heat`, `cool` or `heat_cool`. Value has to be double quoted. If this parameter is not set, it is preferable to set a _keep_alive_ value. This is helpful to align any discrepancies between _dual_smart_thermostat_ _heater_ and _cooler_ state.
 
-  **NOTE! If this is set, the saved state will not be restored after HA retstarts.**
+  **NOTE! If this is set, the saved state will not be restored after HA restarts.**
 
 ### away
 
@@ -585,7 +585,7 @@ The internal values can be set by the component only and the external values can
 
   _(optional) (list)_ Set the temperature used by `preset_mode: Boost`. If this is not specified, the preset mode feature will not be available.
   This preset mode only works in `heat` or `cool` mode because boosting temperatures on heat_cools
-  mode will require setting `target_temp_low` higher than `target_temp_high` and vica versa.
+  mode will require setting `target_temp_low` higher than `target_temp_high` and vice versa.
 
   Possible values are:
 
@@ -618,7 +618,7 @@ climate:
     initial_hvac_mode: "heat"
 ```
 
-## Two Stage Heateing Mode Example
+## Two Stage Heating Mode Example
 
 For two stage heating both the `heater` and `secondary_heater` must be defined. The `secondary_heater` will be turned on only if the `heater` is on for the amount of time defined in `secondary_heater_timeout`.
 
@@ -697,7 +697,7 @@ climate:
 
 The `dual_smart_thermostat` has two tolerance variables: `cold_tolerance` and `hot_tolerance`. These variables are used to prevent the heater or cooler from switching on and off too frequently. For example, if the target temperature is 25 and the tolerance is 0.5 the heater will start when the sensor equals or goes below 24.5. The heater will stop when the sensor equals or goes above 25.5. This prevents the heater from switching on and off too frequently when the temperature is close to the target temperature.
 
-If the thermosat is set to heat_cool mode the tolerance will work in the same way for both the heater and the cooler.
+If the thermostat is set to heat_cool mode the tolerance will work in the same way for both the heater and the cooler.
 
 ```yaml
 climate:
@@ -754,14 +754,14 @@ climate:
 
 ### Donate
 
-I am happy tp help the Home Assistant community but I do it in my free time at the cost of spending less time with my family. Feel free to motivate me and appreciate my sacrifice by donating:
+I am happy to help the Home Assistant community but I do it in my free time at the cost of spending less time with my family. Feel free to motivate me and appreciate my sacrifice by donating:
 
 [![Donate](https://img.shields.io/badge/Donate-PayPal-yellowgreen?style=for-the-badge&logo=paypal)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=S6NC9BYVDDJMA&source=url)
 [![coffee](https://www.buymeacoffee.com/assets/img/custom_images/black_img.png)](https://www.buymeacoffee.com/swingerman)
 
-### Develpoent
+### Development
 
-#### Tsting
+#### Testing
 
 Use pytest to run the tests:
 
