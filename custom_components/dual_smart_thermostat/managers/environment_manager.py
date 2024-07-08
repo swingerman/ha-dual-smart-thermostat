@@ -215,7 +215,7 @@ class EnvironmentManager(StateManager):
         self._saved_target_humidity = humidity
 
     @property
-    def fan_cold_tolerance(self) -> float:
+    def fan_hot_tolerance(self) -> float:
         return self._fan_hot_tolerance
 
     @property
@@ -510,7 +510,7 @@ class EnvironmentManager(StateManager):
             self._target_temp_low = self.min_temp
             self._target_temp_high = self.max_temp
             _LOGGER.warning(
-                "Undefined target temperature range, falled back to %s-%s-%s",
+                "Undefined target temperature range, fell back to %s-%s-%s",
                 self._target_temp,
                 self._target_temp_low,
                 self._target_temp_high,

@@ -434,7 +434,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                 )
             )
 
-        # registre device's on-remove
+        # register device's on-remove
         self.async_on_remove(self.hvac_device.call_on_remove_callbacks)
 
         if self.sensor_floor_entity_id is not None:

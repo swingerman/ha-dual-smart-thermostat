@@ -82,19 +82,30 @@ class CoolerFanDevice(MultiHvacDevice):
                     is_warmer_outside = self.environment.is_warmer_outside
                     is_fan_air_outside = self.fan_device.fan_air_surce_outside
 
+                    # If the fan_hot_tolerance is set, enforce the action for the fan or cooler device
+                    # to ignore cycles as we switch between the fan and cooler device
+                    # and we want to avoid idle time gaps between the devices
+                    force_override = (
+                        True
+                        if self.environment.fan_hot_tolerance is not None
+                        else force
+                    )
+
                     if is_within_fan_tolerance and not (
                         is_fan_air_outside and is_warmer_outside
                     ):
                         _LOGGER.debug("within fan tolerance")
                         self.fan_device.hvac_mode = HVACMode.FAN_ONLY
-                        await self.fan_device.async_control_hvac(time, force)
+                        await self.fan_device.async_control_hvac(time, force_override)
                         await self.cooler_device.async_turn_off()
                         self.HVACActionReason = (
                             HVACActionReason.TARGET_TEMP_NOT_REACHED_WITH_FAN
                         )
                     else:
                         _LOGGER.debug("outside fan tolerance")
-                        await self.cooler_device.async_control_hvac(time, force)
+                        await self.cooler_device.async_control_hvac(
+                            time, force_override
+                        )
                         await self.fan_device.async_turn_off()
                         self.HVACActionReason = self.cooler_device.HVACActionReason
 
