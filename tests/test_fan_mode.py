@@ -2353,6 +2353,89 @@ async def test_set_target_temp_ac_fan_on(
     assert call.data["entity_id"] == common.ENT_FAN
 
 
+async def test_set_target_temp_ac_on_tolerance_and_cycle(
+    hass: HomeAssistant, setup_comp_1  # noqa: F811
+) -> None:
+    """Test if target temperature turn ac or fan on without cycle gap."""
+    cooler_switch = "input_boolean.test"
+    fan_switch = "input_boolean.fan"
+
+    assert await async_setup_component(
+        hass,
+        input_boolean.DOMAIN,
+        {"input_boolean": {"test": None, "fan": None}},
+    )
+
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {"name": "test", "initial": 10, "min": 0, "max": 40, "step": 1}
+            }
+        },
+    )
+
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "cold_tolerance": 0.2,
+                "hot_tolerance": 0.2,
+                "ac_mode": True,
+                "heater": cooler_switch,
+                "target_sensor": common.ENT_SENSOR,
+                "fan": fan_switch,
+                "fan_hot_tolerance": 0.5,
+                "min_cycle_duration": timedelta(minutes=10),
+                "initial_hvac_mode": HVACMode.OFF,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    await common.async_set_hvac_mode(hass, HVACMode.COOL)
+    await common.async_set_temperature(hass, 20)
+
+    # below hot_tolerance
+    setup_sensor(hass, 20)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+    assert hass.states.get(fan_switch).state == STATE_OFF
+
+    # within hot_tolerance and fan_hot_tolerance
+    setup_sensor(hass, 20.2)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+    assert hass.states.get(fan_switch).state == STATE_ON
+
+    # within hot_tolerance and fan_hot_tolerance
+    setup_sensor(hass, 20.5)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+    assert hass.states.get(fan_switch).state == STATE_ON
+
+    # within hot_tolerance and fan_hot_tolerance
+    setup_sensor(hass, 20.7)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+    assert hass.states.get(fan_switch).state == STATE_ON
+
+    # outside fan_hot_tolerance, within hot_tolerance
+    setup_sensor(hass, 20.8)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(cooler_switch).state == STATE_ON
+    assert hass.states.get(fan_switch).state == STATE_OFF
+
+
 async def test_set_target_temp_ac_on_after_fan_tolerance(
     hass: HomeAssistant, setup_comp_heat_ac_cool_fan_config_tolerance  # noqa: F811
 ) -> None:
@@ -2558,8 +2641,8 @@ async def test_set_target_temp_ac_on_dont_ignore_fan_tolerance(
     hass: HomeAssistant, setup_comp_1  # noqa: F811
 ) -> None:
     """Test if target temperature turn ac on.
-    ignoring fan tolerance if fan blows outside air
-    that is warmer than the inside air"""
+    not ignoring fan tolerance if outside temp
+    is colder than target temp"""
 
     cooler_switch = "input_boolean.test"
     fan_switch = "input_boolean.fan"
