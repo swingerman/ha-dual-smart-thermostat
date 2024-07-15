@@ -12,6 +12,7 @@ from custom_components.dual_smart_thermostat.const import (
     CONF_DRYER,
     CONF_FAN,
     CONF_FAN_ON_WITH_AC,
+    CONF_HEAT_PUMP_COOLING,
     CONF_HEATER,
     CONF_INITIAL_HVAC_MODE,
     CONF_MIN_DUR,
@@ -27,6 +28,9 @@ from custom_components.dual_smart_thermostat.hvac_device.cooler_fan_device impor
 )
 from custom_components.dual_smart_thermostat.hvac_device.dryer_device import DryerDevice
 from custom_components.dual_smart_thermostat.hvac_device.fan_device import FanDevice
+from custom_components.dual_smart_thermostat.hvac_device.heat_pump_device import (
+    HeatPumpDevice,
+)
 from custom_components.dual_smart_thermostat.hvac_device.heater_aux_heater_device import (
     HeaterAUXHeaterDevice,
 )
@@ -77,6 +81,7 @@ class HVACDeviceFactory:
         self._fan_on_with_cooler = config.get(CONF_FAN_ON_WITH_AC)
 
         self._dryer_entity_id = config.get(CONF_DRYER)
+        self._heat_pump_cooling_entity_id = config.get(CONF_HEAT_PUMP_COOLING)
 
         self._aux_heater_entity_id = config.get(CONF_AUX_HEATER)
         self._aux_heater_dual_mode = config.get(CONF_AUX_HEATING_DUAL_MODE)
@@ -90,7 +95,6 @@ class HVACDeviceFactory:
         self, environment: EnvironmentManager, openings: OpeningManager
     ) -> ControlableHVACDevice:
 
-        self.environment = environment
         dryer_device = None
         fan_device = None
         cooler_device = None
@@ -118,6 +122,7 @@ class HVACDeviceFactory:
                 openings,
                 self._features,
             )
+
         if self._features.is_configured_for_fan_mode:
             fan_device = FanDevice(
                 self.hass,
@@ -153,11 +158,24 @@ class HVACDeviceFactory:
                 environment, openings, cooler_entity_id, fan_device
             )
 
+        if self._features.is_configured_for_heat_pump_mode:
+            heater_device = HeatPumpDevice(
+                self.hass,
+                self._heater_entity_id,
+                self._min_cycle_duration,
+                self._initial_hvac_mode,
+                environment,
+                openings,
+                self._features,
+            )
+
         if (
             self._heater_entity_id
             and not self._features.is_configured_for_cooler_mode
             and not self._features.is_configured_for_fan_only_mode
+            and not self._features.is_configured_for_heat_pump_mode
         ):
+            """Create a heater device if no other specific device is configured"""
             heater_device = HeaterDevice(
                 self.hass,
                 self._heater_entity_id,

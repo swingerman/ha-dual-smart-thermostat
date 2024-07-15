@@ -13,6 +13,8 @@ input_boolean:
     name: Fan toggle
   dryer_on:
     name: Fan toggle
+  heat_pump_cool:
+    name: Heat Pump Heat toggle
   window_open:
     name: Window
   window_open2:
@@ -124,6 +126,17 @@ switch:
           service: input_boolean.turn_off
           data:
             entity_id: input_boolean.dryer_on
+
+      heat_pump_cool:
+        value_template: "{{ is_state('input_boolean.heat_pump_cool', 'on') }}"
+        turn_on:
+          service: input_boolean.turn_on
+          data:
+            entity_id: input_boolean.heat_pump_cool
+        turn_off:
+          service: input_boolean.turn_off
+          data:
+            entity_id: input_boolean.heat_pump_cool
 
       window:
         value_template: "{{ is_state('input_boolean.window_open', 'on') }}"
@@ -464,6 +477,22 @@ climate:
       target_temp_high: 26
       target_temp_low: 18
       humidity: 60
+
+  - platform: dual_smart_thermostat
+    name: Dual Heat Pump
+    unique_id: dual_heat_pump
+    heater: switch.heater
+    target_sensor: sensor.room_temp
+    heat_pump_cooling: switch.heat_pump_cool
+    heat_cool_mode: true
+    target_temp_step: 0.1
+    precision: 0.1
+    min_temp: 9
+    max_temp: 32
+    target_temp: 20
+    cold_tolerance: 0.3
+    hot_tolerance: 0.3
+
 
   # - platform: dual_smart_thermostat
   #   name: AUX Heat Room

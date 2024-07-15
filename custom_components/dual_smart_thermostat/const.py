@@ -62,6 +62,7 @@ CONF_TEMP_STEP = "target_temp_step"
 CONF_OPENINGS = "openings"
 CONF_OPENINGS_SCOPE = "openings_scope"
 CONF_HEAT_COOL_MODE = "heat_cool_mode"
+CONF_HEAT_PUMP_COOLING = "heat_pump_cooling"
 
 ATTR_PREV_TARGET = "prev_target_temp"
 ATTR_PREV_TARGET_LOW = "prev_target_temp_low"

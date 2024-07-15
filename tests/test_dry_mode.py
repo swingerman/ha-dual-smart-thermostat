@@ -476,9 +476,8 @@ async def test_toggle(
     to_hvac_mode,
     setup_comp_heat_ac_cool_dry,  # noqa: F811
 ) -> None:
-    """Test change mode from OFF to COOL.
-
-    Switch turns on when temp below setpoint and mode changes.
+    """Test change mode from from_hvac_mode to to_hvac_mode.
+    And toggle resumes from to_hvac_mode
     """
     await common.async_set_hvac_mode(hass, from_hvac_mode)
     await common.async_toggle(hass)
@@ -497,7 +496,7 @@ async def test_toggle(
 async def test_hvac_mode_cdry(
     hass: HomeAssistant, setup_comp_heat_ac_cool_dry  # noqa: F811
 ) -> None:
-    """Test change mode from OFF to COOL.
+    """Test change mode from OFF to DRY.
 
     Switch turns on when temp below setpoint and mode changes.
     """

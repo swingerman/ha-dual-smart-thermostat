@@ -23,6 +23,7 @@ from custom_components.dual_smart_thermostat.const import (
     CONF_FAN_MODE,
     CONF_FAN_ON_WITH_AC,
     CONF_HEAT_COOL_MODE,
+    CONF_HEAT_PUMP_COOLING,
     CONF_HEATER,
     CONF_HUMIDITY_SENSOR,
 )
@@ -56,6 +57,7 @@ class FeatureManager(StateManager):
 
         self._dryer_entity_id = config.get(CONF_DRYER)
         self._humidity_sensor_entity_id = config.get(CONF_HUMIDITY_SENSOR)
+        self._heat_pump_cooling_entity_id = config.get(CONF_HEAT_PUMP_COOLING)
 
         self._aux_heater_entity_id = config.get(CONF_AUX_HEATER)
         self._aux_heater_timeout = config.get(CONF_AUX_HEATING_TIMEOUT)
@@ -65,6 +67,10 @@ class FeatureManager(StateManager):
         self._default_support_flags = (
             ClimateEntityFeature.TURN_OFF | ClimateEntityFeature.TURN_ON
         )
+
+    @property
+    def heat_pump_cooling_entity_id(self) -> str:
+        return self._heat_pump_cooling_entity_id
 
     @property
     def supported_features(self) -> int:
@@ -168,6 +174,11 @@ class FeatureManager(StateManager):
             self._dryer_entity_id is not None
             and self._humidity_sensor_entity_id is not None
         )
+
+    @property
+    def is_configured_for_heat_pump_mode(self) -> bool:
+        """Determines if the heat pump cooling is configured."""
+        return self._heat_pump_cooling_entity_id is not None
 
     def set_support_flags(
         self,

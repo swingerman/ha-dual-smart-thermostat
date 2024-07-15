@@ -1050,6 +1050,24 @@ def setup_switch(hass: HomeAssistant, is_on: bool) -> None:
     return calls
 
 
+def setup_heat_pump_cooling_status(hass: HomeAssistant, is_on: bool) -> None:
+    """Set up the test switch."""
+    hass.states.async_set(
+        common.ENT_HEAT_PUMP_COOLING, STATE_ON if is_on else STATE_OFF
+    )
+    calls = []
+
+    @callback
+    def log_call(call) -> None:
+        """Log service calls."""
+        calls.append(call)
+
+    hass.services.async_register(ha.DOMAIN, SERVICE_TURN_ON, log_call)
+    hass.services.async_register(ha.DOMAIN, SERVICE_TURN_OFF, log_call)
+
+    return calls
+
+
 def setup_switch_dual(
     hass: HomeAssistant, second_switch: str, is_on: bool, is_second_on: bool
 ) -> None:

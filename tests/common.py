@@ -67,6 +67,7 @@ ENT_HEATER = "input_boolean.test"
 ENT_COOLER = "input_boolean.test_cooler"
 ENT_FAN = "switch.test_fan"
 ENT_DRYER = "switch.test_dryer"
+ENT_HEAT_PUMP_COOLING = "switch.test_heat_pump_cooling"
 MIN_TEMP = 3.0
 MAX_TEMP = 65.0
 TARGET_TEMP = 42.0

@@ -2,10 +2,13 @@ from abc import ABC, abstractmethod
 import logging
 
 from homeassistant.components.climate import HVACAction, HVACMode
-from homeassistant.core import CALLBACK_TYPE, Context, HomeAssistant, callback
+from homeassistant.core import CALLBACK_TYPE, Context, HomeAssistant, State, callback
 
 from custom_components.dual_smart_thermostat.hvac_action_reason.hvac_action_reason import (
     HVACActionReason,
+)
+from custom_components.dual_smart_thermostat.managers.environment_manager import (
+    TargetTemperatures,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -68,6 +71,12 @@ class ControlableHVACDevice(ABC):
         self._on_remove.append(func)
 
     @callback
+    def on_entity_state_change(self, entity_id: str, new_state: State) -> None:
+        """Handle entity state changes. Currently only for specific cases when the devices needs
+        to be updated based on the state of another entity."""
+        pass
+
+    @callback
     def call_on_remove_callbacks(self) -> None:
         """Call callbacks registered by async_on_remove."""
         if self._on_remove is None:
@@ -107,3 +116,11 @@ class ControlableHVACDevice(ABC):
     @HVACActionReason.setter
     def HVACActionReason(self, hvac_action_reason: HVACActionReason):
         self._hvac_action_reason = hvac_action_reason
+
+    def on_entity_state_changed(self, entity_id: str, new_state: State) -> None:
+        """Handle entity state changes. Currently only for specific cases when the devices needs"""
+        pass
+
+    def on_target_temperature_change(self, temperatures: TargetTemperatures) -> None:
+        """Handle target temperature changes."""
+        pass

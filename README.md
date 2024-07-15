@@ -22,6 +22,7 @@ The `dual_smart_thermostat` is an enhanced version of generic thermostat impleme
 | **Fan With Cooler mode** | ![fan](/docs/images/fan-custom.png)  ![cool](/docs/images/snowflake-custom.png) | [docs](#fan-with-cooler-mode) |
 | **Cooler Only mode** | ![cool](/docs/images/snowflake-custom.png) | [docs](#cooler-only-mode) |
 | **Dry mode** | ![humidity](docs/images/water-percent-custom.png) | [docs](#dry-mode) |
+| **Heat Pump mode** | ![haet/cool](docs/images/sun-snowflake-custom.png) | [docs](#heat-pump-one-switch-heatcool-mode) |
 | **Floor Temperature Control** | ![heating-coil](docs/images/heating-coil-custom.png) ![snowflake-thermometer](docs/images/snowflake-thermometer-custom.png)  ![thermometer-alert](docs/images/thermometer-alert-custom.png) | [docs](#floor-heating-temperature-control) |
 | **Window/Door sensor integration** | ![window-open](docs/images/window-open-custom.png)  ![window-open](docs/images/door-open-custom.png) ![chevron-right](docs/images/chevron-right-custom.png) ![timer-cog](docs/images/timer-cog-outline-custom.png)  ![chevron-right](docs/images/chevron-right-custom.png) ![hvac-off](docs/images/hvac-off-custom.png)| [docs](#openings) |
 | **Presets** |  | [docs](#presets) |
@@ -154,6 +155,57 @@ humidity_sensor: sensor.study_humidity
 moist_tolerance: 5
 dry_tolerance: 5
 ```
+
+### Heat Pump (one switch heat/cool) mode
+
+This setup allows you to use a single switch for both heating and cooling. To enable this mode you define only a single switch for the heater and set the set youer heat pump's current state (heating or cooling) as for the [`heat_pump_cooling`](#heat_pump_cooling) attribute. This must be an entity id of a sensor that has a state of `heating` or `cooling`.
+
+The entity can be an input buulean for manual control or  an entity that provided by the heat pump.
+
+```yaml
+heater: switch.study_heat_pump
+target_sensor: sensor.study_temperature
+heat_pump_cooling: sensor.study_heat_pump_state
+```
+
+#### Heat Pump Hvac Modes
+
+##### Heat-Cool Mode
+
+```yaml
+heater: switch.study_heat_pump
+target_sensor: sensor.study_temperature
+heat_pump_cooling: sensor.study_heat_pump_state
+heat_cool_mode: true
+```
+
+**heating** _(heat_pump_cooling: false)_:
+- heat/cool
+- heat
+- off
+
+**cooling** _(heat_pump_cooling: true)_:
+- heat/cool
+- cool
+- off
+
+##### Single mode
+
+```yaml
+heater: switch.study_heat_pump
+target_sensor: sensor.study_temperature
+heat_pump_cooling: sensor.study_heat_pump_state
+heat_cool_mode: false # <-- or not set
+```
+
+**heating** _(heat_pump_cooling: false)_:
+- heat
+- off
+
+**cooling** _(heat_pump_cooling: true)_:
+- cool
+- off
+
 
 ## Openings
 
@@ -438,6 +490,11 @@ The internal values can be set by the component only and the external values can
     - `cool`
     - `heat_cool`
     - `fan_only`
+
+### heat_pump_cooling
+
+  _(optional) (string)_  "`entity_id` for the heat pump cooling state sensor, heat_pump_cooling.state must be `heating` or `cooling`."
+  enables [heat pump mode](#heat-pump-one-switch-heatcool-mode)
 
 ### min_temp
 
