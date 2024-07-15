@@ -1,18 +1,32 @@
+from datetime import timedelta
 import logging
 
 from homeassistant.components.climate import HVACAction, HVACMode
+from homeassistant.core import HomeAssistant
 
 from custom_components.dual_smart_thermostat.hvac_action_reason.hvac_action_reason import (
     HVACActionReason,
 )
-from custom_components.dual_smart_thermostat.hvac_device.specific_hvac_device import (
-    SpecificHVACDevice,
+from custom_components.dual_smart_thermostat.hvac_controller.hvac_controller import (
+    HvacGoal,
+)
+from custom_components.dual_smart_thermostat.hvac_device.generic_hvac_device import (
+    GenericHVACDevice,
+)
+from custom_components.dual_smart_thermostat.managers.environment_manager import (
+    EnvironmentManager,
+)
+from custom_components.dual_smart_thermostat.managers.feature_manager import (
+    FeatureManager,
+)
+from custom_components.dual_smart_thermostat.managers.opening_manager import (
+    OpeningManager,
 )
 
 _LOGGER = logging.getLogger(__name__)
 
 
-class DryerDevice(SpecificHVACDevice):
+class DryerDevice(GenericHVACDevice):
 
     _target_env_attr: str = "_target_humidity"
 
@@ -20,13 +34,13 @@ class DryerDevice(SpecificHVACDevice):
 
     def __init__(
         self,
-        hass,
-        entity_id,
-        min_cycle_duration,
-        initial_hvac_mode,
-        environment,
-        openings,
-        features,
+        hass: HomeAssistant,
+        entity_id: str,
+        min_cycle_duration: timedelta,
+        initial_hvac_mode: HVACMode,
+        environment: EnvironmentManager,
+        openings: OpeningManager,
+        features: FeatureManager,
     ) -> None:
         super().__init__(
             hass,
@@ -36,6 +50,7 @@ class DryerDevice(SpecificHVACDevice):
             environment,
             openings,
             features,
+            hvac_goal=HvacGoal.LOWER,
         )
 
     @property

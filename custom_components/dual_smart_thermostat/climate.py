@@ -102,6 +102,7 @@ from .const import (
     CONF_FAN_ON_WITH_AC,
     CONF_FLOOR_SENSOR,
     CONF_HEAT_COOL_MODE,
+    CONF_HEAT_PUMP_COOLING,
     CONF_HEATER,
     CONF_HOT_TOLERANCE,
     CONF_HUMIDITY_SENSOR,
@@ -187,6 +188,10 @@ HYGROSTAT_SCHEMA = {
     vol.Optional(CONF_MOIST_TOLERANCE): vol.Coerce(float),
 }
 
+HEAT_PUMP_SCHEMA = {
+    vol.Optional(CONF_HEAT_PUMP_COOLING): cv.entity_id,
+}
+
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
         vol.Required(CONF_HEATER): cv.entity_id,
@@ -238,6 +243,8 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(FAN_MODE_SCHEMA)
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(HYGROSTAT_SCHEMA)
 
+PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(HEAT_PUMP_SCHEMA)
+
 # Add the old presets schema to avoid breaking change
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {vol.Optional(v): vol.Coerce(float) for (k, v) in CONF_PRESETS_OLD.items()}
@@ -260,6 +267,7 @@ async def async_setup_platform(
     sensor_outside_entity_id = config.get(CONF_OUTSIDE_SENSOR)
     sensor_humidity_entity_id = config.get(CONF_HUMIDITY_SENSOR)
     sensor_stale_duration: timedelta | None = config.get(CONF_STALE_DURATION)
+    sensor_heat_pump_cooling_entity_id = config.get(CONF_HEAT_PUMP_COOLING)
     keep_alive = config.get(CONF_KEEP_ALIVE)
 
     precision = config.get(CONF_PRECISION)
@@ -290,6 +298,7 @@ async def async_setup_platform(
                 sensor_outside_entity_id,
                 sensor_humidity_entity_id,
                 sensor_stale_duration,
+                sensor_heat_pump_cooling_entity_id,
                 keep_alive,
                 precision,
                 unit,
@@ -343,6 +352,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         sensor_outside_entity_id,
         sensor_humidity_entity_id,
         sensor_stale_duration,
+        sensor_heat_pump_cooling_entity_id,
         keep_alive,
         precision,
         unit,
@@ -378,6 +388,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self.sensor_floor_entity_id = sensor_floor_entity_id
         self.sensor_outside_entity_id = sensor_outside_entity_id
         self.sensor_humidity_entity_id = sensor_humidity_entity_id
+        self.sensor_heat_pump_cooling_entity_id = sensor_heat_pump_cooling_entity_id
 
         self._keep_alive = keep_alive
 
@@ -470,6 +481,19 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                     self.hass,
                     [self.sensor_humidity_entity_id],
                     self._async_sensor_humidity_changed_event,
+                )
+            )
+
+        if self.sensor_heat_pump_cooling_entity_id is not None:
+            _LOGGER.debug(
+                "Adding heat pump cooling sensor listener: %s",
+                self.sensor_heat_pump_cooling_entity_id,
+            )
+            self.async_on_remove(
+                async_track_state_change_event(
+                    self.hass,
+                    [self.sensor_heat_pump_cooling_entity_id],
+                    self._async_entity_heat_pump_cooling_changed_event,
                 )
             )
 
@@ -868,6 +892,8 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         temp_low = temperatures.temp_low
         temp_high = temperatures.temp_high
 
+        self.hvac_device.on_target_temperature_change(temperatures)
+
         if self.features.is_target_mode:
             if temperature is None:
                 return
@@ -1024,6 +1050,27 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             )
 
         self.environment.update_humidity_from_state(new_state)
+        if trigger_control:
+            await self._async_control_climate()
+        self.async_write_ha_state()
+
+    async def _async_entity_heat_pump_cooling_changed_event(
+        self, event: Event[EventStateChangedData]
+    ) -> None:
+        data = event.data
+
+        self.hvac_device.on_entity_state_changed(data["entity_id"], data["new_state"])
+
+        await self._asyn_entity_heat_pump_cooling_changed(data["new_state"])
+        self._attr_hvac_modes = self.hvac_device.hvac_modes
+        self.async_write_ha_state()
+
+    async def _asyn_entity_heat_pump_cooling_changed(
+        self, new_state: State | None, trigger_control=True
+    ) -> None:
+        """Handle heat pump cooling changes."""
+        _LOGGER.info("Entity heat pump cooling change: %s", new_state)
+
         if trigger_control:
             await self._async_control_climate()
         self.async_write_ha_state()

@@ -87,7 +87,7 @@ class HeaterCoolerDevice(MultiHvacDevice):
         await super().async_control_hvac(time, force)
 
     def is_cold_or_hot(self) -> tuple[bool, bool, ToleranceDevice]:
-        """Check if the floor is too cold or too hot."""
+        """Check if the environment is too cold or too hot."""
 
         _LOGGER.debug("is_cold_or_hot")
         _LOGGER.debug("heater_device.is_active: %s", self.heater_device.is_active)
@@ -118,7 +118,7 @@ class HeaterCoolerDevice(MultiHvacDevice):
         await super().async_set_hvac_mode(hvac_mode)
 
     async def _async_control_heat_cool(self, time=None, force=False) -> None:
-        """Check if we need to turn heating on or off."""
+        """Check if we need to turn heating or cooling on or off."""
 
         _LOGGER.info("_async_control_heat_cool. time: %s, force: %s", time, force)
         if not self._active and self.environment.cur_temp is not None:

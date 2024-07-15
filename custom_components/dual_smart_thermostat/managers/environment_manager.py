@@ -331,18 +331,24 @@ class EnvironmentManager(StateManager):
             return False
         target_temp = getattr(self, target_attr)
         _LOGGER.debug(
-            "Target temp attr: %s, Target temp: %s, current temp: %s",
+            "Target temp attr: %s, Target temp: %s, current temp: %s, tolerance: %s",
             target_attr,
             target_temp,
             self._cur_temp,
+            self._cold_tolerance,
         )
         return target_temp >= self._cur_temp + self._cold_tolerance
 
     def is_too_hot(self, target_attr="_target_temp") -> bool:
         """Checks if the current temperature is above target."""
-        _LOGGER.debug(
-            "is_too_hot,  %s, %s, %s", self._cur_temp, target_attr, self._hot_tolerance
-        )
+        # _LOGGER.debug(
+        #     "is_too_hot,  %s, %s, %s, %s, ishot: %s",
+        #     self._cur_temp,
+        #     target_attr,
+        #     getattr(self, target_attr),
+        #     self._hot_tolerance,
+        #     self._cur_temp >= getattr(self, target_attr) + self._hot_tolerance,
+        # )
         if self._cur_temp is None:
             return False
         target_temp = getattr(self, target_attr)
