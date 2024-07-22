@@ -733,6 +733,11 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             else:
                 attributes[ATTR_PREV_TARGET_HIGH] = self.environment.target_temp_high
         if self._target_temp is not None:
+            _LOGGER.debug(
+                "Setting previous target temp: %s, %s",
+                self.environment.target_temp,
+                self.environment.saved_target_temp,
+            )
             if self._attr_preset_mode != PRESET_NONE and self.features.is_target_mode:
                 attributes[ATTR_PREV_TARGET] = self.environment.saved_target_temp
             else:

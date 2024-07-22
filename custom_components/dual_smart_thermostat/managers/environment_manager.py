@@ -187,6 +187,7 @@ class EnvironmentManager(StateManager):
 
     @saved_target_temp.setter
     def saved_target_temp(self, temp: float) -> None:
+        _LOGGER.debug("Setting saved target temp: %s", temp)
         self._saved_target_temp = temp
 
     @property
@@ -331,7 +332,7 @@ class EnvironmentManager(StateManager):
             return False
         target_temp = getattr(self, target_attr)
         _LOGGER.debug(
-            "Target temp atte: %s, Target temp: %s, current temp: %s",
+            "Target temp attr: %s, Target temp: %s, current temp: %s",
             target_attr,
             target_temp,
             self._cur_temp,
@@ -569,8 +570,12 @@ class EnvironmentManager(StateManager):
             if old_target is None:
                 _LOGGER.info("No previous target temperature")
                 old_target = old_state.attributes.get(ATTR_TEMPERATURE)
+            # fix issues caused by old version saving target as dict
+            if isinstance(old_target, dict):
+                old_target = old_target.get(ATTR_TEMPERATURE)
             if old_target is not None:
                 _LOGGER.info("Restoring previous target temperature: %s", old_target)
+
                 self._target_temp = float(old_target)
 
         self._max_floor_temp = (
