@@ -836,6 +836,70 @@ async def test_set_heat_cool_preset_mode_twice_and_restore_prev_temp(
     assert state.attributes.get("target_temp_high") == 22
 
 
+@pytest.mark.parametrize(
+    ("preset", "temp_low", "temp_high"),
+    [
+        # (PRESET_NONE, 18, 22),
+        (PRESET_AWAY, 16, 30),
+        # (PRESET_COMFORT, 20, 27),
+        # (PRESET_ECO, 18, 29),
+        # (PRESET_HOME, 19, 23),
+        # (PRESET_SLEEP, 17, 24),
+        # (PRESET_ACTIVITY, 21, 28),
+        # (PRESET_ANTI_FREEZE, 5, 32),
+    ],
+)
+async def test_set_heat_cool_preset_mode_and_restore_prev_temp_apply_preset_again(
+    hass: HomeAssistant,
+    setup_comp_heat_cool_presets,  # noqa: F811
+    preset,
+    temp_low,
+    temp_high,
+) -> None:
+    """Test the setting preset mode twice in a row.
+
+    Verify original temperature is restored.
+    """
+    await common.async_set_temperature(hass, 23, common.ENTITY, 22, 18)
+    await common.async_set_preset_mode(hass, preset)
+
+    # targets match preset
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes.get("target_temp_low") == temp_low
+    assert state.attributes.get("target_temp_high") == temp_high
+    await common.async_set_preset_mode(hass, PRESET_NONE)
+
+    # targets match presvios settings
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes.get("target_temp_low") == 18
+    assert state.attributes.get("target_temp_high") == 22
+
+    await common.async_set_preset_mode(hass, preset)
+
+    # targets match preset again
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes.get("target_temp_low") == temp_low
+    assert state.attributes.get("target_temp_high") == temp_high
+
+    # simulate restore state
+    common.mock_restore_cache(
+        hass,
+        (
+            State(
+                "climate.test_thermostat",
+                {ATTR_PRESET_MODE: {preset}},
+            ),
+        ),
+    )
+
+    hass.set_state(CoreState.starting)
+
+    # targets match preset again after restart
+    # await common.async_set_preset_mode(hass, preset)
+    assert state.attributes.get("target_temp_low") == temp_low
+    assert state.attributes.get("target_temp_high") == temp_high
+
+
 async def test_set_dual_preset_mode_invalid(
     hass: HomeAssistant, setup_comp_dual_presets  # noqa: F811
 ) -> None:

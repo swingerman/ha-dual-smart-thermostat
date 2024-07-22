@@ -181,6 +181,14 @@ class PresetManager(StateManager):
                 self._environment.saved_target_temp_high = (
                     self._environment.target_temp_high
                 )
+            _LOGGER.debug(
+                "Preset Setting target temp low: %s",
+                self._presets_range[preset_mode][0],
+            )
+            _LOGGER.debug(
+                "Preset Setting target temp high: %s",
+                self._presets_range[preset_mode][1],
+            )
             self._environment.target_temp_low = self._presets_range[preset_mode][0]
             self._environment.target_temp_high = self._presets_range[preset_mode][1]
         else:
@@ -218,10 +226,16 @@ class PresetManager(StateManager):
         if old_state is None:
             return
 
+        _LOGGER.debug("Presets applying old state")
         old_pres_mode = old_state.attributes.get(ATTR_PRESET_MODE)
         if self._features.is_range_mode:
+            _LOGGER.debug("Apply preset range mode - old state: %s", old_pres_mode)
             if self._preset_modes and old_pres_mode in self._presets_range:
+                _LOGGER.debug("Restoring previous preset mode range: %s", old_pres_mode)
                 self._preset_mode = old_pres_mode
+
+                # need to save the previous target temps
+                # before we apply a preset
                 self._environment.saved_target_temp_low = (
                     self._environment.target_temp_low
                 )
@@ -229,7 +243,15 @@ class PresetManager(StateManager):
                     self._environment.target_temp_high
                 )
 
+                preset = self._presets_range[old_pres_mode]
+                if preset:
+                    self._environment.target_temp_low = preset[0]
+                    self._environment.target_temp_high = preset[1]
+
             elif self._preset_modes and old_pres_mode in self._presets:
-                _LOGGER.debug("Restoring previous preset mode: %s", old_pres_mode)
+                _LOGGER.debug(
+                    "Restoring previous preset mode target: %s", old_pres_mode
+                )
                 self._preset_mode = old_pres_mode
                 self._environment.saved_target_temp = self._environment.target_temp
+                self._environment.target_temp = self._presets[old_pres_mode]
