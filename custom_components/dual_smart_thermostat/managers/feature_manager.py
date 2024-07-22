@@ -230,6 +230,7 @@ class FeatureManager(StateManager):
         if old_state is None:
             return
 
+        _LOGGER.debug("Features applying old state")
         old_supported_features = old_state.attributes.get(ATTR_SUPPORTED_FEATURES)
         if (
             old_supported_features not in (None, 0)
