@@ -256,7 +256,6 @@ class EnvironmentManager(StateManager):
             self.set_temperature_range(temperature, self.target_temp_low, temperature)
 
     def set_temperature_target(self, temperature: float) -> None:
-
         _LOGGER.info("Setting target temperature: %s", temperature)
         if temperature is None:
             return

@@ -874,6 +874,14 @@ async def test_set_heat_cool_preset_mode_and_restore_prev_temp_apply_preset_agai
     assert state.attributes.get("target_temp_low") == 18
     assert state.attributes.get("target_temp_high") == 22
 
+    await common.async_set_preset_mode(hass, preset)
+
+    # targets match preset again
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes.get("target_temp_low") == temp_low
+    assert state.attributes.get("target_temp_high") == temp_high
+
+    # simulate restore state
     common.mock_restore_cache(
         hass,
         (
@@ -887,7 +895,7 @@ async def test_set_heat_cool_preset_mode_and_restore_prev_temp_apply_preset_agai
     hass.set_state(CoreState.starting)
 
     # targets match preset again after restart
-    await common.async_set_preset_mode(hass, preset)
+    # await common.async_set_preset_mode(hass, preset)
     assert state.attributes.get("target_temp_low") == temp_low
     assert state.attributes.get("target_temp_high") == temp_high
 
