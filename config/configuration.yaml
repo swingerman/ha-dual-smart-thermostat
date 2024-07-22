@@ -390,30 +390,54 @@ climate:
   #     target_temp_low: 26.5
   #     target_temp_high: 28.0
 
+  # - platform: dual_smart_thermostat
+  #   name: Edge Case 210
+  #   unique_id: edge_case_210
+  #   heater: switch.heater
+  #   cooler: switch.cooler
+  #   fan: switch.fan
+  #   target_sensor: sensor.room_temp
+  #   heat_cool_mode: true
+  #   min_temp: 60
+  #   max_temp: 85
+  #   fan_hot_tolerance: 0.5
+  #   heat_cool_mode: true
+  #   min_cycle_duration:
+  #     seconds: 60
+  #   keep_alive:
+  #     minutes: 3
+  #   away:
+  #     target_temp_low: 68
+  #     target_temp_high: 77
+  #   home:
+  #     target_temp_low: 71
+  #     target_temp_high: 74
+  #   precision: 0.1
+  #   target_temp_step: 0.5
+
   - platform: dual_smart_thermostat
-    name: Edge Case 210
-    unique_id: edge_case_210
+    name: Edge Case 241
+    unique_id: edge_case_241
     heater: switch.heater
     cooler: switch.cooler
     fan: switch.fan
     target_sensor: sensor.room_temp
-    heat_cool_mode: true
-    min_temp: 60
-    max_temp: 85
-    fan_hot_tolerance: 0.5
-    heat_cool_mode: true
-    min_cycle_duration:
-      seconds: 60
-    keep_alive:
-      minutes: 3
-    away:
-      target_temp_low: 68
-      target_temp_high: 77
-    home:
-      target_temp_low: 71
-      target_temp_high: 74
-    precision: 0.1
+    heat_cool_mode: true # <-required
+    cold_tolerance: 0.3
+    hot_tolerance: 0.2
+    fan_hot_tolerance: 1
     target_temp_step: 0.5
+    min_temp: 14
+    max_temp: 28
+    comfort:
+      temperature: 21
+      target_temp_low: 21
+      target_temp_high: 21.5
+    away:
+      temperature: 21
+      target_temp_low: 15
+      target_temp_high: 28
+
 
   - platform: dual_smart_thermostat
     name: Dual Humidity
