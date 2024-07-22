@@ -95,8 +95,22 @@ class PresetManager(StateManager):
             )
 
         # sets the target environment to the preset mode
-        self._environment.saved_target_temp = self._environment.target_temp or next(
-            iter(presets.values()), None
+        # _LOGGER.debug(
+        #     "Setting target temp when no preset mode, %s, %s",
+        #     self._environment.target_temp,
+        #     next(iter(presets.values())),
+        # )
+
+        first_preset = next(iter(presets.values()), None)
+        if isinstance(first_preset, dict):
+            preset_temperature = (
+                first_preset.get(ATTR_TEMPERATURE) if first_preset else None
+            )
+        else:
+            preset_temperature = first_preset
+
+        self._environment.saved_target_temp = (
+            self._environment.target_temp or preset_temperature or None
         )
 
     @property
@@ -171,6 +185,10 @@ class PresetManager(StateManager):
             self._environment.target_temp_high = self._presets_range[preset_mode][1]
         else:
             if self._preset_mode == PRESET_NONE:
+                _LOGGER.debug(
+                    "Saving target temp when target and no preset: %s",
+                    self._environment.target_temp,
+                )
                 self._environment.saved_target_temp = self._environment.target_temp
             # handles when temperature is set in preset
             if self._presets[preset_mode].get(ATTR_TEMPERATURE) is not None:

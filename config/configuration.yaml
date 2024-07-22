@@ -336,25 +336,84 @@ climate:
   #   precision: 0.1
   #   target_temp_step: 0.5
 
+  # - platform: dual_smart_thermostat
+  #   name: Edge Case 181
+  #   unique_id: edge_case_181
+  #   heater: switch.heater
+  #   cooler: switch.cooler
+  #   fan: switch.fan
+  #   target_sensor: sensor.room_temp
+  #   floor_sensor: sensor.floor_temp
+  #   heat_cool_mode: true
+  #   max_floor_temp: 26
+  #   min_floor_temp: 10
+  #   fan_hot_tolerance: 0.7
+  #   target_temp_step: 0.1
+  #   precision: 0.1
+  #   min_temp: 9
+  #   max_temp: 32
+  #   target_temp: 20
+  #   cold_tolerance: 0.3
+  #   hot_tolerance: 0.3
+
+  # - platform: dual_smart_thermostat
+  #   name: Edge Case 239
+  #   unique_id: edge_case_239
+  #   heater: switch.heater
+  #   # cooler: switch.cooler
+  #   target_sensor: sensor.room_temp
+  #   heat_cool_mode: false #true # <-important
+  #   keep_alive: #lo attivo e commento initial_hvac_mode per verificare se mantiene lo stato al riavvio
+  #     minutes: 2
+  #   ac_mode: true
+  #   min_temp: 16
+  #   max_temp: 32
+  #   cold_tolerance: 0.4
+  #   hot_tolerance: 0.1
+  #   target_temp_step: 0.1
+  #   min_cycle_duration:
+  #     minutes: 1
+  #   away:
+  #     temperature: 28.0
+  #     target_temp_low: 27
+  #     target_temp_high: 29.5
+  #   home:
+  #     temperature: 23.0
+  #     target_temp_low: 22.5
+  #     target_temp_high: 23.5
+  #   comfort:
+  #     temperature: 25.0
+  #     target_temp_low: 24
+  #     target_temp_high: 25.5
+  #   sleep:
+  #     temperature: 27.5
+  #     target_temp_low: 26.5
+  #     target_temp_high: 28.0
+
   - platform: dual_smart_thermostat
-    name: Edge Case 181
-    unique_id: edge_case_181
+    name: Edge Case 210
+    unique_id: edge_case_210
     heater: switch.heater
     cooler: switch.cooler
     fan: switch.fan
     target_sensor: sensor.room_temp
-    floor_sensor: sensor.floor_temp
     heat_cool_mode: true
-    max_floor_temp: 26
-    min_floor_temp: 10
-    fan_hot_tolerance: 0.7
-    target_temp_step: 0.1
+    min_temp: 60
+    max_temp: 85
+    fan_hot_tolerance: 0.5
+    heat_cool_mode: true
+    min_cycle_duration:
+      seconds: 60
+    keep_alive:
+      minutes: 3
+    away:
+      target_temp_low: 68
+      target_temp_high: 77
+    home:
+      target_temp_low: 71
+      target_temp_high: 74
     precision: 0.1
-    min_temp: 9
-    max_temp: 32
-    target_temp: 20
-    cold_tolerance: 0.3
-    hot_tolerance: 0.3
+    target_temp_step: 0.5
 
   - platform: dual_smart_thermostat
     name: Dual Humidity
