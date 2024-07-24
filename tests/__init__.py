@@ -16,7 +16,16 @@ from homeassistant.components.climate import (
     STATE_ON,
     HVACMode,
 )
-from homeassistant.const import SERVICE_TURN_OFF, SERVICE_TURN_ON, UnitOfTemperature
+from homeassistant.components.valve import ValveEntityFeature
+from homeassistant.const import (
+    SERVICE_CLOSE_VALVE,
+    SERVICE_OPEN_VALVE,
+    SERVICE_TURN_OFF,
+    SERVICE_TURN_ON,
+    STATE_CLOSED,
+    STATE_OPEN,
+    UnitOfTemperature,
+)
 import homeassistant.core as ha
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.setup import async_setup_component
@@ -53,6 +62,28 @@ async def setup_comp_heat(hass: HomeAssistant) -> None:
                 "cold_tolerance": 2,
                 "hot_tolerance": 4,
                 "heater": common.ENT_SWITCH,
+                "target_sensor": common.ENT_SENSOR,
+                "initial_hvac_mode": HVACMode.HEAT,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+
+@pytest.fixture
+async def setup_comp_heat_valve(hass: HomeAssistant) -> None:
+    """Initialize components."""
+    hass.config.units = METRIC_SYSTEM
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "cold_tolerance": 2,
+                "hot_tolerance": 4,
+                "heater": common.ENT_VALVE,
                 "target_sensor": common.ENT_SENSOR,
                 "initial_hvac_mode": HVACMode.HEAT,
             }
@@ -1046,6 +1077,26 @@ def setup_switch(hass: HomeAssistant, is_on: bool) -> None:
 
     hass.services.async_register(ha.DOMAIN, SERVICE_TURN_ON, log_call)
     hass.services.async_register(ha.DOMAIN, SERVICE_TURN_OFF, log_call)
+
+    return calls
+
+
+def setup_valve(hass: HomeAssistant, is_open: bool) -> None:
+    """Set up the test switch."""
+    hass.states.async_set(
+        common.ENT_VALVE,
+        STATE_OPEN if is_open else STATE_CLOSED,
+        {"supported_features": ValveEntityFeature.OPEN | ValveEntityFeature.CLOSE},
+    )
+    calls = []
+
+    @callback
+    def log_call(call) -> None:
+        """Log service calls."""
+        calls.append(call)
+
+    hass.services.async_register(ha.DOMAIN, SERVICE_OPEN_VALVE, log_call)
+    hass.services.async_register(ha.DOMAIN, SERVICE_CLOSE_VALVE, log_call)
 
     return calls
 

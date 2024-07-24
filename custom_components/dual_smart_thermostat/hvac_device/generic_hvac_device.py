@@ -2,12 +2,17 @@ from datetime import timedelta
 import logging
 
 from homeassistant.components.climate import HVACMode
+from homeassistant.components.valve import DOMAIN as VALVE_DOMAIN, ValveEntityFeature
 from homeassistant.const import (
     ATTR_ENTITY_ID,
+    SERVICE_CLOSE_VALVE,
+    SERVICE_OPEN_VALVE,
     SERVICE_TURN_OFF,
     SERVICE_TURN_ON,
+    STATE_CLOSED,
     STATE_OFF,
     STATE_ON,
+    STATE_OPEN,
     STATE_UNAVAILABLE,
     STATE_UNKNOWN,
 )
@@ -105,17 +110,39 @@ class GenericHVACDevice(
         return [self.entity_id]
 
     @property
+    def _entity_state(self) -> str:
+        return self.hass.states.get(self.entity_id)
+
+    @property
+    def _is_valve(self) -> bool:
+        domain = self._entity_state.domain if self._entity_state else None
+        return domain == VALVE_DOMAIN
+
+    @property
+    def _entity_features(self) -> int:
+        return (
+            self.hass.states.get(self.entity_id).attributes.get("supported_features")
+            if self._entity_state
+            else 0
+        )
+
+    @property
+    def _supports_open_valve(self) -> bool:
+        _LOGGER.debug("entity_features: %s", self._entity_features)
+        return self._is_valve and self._entity_features & ValveEntityFeature.OPEN
+
+    @property
+    def _supports_close_valve(self) -> bool:
+        return self._is_valve and self._entity_features & ValveEntityFeature.CLOSE
+
+    @property
     def target_env_attr(self) -> str:
         return self._target_env_attr
 
     @property
     def is_active(self) -> bool:
         """If the toggleable hvac device is currently active."""
-        if self.entity_id is not None and self.hass.states.is_state(
-            self.entity_id, STATE_ON
-        ):
-            return True
-        return False
+        return self.hvac_controller.is_active
 
     def is_below_target_env_attr(self) -> bool:
         """is too cold?"""
@@ -184,12 +211,12 @@ class GenericHVACDevice(
             "%s - async_control_hvac - is device active: %s, %s, strategy: %s, is opening open: %s",
             self._device_type,
             self.entity_id,
-            self.is_active,
+            self.hvac_controller.is_active,
             self.strategy,
             any_opeing_open,
         )
 
-        if self.is_active:
+        if self.hvac_controller.is_active:
             await self.hvac_controller.async_control_device_when_on(
                 self.strategy,
                 any_opeing_open,
@@ -216,7 +243,7 @@ class GenericHVACDevice(
 
     async def _async_check_device_initial_state(self) -> None:
         """Prevent the device from keep running if HVACMode.OFF."""
-        if self._hvac_mode == HVACMode.OFF and self.is_active:
+        if self._hvac_mode == HVACMode.OFF and self.hvac_controller.is_active:
             _LOGGER.warning(
                 "The climate mode is OFF, but the switch device is ON. Turning off device %s",
                 self.entity_id,
@@ -225,26 +252,94 @@ class GenericHVACDevice(
 
     async def async_turn_on(self):
         _LOGGER.info(
-            "%s. Turning on entity %s", self.__class__.__name__, self.entity_id
+            "%s. Turning on or opening entity %s",
+            self.__class__.__name__,
+            self.entity_id,
         )
-        if self.entity_id is not None and self.hass.states.is_state(
-            self.entity_id, STATE_OFF
-        ):
 
-            data = {ATTR_ENTITY_ID: self.entity_id}
-            await self.hass.services.async_call(
-                HA_DOMAIN, SERVICE_TURN_ON, data, context=self._context
-            )
+        if self.entity_id is None:
+            return
+
+        if self._supports_open_valve:
+            await self._async_open_valve_entity()
+        else:
+            await self._async_turn_on_entity()
 
     async def async_turn_off(self):
         _LOGGER.info(
+            "%s. Turning off or closing entity %s",
+            self.__class__.__name__,
+            self.entity_id,
+        )
+        if self.entity_id is None:
+            return
+
+        if self._supports_close_valve:
+            await self._async_close_valve_entity()
+        else:
+            await self._async_turn_off_entity()
+
+    async def _async_turn_on_entity(self) -> None:
+        """Turn on the entity."""
+        _LOGGER.info(
+            "%s. Turning on entity %s", self.__class__.__name__, self.entity_id
+        )
+
+        _LOGGER.debug("entity_id: %s", self.entity_id)
+        _LOGGER.debug(
+            "is_state: %s", self.hass.states.is_state(self.entity_id, STATE_OFF)
+        )
+
+        if self.entity_id is not None and self.hass.states.is_state(
+            self.entity_id, STATE_OFF
+        ):
+            await self.hass.services.async_call(
+                HA_DOMAIN,
+                SERVICE_TURN_ON,
+                {ATTR_ENTITY_ID: self.entity_id},
+                context=self._context,
+            )
+
+    async def _async_turn_off_entity(self) -> None:
+        """Turn off the entity."""
+        _LOGGER.info(
             "%s. Turning off entity %s", self.__class__.__name__, self.entity_id
         )
+
         if self.entity_id is not None and self.hass.states.is_state(
             self.entity_id, STATE_ON
         ):
-
-            data = {ATTR_ENTITY_ID: self.entity_id}
             await self.hass.services.async_call(
-                HA_DOMAIN, SERVICE_TURN_OFF, data, context=self._context
+                HA_DOMAIN,
+                SERVICE_TURN_OFF,
+                {ATTR_ENTITY_ID: self.entity_id},
+                context=self._context,
+            )
+
+    async def _async_open_valve_entity(self) -> None:
+        """Open the entity."""
+        _LOGGER.info("%s. Opening entity %s", self.__class__.__name__, self.entity_id)
+
+        if self.entity_id is not None and self.hass.states.is_state(
+            self.entity_id, STATE_CLOSED
+        ):
+            await self.hass.services.async_call(
+                HA_DOMAIN,
+                SERVICE_OPEN_VALVE,
+                {ATTR_ENTITY_ID: self.entity_id},
+                context=self._context,
+            )
+
+    async def _async_close_valve_entity(self) -> None:
+        """Close the entity."""
+        _LOGGER.info("%s. Closing entity %s", self.__class__.__name__, self.entity_id)
+
+        if self.entity_id is not None and self.hass.states.is_state(
+            self.entity_id, STATE_OPEN
+        ):
+            await self.hass.services.async_call(
+                HA_DOMAIN,
+                SERVICE_CLOSE_VALVE,
+                {ATTR_ENTITY_ID: self.entity_id},
+                context=self._context,
             )

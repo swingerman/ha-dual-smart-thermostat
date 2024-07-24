@@ -3,7 +3,8 @@ import logging
 from typing import Callable
 
 from homeassistant.components.climate import HVACMode
-from homeassistant.const import STATE_ON
+from homeassistant.components.valve import DOMAIN as VALVE_DOMAIN
+from homeassistant.const import STATE_ON, STATE_OPEN
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import condition
 import homeassistant.util.dt as dt_util
@@ -56,14 +57,25 @@ class GenericHvacController(HvacController):
         self._hvac_action_reason = HVACActionReason.NONE
 
     @property
+    def _is_valve(self) -> bool:
+        state = self.hass.states.get(self.entity_id)
+        domain = state.domain if state else None
+        return domain == VALVE_DOMAIN
+
+    @property
     def hvac_action_reason(self) -> HVACActionReason:
         return self._hvac_action_reason
 
     @property
     def is_active(self) -> bool:
         """If the toggleable hvac device is currently active."""
+        on_state = STATE_OPEN if self._is_valve else STATE_ON
+
+        _LOGGER.debug(
+            "Checking if device is active: %s, on_state: %s", self.entity_id, on_state
+        )
         if self.entity_id is not None and self.hass.states.is_state(
-            self.entity_id, STATE_ON
+            self.entity_id, on_state
         ):
             return True
         return False
