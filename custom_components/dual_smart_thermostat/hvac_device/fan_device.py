@@ -1,6 +1,6 @@
 import logging
 
-from homeassistant.components.climate import HVACMode
+from homeassistant.components.climate import HVACAction, HVACMode
 
 from custom_components.dual_smart_thermostat.hvac_device.cooler_device import (
     CoolerDevice,
@@ -36,3 +36,11 @@ class FanDevice(CoolerDevice):
 
         if self.features.is_fan_uses_outside_air:
             self.fan_air_surce_outside = True
+
+    @property
+    def hvac_action(self) -> HVACAction:
+        if self.hvac_mode == HVACMode.OFF:
+            return HVACAction.OFF
+        if self.is_active:
+            return HVACAction.FAN
+        return HVACAction.IDLE
