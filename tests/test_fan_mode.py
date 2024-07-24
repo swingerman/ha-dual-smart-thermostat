@@ -2519,6 +2519,7 @@ async def test_set_target_temp_ac_on_after_fan_tolerance_2(
 
     assert hass.states.get(cooler_switch).state == STATE_OFF
     assert hass.states.get(fan_switch).state == STATE_ON
+    assert hass.states.get(common.ENTITY).attributes["hvac_action"] == HVACAction.FAN
 
     # within hot_tolerance and fan_hot_tolerance
     setup_sensor(hass, 20.5)
@@ -2526,6 +2527,7 @@ async def test_set_target_temp_ac_on_after_fan_tolerance_2(
 
     assert hass.states.get(cooler_switch).state == STATE_OFF
     assert hass.states.get(fan_switch).state == STATE_ON
+    assert hass.states.get(common.ENTITY).attributes["hvac_action"] == HVACAction.FAN
 
     # within hot_tolerance and fan_hot_tolerance
     setup_sensor(hass, 20.7)
@@ -2540,6 +2542,9 @@ async def test_set_target_temp_ac_on_after_fan_tolerance_2(
 
     assert hass.states.get(cooler_switch).state == STATE_ON
     assert hass.states.get(fan_switch).state == STATE_OFF
+    assert (
+        hass.states.get(common.ENTITY).attributes["hvac_action"] == HVACAction.COOLING
+    )
 
 
 async def test_set_target_temp_ac_on_ignore_fan_tolerance(
