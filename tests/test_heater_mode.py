@@ -24,6 +24,8 @@ from homeassistant.components.climate import (
 from homeassistant.components.climate.const import ATTR_PRESET_MODE, DOMAIN as CLIMATE
 from homeassistant.const import (
     ATTR_TEMPERATURE,
+    SERVICE_CLOSE_VALVE,
+    SERVICE_OPEN_VALVE,
     SERVICE_RELOAD,
     SERVICE_TURN_OFF,
     SERVICE_TURN_ON,
@@ -67,9 +69,11 @@ from . import (  # noqa: F401
     setup_comp_heat_floor_opening_sensor,
     setup_comp_heat_presets,
     setup_comp_heat_safety_delay,
+    setup_comp_heat_valve,
     setup_floor_sensor,
     setup_sensor,
     setup_switch,
+    setup_valve,
 )
 
 COLD_TOLERANCE = 0.5
@@ -665,6 +669,7 @@ async def test_set_target_temp_heater_on(
     setup_sensor(hass, 25)
     await hass.async_block_till_done()
     await common.async_set_temperature(hass, 30)
+
     assert len(calls) == 1
     call = calls[0]
     assert call.domain == HASS_DOMAIN
@@ -685,6 +690,36 @@ async def test_set_target_temp_heater_off(
     assert call.domain == HASS_DOMAIN
     assert call.service == SERVICE_TURN_OFF
     assert call.data["entity_id"] == common.ENT_SWITCH
+
+
+async def test_set_target_temp_heater_valve_open(
+    hass: HomeAssistant, setup_comp_heat_valve  # noqa: F811
+) -> None:
+    """Test if target temperature turn heater on."""
+    calls = setup_valve(hass, False)
+    setup_sensor(hass, 25)
+    await hass.async_block_till_done()
+    await common.async_set_temperature(hass, 30)
+    assert len(calls) == 1
+    call = calls[0]
+    assert call.domain == HASS_DOMAIN
+    assert call.service == SERVICE_OPEN_VALVE
+    assert call.data["entity_id"] == common.ENT_VALVE
+
+
+async def test_set_target_temp_heater_valve_close(
+    hass: HomeAssistant, setup_comp_heat_valve  # noqa: F811
+) -> None:
+    """Test if target temperature turn heater off."""
+    calls = setup_valve(hass, True)
+    setup_sensor(hass, 30)
+    await hass.async_block_till_done()
+    await common.async_set_temperature(hass, 25)
+    assert len(calls) == 2
+    call = calls[0]
+    assert call.domain == HASS_DOMAIN
+    assert call.service == SERVICE_CLOSE_VALVE
+    assert call.data["entity_id"] == common.ENT_VALVE
 
 
 async def test_temp_change_heater_on_within_tolerance(
