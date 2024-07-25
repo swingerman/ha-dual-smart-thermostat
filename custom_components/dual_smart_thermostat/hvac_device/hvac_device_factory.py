@@ -49,6 +49,9 @@ from custom_components.dual_smart_thermostat.managers.environment_manager import
 from custom_components.dual_smart_thermostat.managers.feature_manager import (
     FeatureManager,
 )
+from custom_components.dual_smart_thermostat.managers.hvac_power_manager import (
+    HvacPowerManager,
+)
 from custom_components.dual_smart_thermostat.managers.opening_manager import (
     OpeningManager,
 )
@@ -92,7 +95,10 @@ class HVACDeviceFactory:
         self._initial_hvac_mode = config.get(CONF_INITIAL_HVAC_MODE)
 
     def create_device(
-        self, environment: EnvironmentManager, openings: OpeningManager
+        self,
+        environment: EnvironmentManager,
+        openings: OpeningManager,
+        hvac_power: HvacPowerManager,
     ) -> ControlableHVACDevice:
 
         dryer_device = None
@@ -110,6 +116,7 @@ class HVACDeviceFactory:
                 environment,
                 openings,
                 self._features,
+                hvac_power,
             )
 
         if self._features.is_configured_for_fan_only_mode:
@@ -121,6 +128,7 @@ class HVACDeviceFactory:
                 environment,
                 openings,
                 self._features,
+                hvac_power,
             )
 
         if self._features.is_configured_for_fan_mode:
@@ -132,6 +140,7 @@ class HVACDeviceFactory:
                 environment,
                 openings,
                 self._features,
+                hvac_power,
             )
 
         if self._features.is_configured_for_aux_heating_mode:
@@ -143,6 +152,7 @@ class HVACDeviceFactory:
                 environment,
                 openings,
                 self._features,
+                hvac_power,
             )
 
         if self._features.is_configured_for_dual_mode:
@@ -155,7 +165,7 @@ class HVACDeviceFactory:
             or self._cooler_entity_id is not None
         ):
             cooler_device = self._create_cooler_device(
-                environment, openings, cooler_entity_id, fan_device
+                environment, openings, hvac_power, cooler_entity_id, fan_device
             )
 
         if self._features.is_configured_for_heat_pump_mode:
@@ -167,6 +177,7 @@ class HVACDeviceFactory:
                 environment,
                 openings,
                 self._features,
+                hvac_power,
             )
 
         if (
@@ -184,6 +195,7 @@ class HVACDeviceFactory:
                 environment,
                 openings,
                 self._features,
+                hvac_power,
             )
 
         if aux_heater_device and heater_device:
@@ -256,6 +268,7 @@ class HVACDeviceFactory:
         self,
         environment: EnvironmentManager,
         openings: OpeningManager,
+        hvac_power: HvacPowerManager,
         cooler_entitiy_id: str,
         fan_device: FanDevice | None,
     ) -> CoolerDevice:
@@ -268,6 +281,7 @@ class HVACDeviceFactory:
             environment,
             openings,
             self._features,
+            hvac_power,
         )
 
         if fan_device:

@@ -64,6 +64,14 @@ CONF_OPENINGS_SCOPE = "openings_scope"
 CONF_HEAT_COOL_MODE = "heat_cool_mode"
 CONF_HEAT_PUMP_COOLING = "heat_pump_cooling"
 
+# HVAC power levels
+CONF_HVAC_POWER_LEVELS = "hvac_power_levels"
+CONF_HVAC_POWER_MIN = "hvac_power_min"
+CONF_HVAC_POWER_MAX = "hvac_power_max"
+CONF_HVAC_POWER_TOLERANCE = "hvac_power_tolerance"
+ATTR_HVAC_POWER_LEVEL = "hvac_power_level"
+ATTR_HVAC_POWER_PERCENT = "hvac_power_percent"
+
 ATTR_PREV_TARGET = "prev_target_temp"
 ATTR_PREV_TARGET_LOW = "prev_target_temp_low"
 ATTR_PREV_TARGET_HIGH = "prev_target_temp_high"

@@ -7,7 +7,7 @@ from homeassistant.components.climate.const import (
     HVACMode,
 )
 from homeassistant.const import ATTR_SUPPORTED_FEATURES
-from homeassistant.core import State
+from homeassistant.core import HomeAssistant, State
 from homeassistant.helpers.typing import ConfigType
 
 from custom_components.dual_smart_thermostat.const import (
@@ -26,6 +26,8 @@ from custom_components.dual_smart_thermostat.const import (
     CONF_HEAT_PUMP_COOLING,
     CONF_HEATER,
     CONF_HUMIDITY_SENSOR,
+    CONF_HVAC_POWER_LEVELS,
+    CONF_HVAC_POWER_TOLERANCE,
 )
 from custom_components.dual_smart_thermostat.managers.environment_manager import (
     EnvironmentManager,
@@ -38,7 +40,7 @@ _LOGGER = logging.getLogger(__name__)
 class FeatureManager(StateManager):
 
     def __init__(
-        self, hass, config: ConfigType, environment: EnvironmentManager
+        self, hass: HomeAssistant, config: ConfigType, environment: EnvironmentManager
     ) -> None:
         self.hass = hass
         self.environment = environment
@@ -67,6 +69,9 @@ class FeatureManager(StateManager):
         self._default_support_flags = (
             ClimateEntityFeature.TURN_OFF | ClimateEntityFeature.TURN_ON
         )
+
+        self._hvac_power_levels = config.get(CONF_HVAC_POWER_LEVELS)
+        self._hvac_power_tolerance = config.get(CONF_HVAC_POWER_TOLERANCE)
 
     @property
     def heat_pump_cooling_entity_id(self) -> str:
@@ -179,6 +184,14 @@ class FeatureManager(StateManager):
     def is_configured_for_heat_pump_mode(self) -> bool:
         """Determines if the heat pump cooling is configured."""
         return self._heat_pump_cooling_entity_id is not None
+
+    @property
+    def is_configured_for_hvac_power_levels(self) -> bool:
+        """Determines if the HVAC power levels are configured."""
+        return (
+            self._hvac_power_levels is not None
+            or self._hvac_power_tolerance is not None
+        )
 
     def set_support_flags(
         self,

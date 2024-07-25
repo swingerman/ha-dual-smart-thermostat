@@ -1,8 +1,9 @@
+from datetime import timedelta
 import logging
 
 from homeassistant.components.climate import HVACMode
 from homeassistant.const import STATE_ON, STATE_UNAVAILABLE, STATE_UNKNOWN
-from homeassistant.core import State, callback
+from homeassistant.core import HomeAssistant, State, callback
 
 from custom_components.dual_smart_thermostat.hvac_controller.cooler_controller import (
     CoolerHvacController,
@@ -21,7 +22,17 @@ from custom_components.dual_smart_thermostat.hvac_device.hvac_device import (
     merge_hvac_modes,
 )
 from custom_components.dual_smart_thermostat.managers.environment_manager import (
+    EnvironmentManager,
     TargetTemperatures,
+)
+from custom_components.dual_smart_thermostat.managers.feature_manager import (
+    FeatureManager,
+)
+from custom_components.dual_smart_thermostat.managers.hvac_power_manager import (
+    HvacPowerManager,
+)
+from custom_components.dual_smart_thermostat.managers.opening_manager import (
+    OpeningManager,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -33,13 +44,14 @@ class HeatPumpDevice(GenericHVACDevice):
 
     def __init__(
         self,
-        hass,
-        entity_id,
-        min_cycle_duration,
-        initial_hvac_mode,
-        environment,
-        openings,
-        features,
+        hass: HomeAssistant,
+        entity_id: str,
+        min_cycle_duration: timedelta,
+        initial_hvac_mode: HVACMode,
+        environment: EnvironmentManager,
+        openings: OpeningManager,
+        features: FeatureManager,
+        hvac_power: HvacPowerManager,
     ) -> None:
         super().__init__(
             hass,
@@ -49,6 +61,7 @@ class HeatPumpDevice(GenericHVACDevice):
             environment,
             openings,
             features,
+            hvac_power,
             hvac_goal=HvacGoal.RAISE,  # will not take effect as we will define new controllers
         )
 

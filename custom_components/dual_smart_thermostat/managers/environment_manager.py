@@ -1,4 +1,5 @@
 from datetime import timedelta
+import enum
 import logging
 import math
 from typing import Any
@@ -56,6 +57,13 @@ class TargetTemperatures:
         self.temperature = temperature
         self.temp_high = temp_high
         self.temp_low = temp_low
+
+
+class EnvironmentAttributeType(enum.StrEnum):
+    """Enum for environment attributes."""
+
+    TEMPERATURE = "temperature"
+    HUMIDITY = "humidity"
 
 
 class EnvironmentManager(StateManager):
@@ -238,6 +246,13 @@ class EnvironmentManager(StateManager):
     @property
     def cur_humidity(self) -> float:
         return self._cur_humidity
+
+    def get_env_attr_type(self, attr: str) -> EnvironmentAttributeType:
+        return (
+            EnvironmentAttributeType.HUMIDITY
+            if attr == "_target_humidity"
+            else EnvironmentAttributeType.TEMPERATURE
+        )
 
     def set_temperature_range_from_saved(self) -> None:
         self.target_temp_low = self.saved_target_temp_low
