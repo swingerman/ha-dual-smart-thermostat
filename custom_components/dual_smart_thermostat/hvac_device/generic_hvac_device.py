@@ -43,6 +43,9 @@ from custom_components.dual_smart_thermostat.managers.environment_manager import
 from custom_components.dual_smart_thermostat.managers.feature_manager import (
     FeatureManager,
 )
+from custom_components.dual_smart_thermostat.managers.hvac_power_manager import (
+    HvacPowerManager,
+)
 from custom_components.dual_smart_thermostat.managers.opening_manager import (
     OpeningManager,
 )
@@ -67,6 +70,7 @@ class GenericHVACDevice(
         environment: EnvironmentManager,
         openings: OpeningManager,
         features: FeatureManager,
+        hvac_power: HvacPowerManager,
         hvac_goal: HvacGoal,
     ) -> None:
         super().__init__(hass, environment, openings)
@@ -77,6 +81,7 @@ class GenericHVACDevice(
         self.hvac_goal = hvac_goal
 
         self.features = features
+        self.hvac_power = hvac_power
         self.entity_id = entity_id
         self.min_cycle_duration = min_cycle_duration
 
@@ -222,16 +227,15 @@ class GenericHVACDevice(
                 any_opeing_open,
                 time,
             )
-            # await self._async_control_when_active(time)
         else:
             await self.hvac_controller.async_control_device_when_off(
                 self.strategy,
                 any_opeing_open,
                 time,
             )
-            # await self._async_control_when_inactive(time)
 
         self._hvac_action_reason = self.hvac_controller.hvac_action_reason
+        self.hvac_power.update_hvac_power(self.strategy, self.target_env_attr)
 
     async def async_on_startup(self):
         entity_state = self.hass.states.get(self.entity_id)

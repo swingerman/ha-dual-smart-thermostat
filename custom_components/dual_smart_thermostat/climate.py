@@ -71,6 +71,9 @@ from custom_components.dual_smart_thermostat.managers.environment_manager import
 from custom_components.dual_smart_thermostat.managers.feature_manager import (
     FeatureManager,
 )
+from custom_components.dual_smart_thermostat.managers.hvac_power_manager import (
+    HvacPowerManager,
+)
 from custom_components.dual_smart_thermostat.managers.opening_manager import (
     OpeningHvacModeScope,
     OpeningManager,
@@ -82,6 +85,8 @@ from custom_components.dual_smart_thermostat.managers.preset_manager import (
 from . import DOMAIN, PLATFORMS
 from .const import (
     ATTR_HVAC_ACTION_REASON,
+    ATTR_HVAC_POWER_LEVEL,
+    ATTR_HVAC_POWER_PERCENT,
     ATTR_PREV_HUMIDITY,
     ATTR_PREV_TARGET,
     ATTR_PREV_TARGET_HIGH,
@@ -106,6 +111,10 @@ from .const import (
     CONF_HEATER,
     CONF_HOT_TOLERANCE,
     CONF_HUMIDITY_SENSOR,
+    CONF_HVAC_POWER_LEVELS,
+    CONF_HVAC_POWER_MAX,
+    CONF_HVAC_POWER_MIN,
+    CONF_HVAC_POWER_TOLERANCE,
     CONF_INITIAL_HVAC_MODE,
     CONF_KEEP_ALIVE,
     CONF_MAX_FLOOR_TEMP,
@@ -178,7 +187,7 @@ OPENINGS_SCHEMA = {
     ),
 }
 
-HYGROSTAT_SCHEMA = {
+DEHUMIDIFYER_SCHEMA = {
     vol.Optional(CONF_DRYER): cv.entity_id,
     vol.Optional(CONF_HUMIDITY_SENSOR): cv.entity_id,
     vol.Optional(CONF_MIN_HUMIDITY): vol.Coerce(float),
@@ -190,6 +199,13 @@ HYGROSTAT_SCHEMA = {
 
 HEAT_PUMP_SCHEMA = {
     vol.Optional(CONF_HEAT_PUMP_COOLING): cv.entity_id,
+}
+
+HVAC_POWER_SCHEMA = {
+    vol.Optional(CONF_HVAC_POWER_LEVELS): vol.Coerce(int),
+    vol.Optional(CONF_HVAC_POWER_MIN): vol.Coerce(int),
+    vol.Optional(CONF_HVAC_POWER_MAX): vol.Coerce(int),
+    vol.Optional(CONF_HVAC_POWER_TOLERANCE): vol.Coerce(float),
 }
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
@@ -241,9 +257,11 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(OPENINGS_SCHEMA)
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(FAN_MODE_SCHEMA)
 
-PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(HYGROSTAT_SCHEMA)
+PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(DEHUMIDIFYER_SCHEMA)
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(HEAT_PUMP_SCHEMA)
+
+PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(HVAC_POWER_SCHEMA)
 
 # Add the old presets schema to avoid breaking change
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
@@ -281,13 +299,17 @@ async def async_setup_platform(
         config,
     )
 
+    hvac_power_manager = HvacPowerManager(hass, config, environment_manager)
+
     feature_manager = FeatureManager(hass, config, environment_manager)
 
     preset_manager = PresetManager(hass, config, environment_manager, feature_manager)
 
     device_factory = HVACDeviceFactory(hass, config, feature_manager)
 
-    hvac_device = device_factory.create_device(environment_manager, opening_manager)
+    hvac_device = device_factory.create_device(
+        environment_manager, opening_manager, hvac_power_manager
+    )
 
     async_add_entities(
         [
@@ -308,6 +330,7 @@ async def async_setup_platform(
                 environment_manager,
                 opening_manager,
                 feature_manager,
+                hvac_power_manager,
             )
         ]
     )
@@ -362,6 +385,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         environment_manager: EnvironmentManager,
         opening_manager: OpeningManager,
         feature_manager: FeatureManager,
+        power_manager: HvacPowerManager,
     ) -> None:
         """Initialize the thermostat."""
         self._attr_name = name
@@ -382,6 +406,9 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
         # opening manager
         self.openings = opening_manager
+
+        # power manager
+        self.power_manager = power_manager
 
         # sensors
         self.sensor_entity_id = sensor_entity_id
@@ -773,6 +800,14 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         attributes[ATTR_HVAC_ACTION_REASON] = (
             self._hvac_action_reason or HVACActionReason.NONE
         )
+
+        # TODO: set these only if configured to avoid unnecessary DB writes
+        if self.features.is_configured_for_hvac_power_levels:
+            _LOGGER.debug(
+                "Setting HVAC Power Level: %s", self.power_manager.hvac_power_level
+            )
+            attributes[ATTR_HVAC_POWER_LEVEL] = self.power_manager.hvac_power_level
+            attributes[ATTR_HVAC_POWER_PERCENT] = self.power_manager.hvac_power_percent
 
         _LOGGER.debug("Extra state attributes: %s", attributes)
 

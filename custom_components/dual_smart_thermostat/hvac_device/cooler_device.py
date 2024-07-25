@@ -19,6 +19,9 @@ from custom_components.dual_smart_thermostat.managers.environment_manager import
 from custom_components.dual_smart_thermostat.managers.feature_manager import (
     FeatureManager,
 )
+from custom_components.dual_smart_thermostat.managers.hvac_power_manager import (
+    HvacPowerManager,
+)
 from custom_components.dual_smart_thermostat.managers.opening_manager import (
     OpeningManager,
 )
@@ -39,6 +42,7 @@ class CoolerDevice(GenericHVACDevice):
         environment: EnvironmentManager,
         openings: OpeningManager,
         features: FeatureManager,
+        hvac_power: HvacPowerManager,
     ) -> None:
         super().__init__(
             hass,
@@ -48,6 +52,7 @@ class CoolerDevice(GenericHVACDevice):
             environment,
             openings,
             features,
+            hvac_power,
             hvac_goal=HvacGoal.LOWER,
         )
 
