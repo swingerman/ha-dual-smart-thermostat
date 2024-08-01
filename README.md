@@ -397,7 +397,7 @@ The internal values can be set by the component only and the external values can
 
   _(optional, **required for two stage heating**) (time, integer)_  Set a minimum amount of time that the switch specified in the _heater_ option must be in its ON state before secondary heater devices needs to be turned on.
 
-### secondar_heater_dual_mode
+### secondary_heater_dual_mode
 
   _(optional, (bool)_  If set true the secondary (aux) heater will be turned on together with the primary heater.
 
