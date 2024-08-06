@@ -289,11 +289,6 @@ class GenericHVACDevice(
             "%s. Turning on entity %s", self.__class__.__name__, self.entity_id
         )
 
-        _LOGGER.debug("entity_id: %s", self.entity_id)
-        _LOGGER.debug(
-            "is_state: %s", self.hass.states.is_state(self.entity_id, STATE_OFF)
-        )
-
         if self.entity_id is not None and self.hass.states.is_state(
             self.entity_id, STATE_OFF
         ):

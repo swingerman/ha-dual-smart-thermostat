@@ -419,6 +419,15 @@ The internal values can be set by the component only and the external values can
 
   _requires: `fan`_
 
+### fan_hot_tolerance_toggle
+
+  _(optional) (string)_ `entity_id` for a switch that will toggle the `fan_hot_tolerance` feature on and off.
+  This is enabled by default.
+
+  _default: True_
+
+  _requires: `fan` , `fan_hot_tolerance`_
+
 ### fan_on_with_ac
 
   _(optional) (boolean)_ If set to `true` the fan will be turned on together with the AC. This is useful for central AC systems that require the fan to be turned on together with the AC.

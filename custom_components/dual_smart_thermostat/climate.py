@@ -103,6 +103,7 @@ from .const import (
     CONF_FAN,
     CONF_FAN_AIR_OUTSIDE,
     CONF_FAN_HOT_TOLERANCE,
+    CONF_FAN_HOT_TOLERANCE_TOGGLE,
     CONF_FAN_MODE,
     CONF_FAN_ON_WITH_AC,
     CONF_FLOOR_SENSOR,
@@ -177,6 +178,7 @@ FAN_MODE_SCHEMA = {
     vol.Optional(CONF_FAN_MODE): cv.boolean,
     vol.Optional(CONF_FAN_ON_WITH_AC): cv.boolean,
     vol.Optional(CONF_FAN_HOT_TOLERANCE): vol.Coerce(float),
+    vol.Optional(CONF_FAN_HOT_TOLERANCE_TOGGLE): cv.entity_id,
     vol.Optional(CONF_FAN_AIR_OUTSIDE): cv.boolean,
 }
 
