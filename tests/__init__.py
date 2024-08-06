@@ -1101,6 +1101,24 @@ def setup_valve(hass: HomeAssistant, is_open: bool) -> None:
     return calls
 
 
+def setup_fan_heat_tolerance_toggle(hass: HomeAssistant, is_on: bool) -> None:
+    """Set up the test switch."""
+    hass.states.async_set(
+        common.ENT_FAN_HOT_TOLERNACE_TOGGLE, STATE_ON if is_on else STATE_OFF
+    )
+    calls = []
+
+    @callback
+    def log_call(call) -> None:
+        """Log service calls."""
+        calls.append(call)
+
+    hass.services.async_register(ha.DOMAIN, SERVICE_TURN_ON, log_call)
+    hass.services.async_register(ha.DOMAIN, SERVICE_TURN_OFF, log_call)
+
+    return calls
+
+
 def setup_heat_pump_cooling_status(hass: HomeAssistant, is_on: bool) -> None:
     """Set up the test switch."""
     hass.states.async_set(
