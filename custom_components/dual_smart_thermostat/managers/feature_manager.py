@@ -20,6 +20,7 @@ from custom_components.dual_smart_thermostat.const import (
     CONF_FAN,
     CONF_FAN_AIR_OUTSIDE,
     CONF_FAN_HOT_TOLERANCE,
+    CONF_FAN_HOT_TOLERANCE_TOGGLE,
     CONF_FAN_MODE,
     CONF_FAN_ON_WITH_AC,
     CONF_HEAT_COOL_MODE,
@@ -56,6 +57,7 @@ class FeatureManager(StateManager):
         self._fan_on_with_cooler = config.get(CONF_FAN_ON_WITH_AC)
         self._fan_tolerance = config.get(CONF_FAN_HOT_TOLERANCE)
         self._fan_air_outside = config.get(CONF_FAN_AIR_OUTSIDE)
+        self._fan_tolerance_on_entity_id = config.get(CONF_FAN_HOT_TOLERANCE_TOGGLE)
 
         self._dryer_entity_id = config.get(CONF_DRYER)
         self._humidity_sensor_entity_id = config.get(CONF_HUMIDITY_SENSOR)
@@ -171,6 +173,10 @@ class FeatureManager(StateManager):
     @property
     def is_fan_uses_outside_air(self) -> bool:
         return self._fan_air_outside
+
+    @property
+    def fan_hot_tolerance_on_entity(self) -> bool:
+        return self._fan_tolerance_on_entity_id
 
     @property
     def is_configured_for_dryer_mode(self) -> bool:
