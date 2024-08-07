@@ -118,6 +118,12 @@ class HeaterHvacConroller(GenericHvacController):
                 self._hvac_action_reason = HVACActionReason.OPENING
 
         else:
-            _LOGGER.debug("No case matched when off - too_cold: %s, any_opening_open: %s, is_floor_hot: %s, is_floor_cold: %s, time: %s. Taking default action to turn off heater.",
-                        too_cold, any_opening_open, is_floor_hot, is_floor_cold, time)
+            _LOGGER.debug(
+                "No case matched when off - too_cold: %s, any_opening_open: %s, is_floor_hot: %s, is_floor_cold: %s, time: %s. Taking default action to turn off heater.",
+                too_cold,
+                any_opening_open,
+                is_floor_hot,
+                is_floor_cold,
+                time,
+            )
             await self.async_turn_off_callback()
