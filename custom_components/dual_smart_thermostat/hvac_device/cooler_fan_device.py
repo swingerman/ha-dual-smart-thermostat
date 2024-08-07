@@ -1,7 +1,9 @@
 import logging
 
 from homeassistant.components.climate import HVACMode
-from homeassistant.core import HomeAssistant
+from homeassistant.const import STATE_ON, STATE_UNAVAILABLE, STATE_UNKNOWN
+from homeassistant.core import Event, EventStateChangedData, HomeAssistant
+from homeassistant.helpers.event import async_track_state_change_event
 
 from custom_components.dual_smart_thermostat.hvac_action_reason.hvac_action_reason import (
     HVACActionReason,
@@ -50,6 +52,14 @@ class CoolerFanDevice(MultiHvacDevice):
         if self.fan_device is None or self.cooler_device is None:
             _LOGGER.error("Fan or cooler device is not found")
 
+        if self._features.fan_hot_tolerance_on_entity is not None:
+            self._fan_hot_tolerance_on = (
+                self.hass.states.get(self._features.fan_hot_tolerance_on_entity)
+                == STATE_ON
+            )
+        else:
+            self._fan_hot_tolerance_on = True
+
     @property
     def hvac_mode(self) -> HVACMode:
         return self._hvac_mode
@@ -60,6 +70,37 @@ class CoolerFanDevice(MultiHvacDevice):
         _LOGGER.debug("Setter setting hvac_mode: %s", hvac_mode)
         self._hvac_mode = hvac_mode
         self.set_sub_devices_hvac_mode(hvac_mode)
+
+    async def async_on_startup(self):
+        await super().async_on_startup()
+
+        if self._features.fan_hot_tolerance_on_entity is not None:
+            self.async_on_remove(
+                async_track_state_change_event(
+                    self.hass,
+                    [self._features.fan_hot_tolerance_on_entity],
+                    self._async_fan_hot_tolerance_on_changed,
+                )
+            )
+
+    async def _async_fan_hot_tolerance_on_changed(
+        self, event: Event[EventStateChangedData]
+    ):
+        data = event.data
+
+        new_state = data["new_state"]
+
+        _LOGGER.debug("Fan hot tolerance state changed: %s", new_state)
+
+        if new_state is None or new_state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
+            self._fan_hot_tolerance_on = True
+            return
+
+        self._fan_hot_tolerance_on = new_state.state == STATE_ON
+
+        _LOGGER.debug("fan_hot_tolerance_on is %s", self._fan_hot_tolerance_on)
+
+        await self.async_control_hvac(force=True)
 
     async def _async_check_device_initial_state(self) -> None:
         """Prevent the device from keep running if HVACMode.OFF."""
@@ -91,10 +132,15 @@ class CoolerFanDevice(MultiHvacDevice):
                         else force
                     )
 
-                    if is_within_fan_tolerance and not (
-                        is_fan_air_outside and is_warmer_outside
+                    if (
+                        self._fan_hot_tolerance_on
+                        and is_within_fan_tolerance
+                        and not (is_fan_air_outside and is_warmer_outside)
                     ):
                         _LOGGER.debug("within fan tolerance")
+                        _LOGGER.debug(
+                            "fan_hot_tolerance_on: %s", self._fan_hot_tolerance_on
+                        )
                         self.fan_device.hvac_mode = HVACMode.FAN_ONLY
                         await self.fan_device.async_control_hvac(time, force_override)
                         await self.cooler_device.async_turn_off()
@@ -103,6 +149,9 @@ class CoolerFanDevice(MultiHvacDevice):
                         )
                     else:
                         _LOGGER.debug("outside fan tolerance")
+                        _LOGGER.debug(
+                            "fan_hot_tolerance_on: %s", self._fan_hot_tolerance_on
+                        )
                         await self.cooler_device.async_control_hvac(
                             time, force_override
                         )
