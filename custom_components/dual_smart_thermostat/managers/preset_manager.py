@@ -109,6 +109,8 @@ class PresetManager(StateManager):
         else:
             preset_temperature = first_preset
 
+        _LOGGER.debug("Preset temperature: %s", preset_temperature)
+
         self._environment.saved_target_temp = (
             self._environment.target_temp or preset_temperature or None
         )
@@ -206,7 +208,7 @@ class PresetManager(StateManager):
             # handles when temperature is not set in preset but temp range is set
             else:
                 self._environment.set_temepratures_from_hvac_mode_and_presets(
-                    hvac_mode, preset_mode, self._presets_range
+                    hvac_mode, preset_mode, self._presets_range, self._preset_mode
                 )
 
         if self._features.is_configured_for_dryer_mode:
@@ -227,7 +229,14 @@ class PresetManager(StateManager):
             return
 
         _LOGGER.debug("Presets applying old state")
+        _LOGGER.debug("Old state: %s", old_state)
+        _LOGGER.debug("target temp: %s", self._environment.target_temp)
+
         old_pres_mode = old_state.attributes.get(ATTR_PRESET_MODE)
+        old_temperature = old_state.attributes.get(ATTR_TEMPERATURE)
+        old_target_temp_low = old_state.attributes.get(ATTR_TARGET_TEMP_LOW)
+        old_target_temp_high = old_state.attributes.get(ATTR_TARGET_TEMP_HIGH)
+
         if self._features.is_range_mode:
             _LOGGER.debug("Apply preset range mode - old state: %s", old_pres_mode)
             if self._preset_modes and old_pres_mode in self._presets_range:
@@ -245,13 +254,49 @@ class PresetManager(StateManager):
 
                 preset = self._presets_range[old_pres_mode]
                 if preset:
-                    self._environment.target_temp_low = preset[0]
-                    self._environment.target_temp_high = preset[1]
 
-            elif self._preset_modes and old_pres_mode in self._presets:
-                _LOGGER.debug(
-                    "Restoring previous preset mode target: %s", old_pres_mode
+                    if old_temperature is not None:
+                        _LOGGER.debug(
+                            "saved target temperature: %s",
+                            self._environment.target_temp,
+                        )
+                        self._environment.saved_target_temp = float(old_temperature)
+
+                    self._environment.target_temp_low = (
+                        float(old_target_temp_low)
+                        if old_target_temp_low
+                        else float(preset[0])
+                    )
+                    self._environment.target_temp_high = (
+                        float(old_target_temp_high)
+                        if old_target_temp_high
+                        else float(preset[1])
+                    )
+
+        elif self._preset_modes and old_pres_mode in self._presets:
+            _LOGGER.debug("Restoring previous preset mode target: %s", old_pres_mode)
+            _LOGGER.debug("Target temp: %s", self._environment.target_temp)
+            _LOGGER.debug("Target temp form preset: %s", self._presets[old_pres_mode])
+            _LOGGER.debug("Old temperature: %s", old_temperature)
+
+            self._preset_mode = old_pres_mode
+            self._environment.saved_target_temp = self._environment.target_temp
+
+            if old_temperature is not None:
+                self._environment.target_temp = float(old_temperature)
+                return
+
+            if isinstance(self._presets[old_pres_mode], float):
+                self._environment.target_temp = float(self._presets[old_pres_mode])
+            elif (
+                isinstance(self._presets[old_pres_mode], dict)
+                and ATTR_TEMPERATURE in self._presets[old_pres_mode]
+            ):
+                self._environment.target_temp = float(
+                    self._presets[old_pres_mode][ATTR_TEMPERATURE]
                 )
-                self._preset_mode = old_pres_mode
-                self._environment.saved_target_temp = self._environment.target_temp
-                self._environment.target_temp = self._presets[old_pres_mode]
+            else:
+                _LOGGER.debug("Restoring previous preset mode temp unhandled")
+
+        else:
+            _LOGGER.debug("Restoring previous preset mode no match")

@@ -223,10 +223,6 @@ class FeatureManager(StateManager):
                 )
                 self._supported_features |= ClimateEntityFeature.PRESET_MODE
 
-                self.environment.set_temepratures_from_hvac_mode_and_presets(
-                    current_hvac_mode, preset_mode, presets_range
-                )
-
         elif current_hvac_mode == HVACMode.DRY:
             self._supported_features = (
                 self._default_support_flags | ClimateEntityFeature.TARGET_HUMIDITY

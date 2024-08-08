@@ -677,8 +677,8 @@ async def test_set_heat_cool_fan_restore_state(
                 "climate.test_thermostat",
                 HVACMode.HEAT_COOL,
                 {
-                    ATTR_TARGET_TEMP_HIGH: "20",
-                    ATTR_TARGET_TEMP_LOW: "18",
+                    ATTR_TARGET_TEMP_HIGH: "21",
+                    ATTR_TARGET_TEMP_LOW: "19",
                     ATTR_PRESET_MODE: preset,
                 },
             ),
@@ -709,8 +709,8 @@ async def test_set_heat_cool_fan_restore_state(
     )
     await hass.async_block_till_done()
     state = hass.states.get("climate.test_thermostat")
-    assert state.attributes[ATTR_TARGET_TEMP_HIGH] == 20
-    assert state.attributes[ATTR_TARGET_TEMP_LOW] == 18
+    assert state.attributes[ATTR_TARGET_TEMP_HIGH] == 21
+    assert state.attributes[ATTR_TARGET_TEMP_LOW] == 19
     assert state.attributes[ATTR_PRESET_MODE] == preset
     assert state.state == HVACMode.HEAT_COOL
 

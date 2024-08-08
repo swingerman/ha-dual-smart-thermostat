@@ -369,39 +369,39 @@ climate:
   #   cold_tolerance: 0.3
   #   hot_tolerance: 0.3
 
-  # - platform: dual_smart_thermostat
-  #   name: Edge Case 239
-  #   unique_id: edge_case_239
-  #   heater: switch.heater
-  #   # cooler: switch.cooler
-  #   target_sensor: sensor.room_temp
-  #   heat_cool_mode: false #true # <-important
-  #   keep_alive: #lo attivo e commento initial_hvac_mode per verificare se mantiene lo stato al riavvio
-  #     minutes: 2
-  #   ac_mode: true
-  #   min_temp: 16
-  #   max_temp: 32
-  #   cold_tolerance: 0.4
-  #   hot_tolerance: 0.1
-  #   target_temp_step: 0.1
-  #   min_cycle_duration:
-  #     minutes: 1
-  #   away:
-  #     temperature: 28.0
-  #     target_temp_low: 27
-  #     target_temp_high: 29.5
-  #   home:
-  #     temperature: 23.0
-  #     target_temp_low: 22.5
-  #     target_temp_high: 23.5
-  #   comfort:
-  #     temperature: 25.0
-  #     target_temp_low: 24
-  #     target_temp_high: 25.5
-  #   sleep:
-  #     temperature: 27.5
-  #     target_temp_low: 26.5
-  #     target_temp_high: 28.0
+  - platform: dual_smart_thermostat
+    name: Edge Case 239
+    unique_id: edge_case_239
+    heater: switch.heater
+    # cooler: switch.cooler
+    target_sensor: sensor.room_temp
+    heat_cool_mode: false #true # <-important
+    keep_alive: #lo attivo e commento initial_hvac_mode per verificare se mantiene lo stato al riavvio
+      minutes: 2
+    ac_mode: true
+    min_temp: 16
+    max_temp: 32
+    cold_tolerance: 0.4
+    hot_tolerance: 0.1
+    target_temp_step: 0.1
+    min_cycle_duration:
+      minutes: 1
+    away:
+      temperature: 28.0
+      target_temp_low: 27
+      target_temp_high: 29.5
+    home:
+      temperature: 23.0
+      target_temp_low: 22.5
+      target_temp_high: 23.5
+    comfort:
+      temperature: 25.0
+      target_temp_low: 24
+      target_temp_high: 25.5
+    sleep:
+      temperature: 27.5
+      target_temp_low: 26.5
+      target_temp_high: 28.0
 
   # - platform: dual_smart_thermostat
   #   name: Edge Case 210
@@ -428,70 +428,70 @@ climate:
   #   precision: 0.1
   #   target_temp_step: 0.5
 
-  - platform: dual_smart_thermostat
-    name: Edge Case 241
-    unique_id: edge_case_241
-    heater: switch.heater
-    cooler: switch.cooler
-    fan: switch.fan
-    target_sensor: sensor.room_temp
-    heat_cool_mode: true # <-required
-    cold_tolerance: 0.3
-    hot_tolerance: 0.2
-    fan_hot_tolerance: 1
-    target_temp_step: 0.5
-    min_temp: 14
-    max_temp: 28
-    comfort:
-      temperature: 21
-      target_temp_low: 21
-      target_temp_high: 21.5
-    away:
-      temperature: 21
-      target_temp_low: 15
-      target_temp_high: 28
+  # - platform: dual_smart_thermostat
+  #   name: Edge Case 241
+  #   unique_id: edge_case_241
+  #   heater: switch.heater
+  #   cooler: switch.cooler
+  #   fan: switch.fan
+  #   target_sensor: sensor.room_temp
+  #   heat_cool_mode: true # <-required
+  #   cold_tolerance: 0.3
+  #   hot_tolerance: 0.2
+  #   fan_hot_tolerance: 1
+  #   target_temp_step: 0.5
+  #   min_temp: 14
+  #   max_temp: 28
+  #   comfort:
+  #     temperature: 21
+  #     target_temp_low: 21
+  #     target_temp_high: 21.5
+  #   away:
+  #     temperature: 21
+  #     target_temp_low: 15
+  #     target_temp_high: 28
 
 
-  - platform: dual_smart_thermostat
-    name: Dual Humidity
-    unique_id: dual_humidity
-    heater: switch.heater
-    cooler: switch.cooler
-    dryer: switch.dryer
-    target_sensor: sensor.room_temp
-    humidity_sensor: sensor.humidity
-    heat_cool_mode: true
-    target_temp_step: 0.1
-    sensor_stale_duration: "00:10"
-    precision: 0.1
-    min_temp: 9
-    max_temp: 32
-    target_temp: 20
-    cold_tolerance: 0.3
-    hot_tolerance: 0.3
-    away:
-      target_temp_high: 30
-      target_temp_low: 23
-      humidity: 55
-    sleep:
-      target_temp_high: 26
-      target_temp_low: 18
-      humidity: 60
+  # - platform: dual_smart_thermostat
+  #   name: Dual Humidity
+  #   unique_id: dual_humidity
+  #   heater: switch.heater
+  #   cooler: switch.cooler
+  #   dryer: switch.dryer
+  #   target_sensor: sensor.room_temp
+  #   humidity_sensor: sensor.humidity
+  #   heat_cool_mode: true
+  #   target_temp_step: 0.1
+  #   sensor_stale_duration: "00:10"
+  #   precision: 0.1
+  #   min_temp: 9
+  #   max_temp: 32
+  #   target_temp: 20
+  #   cold_tolerance: 0.3
+  #   hot_tolerance: 0.3
+  #   away:
+  #     target_temp_high: 30
+  #     target_temp_low: 23
+  #     humidity: 55
+  #   sleep:
+  #     target_temp_high: 26
+  #     target_temp_low: 18
+  #     humidity: 60
 
-  - platform: dual_smart_thermostat
-    name: Dual Heat Pump
-    unique_id: dual_heat_pump
-    heater: switch.heater
-    target_sensor: sensor.room_temp
-    heat_pump_cooling: switch.heat_pump_cool
-    heat_cool_mode: true
-    target_temp_step: 0.1
-    precision: 0.1
-    min_temp: 9
-    max_temp: 32
-    target_temp: 20
-    cold_tolerance: 0.3
-    hot_tolerance: 0.3
+  # - platform: dual_smart_thermostat
+  #   name: Dual Heat Pump
+  #   unique_id: dual_heat_pump
+  #   heater: switch.heater
+  #   target_sensor: sensor.room_temp
+  #   heat_pump_cooling: switch.heat_pump_cool
+  #   heat_cool_mode: true
+  #   target_temp_step: 0.1
+  #   precision: 0.1
+  #   min_temp: 9
+  #   max_temp: 32
+  #   target_temp: 20
+  #   cold_tolerance: 0.3
+  #   hot_tolerance: 0.3
 
 
   # - platform: dual_smart_thermostat

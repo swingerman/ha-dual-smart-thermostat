@@ -183,7 +183,10 @@ async def test_default_setup_params(
     assert state.attributes.get("target_temp_step") == 0.1
 
 
-@pytest.mark.parametrize("hvac_mode", [HVACMode.OFF, HVACMode.HEAT])
+@pytest.mark.parametrize(
+    "hvac_mode",
+    [HVACMode.OFF, HVACMode.HEAT],
+)
 async def test_restore_state(hass: HomeAssistant, hvac_mode) -> None:
     """Ensure states are restored on startup."""
     common.mock_restore_cache(
