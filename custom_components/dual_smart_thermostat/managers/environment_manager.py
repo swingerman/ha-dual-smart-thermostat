@@ -546,7 +546,11 @@ class EnvironmentManager(StateManager):
             self._target_temp_high += PRECISION_WHOLE
 
     def set_temepratures_from_hvac_mode_and_presets(
-        self, hvac_mode: HVACMode, preset_mode: str, presets_range: dict[str, Any]
+        self,
+        hvac_mode: HVACMode,
+        preset_mode: str,
+        presets_range: dict[str, Any],
+        old_preset_mode: str | None = None,
     ) -> None:
         if preset_mode is None or preset_mode is PRESET_NONE:
             return
@@ -558,13 +562,34 @@ class EnvironmentManager(StateManager):
             presets_range,
         )
 
-        if hvac_mode == HVACMode.HEAT and presets_range[preset_mode][0] is not None:
+        if (
+            hvac_mode == HVACMode.HEAT
+            and preset_mode in presets_range
+            and presets_range[preset_mode][0] is not None
+        ):
+            _LOGGER.debug(
+                "HVACMode.HEAT Setting target temp from preset: %s",
+                presets_range[preset_mode][0],
+            )
             self._target_temp = presets_range[preset_mode][0]
         elif (
             hvac_mode in [HVACMode.COOL, HVACMode.FAN_ONLY]
+            and preset_mode in presets_range
             and presets_range[preset_mode][0] is not None
         ):
-            self._target_temp = presets_range[preset_mode][1]
+            _LOGGER.debug(
+                "HVACMode.COOL, HVACMode.FAN_ONLY Setting target temp from preset: %s, sved_target_temp: %s",
+                presets_range[preset_mode][1],
+                self._saved_target_temp,
+            )
+            preset_match_old = old_preset_mode == preset_mode
+            self._target_temp = (
+                self._saved_target_temp
+                if preset_match_old and self._saved_target_temp
+                else presets_range[preset_mode][1]
+            )
+        else:
+            _LOGGER.debug("Setting target temp from preset, unhandled case")
 
     def apply_old_state(self, old_state: State) -> None:
         _LOGGER.debug("Applying old state: %s", old_state)

@@ -12,7 +12,6 @@ from homeassistant.components.climate import (
     HVACMode,
 )
 from homeassistant.components.climate.const import (
-    ATTR_PRESET_MODE,
     ATTR_TARGET_TEMP_HIGH,
     ATTR_TARGET_TEMP_LOW,
     PRESET_NONE,
@@ -610,24 +609,15 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                 self._hvac_mode,
             )
 
+            # Set correct support flag as the following actions depend on it
+            self._set_support_flags()
+
             # restore previous preset mode if available
-            # TODO: completely handle in peset manager
-            old_pres_mode = old_state.attributes.get(ATTR_PRESET_MODE)
-            if self.features.is_range_mode:
-                if (
-                    self._attr_preset_modes
-                    and old_pres_mode in self.presets.presets_range
-                ):
-                    self._attr_preset_mode = old_pres_mode
-
-            elif self._attr_preset_modes and old_pres_mode in self.presets.presets:
-                _LOGGER.debug("Restoring previous preset mode: %s", old_pres_mode)
-                self._attr_preset_mode = old_pres_mode
-
             self.presets.apply_old_state(old_state)
+            self._attr_preset_mode = self.presets.preset_mode
 
             _LOGGER.debug("restoring hvac_mode: %s", hvac_mode)
-            await self.async_set_hvac_mode(hvac_mode)
+            await self.async_set_hvac_mode(hvac_mode, is_restore=True)
 
             self._hvac_action_reason = old_state.attributes.get(ATTR_HVAC_ACTION_REASON)
 
@@ -868,7 +858,9 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
         return should_contorl_climate
 
-    async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
+    async def async_set_hvac_mode(
+        self, hvac_mode: HVACMode, is_restore: bool = False
+    ) -> None:
         """Call climate mode based on current mode."""
         _LOGGER.info("Setting hvac mode: %s", hvac_mode)
 
@@ -882,6 +874,12 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
         self._hvac_mode = hvac_mode
         self._set_support_flags()
+
+        if not is_restore:
+            self.environment.set_temepratures_from_hvac_mode_and_presets(
+                self._hvac_mode, self.presets.preset_mode, self.presets.presets_range
+            )
+
         self._target_humidity = self.environment.target_humidity
 
         await self.hvac_device.async_set_hvac_mode(hvac_mode)
@@ -1213,6 +1211,11 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self.presets.set_preset_mode(preset_mode, self.hvac_device.hvac_mode)
 
         self._attr_preset_mode = self.presets.preset_mode
+
+        self.environment.set_temepratures_from_hvac_mode_and_presets(
+            self._hvac_mode, preset_mode, self.presets.presets_range
+        )
+
         await self._async_control_climate(force=True)
         self.async_write_ha_state()
 
