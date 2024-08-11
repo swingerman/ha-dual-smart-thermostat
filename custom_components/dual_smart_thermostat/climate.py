@@ -581,7 +581,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                 self.environment.update_floor_temp_from_state(floor_sensor_state)
                 self.async_write_ha_state()
 
-            await self.hvac_device.async_on_startup()
+            await self.hvac_device.async_on_startup(self.async_write_ha_state)
 
         if self.hass.state == CoreState.running:
             await _async_startup()
@@ -1162,6 +1162,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
         async with self._temp_lock:
             await self.hvac_device.async_control_hvac(time, force)
+
             _LOGGER.info(
                 "updating HVACActionReason: %s", self.hvac_device.HVACActionReason
             )
