@@ -1,5 +1,6 @@
 from datetime import timedelta
 import logging
+from typing import Callable
 
 from homeassistant.components.climate import HVACMode
 from homeassistant.components.valve import DOMAIN as VALVE_DOMAIN, ValveEntityFeature
@@ -237,8 +238,11 @@ class GenericHVACDevice(
         self._hvac_action_reason = self.hvac_controller.hvac_action_reason
         self.hvac_power.update_hvac_power(self.strategy, self.target_env_attr)
 
-    async def async_on_startup(self):
+    async def async_on_startup(self, async_write_ha_state_cb: Callable = None):
+
+        self._async_write_ha_state_cb = async_write_ha_state_cb
         entity_state = self.hass.states.get(self.entity_id)
+
         if entity_state and entity_state.state not in (
             STATE_UNAVAILABLE,
             STATE_UNKNOWN,

@@ -2619,37 +2619,114 @@ async def test_set_target_temp_ac_on_after_fan_tolerance_toggle_off(
         hass.states.get(common.ENTITY).attributes["hvac_action"] == HVACAction.COOLING
     )
 
-    # setup_fan_heat_tolerance_toggle(hass, True)
-    # await hass.async_block_till_done()
+    calls = setup_switch(hass, True, cooler_switch)
+    setup_fan_heat_tolerance_toggle(hass, True)
 
-    # assert hass.states.get(cooler_switch).state == STATE_OFF
-    # assert hass.states.get(fan_switch).state == STATE_ON
-    # assert hass.states.get(common.ENTITY).attributes["hvac_action"] == HVACAction.FAN
+    await hass.async_block_till_done()
 
-    # # within hot_tolerance and fan_hot_tolerance
-    # setup_sensor(hass, 20.5)
-    # await hass.async_block_till_done()
+    _LOGGER.debug("after fan_hot_tolerance_toggle on")
+    _LOGGER.debug("call 1: %s ", calls[0])
+    _LOGGER.debug("call 2: %s ", calls[1])
 
-    # assert hass.states.get(cooler_switch).state == STATE_OFF
-    # assert hass.states.get(fan_switch).state == STATE_ON
-    # assert hass.states.get(common.ENTITY).attributes["hvac_action"] == HVACAction.FAN
+    assert len(calls) == 2
+    call1 = calls[0]
+    assert call1.domain == HASS_DOMAIN
+    assert call1.service == SERVICE_TURN_ON
+    assert call1.data["entity_id"] == fan_switch
 
-    # # within hot_tolerance and fan_hot_tolerance
-    # setup_sensor(hass, 20.7)
-    # await hass.async_block_till_done()
+    call2 = calls[1]
+    assert call2.domain == HASS_DOMAIN
+    assert call2.service == SERVICE_TURN_OFF
+    assert call2.data["entity_id"] == cooler_switch
 
-    # assert hass.states.get(cooler_switch).state == STATE_OFF
-    # assert hass.states.get(fan_switch).state == STATE_ON
+    # if toggling in idle state not turningon anything
+    setup_sensor(hass, 20)
+    calls = setup_switch(hass, False, cooler_switch)
+    setup_fan_heat_tolerance_toggle(hass, False)
+    await hass.async_block_till_done()
 
-    # # outside fan_hot_tolerance, within hot_tolerance
-    # setup_sensor(hass, 20.8)
-    # await hass.async_block_till_done()
+    assert len(calls) == 0
 
-    # assert hass.states.get(cooler_switch).state == STATE_ON
-    # assert hass.states.get(fan_switch).state == STATE_OFF
-    # assert (
-    #     hass.states.get(common.ENTITY).attributes["hvac_action"] == HVACAction.COOLING
-    # )
+    setup_fan_heat_tolerance_toggle(hass, True)
+    await hass.async_block_till_done()
+
+    assert len(calls) == 0
+
+
+async def test_set_target_temp_ac_on_after_fan_tolerance_toggle_when_idle(
+    hass: HomeAssistant, setup_comp_1  # noqa: F811
+) -> None:
+    cooler_switch = "input_boolean.test"
+    fan_switch = "input_boolean.fan"
+    fan_hot_tolerance_toggle = common.ENT_FAN_HOT_TOLERNACE_TOGGLE
+
+    assert await async_setup_component(
+        hass,
+        input_boolean.DOMAIN,
+        {
+            "input_boolean": {
+                "test": None,
+                "fan": None,
+                "test_fan_hot_tolerance_toggle": None,
+            }
+        },
+    )
+
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {"name": "test", "initial": 10, "min": 0, "max": 40, "step": 1}
+            }
+        },
+    )
+
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "cold_tolerance": 0.2,
+                "hot_tolerance": 0.2,
+                "fan_hot_tolerance_toggle": fan_hot_tolerance_toggle,
+                "ac_mode": True,
+                "heater": cooler_switch,
+                "target_sensor": common.ENT_SENSOR,
+                "fan": fan_switch,
+                "fan_hot_tolerance": 0.5,
+                "initial_hvac_mode": HVACMode.OFF,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    await common.async_set_hvac_mode(hass, HVACMode.COOL)
+    await common.async_set_temperature(hass, 20)
+    setup_fan_heat_tolerance_toggle(hass, False)
+    calls = setup_switch(hass, False, cooler_switch)
+
+    # below hot_tolerance
+    setup_sensor(hass, 20)
+    await hass.async_block_till_done()
+
+    assert len(calls) == 0
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+    assert hass.states.get(fan_switch).state == STATE_OFF
+    assert hass.states.get(common.ENTITY).attributes["hvac_action"] == HVACAction.IDLE
+
+    # within hot_tolerance and fan_hot_tolerance
+    # calls = setup_switch(hass, False, cooler_switch)
+    setup_fan_heat_tolerance_toggle(hass, True)
+    await hass.async_block_till_done()
+
+    assert len(calls) == 0
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+    assert hass.states.get(fan_switch).state == STATE_OFF
+
+    assert hass.states.get(common.ENTITY).attributes["hvac_action"] == HVACAction.IDLE
 
 
 async def test_set_target_temp_ac_on_ignore_fan_tolerance(

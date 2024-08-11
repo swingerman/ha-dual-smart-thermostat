@@ -1,4 +1,5 @@
 import logging
+from typing import Callable
 
 from homeassistant.components.climate import HVACAction, HVACMode
 from homeassistant.core import Context, HomeAssistant, callback
@@ -151,9 +152,10 @@ class MultiHvacDevice(HVACDevice, ControlableHVACDevice):
 
             self._hvac_action_reason = device.HVACActionReason
 
-    async def async_on_startup(self):
+    async def async_on_startup(self, async_write_ha_state_cb: Callable = None):
+        self._async_write_ha_state_cb = async_write_ha_state_cb
         for device in self.hvac_devices:
-            await device.async_on_startup()
+            await device.async_on_startup(async_write_ha_state_cb)
 
     async def async_turn_on(self):
         await self.async_control_hvac(force=True)

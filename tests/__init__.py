@@ -1065,9 +1065,11 @@ def setup_boolean(hass: HomeAssistant, entity, state) -> None:
     hass.states.async_set(entity, state)
 
 
-def setup_switch(hass: HomeAssistant, is_on: bool) -> None:
+def setup_switch(
+    hass: HomeAssistant, is_on: bool, entity_id: str = common.ENT_SWITCH
+) -> None:
     """Set up the test switch."""
-    hass.states.async_set(common.ENT_SWITCH, STATE_ON if is_on else STATE_OFF)
+    hass.states.async_set(entity_id, STATE_ON if is_on else STATE_OFF)
     calls = []
 
     @callback
