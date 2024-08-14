@@ -621,6 +621,11 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             _LOGGER.debug("restoring hvac_mode: %s", hvac_mode)
             await self.async_set_hvac_mode(hvac_mode, is_restore=True)
 
+            _LOGGER.debug(
+                "startup hvac_action_reason: %s",
+                old_state.attributes.get(ATTR_HVAC_ACTION_REASON),
+            )
+
             self._hvac_action_reason = old_state.attributes.get(ATTR_HVAC_ACTION_REASON)
 
         else:
@@ -646,6 +651,8 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
         if should_control_climate:
             await self._async_control_climate(force=True)
+
+        self.async_write_ha_state()
 
     async def async_will_remove_from_hass(self) -> None:
         """Call when entity will be removed from hass."""

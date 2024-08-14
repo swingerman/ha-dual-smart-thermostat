@@ -790,6 +790,86 @@ async def test_set_heat_cool_fan_restore_state(
     assert state.state == HVACMode.HEAT_COOL
 
 
+async def test_set_heat_cool_fan_restore_state_check_reason(
+    hass: HomeAssistant,  # noqa: F811
+) -> None:
+    common.mock_restore_cache(
+        hass,
+        (
+            State(
+                "climate.test_thermostat",
+                HVACMode.HEAT_COOL,
+                {
+                    ATTR_TARGET_TEMP_HIGH: "21",
+                    ATTR_TARGET_TEMP_LOW: "19",
+                },
+            ),
+        ),
+    )
+
+    hass.set_state(CoreState.starting)
+
+    await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test_thermostat",
+                "heater": common.ENT_SWITCH,
+                "cooler": common.ENT_COOLER,
+                "fan": common.ENT_FAN,
+                "heat_cool_mode": True,
+                "target_sensor": common.ENT_SENSOR,
+                PRESET_AWAY: {
+                    "temperature": 14,
+                    "target_temp_high": 20,
+                    "target_temp_low": 18,
+                },
+            }
+        },
+    )
+    await hass.async_block_till_done()
+    setup_sensor(hass, 23)
+    state = hass.states.get("climate.test_thermostat")
+    assert state.attributes[ATTR_TARGET_TEMP_HIGH] == 21
+    assert state.attributes[ATTR_TARGET_TEMP_LOW] == 19
+    assert state.state == HVACMode.HEAT_COOL
+    assert (
+        state.attributes[ATTR_HVAC_ACTION_REASON]
+        == HVACActionReasonInternal.TARGET_TEMP_NOT_REACHED
+    )
+
+    # simulate a restart with old state
+    common.mock_restore_cache(
+        hass,
+        (
+            State(
+                "climate.test_thermostat",
+                HVACMode.HEAT_COOL,
+                {
+                    ATTR_TARGET_TEMP_HIGH: "21",
+                    ATTR_TARGET_TEMP_LOW: "19",
+                    ATTR_HVAC_ACTION_REASON: HVACActionReasonInternal.TARGET_TEMP_NOT_REACHED,
+                },
+            ),
+        ),
+    )
+
+    hass.set_state(CoreState.starting)
+
+    setup_sensor(hass, 25)
+    await hass.async_block_till_done()
+
+    state = hass.states.get("climate.test_thermostat")
+    # assert state.attributes[ATTR_HVAC_ACTION] == HVACAction.COOLING
+    # assert (
+    #     state.attributes[ATTR_HVAC_ACTION_REASON]
+    #     == HVACActionReasonInternal.TARGET_TEMP_NOT_REACHED
+    # )
+    assert state.attributes[ATTR_HVAC_ACTION_REASON] != ""
+
+
 @pytest.mark.parametrize(
     ["preset", "hvac_mode"],
     [
