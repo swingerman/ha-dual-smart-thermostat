@@ -39,6 +39,7 @@ import pytest
 
 from custom_components.dual_smart_thermostat.const import (
     ATTR_HVAC_ACTION_REASON,
+    ATTR_PREV_TARGET,
     DOMAIN,
     PRESET_ANTI_FREEZE,
 )
@@ -58,6 +59,7 @@ from . import (  # noqa: F401
     setup_comp_heat_ac_cool_cycle_kepp_alive,
     setup_comp_heat_ac_cool_fan_config,
     setup_comp_heat_ac_cool_presets,
+    setup_comp_heat_ac_cool_presets_range,
     setup_comp_heat_ac_cool_safety_delay,
     setup_fan,
     setup_sensor,
@@ -279,7 +281,7 @@ async def test_set_preset_mode_invalid(
 
 
 @pytest.mark.parametrize(
-    ("preset", "temp"),
+    ("preset", "preset_temp"),
     [
         (PRESET_NONE, 23),
         (PRESET_AWAY, 16),
@@ -293,29 +295,109 @@ async def test_set_preset_mode_invalid(
     ],
 )
 async def test_set_preset_mode_set_temp_keeps_preset_mode(
-    hass: HomeAssistant, setup_comp_heat_ac_cool_presets, preset, temp  # noqa: F811
+    hass: HomeAssistant,
+    setup_comp_heat_ac_cool_presets,  # noqa: F811
+    preset,
+    preset_temp,
 ) -> None:
     """Test the setting preset mode then set temperature.
 
     Verify preset mode preserved while temperature updated.
     """
     target_temp = 32
+
+    # Sets the temperature and apply preset mode, temp should be preset_temp
     await common.async_set_temperature(hass, 23)
     await common.async_set_preset_mode(hass, preset)
     state = hass.states.get(common.ENTITY)
-    assert state.attributes.get("temperature") == temp
+    assert state.attributes.get("temperature") == preset_temp
+    assert (
+        state.attributes.get(ATTR_PREV_TARGET) == 23
+        if preset is not PRESET_NONE
+        else "none"
+    )
+
+    # Changes target temperature, preset mode should be preserved
     await common.async_set_temperature(hass, target_temp)
     assert state.attributes.get("supported_features") == 401
     state = hass.states.get(common.ENTITY)
     assert state.attributes.get("temperature") == target_temp
     assert state.attributes.get("preset_mode") == preset
+    assert (
+        state.attributes.get(ATTR_PREV_TARGET) == 23
+        if preset is not PRESET_NONE
+        else "none"
+    )
     assert state.attributes.get("supported_features") == 401
+
+    # Changes preset_mode to None, temp should be picked from saved temp
     await common.async_set_preset_mode(hass, PRESET_NONE)
     state = hass.states.get(common.ENTITY)
-    if preset == PRESET_NONE:
-        assert state.attributes.get("temperature") == target_temp
-    else:
-        assert state.attributes.get("temperature") == 23
+    assert (
+        state.attributes.get("temperature") == target_temp
+        if preset == PRESET_NONE
+        else 23
+    )
+
+
+@pytest.mark.parametrize(
+    ("preset", "preset_temp"),
+    [
+        (PRESET_NONE, 23),
+        (PRESET_AWAY, 16),
+        (PRESET_COMFORT, 20),
+        (PRESET_ECO, 18),
+        (PRESET_HOME, 19),
+        (PRESET_SLEEP, 17),
+        (PRESET_BOOST, 10),
+        (PRESET_ACTIVITY, 21),
+        (PRESET_ANTI_FREEZE, 5),
+    ],
+)
+async def test_set_preset_mode_picks_temp_from_preset(
+    hass: HomeAssistant,
+    setup_comp_heat_ac_cool_presets_range,  # noqa: F811
+    preset,
+    preset_temp,
+) -> None:
+    """Test the setting preset mode then set temperature.
+
+    Verify preset mode preserved while temperature updated.
+    """
+    target_temp = 32
+
+    # Sets the temperature and apply preset mode, temp should be preset_temp
+    await common.async_set_temperature(hass, 23)
+    await common.async_set_preset_mode(hass, preset)
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes.get("temperature") == preset_temp
+    assert (
+        state.attributes.get(ATTR_PREV_TARGET) == 23
+        if preset is not PRESET_NONE
+        else "none"
+    )
+
+    # Changes target temperature, preset mode should be preserved
+    await common.async_set_temperature(hass, target_temp)
+    assert state.attributes.get("supported_features") == 401
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes.get("temperature") == target_temp
+    assert state.attributes.get("preset_mode") == preset
+    assert (
+        state.attributes.get(ATTR_PREV_TARGET) == 23
+        if preset is not PRESET_NONE
+        else "none"
+    )
+    assert state.attributes.get("supported_features") == 401
+
+    # Changes preset_mode to None, temp should be picked from saved temp
+    await common.async_set_preset_mode(hass, PRESET_NONE)
+    state = hass.states.get(common.ENTITY)
+    assert (
+        state.attributes.get("temperature") == target_temp
+        if preset == PRESET_NONE
+        else 23
+    )
 
 
 async def test_set_target_temp_ac_off(
@@ -341,7 +423,7 @@ async def test_turn_away_mode_on_cooling(
     setup_sensor(hass, 25)
     await hass.async_block_till_done()
     state = hass.states.get(common.ENTITY)
-    assert state.attributes.get("preset_modes") == [PRESET_NONE, PRESET_AWAY]
+    assert set(state.attributes.get("preset_modes")) == set([PRESET_NONE, PRESET_AWAY])
     await common.async_set_temperature(hass, 19)
     await common.async_set_preset_mode(hass, PRESET_AWAY)
     state = hass.states.get(common.ENTITY)
