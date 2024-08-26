@@ -1,5 +1,4 @@
 import logging
-from typing import Any
 
 from homeassistant.components.climate.const import (
     PRESET_NONE,
@@ -34,6 +33,7 @@ from custom_components.dual_smart_thermostat.managers.environment_manager import
     EnvironmentManager,
 )
 from custom_components.dual_smart_thermostat.managers.state_manager import StateManager
+from custom_components.dual_smart_thermostat.preset_env.preset_env import PresetEnv
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -201,8 +201,7 @@ class FeatureManager(StateManager):
 
     def set_support_flags(
         self,
-        presets: dict[str, Any],
-        presets_range,
+        presets: dict[str, PresetEnv],
         preset_mode: str,
         current_hvac_mode: HVACMode = None,
     ) -> None:
@@ -230,14 +229,12 @@ class FeatureManager(StateManager):
             self.environment.set_default_target_humidity()
 
         else:
-            if self.is_target_mode and preset_mode != PRESET_NONE:
-                self.environment.target_temp = self.environment.saved_target_temp
             self._supported_features = (
                 self._default_support_flags
                 | ClimateEntityFeature.TARGET_TEMPERATURE_RANGE
             )
             _LOGGER.debug("Setting support flags to %s", self._supported_features)
-            if len(presets_range):
+            if len(presets):
                 self._supported_features |= ClimateEntityFeature.PRESET_MODE
                 _LOGGER.debug(
                     "Setting support flags presets in range mode to %s",
@@ -252,7 +249,7 @@ class FeatureManager(StateManager):
         if self.is_configured_for_dryer_mode:
             self._supported_features |= ClimateEntityFeature.TARGET_HUMIDITY
 
-    def apply_old_state(self, old_state: State, hvac_mode, presets_range) -> None:
+    def apply_old_state(self, old_state: State | None, hvac_mode, presets=[]) -> None:
         if old_state is None:
             return
 
@@ -268,7 +265,7 @@ class FeatureManager(StateManager):
                 self._default_support_flags
                 | ClimateEntityFeature.TARGET_TEMPERATURE_RANGE
             )
-            if len(presets_range):
+            if len(presets):
                 _LOGGER.debug("Setting support flag: presets for range mode")
                 self._supported_features |= ClimateEntityFeature.PRESET_MODE
 
@@ -276,3 +273,8 @@ class FeatureManager(StateManager):
             self._supported_features = (
                 self._default_support_flags | ClimateEntityFeature.TARGET_TEMPERATURE
             )
+
+    def hvac_modes_support_range_temp(self, hvac_modes: list[HVACMode]) -> bool:
+        return (
+            HVACMode.COOL in hvac_modes or HVACMode.FAN_ONLY in hvac_modes
+        ) and HVACMode.HEAT in hvac_modes

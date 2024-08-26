@@ -283,7 +283,7 @@ async def test_set_preset_mode(
 @pytest.mark.parametrize(
     ("preset", "temp", "humidity"),
     [
-        (PRESET_NONE, 23, 50),
+        (PRESET_NONE, 23, 45),
         (PRESET_AWAY, 16, 60),
         (PRESET_ACTIVITY, 21, 50),
         (PRESET_COMFORT, 20, 55),
@@ -306,20 +306,20 @@ async def test_set_preset_mode_and_restore_prev_humidity(
     Verify original temperature is restored.
     """
     await common.async_set_temperature(hass, 23)
-    await common.async_set_humidity(hass, 50)
+    await common.async_set_humidity(hass, 45)
     await common.async_set_preset_mode(hass, preset)
     state = hass.states.get(common.ENTITY)
     assert state.attributes.get(ATTR_TEMPERATURE) == temp
     await common.async_set_preset_mode(hass, PRESET_NONE)
     state = hass.states.get(common.ENTITY)
     assert state.attributes.get(ATTR_TEMPERATURE) == 23
-    assert state.attributes.get(ATTR_HUMIDITY) == 50
+    assert state.attributes.get(ATTR_HUMIDITY) == 45
 
 
 @pytest.mark.parametrize(
     ("preset", "temp", "humidity"),
     [
-        (PRESET_NONE, 23, 50),
+        (PRESET_NONE, 23, 45),
         (PRESET_AWAY, 16, 60),
         (PRESET_ACTIVITY, 21, 50),
         (PRESET_COMFORT, 20, 55),
@@ -342,7 +342,7 @@ async def test_set_preset_modet_twice_and_restore_prev_humidity(
     Verify original temperature is restored.
     """
     await common.async_set_temperature(hass, 23)
-    await common.async_set_humidity(hass, 50)
+    await common.async_set_humidity(hass, 45)
     await common.async_set_preset_mode(hass, preset)
     await common.async_set_preset_mode(hass, preset)
 
@@ -353,7 +353,7 @@ async def test_set_preset_modet_twice_and_restore_prev_humidity(
     await common.async_set_preset_mode(hass, PRESET_NONE)
     state = hass.states.get(common.ENTITY)
     assert state.attributes.get(ATTR_TEMPERATURE) == 23
-    assert state.attributes.get(ATTR_HUMIDITY) == 50
+    assert state.attributes.get(ATTR_HUMIDITY) == 45
 
 
 async def test_set_preset_mode_invalid(
@@ -377,7 +377,7 @@ async def test_set_preset_mode_invalid(
 @pytest.mark.parametrize(
     ("preset", "temp", "humidity"),
     [
-        (PRESET_NONE, 23, 50),
+        (PRESET_NONE, 23, 45),
         (PRESET_AWAY, 16, 60),
         (PRESET_ACTIVITY, 21, 50),
         (PRESET_COMFORT, 20, 55),
@@ -402,7 +402,7 @@ async def test_set_preset_mode_set_temp_keeps_preset_mode(
     target_temp = 32
     target_humidity = 63
     await common.async_set_temperature(hass, 23)
-    await common.async_set_humidity(hass, 50)
+    await common.async_set_humidity(hass, 45)
 
     await common.async_set_preset_mode(hass, preset)
     state = hass.states.get(common.ENTITY)
@@ -422,7 +422,7 @@ async def test_set_preset_mode_set_temp_keeps_preset_mode(
         assert state.attributes.get(ATTR_HUMIDITY) == target_humidity
     else:
         assert state.attributes.get(ATTR_TEMPERATURE) == 23
-        assert state.attributes.get(ATTR_HUMIDITY) == 50
+        assert state.attributes.get(ATTR_HUMIDITY) == 45
 
 
 async def test_set_target_temp_ac_dry_off(
@@ -449,7 +449,7 @@ async def test_turn_away_mode_on_drying(
     setup_humidity_sensor(hass, 40)
     await hass.async_block_till_done()
     state = hass.states.get(common.ENTITY)
-    assert state.attributes.get("preset_modes") == [PRESET_NONE, PRESET_AWAY]
+    assert set(state.attributes.get("preset_modes")) == set([PRESET_NONE, PRESET_AWAY])
     await common.async_set_temperature(hass, 19)
     await common.async_set_humidity(hass, 60)
     await common.async_set_preset_mode(hass, PRESET_AWAY)
