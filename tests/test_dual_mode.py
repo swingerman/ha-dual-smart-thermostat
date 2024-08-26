@@ -220,7 +220,7 @@ async def test_presets_use_case_80(
 
     state = hass.states.get(common.ENTITY)
     assert state.attributes["supported_features"] == 402
-    assert state.attributes["preset_modes"] == [PRESET_NONE, PRESET_AWAY]
+    assert set(state.attributes["preset_modes"]) == set([PRESET_NONE, PRESET_AWAY])
 
     await common.async_set_preset_mode(hass, PRESET_AWAY)
 
@@ -598,34 +598,40 @@ async def test_set_heat_cool_preset_mode_and_restore_prev_temp_2(
     await common.async_set_temperature(hass, 23, common.ENTITY, 22, 18)
     await common.async_set_preset_mode(hass, preset)
     state = hass.states.get(common.ENTITY)
-    assert state.attributes.get("target_temp_low") == temp_low
-    assert state.attributes.get("target_temp_high") == temp_high
+    assert state.attributes.get(ATTR_TARGET_TEMP_LOW) == temp_low
+    assert state.attributes.get(ATTR_TARGET_TEMP_HIGH) == temp_high
 
     # set temperature updates targets and keeps preset
     await common.async_set_temperature(hass, 23, common.ENTITY, 24, 17)
     await hass.async_block_till_done()
     state = hass.states.get(common.ENTITY)
-    assert state.attributes.get("target_temp_low") == 17
-    assert state.attributes.get("target_temp_high") == 24
-    assert state.attributes.get("preset_mode") == preset
+    assert state.attributes.get(ATTR_TARGET_TEMP_LOW) == 17
+    assert state.attributes.get(ATTR_TARGET_TEMP_HIGH) == 24
+    assert state.attributes.get(ATTR_PRESET_MODE) == preset
 
-    # set preset moe again should set the temps to the preset
+    # set preset mode again should set the temps to the preset
+    # await common.async_set_preset_mode(hass, preset)
+    # state = hass.states.get(common.ENTITY)
+    # assert state.attributes.get(ATTR_TARGET_TEMP_LOW) == temp_low
+    # assert state.attributes.get(ATTR_TARGET_TEMP_HIGH) == temp_high
+
+    # set preset moe again should not set the temps to the preset
     await common.async_set_preset_mode(hass, preset)
     state = hass.states.get(common.ENTITY)
-    assert state.attributes.get("target_temp_low") == temp_low
-    assert state.attributes.get("target_temp_high") == temp_high
+    assert state.attributes.get(ATTR_TARGET_TEMP_LOW) == 17
+    assert state.attributes.get(ATTR_TARGET_TEMP_HIGH) == 24
 
     # preset non should restore the original temps
     await common.async_set_preset_mode(hass, PRESET_NONE)
     state = hass.states.get(common.ENTITY)
-    assert state.attributes.get("target_temp_low") == 18
-    assert state.attributes.get("target_temp_high") == 22
+    assert state.attributes.get(ATTR_TARGET_TEMP_LOW) == 18
+    assert state.attributes.get(ATTR_TARGET_TEMP_HIGH) == 22
 
     # set preset moe again should set the temps to the preset
     await common.async_set_preset_mode(hass, preset)
     state = hass.states.get(common.ENTITY)
-    assert state.attributes.get("target_temp_low") == temp_low
-    assert state.attributes.get("target_temp_high") == temp_high
+    assert state.attributes.get(ATTR_TARGET_TEMP_LOW) == temp_low
+    assert state.attributes.get(ATTR_TARGET_TEMP_HIGH) == temp_high
 
 
 @pytest.mark.parametrize(
@@ -1231,7 +1237,7 @@ async def test_heat_cool_set_preset_mode_in_non_range_mode(
 @pytest.mark.parametrize(
     ("preset", "temp_low", "temp_high"),
     [
-        # (PRESET_NONE, 18, 22),
+        (PRESET_NONE, 7, 35),
         (PRESET_AWAY, 16, 30),
         (PRESET_COMFORT, 20, 27),
         (PRESET_ECO, 18, 29),
@@ -1241,7 +1247,7 @@ async def test_heat_cool_set_preset_mode_in_non_range_mode(
         (PRESET_ANTI_FREEZE, 5, 32),
     ],
 )
-async def test_heat_cool_set_preset_mode_auto_targe_temps_if_range_only_presets(
+async def test_heat_cool_set_preset_mode_auto_target_temps_if_range_only_presets(
     hass: HomeAssistant,
     setup_comp_heat_cool_presets_range_only,  # noqa: F811
     preset,
@@ -1340,7 +1346,7 @@ async def test_heat_cool_fan_set_preset_mode_set_temp_keeps_preset_mode(
 @pytest.mark.parametrize(
     ("preset", "temp_low", "temp_high"),
     [
-        # (PRESET_NONE, 18, 22),
+        (PRESET_NONE, 18, 22),
         (PRESET_AWAY, 16, 30),
         (PRESET_COMFORT, 20, 27),
         (PRESET_ECO, 18, 29),
@@ -1362,38 +1368,44 @@ async def test_heat_cool_fan_set_preset_mode_change_hvac_mode(
     Verify preset mode preserved while temperature updated.
     """
 
+    # sets the temperate and then the preset mode
+    # the manually set temperature must have been saved
     await common.async_set_temperature(hass, 18, common.ENTITY, 22, 18)
     await common.async_set_preset_mode(hass, preset)
     state = hass.states.get(common.ENTITY)
-    assert state.attributes.get("target_temp_low") == temp_low
-    assert state.attributes.get("target_temp_high") == temp_high
+    assert state.attributes.get(ATTR_TARGET_TEMP_LOW) == temp_low
+    assert state.attributes.get(ATTR_TARGET_TEMP_HIGH) == temp_high
 
+    # set the hvac mode to heat
+    # the temperature should be the low target used above
     await common.async_set_hvac_mode(hass, HVACMode.HEAT)
     await hass.async_block_till_done()
 
     state = hass.states.get(common.ENTITY)
-    assert state.attributes.get("preset_mode") == preset
-    assert state.attributes.get("temperature") == temp_low
-    assert state.attributes.get("target_temp_low") is None
-    assert state.attributes.get("target_temp_high") is None
+    assert state.attributes.get(ATTR_PRESET_MODE) == preset
+    assert state.attributes.get(ATTR_TEMPERATURE) == temp_low
+    assert state.attributes.get(ATTR_TARGET_TEMP_LOW) is None
+    assert state.attributes.get(ATTR_TARGET_TEMP_HIGH) is None
 
+    # set the hvac mode to cool
+    # the temperature should be the high target used above
     await common.async_set_hvac_mode(hass, HVACMode.COOL)
     await hass.async_block_till_done()
 
     state = hass.states.get(common.ENTITY)
-    assert state.attributes.get("preset_mode") == preset
-    assert state.attributes.get("temperature") == temp_high
-    assert state.attributes.get("target_temp_low") is None
-    assert state.attributes.get("target_temp_high") is None
+    assert state.attributes.get(ATTR_PRESET_MODE) == preset
+    assert state.attributes.get(ATTR_TEMPERATURE) == temp_high
+    assert state.attributes.get(ATTR_TARGET_TEMP_LOW) is None
+    assert state.attributes.get(ATTR_TARGET_TEMP_HIGH) is None
 
     await common.async_set_hvac_mode(hass, HVACMode.FAN_ONLY)
     await hass.async_block_till_done()
 
     state = hass.states.get(common.ENTITY)
-    assert state.attributes.get("preset_mode") == preset
-    assert state.attributes.get("temperature") == temp_high
-    assert state.attributes.get("target_temp_low") is None
-    assert state.attributes.get("target_temp_high") is None
+    assert state.attributes.get(ATTR_PRESET_MODE) == preset
+    assert state.attributes.get(ATTR_TEMPERATURE) == temp_high
+    assert state.attributes.get(ATTR_TARGET_TEMP_LOW) is None
+    assert state.attributes.get(ATTR_TARGET_TEMP_HIGH) is None
 
 
 ###################

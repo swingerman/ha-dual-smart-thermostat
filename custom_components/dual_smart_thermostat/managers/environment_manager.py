@@ -2,7 +2,6 @@ from datetime import timedelta
 import enum
 import logging
 import math
-from typing import Any
 
 from homeassistant.components.climate import (
     ATTR_TARGET_TEMP_HIGH,
@@ -11,6 +10,7 @@ from homeassistant.components.climate import (
     DEFAULT_MIN_TEMP,
 )
 from homeassistant.components.climate.const import PRESET_NONE, HVACMode
+from homeassistant.components.humidifier import ATTR_HUMIDITY
 from homeassistant.const import ATTR_TEMPERATURE, PRECISION_WHOLE, UnitOfTemperature
 from homeassistant.core import HomeAssistant, State, callback
 from homeassistant.helpers.typing import ConfigType
@@ -44,6 +44,7 @@ from custom_components.dual_smart_thermostat.const import (
     DEFAULT_MAX_FLOOR_TEMP,
 )
 from custom_components.dual_smart_thermostat.managers.state_manager import StateManager
+from custom_components.dual_smart_thermostat.preset_env.preset_env import PresetEnv
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -276,6 +277,7 @@ class EnvironmentManager(StateManager):
             return
 
         self._target_temp = temperature
+        # self._saved_target_temp = temperature
 
     def set_temperature_range(
         self, temperature: float, temp_low: float, temp_high: float
@@ -356,14 +358,6 @@ class EnvironmentManager(StateManager):
 
     def is_too_hot(self, target_attr="_target_temp") -> bool:
         """Checks if the current temperature is above target."""
-        # _LOGGER.debug(
-        #     "is_too_hot,  %s, %s, %s, %s, ishot: %s",
-        #     self._cur_temp,
-        #     target_attr,
-        #     getattr(self, target_attr),
-        #     self._hot_tolerance,
-        #     self._cur_temp >= getattr(self, target_attr) + self._hot_tolerance,
-        # )
         if self._cur_temp is None:
             return False
         target_temp = getattr(self, target_attr)
@@ -545,51 +539,232 @@ class EnvironmentManager(StateManager):
         else:
             self._target_temp_high += PRECISION_WHOLE
 
-    def set_temepratures_from_hvac_mode_and_presets(
-        self,
-        hvac_mode: HVACMode,
-        preset_mode: str,
-        presets_range: dict[str, Any],
-        old_preset_mode: str | None = None,
-    ) -> None:
-        if preset_mode is None or preset_mode is PRESET_NONE:
+    def set_humidity_from_preset(self, preset_mode: str, preset_env: PresetEnv) -> None:
+        if preset_mode is None:
             return
 
         _LOGGER.debug(
-            "Setting temperatures from hvac mode and presets: %s, %s, %s",
-            hvac_mode,
-            preset_mode,
-            presets_range,
+            "Setting humidity from preset: %s, %s", preset_mode, preset_env.to_dict
         )
 
-        if (
-            hvac_mode == HVACMode.HEAT
-            and preset_mode in presets_range
-            and presets_range[preset_mode][0] is not None
-        ):
-            _LOGGER.debug(
-                "HVACMode.HEAT Setting target temp from preset: %s",
-                presets_range[preset_mode][0],
-            )
-            self._target_temp = presets_range[preset_mode][0]
-        elif (
-            hvac_mode in [HVACMode.COOL, HVACMode.FAN_ONLY]
-            and preset_mode in presets_range
-            and presets_range[preset_mode][0] is not None
-        ):
-            _LOGGER.debug(
-                "HVACMode.COOL, HVACMode.FAN_ONLY Setting target temp from preset: %s, sved_target_temp: %s",
-                presets_range[preset_mode][1],
-                self._saved_target_temp,
-            )
-            preset_match_old = old_preset_mode == preset_mode
-            self._target_temp = (
-                self._saved_target_temp
-                if preset_match_old and self._saved_target_temp
-                else presets_range[preset_mode][1]
+        if preset_mode == PRESET_NONE:
+            if self.saved_target_humidity:
+                self.target_humidity = self.saved_target_humidity
+
+        else:
+            if preset_env.to_dict[ATTR_HUMIDITY] is not None:
+                self.saved_target_humidity = self.target_humidity
+                self.target_humidity = preset_env.to_dict[ATTR_HUMIDITY]
+
+    def set_temepratures_from_hvac_mode_and_presets(
+        self,
+        hvac_mode: HVACMode,
+        supports_temp_range: bool,
+        preset_mode: str,
+        preset_env: PresetEnv,
+        is_range_mode: bool,
+        old_preset_mode: str | None = None,
+    ) -> None:
+
+        _LOGGER.debug(
+            "Setting temperatures from hvac mode and presets: %s, %s, %s, %s",
+            hvac_mode,
+            supports_temp_range,
+            preset_mode,
+            preset_env,
+        )
+
+        if preset_mode == PRESET_NONE:
+            self._set_temps_when_no_preset_mode(
+                hvac_mode, is_range_mode, supports_temp_range, old_preset_mode
             )
         else:
-            _LOGGER.debug("Setting target temp from preset, unhandled case")
+            self._set_temps_when_have_preset_mode(
+                preset_mode,
+                preset_env,
+                hvac_mode,
+                supports_temp_range,
+                is_range_mode,
+                old_preset_mode,
+            )
+
+    def _set_temps_when_no_preset_mode(
+        self,
+        hvac_mode,
+        is_range_mode: bool,
+        supports_temp_range: bool,
+        old_preset_mode: str | None,
+    ) -> None:
+        _LOGGER.debug("Setting temperatures from no preset mode")
+        if is_range_mode:
+            _LOGGER.debug(
+                "Setting temperatures from no preset range mode. Old preset: %s",
+                old_preset_mode,
+            )
+            self._set_temps_when_range_mode(old_preset_mode)
+        else:
+            _LOGGER.debug(
+                "Setting temperatures from no preset target mode. Old preset: %s",
+                old_preset_mode,
+            )
+            self._set_temps_when_target_mode(
+                hvac_mode, supports_temp_range, old_preset_mode
+            )
+
+    def _set_temps_when_have_preset_mode(
+        self,
+        preset_mode: str,
+        preset_env: PresetEnv | None,
+        hvac_mode: HVACMode,
+        supports_temp_range: bool,
+        is_range_mode: bool,
+        old_preset_mode: str | None = None,
+    ) -> None:
+        _LOGGER.debug(
+            "Setting temperatures from hvac mode and presets when have preset mode. is_range_mode: %s",
+            is_range_mode,
+        )
+        if is_range_mode:
+            _LOGGER.debug(
+                "Setting temperatures from preset range mode, preset_env: %s",
+                preset_env.to_dict,
+            )
+
+            if preset_env.has_temp_range():
+                self.target_temp_low = preset_env.to_dict[ATTR_TARGET_TEMP_LOW]
+                self.target_temp_high = preset_env.to_dict[ATTR_TARGET_TEMP_HIGH]
+
+        else:
+            _LOGGER.debug(
+                "Setting temperatures from preset_env target mode. preset_env: %s",
+                preset_env.to_dict,
+            )
+
+            if preset_env.has_temp():
+                _LOGGER.debug(
+                    "Setting temperatures from preset target mode if target_temp set"
+                )
+
+                # we prioritize the target temp from preset if it is set
+                if preset_env.has_temp():
+                    self.target_temp = preset_env.to_dict[ATTR_TEMPERATURE]
+                # only after that we check if the temp range is set
+                elif preset_env.has_temp_range():
+                    if hvac_mode == HVACMode.HEAT:
+                        _LOGGER.debug(
+                            "Setting temperatures from preset target mode if HVACMode.HEAT. Preset: %s",
+                            preset_env.to_dict[ATTR_TARGET_TEMP_LOW],
+                        )
+                        self.target_temp = preset_env.to_dict[ATTR_TARGET_TEMP_LOW]
+                    elif hvac_mode in [HVACMode.COOL, HVACMode.FAN_ONLY]:
+                        _LOGGER.debug(
+                            "Setting temperatures from preset target mode if HVACMode.COOL, HVACMode.FAN_ONLY. Preset: %s",
+                            preset_env.to_dict[ATTR_TARGET_TEMP_HIGH],
+                        )
+                        self.target_temp = preset_env.to_dict[ATTR_TARGET_TEMP_HIGH]
+
+                return
+
+            if not preset_env.has_temp_range():
+                _LOGGER.debug(
+                    "Setting temperatures from preset target mode when preset not in presets_range. Saved temp: %s",
+                    self._saved_target_temp,
+                )
+                self.target_temp = self._saved_target_temp
+
+            # handles when temperature is not set in preset but temp range is set
+            else:
+                _LOGGER.debug(
+                    "Setting target temp from range as target temp not found in prese_env: %s",
+                    preset_env,
+                )
+
+                if hvac_mode == HVACMode.HEAT:
+                    _LOGGER.debug(
+                        "Setting temperatures from preset range mode if HVACMode.HEAT. Preset: %s",
+                        preset_env.to_dict[ATTR_TARGET_TEMP_LOW],
+                    )
+                    self._target_temp = preset_env.to_dict[ATTR_TARGET_TEMP_LOW]
+                elif hvac_mode in [HVACMode.COOL, HVACMode.FAN_ONLY]:
+                    _LOGGER.debug(
+                        "Setting temperatures from preset range mode if HVACMode.COOL, HVACMode.FAN_ONLY. Preset: %s, sved_target_temp: %s",
+                        preset_env.to_dict[ATTR_TARGET_TEMP_HIGH],
+                        self._saved_target_temp,
+                    )
+                    preset_match_old = old_preset_mode == preset_mode
+                    self._target_temp = (
+                        self._saved_target_temp
+                        if preset_match_old and self._saved_target_temp
+                        else preset_env.to_dict[ATTR_TARGET_TEMP_HIGH]
+                    )
+                else:
+                    _LOGGER.debug("Setting target temp from preset, unhandled case")
+
+    def _set_temps_when_range_mode(self, old_preset_mode: str | None) -> None:
+        # switching from preset other than NONE to NONE
+        if old_preset_mode is not PRESET_NONE and old_preset_mode is not None:
+            _LOGGER.debug(
+                "Setting temperatures from no preset range mode. Old preset: %s, target temp low: %s, target temp high: %s, saved target temp low: %s, saved target temp high: %s",
+                old_preset_mode,
+                self.target_temp_low,
+                self.target_temp_high,
+                self.saved_target_temp_low,
+                self.saved_target_temp_high,
+            )
+            self.target_temp_low = (
+                self.saved_target_temp_low
+                if self.saved_target_temp_low
+                else self.target_temp_low
+            )
+            self.target_temp_high = (
+                self.saved_target_temp_high
+                if self.saved_target_temp_high
+                else self.target_temp_high
+            )
+        else:
+            _LOGGER.debug(
+                "Setting temperatures from no preset range mode. Old preset: %s, target temp low: %s, target temp high: %s",
+                old_preset_mode,
+                self.target_temp_low,
+                self.target_temp_high,
+            )
+            self.saved_target_temp_low = self.target_temp_low
+            self.saved_target_temp_high = self.target_temp_high
+
+    def _set_temps_when_target_mode(
+        self,
+        hvac_mode: HVACMode,
+        supports_temp_range: bool,
+        old_preset_mode: str | None,
+    ) -> None:
+        if (
+            old_preset_mode is not PRESET_NONE
+            and old_preset_mode is not None
+            and self.saved_target_temp is not None
+        ):
+            _LOGGER.debug(
+                "Setting temperatures from no preset target mode. Old preset: %s, saved target temp: %s",
+                old_preset_mode,
+                self.saved_target_temp,
+            )
+            self.target_temp = self.saved_target_temp
+        # switching from preset NONE to NONE
+        elif supports_temp_range:
+            if hvac_mode in [HVACMode.COOL, HVACMode.FAN_ONLY]:
+                _LOGGER.debug(
+                    "Setting temperatures from no preset target mode. HVACMode.COOL, target temp: %s",
+                    self.target_temp,
+                )
+                self.target_temp = self.target_temp_high
+
+            elif hvac_mode == HVACMode.HEAT:
+                _LOGGER.debug(
+                    "Setting temperatures from no preset target mode. HVACMode.HEAT, target temp: %s",
+                    self.target_temp,
+                )
+                self.target_temp = self.target_temp_low
+        else:
+            self.saved_target_temp = self.target_temp
 
     def apply_old_state(self, old_state: State) -> None:
         _LOGGER.debug("Applying old state: %s", old_state)

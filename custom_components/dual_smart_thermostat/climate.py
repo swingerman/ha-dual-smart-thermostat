@@ -598,9 +598,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             if hvac_mode not in self.hvac_modes:
                 hvac_mode = HVACMode.OFF
 
-            self.features.apply_old_state(
-                old_state, hvac_mode, self.presets.presets_range
-            )
+            self.features.apply_old_state(old_state, hvac_mode, self.presets.presets)
             self._attr_supported_features = self.features.supported_features
 
             self.environment.set_default_target_temps(
@@ -761,30 +759,14 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         """Return entity specific state attributes to be saved."""
 
         attributes = {}
-        if self._target_temp_low is not None:
-            if self._attr_preset_mode != PRESET_NONE and self.features.is_range_mode:
-                attributes[ATTR_PREV_TARGET_LOW] = (
-                    self.environment.saved_target_temp_low
-                )
-            else:
-                attributes[ATTR_PREV_TARGET_LOW] = self.environment.target_temp_low
-        if self._target_temp_high is not None:
-            if self._attr_preset_mode != PRESET_NONE and self.features.is_range_mode:
-                attributes[ATTR_PREV_TARGET_HIGH] = (
-                    self.environment.saved_target_temp_high
-                )
-            else:
-                attributes[ATTR_PREV_TARGET_HIGH] = self.environment.target_temp_high
-        if self._target_temp is not None:
-            _LOGGER.debug(
-                "Setting previous target temp: %s, %s",
-                self.environment.target_temp,
-                self.environment.saved_target_temp,
-            )
-            if self._attr_preset_mode != PRESET_NONE and self.features.is_target_mode:
-                attributes[ATTR_PREV_TARGET] = self.environment.saved_target_temp
-            else:
-                attributes[ATTR_PREV_TARGET] = self.environment.target_temp
+        if self.environment.saved_target_temp_low is not None:
+            attributes[ATTR_PREV_TARGET_LOW] = self.environment.saved_target_temp_low
+
+        if self.environment.saved_target_temp_high is not None:
+            attributes[ATTR_PREV_TARGET_HIGH] = self.environment.saved_target_temp_high
+
+        if self.environment.saved_target_temp is not None:
+            attributes[ATTR_PREV_TARGET] = self.environment.saved_target_temp
 
         if self._cur_humidity is not None:
             attributes[ATTR_PREV_HUMIDITY] = self.environment.target_humidity
@@ -808,7 +790,6 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
     def _set_support_flags(self) -> None:
         self.features.set_support_flags(
             self.presets.presets,
-            self.presets.presets_range,
             self.presets.preset_mode,
             self._hvac_mode,
         )
@@ -877,7 +858,11 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
         if not is_restore:
             self.environment.set_temepratures_from_hvac_mode_and_presets(
-                self._hvac_mode, self.presets.preset_mode, self.presets.presets_range
+                self._hvac_mode,
+                self.features.hvac_modes_support_range_temp(self._attr_hvac_modes),
+                self.presets.preset_mode,
+                self.presets.preset_env,
+                self.features.is_range_mode,
             )
 
         self._target_humidity = self.environment.target_humidity
@@ -1209,13 +1194,37 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         return self.hvac_device.is_active
 
     async def async_set_preset_mode(self, preset_mode: str) -> None:
-        self.presets.set_preset_mode(preset_mode, self.hvac_device.hvac_mode)
+        """Set new preset mode."""
+        _LOGGER.debug(
+            "Climate Setting preset mode: %s, is_range_mode: %s",
+            preset_mode,
+            self.features.is_range_mode,
+        )
+
+        old_preset_mode = self.presets.preset_mode
+
+        if old_preset_mode == preset_mode:
+            _LOGGER.debug("Preset mode is the same, skipping")
+            return
+
+        self.presets.set_preset_mode(preset_mode)
 
         self._attr_preset_mode = self.presets.preset_mode
 
         self.environment.set_temepratures_from_hvac_mode_and_presets(
-            self._hvac_mode, preset_mode, self.presets.presets_range
+            self._hvac_mode,
+            self.features.hvac_modes_support_range_temp(self._attr_hvac_modes),
+            preset_mode,
+            self.presets.preset_env,
+            is_range_mode=self.features.is_range_mode,
+            old_preset_mode=old_preset_mode,
         )
+
+        if self.features.is_configured_for_dryer_mode:
+
+            self.environment.set_humidity_from_preset(
+                self.presets.preset_mode, self.presets.preset_env
+            )
 
         await self._async_control_climate(force=True)
         self.async_write_ha_state()
