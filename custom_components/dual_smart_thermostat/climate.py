@@ -765,33 +765,8 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         if self.environment.saved_target_temp_high is not None:
             attributes[ATTR_PREV_TARGET_HIGH] = self.environment.saved_target_temp_high
 
-        # if self.environment.target_temp_low is not None:
-        #     if self._attr_preset_mode != PRESET_NONE and self.features.is_range_mode:
-        #         attributes[ATTR_PREV_TARGET_LOW] = (
-        #             self.environment.saved_target_temp_low
-        #         )
-        #     else:
-        #         attributes[ATTR_PREV_TARGET_LOW] = self.environment.target_temp_low
-        # if self.environment.target_temp_high is not None:
-        #     if self._attr_preset_mode != PRESET_NONE and self.features.is_range_mode:
-        #         attributes[ATTR_PREV_TARGET_HIGH] = (
-        #             self.environment.saved_target_temp_high
-        #         )
-        #     else:
-        #         attributes[ATTR_PREV_TARGET_HIGH] = self.environment.target_temp_high
         if self.environment.saved_target_temp is not None:
             attributes[ATTR_PREV_TARGET] = self.environment.saved_target_temp
-        # if self.environment.target_temp is not None:
-        #     _LOGGER.debug(
-        #         "Setting previous target temp: %s, %s, %s",
-        #         self.environment.target_temp,
-        #         self.environment.saved_target_temp,
-        #         self._attr_preset_mode,
-        #     )
-        #     if self._attr_preset_mode != PRESET_NONE and self.features.is_target_mode:
-        #         attributes[ATTR_PREV_TARGET] = self.environment.saved_target_temp
-        #     else:
-        #         attributes[ATTR_PREV_TARGET] = self.environment.target_temp
 
         if self._cur_humidity is not None:
             attributes[ATTR_PREV_HUMIDITY] = self.environment.target_humidity
@@ -1232,9 +1207,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             _LOGGER.debug("Preset mode is the same, skipping")
             return
 
-        self.presets.set_preset_mode(
-            preset_mode, self.hvac_device.hvac_mode, self.hvac_device.hvac_modes
-        )
+        self.presets.set_preset_mode(preset_mode)
 
         self._attr_preset_mode = self.presets.preset_mode
 

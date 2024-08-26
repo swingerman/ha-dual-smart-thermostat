@@ -5,7 +5,6 @@ from homeassistant.components.climate.const import (
     ATTR_TARGET_TEMP_HIGH,
     ATTR_TARGET_TEMP_LOW,
     PRESET_NONE,
-    HVACMode,
 )
 from homeassistant.const import ATTR_TEMPERATURE
 from homeassistant.core import State
@@ -115,9 +114,7 @@ class PresetManager(StateManager):
                 )
         return presets
 
-    def set_preset_mode(
-        self, preset_mode: str, hvac_mode: HVACMode, hvac_modes: list[HVACMode]
-    ) -> None:
+    def set_preset_mode(self, preset_mode: str) -> None:
         """Set new preset mode."""
         _LOGGER.debug("Setting preset mode: %s", preset_mode)
         if preset_mode not in (self.preset_modes or []):
@@ -131,20 +128,14 @@ class PresetManager(StateManager):
         # if preset_mode == self._preset_mode we still need to continue
         # to set the target environment to the preset mode
         if preset_mode == PRESET_NONE:
-            self._set_presets_when_no_preset_mode()
+            self._preset_mode = PRESET_NONE
+            self._preset_env = PresetEnv()
         else:
-            self._set_presets_when_have_preset_mode(preset_mode, hvac_mode, hvac_modes)
+            self._set_presets_when_have_preset_mode(preset_mode)
 
         _LOGGER.debug("Preset env set: %s", self._preset_env)
 
-    def _set_presets_when_no_preset_mode(self):
-        """Sets target environment when preset is none."""
-        self._preset_mode = PRESET_NONE
-        self._preset_env = PresetEnv()
-
-    def _set_presets_when_have_preset_mode(
-        self, preset_mode: str, hvac_mode: HVACMode, hvac_modes: list[HVACMode]
-    ):
+    def _set_presets_when_have_preset_mode(self, preset_mode: str):
         """Sets target temperatures when have preset is not none."""
         _LOGGER.debug("Setting presets when have preset mode")
         if self._features.is_range_mode:

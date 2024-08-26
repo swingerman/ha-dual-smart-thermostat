@@ -550,7 +550,6 @@ class EnvironmentManager(StateManager):
         if preset_mode == PRESET_NONE:
             if self.saved_target_humidity:
                 self.target_humidity = self.saved_target_humidity
-                # self._environment.saved_target_humidity = self._environment.target_humidity
 
         else:
             if preset_env.to_dict[ATTR_HUMIDITY] is not None:
@@ -634,7 +633,6 @@ class EnvironmentManager(StateManager):
             if preset_env.has_temp_range():
                 self.target_temp_low = preset_env.to_dict[ATTR_TARGET_TEMP_LOW]
                 self.target_temp_high = preset_env.to_dict[ATTR_TARGET_TEMP_HIGH]
-                return
 
         else:
             _LOGGER.debug(
@@ -673,7 +671,6 @@ class EnvironmentManager(StateManager):
                     self._saved_target_temp,
                 )
                 self.target_temp = self._saved_target_temp
-                return
 
             # handles when temperature is not set in preset but temp range is set
             else:
