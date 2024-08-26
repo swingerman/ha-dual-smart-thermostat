@@ -229,9 +229,6 @@ class FeatureManager(StateManager):
             self.environment.set_default_target_humidity()
 
         else:
-            # TODO: Preset based ltemperature logic should move to environment manager
-            if self.is_target_mode and preset_mode != PRESET_NONE:
-                self.environment.target_temp = self.environment.saved_target_temp
             self._supported_features = (
                 self._default_support_flags
                 | ClimateEntityFeature.TARGET_TEMPERATURE_RANGE
@@ -252,7 +249,9 @@ class FeatureManager(StateManager):
         if self.is_configured_for_dryer_mode:
             self._supported_features |= ClimateEntityFeature.TARGET_HUMIDITY
 
-    def apply_old_state(self, old_state: State, hvac_mode, presets) -> None:
+    def apply_old_state(
+        self, old_state: State | None, hvac_mode: HVACMode | None = None, presets=[]
+    ) -> None:
         if old_state is None:
             return
 
