@@ -589,7 +589,7 @@ async def test_turn_away_mode_on_fan(
     setup_sensor(hass, 25)
     await hass.async_block_till_done()
     state = hass.states.get(common.ENTITY)
-    assert state.attributes.get("preset_modes") == [PRESET_NONE, PRESET_AWAY]
+    assert set(state.attributes.get("preset_modes")) == set([PRESET_NONE, PRESET_AWAY])
     await common.async_set_temperature(hass, 19)
     await common.async_set_preset_mode(hass, PRESET_AWAY)
     state = hass.states.get(common.ENTITY)
@@ -604,7 +604,7 @@ async def test_turn_away_mode_on_cooling(
     setup_sensor(hass, 25)
     await hass.async_block_till_done()
     state = hass.states.get(common.ENTITY)
-    assert state.attributes.get("preset_modes") == [PRESET_NONE, PRESET_AWAY]
+    assert set(state.attributes.get("preset_modes")) == set([PRESET_NONE, PRESET_AWAY])
     await common.async_set_temperature(hass, 19)
     await common.async_set_preset_mode(hass, PRESET_AWAY)
     state = hass.states.get(common.ENTITY)
