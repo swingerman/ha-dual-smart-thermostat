@@ -296,6 +296,7 @@ class GenericHVACDevice(
         if self.entity_id is not None and self.hass.states.is_state(
             self.entity_id, STATE_OFF
         ):
+            _LOGGER.debug("Turning on entity if state not on %s", self.entity_id)
             await self.hass.services.async_call(
                 HA_DOMAIN,
                 SERVICE_TURN_ON,

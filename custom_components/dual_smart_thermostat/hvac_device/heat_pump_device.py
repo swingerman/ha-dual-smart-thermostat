@@ -143,6 +143,7 @@ class HeatPumpDevice(GenericHVACDevice):
 
     def _apply_heat_pump_cooling_state(self, state: State = None) -> None:
         """Applies the state of the heat pump cooling entity to the device."""
+        _LOGGER.debug("Applying heat pump cooling state, state: %s", state)
         entity_id = self.features.heat_pump_cooling_entity_id
         entity_state = state or self.hass.states.get(entity_id)
 
@@ -165,6 +166,8 @@ class HeatPumpDevice(GenericHVACDevice):
             )
             self._heat_pump_is_cooling = False
 
+        _LOGGER.debug("Heat pump is cooling applied: %s", self._heat_pump_is_cooling)
+
         self._change_hvac_strategy(self._heat_pump_is_cooling)
         self._change_hvac_modes(self._heat_pump_is_cooling)
         self._change_hvac_mode(self._heat_pump_is_cooling)
@@ -184,18 +187,29 @@ class HeatPumpDevice(GenericHVACDevice):
         """Changes the HVAC modes based on the heat pump's current mode."""
         hvac_mode_set = set(self.hvac_modes)
         if heat_pump_is_cooling:
+            _LOGGER.debug(
+                "Heat pump is cooling, discarding HEAT mode and adding COOL mode"
+            )
             hvac_mode_set.discard(HVACMode.HEAT)
             hvac_mode_set.add(HVACMode.COOL)
             self.hvac_modes = list(hvac_mode_set)
 
         else:
+            _LOGGER.debug(
+                "Heat pump is heating, discarding COOL mode and adding HEAT mode"
+            )
             hvac_mode_set.discard(HVACMode.COOL)
             hvac_mode_set.add(HVACMode.HEAT)
             self.hvac_modes = list(hvac_mode_set)
 
     def _change_hvac_mode(self, heat_pump_is_cooling: bool) -> None:
         """Changes the HVAC mode based on the heat pump's current mode."""
-        _LOGGER.debug("Changing hvac mode based on heat pump mode")
+        _LOGGER.debug(
+            "Changing hvac mode based on heat pump mode, heat_pump_is_cooling: %s, hvac_mode: %s, hvac_modes: %s",
+            heat_pump_is_cooling,
+            self.hvac_mode,
+            self.hvac_modes,
+        )
         if (
             self.hvac_mode is not None
             and self.hvac_mode is not HVACMode.OFF
@@ -205,6 +219,7 @@ class HeatPumpDevice(GenericHVACDevice):
                 self.hvac_mode = HVACMode.COOL
             else:
                 self.hvac_mode = HVACMode.HEAT
+        _LOGGER.debug("Changed hvac mode based on heat pump mode: %s", self.hvac_mode)
 
     # override
     def on_target_temperature_change(self, temperatures: TargetTemperatures) -> None:
