@@ -780,8 +780,16 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             _LOGGER.debug(
                 "Setting HVAC Power Level: %s", self.power_manager.hvac_power_level
             )
-            attributes[ATTR_HVAC_POWER_LEVEL] = self.power_manager.hvac_power_level
-            attributes[ATTR_HVAC_POWER_PERCENT] = self.power_manager.hvac_power_percent
+            attributes[ATTR_HVAC_POWER_LEVEL] = (
+                self.power_manager.hvac_power_level
+                if self.hvac_device.hvac_mode != HVACMode.OFF
+                else 0
+            )
+            attributes[ATTR_HVAC_POWER_PERCENT] = (
+                self.power_manager.hvac_power_percent
+                if self.hvac_device.hvac_mode != HVACMode.OFF
+                else 0
+            )
 
         _LOGGER.debug("Extra state attributes: %s", attributes)
 
