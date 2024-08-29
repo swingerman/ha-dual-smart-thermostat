@@ -158,7 +158,7 @@ class HvacPowerManager:
         # should increase or decrease the power level based on the difference between the current and target temperature
         _LOGGER.debug("Calculating hvac power level")
 
-        calculated_power_level = round(env_difference / step_value, 0)
+        calculated_power_level = round(env_difference / step_value)
 
         return max(
             self._hvac_power_min, min(calculated_power_level, self._hvac_power_max)
@@ -171,7 +171,7 @@ class HvacPowerManager:
         # should increase or decrease the power level based on the difference between the current and target temperature
         _LOGGER.debug("Calculating hvac power percent")
 
-        calculated_power_percent = round(env_difference / power_tolerance * 100, 0)
+        calculated_power_percent = round(env_difference / power_tolerance * 100)
 
         return max(
             self._hvac_power_min_percent,
