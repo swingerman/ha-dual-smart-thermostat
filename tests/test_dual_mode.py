@@ -1162,7 +1162,7 @@ async def test_heat_cool_set_preset_mode_set_temp_keeps_preset_mode(
 
     Verify preset mode preserved while temperature updated.
     """
-    test_target_temp_low = 3
+    test_target_temp_low = 7
     test_target_temp_high = 33
     await common.async_set_temperature(hass, 18, common.ENTITY, 22, 18)
     await hass.async_block_till_done()
@@ -1314,7 +1314,7 @@ async def test_heat_cool_fan_set_preset_mode_set_temp_keeps_preset_mode(
 
     Verify preset mode preserved while temperature updated.
     """
-    test_target_temp_low = 3
+    test_target_temp_low = 7
     test_target_temp_high = 33
     await common.async_set_temperature(hass, 18, common.ENTITY, 22, 18)
     await common.async_set_preset_mode(hass, preset)

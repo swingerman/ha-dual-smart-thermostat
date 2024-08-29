@@ -851,7 +851,9 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
         if hvac_mode == HVACMode.OFF:
             self._last_hvac_mode = self.hvac_device.hvac_mode
-            _LOGGER.debug("Turning off with hvac mode: %s", self._last_hvac_mode)
+            _LOGGER.debug(
+                "Turning off with saving last hvac mode: %s", self._last_hvac_mode
+            )
 
         self._hvac_mode = hvac_mode
         self._set_support_flags()
@@ -1081,11 +1083,15 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
         self.hvac_device.on_entity_state_changed(data["entity_id"], data["new_state"])
 
-        await self._asyn_entity_heat_pump_cooling_changed(data["new_state"])
+        await self._async_entity_heat_pump_cooling_changed(data["new_state"])
+        _LOGGER.debug(
+            "hvac modes after entity heat pump cooling change: %s",
+            self.hvac_device.hvac_modes,
+        )
         self._attr_hvac_modes = self.hvac_device.hvac_modes
         self.async_write_ha_state()
 
-    async def _asyn_entity_heat_pump_cooling_changed(
+    async def _async_entity_heat_pump_cooling_changed(
         self, new_state: State | None, trigger_control=True
     ) -> None:
         """Handle heat pump cooling changes."""
@@ -1255,6 +1261,8 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             ]
             device_hvac_modes_not_off.sort()  # for sake of predictability and consistency
 
+            _LOGGER.debug("device_hvac_modes_not_off: %s", device_hvac_modes_not_off)
+
             # prioritize heat_cool mode if available
             if (
                 HVACMode.HEAT_COOL in device_hvac_modes_not_off
@@ -1264,7 +1272,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             else:
                 on_hvac_mode = device_hvac_modes_not_off[0]
 
-        _LOGGER.debug("Turning on with hvac mode: %s", on_hvac_mode)
+        _LOGGER.debug("turned on with hvac mode: %s", on_hvac_mode)
         await self.async_set_hvac_mode(on_hvac_mode)
 
     async def async_turn_off(self) -> None:
