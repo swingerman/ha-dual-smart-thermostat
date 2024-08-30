@@ -72,7 +72,9 @@ class GenericHvacController(HvacController):
         on_state = STATE_OPEN if self._is_valve else STATE_ON
 
         _LOGGER.debug(
-            "Checking if device is active: %s, on_state: %s", self.entity_id, on_state
+            "Checking if device is active: %s, on_state: %s",
+            self.entity_id,
+            on_state,
         )
         if self.entity_id is not None and self.hass.states.is_state(
             self.entity_id, on_state
@@ -132,14 +134,21 @@ class GenericHvacController(HvacController):
     ) -> None:
         """Check if we need to turn heating on or off when theheater is on."""
 
+        _LOGGER.debug("%s _async_control_device_when_on", self.__class__.__name__)
         _LOGGER.debug("below_env_attr: %s", strategy.hvac_goal_reached)
+        _LOGGER.debug("any_opening_open: %s", any_opening_open)
+        _LOGGER.debug("hvac_goal_reached: %s", strategy.hvac_goal_reached)
 
         if strategy.hvac_goal_reached or any_opening_open:
             _LOGGER.debug("Turning off entity %s", self.entity_id)
+
             await self.async_turn_off_callback()
+
             if strategy.hvac_goal_reached:
+                _LOGGER.debug("setting hvac_action_reason goal reached")
                 self._hvac_action_reason = strategy.goal_reached_reason()
             if any_opening_open:
+                _LOGGER.debug("setting hvac_action_reason opening")
                 self._hvac_action_reason = HVACActionReason.OPENING
 
         elif time is not None and not any_opening_open:
@@ -150,6 +159,8 @@ class GenericHvacController(HvacController):
             )
             await self.async_turn_on_callback()
             self._hvac_action_reason = strategy.goal_not_reached_reason()
+        else:
+            _LOGGER.debug("No case matched when - keep device on")
 
     async def async_control_device_when_off(
         self,

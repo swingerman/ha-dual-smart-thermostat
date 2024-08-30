@@ -1,5 +1,6 @@
 import logging
 
+from homeassistant.components.climate import HVACAction
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.util.unit_system import US_CUSTOMARY_SYSTEM
@@ -104,7 +105,7 @@ class HvacPowerManager:
         )
 
     def update_hvac_power(
-        self, strategy: HvacEnvStrategy, target_env_attr: str
+        self, strategy: HvacEnvStrategy, target_env_attr: str, hvac_action: HVACAction
     ) -> None:
         """updates the hvac power level based on the strategy and the target environment attribute"""
 
@@ -113,7 +114,15 @@ class HvacPowerManager:
         goal_reached = strategy.hvac_goal_reached
         goal_not_reached = strategy.hvac_goal_not_reached
 
-        if goal_reached:
+        _LOGGER.debug("goal reached: %s", goal_reached)
+        _LOGGER.debug("goal not reached: %s", goal_not_reached)
+        _LOGGER.debug("hvac_action: %s", hvac_action)
+
+        if (
+            goal_reached
+            or hvac_action == HVACAction.OFF
+            or hvac_action == HVACAction.IDLE
+        ):
             _LOGGER.debug("Updating hvac power because goal reached")
             self._hvac_power_level = 0
             self._hvac_power_percent = 0
@@ -159,6 +168,13 @@ class HvacPowerManager:
         _LOGGER.debug("Calculating hvac power level")
 
         calculated_power_level = round(env_difference / step_value)
+
+        _LOGGER.debug(
+            "calculated power level, max_power_level, min_power_Level: %s, %s, %s",
+            calculated_power_level,
+            self._hvac_power_max,
+            self._hvac_power_min,
+        )
 
         return max(
             self._hvac_power_min, min(calculated_power_level, self._hvac_power_max)

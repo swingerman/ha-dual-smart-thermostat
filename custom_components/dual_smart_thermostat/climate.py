@@ -780,16 +780,8 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             _LOGGER.debug(
                 "Setting HVAC Power Level: %s", self.power_manager.hvac_power_level
             )
-            attributes[ATTR_HVAC_POWER_LEVEL] = (
-                self.power_manager.hvac_power_level
-                if self.hvac_device.hvac_mode != HVACMode.OFF
-                else 0
-            )
-            attributes[ATTR_HVAC_POWER_PERCENT] = (
-                self.power_manager.hvac_power_percent
-                if self.hvac_device.hvac_mode != HVACMode.OFF
-                else 0
-            )
+            attributes[ATTR_HVAC_POWER_LEVEL] = self.power_manager.hvac_power_level
+            attributes[ATTR_HVAC_POWER_PERCENT] = self.power_manager.hvac_power_percent
 
         _LOGGER.debug("Extra state attributes: %s", attributes)
 
@@ -1171,6 +1163,8 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
     async def _async_control_climate_forced(self, time=None) -> None:
         _LOGGER.debug("_async_control_climate_forced, time %s", time)
         await self._async_control_climate(force=True, time=time)
+
+        self.async_write_ha_state()
 
     @callback
     def _async_hvac_mode_changed(self, hvac_mode) -> None:
