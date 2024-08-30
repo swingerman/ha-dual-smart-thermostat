@@ -344,11 +344,12 @@ class EnvironmentManager(StateManager):
 
     def is_too_cold(self, target_attr="_target_temp") -> bool:
         """Checks if the current temperature is below target."""
-        if self._cur_temp is None:
-            return False
         target_temp = getattr(self, target_attr)
+        if self._cur_temp is None or target_temp is None:
+            return False
+
         _LOGGER.debug(
-            "Target temp attr: %s, Target temp: %s, current temp: %s, tolerance: %s",
+            "is_too_cold - target temp attr: %s, Target temp: %s, current temp: %s, tolerance: %s",
             target_attr,
             target_temp,
             self._cur_temp,
@@ -358,23 +359,37 @@ class EnvironmentManager(StateManager):
 
     def is_too_hot(self, target_attr="_target_temp") -> bool:
         """Checks if the current temperature is above target."""
-        if self._cur_temp is None:
-            return False
         target_temp = getattr(self, target_attr)
+        if self._cur_temp is None or target_temp is None:
+            return False
+
+        _LOGGER.debug(
+            "is_too_hot - target temp attr: %s, Target temp: %s, current temp: %s, tolerance: %s",
+            target_attr,
+            target_temp,
+            self._cur_temp,
+            self._hot_tolerance,
+        )
         return self._cur_temp >= target_temp + self._hot_tolerance
 
     @property
     def is_too_moist(self) -> bool:
         """Checks if the current humidity is above target."""
-        if self._cur_humidity is None:
+        if self._cur_humidity is None or self._target_humidity is None:
             return False
         return self._cur_humidity >= self._target_humidity + self._moist_tolerance
 
     @property
     def is_too_dry(self) -> bool:
         """Checks if the current humidity is below target."""
-        if self._cur_humidity is None:
+        if self._cur_humidity is None or self._target_humidity is None:
             return False
+        _LOGGER.debug(
+            "is_too_dry - Target humidity: %s, current humidity: %s, tolerance: %s",
+            self._target_humidity,
+            self._cur_humidity,
+            self._dry_tolerance,
+        )
         return self._cur_humidity <= self._target_humidity - self._dry_tolerance
 
     @property

@@ -126,7 +126,7 @@ class OpeningManager:
                 _is_open = True
             _LOGGER.debug(
                 "No timeout mode for opening %s, is open: %s.",
-                opening_entity,
+                opening,
                 _is_open,
             )
         return _is_open
@@ -134,6 +134,19 @@ class OpeningManager:
     def _is_opening_timed_out(self, opening: TIMED_OPENING_SCHEMA) -> bool:  # type: ignore
         opening_entity = opening[ATTR_ENTITY_ID]
         _is_open = False
+
+        _LOGGER.debug(
+            "Checking if opening %s is timed out, state: %s, timeout: %s, is_timed_out: %s",
+            opening,
+            self.hass.states.get(opening_entity),
+            opening[ATTR_TIMEOUT],
+            condition.state(
+                self.hass,
+                opening_entity,
+                STATE_OPEN,
+                opening[ATTR_TIMEOUT],
+            ),
+        )
         if condition.state(
             self.hass,
             opening_entity,

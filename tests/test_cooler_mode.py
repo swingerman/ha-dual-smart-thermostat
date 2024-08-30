@@ -39,6 +39,8 @@ import pytest
 
 from custom_components.dual_smart_thermostat.const import (
     ATTR_HVAC_ACTION_REASON,
+    ATTR_HVAC_POWER_LEVEL,
+    ATTR_HVAC_POWER_PERCENT,
     ATTR_PREV_TARGET,
     DOMAIN,
     PRESET_ANTI_FREEZE,
@@ -1230,7 +1232,7 @@ async def test_cooler_mode_opening_hvac_action_reason(
 
     # wait 10 seconds
     common.async_fire_time_changed(
-        hass, dt_util.utcnow() + datetime.timedelta(minutes=10)
+        hass, dt_util.utcnow() + datetime.timedelta(minutes=15)
     )
     await hass.async_block_till_done()
 
@@ -1246,6 +1248,100 @@ async def test_cooler_mode_opening_hvac_action_reason(
         hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_ACTION_REASON)
         == HVACActionReason.TARGET_TEMP_NOT_REACHED
     )
+
+
+#######################
+#  HVAC POWER VALUES  #
+#######################
+
+
+async def test_cooler_mode_hvac_power_value(
+    hass: HomeAssistant, setup_comp_1  # noqa: F811
+) -> None:
+    """Test thermostat cooler switch in cooling mode."""
+    cooler_switch = "input_boolean.test"
+    opening_1 = "input_boolean.opening_1"
+
+    assert await async_setup_component(
+        hass,
+        input_boolean.DOMAIN,
+        {"input_boolean": {"test": None, "opening_1": None}},
+    )
+
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {"name": "test", "initial": 10, "min": 0, "max": 40, "step": 1}
+            }
+        },
+    )
+
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "heater": cooler_switch,
+                "ac_mode": "true",
+                "target_sensor": common.ENT_SENSOR,
+                "initial_hvac_mode": HVACMode.COOL,
+                "hvac_power_levels": 5,
+                "openings": [opening_1],
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    assert hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_POWER_LEVEL) == 0
+    assert hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_POWER_PERCENT) == 0
+
+    setup_sensor(hass, 23)
+    await hass.async_block_till_done()
+
+    await common.async_set_temperature(hass, 18)
+    await hass.async_block_till_done()
+
+    assert (
+        hass.states.get(common.ENTITY).attributes.get("hvac_action")
+        == HVACAction.COOLING
+    )
+    assert hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_POWER_LEVEL) == 5
+    assert hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_POWER_PERCENT) == 100
+
+    setup_boolean(hass, opening_1, STATE_OPEN)
+    await hass.async_block_till_done()
+
+    assert (
+        hass.states.get(common.ENTITY).attributes.get("hvac_action") == HVACAction.IDLE
+    )
+    assert hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_POWER_LEVEL) == 0
+    assert hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_POWER_PERCENT) == 0
+
+    setup_boolean(hass, opening_1, STATE_CLOSED)
+    setup_sensor(hass, 17)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+    assert hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_POWER_LEVEL) == 0
+    assert hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_POWER_PERCENT) == 0
+
+    setup_sensor(hass, 18.5)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(cooler_switch).state == STATE_ON
+    assert hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_POWER_LEVEL) == 2
+    assert hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_POWER_PERCENT) == 50
+
+    await common.async_set_hvac_mode(hass, HVACMode.OFF)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+    assert hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_POWER_LEVEL) == 0
+    assert hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_POWER_PERCENT) == 0
 
 
 ############

@@ -2,7 +2,7 @@ from datetime import timedelta
 import logging
 from typing import Callable
 
-from homeassistant.components.climate import HVACMode
+from homeassistant.components.climate import HVACAction, HVACMode
 from homeassistant.components.valve import DOMAIN as VALVE_DOMAIN, ValveEntityFeature
 from homeassistant.const import (
     ATTR_ENTITY_ID,
@@ -211,7 +211,7 @@ class GenericHVACDevice(
         ):
             return
 
-        any_opeing_open = self.openings.any_opening_open(self.hvac_mode)
+        any_opening_open = self.openings.any_opening_open(self.hvac_mode)
 
         _LOGGER.debug(
             "%s - async_control_hvac - is device active: %s, %s, strategy: %s, is opening open: %s",
@@ -219,24 +219,31 @@ class GenericHVACDevice(
             self.entity_id,
             self.hvac_controller.is_active,
             self.strategy,
-            any_opeing_open,
+            any_opening_open,
         )
 
         if self.hvac_controller.is_active:
             await self.hvac_controller.async_control_device_when_on(
                 self.strategy,
-                any_opeing_open,
+                any_opening_open,
                 time,
             )
         else:
             await self.hvac_controller.async_control_device_when_off(
                 self.strategy,
-                any_opeing_open,
+                any_opening_open,
                 time,
             )
 
+        _LOGGER.debug(
+            "hvac action reason after control: %s",
+            self.hvac_controller.hvac_action_reason,
+        )
+
         self._hvac_action_reason = self.hvac_controller.hvac_action_reason
-        self.hvac_power.update_hvac_power(self.strategy, self.target_env_attr)
+        self.hvac_power.update_hvac_power(
+            self.strategy, self.target_env_attr, self.hvac_action
+        )
 
     async def async_on_startup(self, async_write_ha_state_cb: Callable = None):
 
@@ -287,6 +294,10 @@ class GenericHVACDevice(
         else:
             await self._async_turn_off_entity()
 
+        self.hvac_power.update_hvac_power(
+            self.strategy, self.target_env_attr, HVACAction.OFF
+        )
+
     async def _async_turn_on_entity(self) -> None:
         """Turn on the entity."""
         _LOGGER.info(
@@ -302,6 +313,7 @@ class GenericHVACDevice(
                 SERVICE_TURN_ON,
                 {ATTR_ENTITY_ID: self.entity_id},
                 context=self._context,
+                blocking=True,
             )
 
     async def _async_turn_off_entity(self) -> None:
@@ -318,6 +330,7 @@ class GenericHVACDevice(
                 SERVICE_TURN_OFF,
                 {ATTR_ENTITY_ID: self.entity_id},
                 context=self._context,
+                blocking=True,
             )
 
     async def _async_open_valve_entity(self) -> None:
@@ -332,6 +345,7 @@ class GenericHVACDevice(
                 SERVICE_OPEN_VALVE,
                 {ATTR_ENTITY_ID: self.entity_id},
                 context=self._context,
+                blocking=True,
             )
 
     async def _async_close_valve_entity(self) -> None:
@@ -346,4 +360,5 @@ class GenericHVACDevice(
                 SERVICE_CLOSE_VALVE,
                 {ATTR_ENTITY_ID: self.entity_id},
                 context=self._context,
+                blocking=True,
             )
