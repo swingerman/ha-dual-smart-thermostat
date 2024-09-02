@@ -67,10 +67,10 @@ class HvacPowerManager:
         self._hvac_power_min = hvac_power_min or 1
         self._hvac_power_max = hvac_power_max or self._hvac_power_levels
 
-        self._hvac_power_min_percent = (
+        self._hvac_power_min_percent = round(
             self._hvac_power_min / self._hvac_power_levels * 100
         )
-        self._hvac_power_max_percent = (
+        self._hvac_power_max_percent = round(
             self._hvac_power_max / self._hvac_power_levels * 100
         )
 
