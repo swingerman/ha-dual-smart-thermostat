@@ -143,7 +143,7 @@ class HeatPumpDevice(GenericHVACDevice):
 
     def _apply_heat_pump_cooling_state(self, state: State = None) -> None:
         """Applies the state of the heat pump cooling entity to the device."""
-        _LOGGER.debug("Applying heat pump cooling state, state: %s", state)
+        _LOGGER.info("Applying heat pump cooling state, state: %s", state)
         entity_id = self.features.heat_pump_cooling_entity_id
         entity_state = state or self.hass.states.get(entity_id)
 
@@ -204,7 +204,7 @@ class HeatPumpDevice(GenericHVACDevice):
 
     def _change_hvac_mode(self, heat_pump_is_cooling: bool) -> None:
         """Changes the HVAC mode based on the heat pump's current mode."""
-        _LOGGER.debug(
+        _LOGGER.info(
             "Changing hvac mode based on heat pump mode, heat_pump_is_cooling: %s, hvac_mode: %s, hvac_modes: %s",
             heat_pump_is_cooling,
             self.hvac_mode,

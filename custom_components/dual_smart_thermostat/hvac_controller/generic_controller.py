@@ -71,7 +71,7 @@ class GenericHvacController(HvacController):
         """If the toggleable hvac device is currently active."""
         on_state = STATE_OPEN if self._is_valve else STATE_ON
 
-        _LOGGER.debug(
+        _LOGGER.info(
             "Checking if device is active: %s, on_state: %s",
             self.entity_id,
             on_state,
@@ -134,13 +134,16 @@ class GenericHvacController(HvacController):
     ) -> None:
         """Check if we need to turn heating on or off when theheater is on."""
 
-        _LOGGER.debug("%s _async_control_device_when_on", self.__class__.__name__)
+        _LOGGER.info("%s Controlling hvac while on", self.__class__.__name__)
         _LOGGER.debug("below_env_attr: %s", strategy.hvac_goal_reached)
         _LOGGER.debug("any_opening_open: %s", any_opening_open)
         _LOGGER.debug("hvac_goal_reached: %s", strategy.hvac_goal_reached)
 
         if strategy.hvac_goal_reached or any_opening_open:
-            _LOGGER.debug("Turning off entity %s", self.entity_id)
+            _LOGGER.info(
+                "Turning off entity due to hvac goal reached or opening is open %s",
+                self.entity_id,
+            )
 
             await self.async_turn_off_callback()
 
@@ -153,7 +156,7 @@ class GenericHvacController(HvacController):
 
         elif time is not None and not any_opening_open:
             # The time argument is passed only in keep-alive case
-            _LOGGER.debug(
+            _LOGGER.info(
                 "Keep-alive - Turning on entity (from active) %s",
                 self.entity_id,
             )
@@ -169,7 +172,7 @@ class GenericHvacController(HvacController):
         time=None,
     ) -> None:
         """Check if we need to turn heating on or off when the heater is off."""
-        _LOGGER.debug("%s _async_control_device_when_off", self.__class__.__name__)
+        _LOGGER.info("%s Controlling hvac while off", self.__class__.__name__)
         _LOGGER.debug("above_env_attr: %s", strategy.hvac_goal_reached)
         _LOGGER.debug("below_env_attr: %s", strategy.hvac_goal_not_reached)
         _LOGGER.debug("any_opening_open: %s", any_opening_open)
@@ -177,12 +180,15 @@ class GenericHvacController(HvacController):
         _LOGGER.debug("time: %s", time)
 
         if strategy.hvac_goal_not_reached and not any_opening_open:
-            _LOGGER.debug("Turning on entity (from inactive) %s", self.entity_id)
+            _LOGGER.info(
+                "Turning on entity (from inactive) due to hvac goal is not reached %s",
+                self.entity_id,
+            )
             await self.async_turn_on_callback()
             self._hvac_action_reason = strategy.goal_not_reached_reason()
         elif time is not None or any_opening_open:
             # The time argument is passed only in keep-alive case
-            _LOGGER.debug("Keep-alive - Turning off entity %s", self.entity_id)
+            _LOGGER.info("Keep-alive - Turning off entity %s", self.entity_id)
             await self.async_turn_off_callback()
 
             if any_opening_open:
