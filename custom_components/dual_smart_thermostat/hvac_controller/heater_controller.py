@@ -53,6 +53,9 @@ class HeaterHvacConroller(GenericHvacController):
         time=None,
     ) -> None:
         """Check if we need to turn heating on or off when theheater is on."""
+
+        _LOGGER.info("%s Controlling hvac while on", self.__class__.__name__)
+
         too_hot = strategy.hvac_goal_reached
         is_floor_hot = self._environment.is_floor_hot
         is_floor_cold = self._environment.is_floor_cold
@@ -89,7 +92,7 @@ class HeaterHvacConroller(GenericHvacController):
         time=None,
     ) -> None:
         """Check if we need to turn heating on or off when the heater is off."""
-        _LOGGER.debug("%s _async_control_device_when_off", self.__class__.__name__)
+        _LOGGER.info("%s Controlling hvac while off", self.__class__.__name__)
 
         too_cold = strategy.hvac_goal_not_reached
         _LOGGER.debug("too_cold: %s", strategy.hvac_goal_reached)
@@ -98,7 +101,7 @@ class HeaterHvacConroller(GenericHvacController):
         is_floor_cold = self._environment.is_floor_cold
 
         if (too_cold and not any_opening_open and not is_floor_hot) or is_floor_cold:
-            _LOGGER.debug("Turning on heater (from inactive) %s", self.entity_id)
+            _LOGGER.info("Turning on heater (from inactive) %s", self.entity_id)
 
             await self.async_turn_on_callback()
 

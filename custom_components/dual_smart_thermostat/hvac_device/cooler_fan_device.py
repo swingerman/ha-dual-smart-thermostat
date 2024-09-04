@@ -98,7 +98,7 @@ class CoolerFanDevice(MultiHvacDevice):
 
         new_state = data["new_state"]
 
-        _LOGGER.debug("Fan hot tolerance on changed: %s", new_state)
+        _LOGGER.info("Fan hot tolerance on changed: %s", new_state)
 
         if new_state is None or new_state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
             self._fan_hot_tolerance_on = True
