@@ -851,7 +851,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
         if hvac_mode == HVACMode.OFF:
             self._last_hvac_mode = self.hvac_device.hvac_mode
-            _LOGGER.debug(
+            _LOGGER.info(
                 "Turning off with saving last hvac mode: %s", self._last_hvac_mode
             )
 
@@ -882,9 +882,12 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         temp_low = kwargs.get(ATTR_TARGET_TEMP_LOW)
         temp_high = kwargs.get(ATTR_TARGET_TEMP_HIGH)
 
-        _LOGGER.debug("Setting temperature: %s", temperature)
-        _LOGGER.debug("Setting temperature low: %s", temp_low)
-        _LOGGER.debug("Setting temperature high: %s", temp_high)
+        _LOGGER.info(
+            "Setting temperatures. Temp: %s, Low: %s, High: %s",
+            temperature,
+            temp_low,
+            temp_high,
+        )
 
         temperatures = TargetTemperatures(temperature, temp_high, temp_low)
 
@@ -901,7 +904,8 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
     async def async_set_humidity(self, humidity: float) -> None:
         """Set new target humidity."""
-        _LOGGER.debug("Setting humidity: %s", humidity)
+        _LOGGER.info("Setting humidity: %s", humidity)
+
         self.environment.target_humidity = humidity
         self._target_humidity = self.environment.target_humidity
 
@@ -981,7 +985,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         """Handle sensor stale event."""
 
         state = self.hass.states.get(self.sensor_entity_id)
-        _LOGGER.debug(
+        _LOGGER.info(
             "Sensor has not been updated for %s",
             now - state.last_updated if now and state else "---",
         )
@@ -1001,7 +1005,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         """Handle humidity sensor stale event."""
 
         state = self.hass.states.get(self.sensor_humidity_entity_id)
-        _LOGGER.debug(
+        _LOGGER.info(
             "HUmidity sensor has not been updated for %s",
             now - state.last_updated if now and state else "---",
         )
@@ -1153,7 +1157,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
     async def _async_control_climate(self, time=None, force=False) -> None:
         """Control the climate device based on config."""
 
-        _LOGGER.info("_async_control_climate, time %s, force %s", time, force)
+        _LOGGER.info("Attempting to control climate, time %s, force %s", time, force)
 
         async with self._temp_lock:
             await self.hvac_device.async_control_hvac(time, force)
@@ -1165,7 +1169,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             self._hvac_action_reason = self.hvac_device.HVACActionReason
 
     async def _async_control_climate_forced(self, time=None) -> None:
-        _LOGGER.debug("_async_control_climate_forced, time %s", time)
+        _LOGGER.info("Attempting to forcefully control climate, time %s", time)
         await self._async_control_climate(force=True, time=time)
 
         self.async_write_ha_state()
@@ -1190,7 +1194,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self, old_state: State | None, new_state: State | None
     ) -> None:
         """Handle heater switch state changes."""
-        _LOGGER.debug(
+        _LOGGER.info(
             "Switch changed: old_state: %s, new_state: %s", old_state, new_state
         )
         if new_state is None:
@@ -1207,7 +1211,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
     async def async_set_preset_mode(self, preset_mode: str) -> None:
         """Set new preset mode."""
-        _LOGGER.debug(
+        _LOGGER.info(
             "Climate Setting preset mode: %s, is_range_mode: %s",
             preset_mode,
             self.features.is_range_mode,
@@ -1245,7 +1249,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
     def _set_hvac_action_reason(self, *args) -> None:
         """My first service."""
         reason = args[0]
-        _LOGGER.debug("Received HVACActionReasonExternal data %s", reason)
+        _LOGGER.info("Received HVACActionReasonExternal data %s", reason)
 
         # make sure its a valid reason
         if reason not in HVACActionReasonExternal:
@@ -1258,7 +1262,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
     async def async_turn_on(self) -> None:
         """Turn on the device."""
-        _LOGGER.debug("Turning on with last hvac mode: %s", self._last_hvac_mode)
+        _LOGGER.info("Turning on with last hvac mode: %s", self._last_hvac_mode)
         if self._last_hvac_mode is not None and self._last_hvac_mode != HVACMode.OFF:
             on_hvac_mode = self._last_hvac_mode
         else:
