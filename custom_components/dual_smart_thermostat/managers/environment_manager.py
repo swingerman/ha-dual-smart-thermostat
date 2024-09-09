@@ -765,14 +765,17 @@ class EnvironmentManager(StateManager):
             self.target_temp = self.saved_target_temp
         # switching from preset NONE to NONE
         elif supports_temp_range:
-            if hvac_mode in [HVACMode.COOL, HVACMode.FAN_ONLY]:
+            if (
+                hvac_mode in [HVACMode.COOL, HVACMode.FAN_ONLY]
+                and self.target_temp_high is not None
+            ):
                 _LOGGER.debug(
                     "Setting temperatures from no preset target mode. HVACMode.COOL, target temp: %s",
                     self.target_temp,
                 )
                 self.target_temp = self.target_temp_high
 
-            elif hvac_mode == HVACMode.HEAT:
+            elif hvac_mode == HVACMode.HEAT and self.target_temp_low is not None:
                 _LOGGER.debug(
                     "Setting temperatures from no preset target mode. HVACMode.HEAT, target temp: %s",
                     self.target_temp,

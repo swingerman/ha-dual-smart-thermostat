@@ -425,6 +425,25 @@ async def test_heat_cool_get_hvac_modes_fan_configured(
     )
 
 
+async def test_set_hvac_mode_chnage_trarget_temp(
+    hass: HomeAssistant, setup_comp_dual  # noqa: F811
+) -> None:
+    """Test the changing of the hvac mode avoid invalid target temp."""
+    await common.async_set_temperature(hass, 30)
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes.get("temperature") == 30
+
+    await common.async_set_hvac_mode(hass, HVACMode.COOL)
+    await hass.async_block_till_done()
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes.get("temperature") == 30
+
+    await common.async_set_hvac_mode(hass, HVACMode.HEAT)
+    await hass.async_block_till_done()
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes.get("temperature") == 30
+
+
 async def test_set_target_temp_dual(
     hass: HomeAssistant, setup_comp_dual  # noqa: F811
 ) -> None:
