@@ -1,7 +1,7 @@
 from datetime import timedelta
 import logging
 
-from homeassistant.components.climate import HVACMode
+from homeassistant.components.climate import HVACAction, HVACMode
 from homeassistant.const import STATE_ON, STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import HomeAssistant, State, callback
 
@@ -123,6 +123,18 @@ class HeatPumpDevice(GenericHVACDevice):
                 return "_target_temp_low"
         else:
             return self._target_env_attr
+
+    @property
+    def hvac_action(self) -> HVACAction:
+        if self.hvac_mode == HVACMode.OFF:
+            return HVACAction.OFF
+        if self.is_active:
+            return (
+                HVACAction.HEATING
+                if not self._heat_pump_is_cooling
+                else HVACAction.COOLING
+            )
+        return HVACAction.IDLE
 
     @callback
     def on_entity_state_changed(self, entity_id: str, new_state: State) -> None:

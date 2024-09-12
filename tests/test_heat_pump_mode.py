@@ -13,9 +13,11 @@ from homeassistant.components.climate import (
     PRESET_HOME,
     PRESET_NONE,
     PRESET_SLEEP,
+    HVACAction,
     HVACMode,
 )
 from homeassistant.components.climate.const import (
+    ATTR_HVAC_ACTION,
     ATTR_TARGET_TEMP_HIGH,
     ATTR_TARGET_TEMP_LOW,
     DOMAIN as CLIMATE,
@@ -658,7 +660,11 @@ async def test_set_preset_mode_heat_cool_set_temp_keeps_preset_mode(
     ["heat_pump_cooling", "from_hvac_mode", "to_hvac_mode"],
     [
         [True, HVACMode.OFF, HVACMode.COOL],
-        [True, HVACMode.COOL, HVACMode.OFF],
+        [
+            True,
+            HVACMode.COOL,
+            HVACMode.OFF,
+        ],
         [False, HVACMode.OFF, HVACMode.HEAT],
         [False, HVACMode.HEAT, HVACMode.OFF],
     ],
@@ -749,6 +755,10 @@ async def test_hvac_mode_heat_switches_to_cool(
     await common.async_set_temperature(hass, 26)
     setup_sensor(hass, 23)
     await hass.async_block_till_done()
+
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes.get(ATTR_HVAC_ACTION) == HVACAction.OFF
+
     calls = setup_switch(hass, False)
     await common.async_set_hvac_mode(hass, HVACMode.HEAT)
     await hass.async_block_till_done()
@@ -766,6 +776,7 @@ async def test_hvac_mode_heat_switches_to_cool(
 
     # hvac mode should have changed to COOL
     assert state.state == HVACMode.COOL
+    assert state.attributes.get(ATTR_HVAC_ACTION) == HVACAction.COOLING
 
     # switch has to be turned off
     # assert hass.states.get(common.ENT_SWITCH).state == STATE_OFF
@@ -788,6 +799,10 @@ async def test_hvac_mode_cool_switches_to_heat(
     await common.async_set_temperature(hass, 22)
     setup_sensor(hass, 26)
     await hass.async_block_till_done()
+
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes.get(ATTR_HVAC_ACTION) == HVACAction.OFF
+
     calls = setup_switch(hass, False)
     await common.async_set_hvac_mode(hass, HVACMode.COOL)
     await hass.async_block_till_done()
@@ -805,6 +820,7 @@ async def test_hvac_mode_cool_switches_to_heat(
 
     # hvac mode should have changed to COOL
     assert state.state == HVACMode.HEAT
+    assert state.attributes.get(ATTR_HVAC_ACTION) == HVACAction.HEATING
 
     # switch has to be turned off
     # assert len(calls) == 1
