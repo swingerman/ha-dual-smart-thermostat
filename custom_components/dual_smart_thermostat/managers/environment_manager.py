@@ -24,6 +24,7 @@ from custom_components.dual_smart_thermostat.const import (
     CONF_DRY_TOLERANCE,
     CONF_FAN_HOT_TOLERANCE,
     CONF_FLOOR_SENSOR,
+    CONF_HEAT_COOL_MODE,
     CONF_HOT_TOLERANCE,
     CONF_MAX_FLOOR_TEMP,
     CONF_MAX_HUMIDITY,
@@ -110,6 +111,7 @@ class EnvironmentManager(StateManager):
         self._cur_outside_temp = None
         self._cur_humidity = None
         self._saved_target_humidity = None
+        self._config_heat_cool_mode = config.get(CONF_HEAT_COOL_MODE) or False
 
     @property
     def cur_temp(self) -> float:
@@ -789,14 +791,16 @@ class EnvironmentManager(StateManager):
         if old_state is None:
             return
 
+        _LOGGER.debug("Old state attributes: %s", old_state.attributes)
+
         # If we have no initial temperature, restore
-        if self._target_temp_low is None:
+        if self._target_temp_low is None and self._config_heat_cool_mode:
             old_target_min = old_state.attributes.get(
                 ATTR_PREV_TARGET_LOW
             ) or old_state.attributes.get(ATTR_TARGET_TEMP_LOW)
             if old_target_min is not None:
                 self._target_temp_low = float(old_target_min)
-        if self._target_temp_high is None:
+        if self._target_temp_high is None and self._config_heat_cool_mode:
             old_target_max = old_state.attributes.get(
                 ATTR_PREV_TARGET_HIGH
             ) or old_state.attributes.get(ATTR_TARGET_TEMP_HIGH)

@@ -392,6 +392,55 @@ async def test_get_hvac_modes_heat_cool_2(
     )
 
 
+# async def test_get_hvac_modes_heat_cool_if_heat_cool_mode_off(
+#     hass: HomeAssistant, setup_comp_heat_cool_3  # noqa: F811
+# ) -> None:
+#     """Test that the operation list returns the correct modes."""
+#     await async_setup_component(
+#         hass,
+#         CLIMATE,
+#         {
+#             "climate": {
+#                 "platform": DOMAIN,
+#                 "name": "test",
+#                 "cold_tolerance": 2,
+#                 "hot_tolerance": 4,
+#                 "heater": common.ENT_HEATER,
+#                 "cooler": common.ENT_COOLER,
+#                 "target_sensor": common.ENT_SENSOR,
+#                 "initial_hvac_mode": HVACMode.OFF,
+#                 "target_temp": 21,
+#                 "heat_cool_mode": False,
+#                 PRESET_AWAY: {
+#                     "temperature": 16,
+#                 },
+#             }
+#         },
+#     )
+#     await hass.async_block_till_done()
+
+#     common.mock_restore_cache(
+#         hass,
+#         (
+#             State(
+#                 common.ENTITY,
+#                 {
+#                     ATTR_PREV_TARGET_HIGH: "21",
+#                     ATTR_PREV_TARGET_LOW: "19",
+#                 },
+#             ),
+#         ),
+#     )
+
+#     hass.set_state(CoreState.starting)
+#     await hass.async_block_till_done()
+
+#     state = hass.states.get(common.ENTITY)
+#     assert state.attributes.get("supported_features") == 401
+#     modes = state.attributes.get("hvac_modes")
+#     assert set(modes) == set([HVACMode.OFF, HVACMode.HEAT, HVACMode.COOL])
+
+
 async def test_dual_get_hvac_modes_fan_configured(
     hass: HomeAssistant, setup_comp_dual_fan_config  # noqa: F811
 ) -> None:
