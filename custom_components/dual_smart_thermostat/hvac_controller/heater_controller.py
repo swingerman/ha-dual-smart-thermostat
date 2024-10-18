@@ -61,6 +61,7 @@ class HeaterHvacConroller(GenericHvacController):
         is_floor_cold = self._environment.is_floor_cold
 
         _LOGGER.debug("_async_control_device_when_on, floor cold: %s", is_floor_cold)
+        _LOGGER.debug("_async_control_device_when_on, floor hot: %s", is_floor_hot)
         _LOGGER.debug("_async_control_device_when_on, too_hot: %s", too_hot)
 
         if ((too_hot or is_floor_hot) or any_opening_open) and not is_floor_cold:

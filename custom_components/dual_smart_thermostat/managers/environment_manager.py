@@ -820,6 +820,9 @@ class EnvironmentManager(StateManager):
 
                 self._target_temp = float(old_target)
 
+        # do we actually need this?
         self._max_floor_temp = (
-            old_state.attributes.get("max_floor_temp") or DEFAULT_MAX_FLOOR_TEMP
+            (old_state.attributes.get("max_floor_temp") or DEFAULT_MAX_FLOOR_TEMP)
+            if self._max_floor_temp is None
+            else self._max_floor_temp
         )
