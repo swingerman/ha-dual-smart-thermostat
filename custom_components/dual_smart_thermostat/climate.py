@@ -453,6 +453,8 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
         self._temp_lock = asyncio.Lock()
 
+        _LOGGER.name = __name__ + "." + self.unique_id if self.unique_id else __name__
+
     async def async_added_to_hass(self) -> None:
         """Run when entity about to be added."""
         await super().async_added_to_hass()
