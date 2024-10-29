@@ -423,6 +423,8 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self._sensor_stale_duration = sensor_stale_duration
         self._remove_stale_tracking: Callable[[], None] | None = None
         self._remove_humidity_stale_tracking: Callable[[], None] | None = None
+        self._sensor_stalled = False
+        self._humidity_sensor_stalled = False
 
         # environment
         self._temp_precision = precision
@@ -970,6 +972,9 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             return
 
         if self._sensor_stale_duration:
+            if self._sensor_stalled:
+                self._sensor_stalled = False
+                _LOGGER.info("Temperature sensor recovered with state: %s", new_state)
             if self._remove_stale_tracking:
                 self._remove_stale_tracking()
             self._remove_stale_tracking = async_track_time_interval(
@@ -1012,6 +1017,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             now - state.last_updated if now and state else "---",
         )
         _LOGGER.warning("Humidity Sensor is stalled, call the emergency stop")
+        self._humudity_sensor_stalled = True
         if self._is_device_active:
             await self.hvac_device.async_turn_off()
             self._hvac_action_reason = HVACActionReason.HUMIDITY_SENSOR_STALLED
@@ -1073,6 +1079,9 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             return
 
         if self._sensor_stale_duration:
+            if self._humidity_sensor_stalled:
+                self._humidity_sensor_stalled = False
+                _LOGGER.info("Humidity sensor recovered with state: %s", new_state)
             if self._remove_humidity_stale_tracking:
                 self._remove_humidity_stale_tracking()
             self._remove_humidity_stale_tracking = async_track_time_interval(
