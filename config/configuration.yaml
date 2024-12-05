@@ -404,18 +404,28 @@ climate:
   #     target_temp_high: 28.0
 
   - platform: dual_smart_thermostat
-    name: Edge Case 289
-    unique_id: edge_case_289
+    name: Edge Case 307
+    unique_id: edge_case_307
     heater: switch.heater
     cooler: switch.cooler
     target_sensor: sensor.room_temp
-    ac_mode: false
-    min_temp: 16
-    max_temp: 30
-    cold_tolerance: 1
-    hot_tolerance: 1
-    target_temp_step: 0.1
+    min_temp: 15
+    max_temp: 28
+    target_temp: 24
+    target_temp_high: 26.5
+    target_temp_low: 24
+    cold_tolerance: 0.3
+    hot_tolerance: 0.3
+    min_cycle_duration:
+      seconds: 5
+    away: # this preset will be available for all hvac modes
+      temperature: 18
+    home: # this preset will be available only for heat or cool hvac mode
+      temperature: 24
     precision: 0.1
+    target_temp_step: 0.5
+    keep_alive:
+      minutes: 3
 
   # - platform: dual_smart_thermostat
   #   name: Edge Case 210
