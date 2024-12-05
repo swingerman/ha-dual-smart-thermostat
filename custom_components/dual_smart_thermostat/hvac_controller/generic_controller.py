@@ -6,6 +6,7 @@ from homeassistant.components.climate import HVACMode
 from homeassistant.components.valve import DOMAIN as VALVE_DOMAIN
 from homeassistant.const import STATE_ON, STATE_OPEN
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConditionError
 from homeassistant.helpers import condition
 import homeassistant.util.dt as dt_util
 
@@ -82,7 +83,7 @@ class GenericHvacController(HvacController):
             return True
         return False
 
-    def _ran_long_enough(self) -> bool:
+    def ran_long_enough(self) -> bool:
         if self.is_active:
             current_state = STATE_ON
         else:
@@ -93,12 +94,15 @@ class GenericHvacController(HvacController):
         _LOGGER.debug("min_cycle_duration: %s", self.min_cycle_duration)
         _LOGGER.debug("time: %s", dt_util.utcnow())
 
-        long_enough = condition.state(
-            self.hass,
-            self.entity_id,
-            current_state,
-            self.min_cycle_duration,
-        )
+        try:
+            long_enough = condition.state(
+                self.hass,
+                self.entity_id,
+                current_state,
+                self.min_cycle_duration,
+            )
+        except ConditionError:
+            long_enough = False
 
         return long_enough
 
@@ -121,9 +125,9 @@ class GenericHvacController(HvacController):
             # keep-alive purposes, and `min_cycle_duration` is irrelevant.
             if self.min_cycle_duration:
                 _LOGGER.debug(
-                    "Checking if device ran long enough: %s", self._ran_long_enough()
+                    "Checking if device ran long enough: %s", self.ran_long_enough()
                 )
-                return self._ran_long_enough()
+                return self.ran_long_enough()
         return True
 
     async def async_control_device_when_on(

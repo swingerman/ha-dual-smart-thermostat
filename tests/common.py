@@ -1,4 +1,5 @@
 import asyncio
+from asyncio import TimerHandle
 from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime, timedelta
 import functools as ft
@@ -315,8 +316,8 @@ _MONOTONIC_RESOLUTION = time.get_clock_info("monotonic").resolution
 def _async_fire_time_changed(
     hass: HomeAssistant, utc_datetime: datetime | None, fire_all: bool
 ) -> None:
-    timestamp = dt_util.utc_to_timestamp(utc_datetime)
-    for task in list(hass.loop._scheduled):
+    timestamp = utc_datetime.timestamp()
+    for task in list(get_scheduled_timer_handles(hass.loop)):
         if not isinstance(task, asyncio.TimerHandle):
             continue
         if task.cancelled():
@@ -326,18 +327,27 @@ def _async_fire_time_changed(
         future_seconds = task.when() - (hass.loop.time() + _MONOTONIC_RESOLUTION)
 
         if fire_all or mock_seconds_into_future >= future_seconds:
-            with patch(
-                "homeassistant.helpers.event.time_tracker_utcnow",
-                return_value=utc_datetime,
-            ), patch(
-                "homeassistant.helpers.event.time_tracker_timestamp",
-                return_value=timestamp,
+            with (
+                patch(
+                    "homeassistant.helpers.event.time_tracker_utcnow",
+                    return_value=utc_datetime,
+                ),
+                patch(
+                    "homeassistant.helpers.event.time_tracker_timestamp",
+                    return_value=timestamp,
+                ),
             ):
                 task._run()
                 task.cancel()
 
 
 fire_time_changed = threadsafe_callback_factory(async_fire_time_changed)
+
+
+def get_scheduled_timer_handles(loop: asyncio.AbstractEventLoop) -> list[TimerHandle]:
+    """Return a list of scheduled TimerHandles."""
+    handles: list[TimerHandle] = loop._scheduled  # type: ignore[attr-defined] # noqa: SLF001
+    return handles
 
 
 def mock_restore_cache(hass: HomeAssistant, states: Sequence[State]) -> None:
