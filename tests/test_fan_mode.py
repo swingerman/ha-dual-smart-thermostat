@@ -58,6 +58,7 @@ from . import (  # noqa: F401
     setup_comp_heat_ac_cool_fan_config_cycle,
     setup_comp_heat_ac_cool_fan_config_presets,
     setup_comp_heat_ac_cool_fan_config_tolerance,
+    setup_comp_heat_ac_cool_fan_config_tolerance_min_cycle,
     setup_comp_heat_ac_cool_presets,
     setup_fan,
     setup_fan_heat_tolerance_toggle,
@@ -2440,7 +2441,7 @@ async def test_set_target_temp_ac_on_tolerance_and_cycle(
 async def test_set_target_temp_ac_on_after_fan_tolerance(
     hass: HomeAssistant, setup_comp_heat_ac_cool_fan_config_tolerance  # noqa: F811
 ) -> None:
-    """Test if target temperature turn ac on."""
+    """Test if target temperature turn fan on."""
     calls = setup_switch_dual(hass, common.ENT_FAN, False, False)
     await common.async_set_hvac_mode(hass, HVACMode.COOL)
     setup_sensor(hass, 26)
@@ -2460,6 +2461,94 @@ async def test_set_target_temp_ac_on_after_fan_tolerance(
     assert call.domain == HASS_DOMAIN
     assert call.service == SERVICE_TURN_ON
     assert call.data["entity_id"] == common.ENT_FAN
+
+
+async def test_set_target_temp_ac_on_dont_switch_to_fan_during_cycle1(
+    hass: HomeAssistant,
+) -> None:
+    """Test if cooler stay on because min_cycle_duration not reached."""
+    # Given
+    await setup_comp_heat_ac_cool_fan_config_tolerance_min_cycle(hass)
+    calls = setup_switch_dual(hass, common.ENT_FAN, False, False)
+    await common.async_set_hvac_mode(hass, HVACMode.COOL)
+    await common.async_set_temperature(hass, 20)
+    # outside fan_hot_tolerance, within hot_tolerance
+    setup_sensor(hass, 20.8)
+    await hass.async_block_till_done()
+
+    assert len(calls) == 1
+    call = calls[0]
+    assert call.domain == HASS_DOMAIN
+    assert call.service == SERVICE_TURN_ON
+    assert call.data["entity_id"] == common.ENT_SWITCH
+
+    # When
+    calls = setup_switch_dual(hass, common.ENT_FAN, True, False)
+    setup_sensor(hass, 20.6)
+    await hass.async_block_till_done()
+
+    # Then
+    state = hass.states.get(common.ENTITY)
+    assert len(calls) == 0
+    assert (
+        state.attributes["hvac_action_reason"]
+        == HVACActionReason.MIN_CYCLE_DURATION_NOT_REACHED
+    )
+
+
+async def test_set_target_temp_ac_on_dont_switch_to_fan_during_cycle2(
+    hass: HomeAssistant,
+) -> None:
+    """Test if cooler stay on because min_cycle_duration not reached."""
+    # Given
+    await setup_comp_heat_ac_cool_fan_config_tolerance_min_cycle(hass)
+
+    calls = setup_switch_dual(hass, common.ENT_FAN, True, False)
+
+    # When
+    await common.async_set_hvac_mode(hass, HVACMode.COOL)
+    await common.async_set_temperature(hass, 20)
+    setup_sensor(hass, 20.6)
+    await hass.async_block_till_done()
+
+    # Then
+    assert len(calls) == 0
+
+
+async def test_set_target_temp_ac_on_dont_switch_to_fan_during_cycle3(
+    hass: HomeAssistant,
+) -> None:
+    """Test if switched to fan because min_cycle_duration reached."""
+    # Given
+    await setup_comp_heat_ac_cool_fan_config_tolerance_min_cycle(hass)
+
+    fake_changed = datetime.datetime(1970, 11, 11, 11, 11, 11, tzinfo=dt_util.UTC)
+    with freeze_time(fake_changed):
+        calls = setup_switch_dual(hass, common.ENT_FAN, True, False)
+
+    # When
+    await common.async_set_hvac_mode(hass, HVACMode.COOL)
+    await common.async_set_temperature(hass, 20)
+    setup_sensor(hass, 20.6)
+    await hass.async_block_till_done()
+
+    # Then
+    state = hass.states.get(common.ENTITY)
+    assert len(calls) == 2
+
+    call = calls[0]
+    assert call.domain == HASS_DOMAIN
+    assert call.service == SERVICE_TURN_ON
+    assert call.data["entity_id"] == common.ENT_FAN
+
+    call = calls[1]
+    assert call.domain == HASS_DOMAIN
+    assert call.service == SERVICE_TURN_OFF
+    assert call.data["entity_id"] == common.ENT_SWITCH
+    assert (
+        state.attributes["hvac_action_reason"]
+        == HVACActionReason.TARGET_TEMP_NOT_REACHED_WITH_FAN
+    )
 
 
 async def test_set_target_temp_ac_on_after_fan_tolerance_2(

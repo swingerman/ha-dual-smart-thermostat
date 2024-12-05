@@ -150,6 +150,10 @@ class GenericHVACDevice(
         """If the toggleable hvac device is currently active."""
         return self.hvac_controller.is_active
 
+    @property
+    def is_on(self) -> bool:
+        return self._entity_state is not None and self._entity_state.state == STATE_ON
+
     def is_below_target_env_attr(self) -> bool:
         """is too cold?"""
         return self.environment.is_too_cold(self.target_env_attr)

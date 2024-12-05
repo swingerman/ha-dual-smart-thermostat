@@ -390,7 +390,7 @@ async def setup_comp_heat_ac_cool_fan_config_tolerance(hass: HomeAssistant) -> N
     await hass.async_block_till_done()
 
 
-@pytest.fixture
+# @pytest.fixture
 async def setup_comp_heat_ac_cool_fan_config_tolerance_min_cycle(
     hass: HomeAssistant,
 ) -> None:
@@ -403,14 +403,14 @@ async def setup_comp_heat_ac_cool_fan_config_tolerance_min_cycle(
             "climate": {
                 "platform": DOMAIN,
                 "name": "test",
-                "cold_tolerance": 2,
-                "hot_tolerance": 4,
+                "cold_tolerance": 0.2,
+                "hot_tolerance": 0.2,
                 "ac_mode": True,
                 "heater": common.ENT_SWITCH,
                 "target_sensor": common.ENT_SENSOR,
                 "fan": common.ENT_FAN,
-                "fan_hot_tolerance": 1,
-                "min_cycle_duration": datetime.timedelta(minutes=10),
+                "fan_hot_tolerance": 0.5,
+                "min_cycle_duration": datetime.timedelta(minutes=2),
                 "initial_hvac_mode": HVACMode.OFF,
                 PRESET_AWAY: {"temperature": 30},
             }
