@@ -1137,6 +1137,8 @@ async def test_sensor_unknown_secure_heat_cool_off_outside_stale_duration_reason
     sensor_value,
     setup_comp_heat_cool_safety_delay,  # noqa: F811
 ) -> None:
+
+    # Given
     temp_high = 25
     temp_low = 22
 
@@ -1152,15 +1154,77 @@ async def test_sensor_unknown_secure_heat_cool_off_outside_stale_duration_reason
     hass.states.async_set(common.ENT_SENSOR, sensor_state)
     await hass.async_block_till_done()
 
+    # When
     # Wait 3 minutes
     common.async_fire_time_changed(
         hass, dt_util.utcnow() + datetime.timedelta(minutes=3)
     )
     await hass.async_block_till_done()
 
+    # Then
     assert (
         hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_ACTION_REASON)
         == HVACActionReasonInternal.TEMPERATURE_SENSOR_STALLED
+    )
+
+
+@pytest.mark.parametrize(
+    ["sensor_state", "sensor_value"],
+    [
+        (STATE_UNAVAILABLE, 28),
+        (STATE_UNKNOWN, 28),
+        (28, 28),
+        (STATE_UNAVAILABLE, 18),
+        (STATE_UNKNOWN, 18),
+        (18, 18),
+    ],
+)
+@pytest.mark.parametrize("expected_lingering_timers", [True])
+async def test_sensor_restores_after_state_changes(
+    hass: HomeAssistant,
+    sensor_state,
+    sensor_value,
+    setup_comp_heat_cool_safety_delay,  # noqa: F811
+) -> None:
+
+    # Given
+    temp_high = 25
+    temp_low = 22
+
+    setup_sensor(hass, sensor_value)
+    await common.async_set_hvac_mode(hass, HVACMode.HEAT_COOL)
+    await common.async_set_temperature_range(hass, common.ENTITY, temp_high, temp_low)
+    calls = setup_switch_dual(  # noqa: F841
+        hass, common.ENT_COOLER, sensor_value < temp_low, sensor_value > temp_high
+    )
+    await hass.async_block_till_done()
+
+    # set up sensor in th edesired state
+    hass.states.async_set(common.ENT_SENSOR, sensor_state)
+    await hass.async_block_till_done()
+
+    # When
+    # Wait 3 minutes
+    common.async_fire_time_changed(
+        hass, dt_util.utcnow() + datetime.timedelta(minutes=3)
+    )
+    await hass.async_block_till_done()
+
+    # Then
+    assert (
+        hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_ACTION_REASON)
+        == HVACActionReasonInternal.TEMPERATURE_SENSOR_STALLED
+    )
+
+    # When
+    # Sensor state changes
+    hass.states.async_set(common.ENT_SENSOR, 31)
+    await hass.async_block_till_done()
+
+    # Then
+    assert (
+        hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_ACTION_REASON)
+        is not HVACActionReason.TEMPERATURE_SENSOR_STALLED
     )
 
 

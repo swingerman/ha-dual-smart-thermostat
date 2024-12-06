@@ -798,7 +798,7 @@ async def test_sensor_unknown_secure_ac_off_outside_stale_duration(
     [30, STATE_UNAVAILABLE, STATE_UNKNOWN],
 )
 @pytest.mark.parametrize("expected_lingering_timers", [True])
-async def test_sensor_unknown_secure_ac_off_outside_stale_duration_reason(
+async def test_sensor_stalled_secure_ac_off_outside_stale_duration_reason(
     hass: HomeAssistant,
     sensor_state,
     setup_comp_heat_ac_cool_safety_delay,  # noqa: F811
@@ -822,6 +822,54 @@ async def test_sensor_unknown_secure_ac_off_outside_stale_duration_reason(
     assert (
         hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_ACTION_REASON)
         == HVACActionReasonInternal.TEMPERATURE_SENSOR_STALLED
+    )
+
+
+@pytest.mark.parametrize(
+    "sensor_state",
+    [30, STATE_UNAVAILABLE, STATE_UNKNOWN],
+)
+@pytest.mark.parametrize("expected_lingering_timers", [True])
+async def test_sensor_restores_after_state_changes(
+    hass: HomeAssistant,
+    sensor_state,
+    setup_comp_heat_ac_cool_safety_delay,  # noqa: F811
+    caplog,
+) -> None:
+    """Test if sensor unavailable for defined delay turns off AC."""
+
+    # Given
+    setup_sensor(hass, 30)
+    await common.async_set_temperature(hass, 25)
+    calls = setup_switch(hass, True)  # noqa: F841
+
+    # set up sensor in th edesired state
+    hass.states.async_set(common.ENT_SENSOR, sensor_state)
+    await hass.async_block_till_done()
+
+    # When
+    # Wait 3 minutes
+    common.async_fire_time_changed(
+        hass, dt_util.utcnow() + datetime.timedelta(minutes=3)
+    )
+    await hass.async_block_till_done()
+
+    # Then
+    assert (
+        hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_ACTION_REASON)
+        == HVACActionReasonInternal.TEMPERATURE_SENSOR_STALLED
+    )
+    caplog.set_level(logging.WARNING)
+
+    # When
+    # Sensor state changes
+    hass.states.async_set(common.ENT_SENSOR, 31)
+    await hass.async_block_till_done()
+
+    # Then
+    assert (
+        hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_ACTION_REASON)
+        == HVACActionReason.NONE
     )
 
 
