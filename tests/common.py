@@ -136,6 +136,30 @@ async def async_set_temperature(
     )
 
 
+async def async_set_temperature_range(
+    hass,
+    entity_id=ENTITY_MATCH_ALL,
+    target_temp_high=None,
+    target_temp_low=None,
+    hvac_mode=None,
+) -> None:
+    """Set new target temperature."""
+    kwargs = {
+        key: value
+        for key, value in [
+            (ATTR_TARGET_TEMP_HIGH, target_temp_high),
+            (ATTR_TARGET_TEMP_LOW, target_temp_low),
+            (ATTR_ENTITY_ID, entity_id),
+            (ATTR_HVAC_MODE, hvac_mode),
+        ]
+        if value is not None
+    }
+    _LOGGER.debug("set_temperature start data=%s", kwargs)
+    await hass.services.async_call(
+        DOMAIN, SERVICE_SET_TEMPERATURE, kwargs, blocking=True
+    )
+
+
 async def async_set_humidity(
     hass,
     humidity=None,
