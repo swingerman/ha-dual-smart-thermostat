@@ -4,6 +4,8 @@ import enum
 class HVACActionReasonInternal(enum.StrEnum):
     """Internal HVAC Action Reason for climate devices."""
 
+    MIN_CYCLE_DURATION_NOT_REACHED = "min_cycle_duration_not_reached"
+
     TARGET_TEMP_NOT_REACHED = "target_temp_not_reached"
 
     TARGET_TEMP_REACHED = "target_temp_reached"
