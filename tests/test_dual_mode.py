@@ -14,6 +14,7 @@ from homeassistant.components.climate import (
     PRESET_HOME,
     PRESET_NONE,
     PRESET_SLEEP,
+    ClimateEntityFeature,
     HVACAction,
     HVACMode,
 )
@@ -316,7 +317,7 @@ async def test_presets_use_case_150_2(
 
     setup_sensor(hass, 23)
     await common.async_set_hvac_mode(hass, HVACMode.HEAT_COOL)
-    await common.async_set_temperature(hass, 18, ENTITY_MATCH_ALL, 18, 16)
+    await common.async_set_temperature_range(hass, ENTITY_MATCH_ALL, 18, 16)
     await hass.async_block_till_done()
 
     assert hass.states.get(heater_switch).state == STATE_OFF
@@ -510,7 +511,7 @@ async def test_set_target_temp_heat_cool(
     hass: HomeAssistant, setup_comp_heat_cool_1  # noqa: F811
 ) -> None:
     """Test the setting of the target temperature."""
-    await common.async_set_temperature(hass, 30, common.ENTITY, 25, 22)
+    await common.async_set_temperature_range(hass, common.ENTITY, 25, 22)
     state = hass.states.get(common.ENTITY)
     assert state.attributes.get("target_temp_high") == 25.0
     assert state.attributes.get("target_temp_low") == 22.0
@@ -568,7 +569,7 @@ async def test_heat_cool_set_preset_mode(
     temp_high,
 ) -> None:
     """Test the setting preset mode."""
-    await common.async_set_temperature(hass, 23, common.ENTITY, 22, 18)
+    await common.async_set_temperature_range(hass, common.ENTITY, 22, 18)
     await common.async_set_preset_mode(hass, preset)
     state = hass.states.get(common.ENTITY)
     assert state.attributes.get("target_temp_low") == temp_low
@@ -628,7 +629,7 @@ async def test_set_heat_cool_preset_mode_and_restore_prev_temp(
 
     Verify original temperature is restored.
     """
-    await common.async_set_temperature(hass, 23, common.ENTITY, 22, 18)
+    await common.async_set_temperature_range(hass, common.ENTITY, 22, 18)
     await common.async_set_preset_mode(hass, preset)
     state = hass.states.get(common.ENTITY)
     assert state.attributes.get("target_temp_low") == temp_low
@@ -663,14 +664,14 @@ async def test_set_heat_cool_preset_mode_and_restore_prev_temp_2(
     Verify original temperature is restored.
     And verifies that if the preset set again it's temps are match the preset
     """
-    await common.async_set_temperature(hass, 23, common.ENTITY, 22, 18)
+    await common.async_set_temperature_range(hass, common.ENTITY, 22, 18)
     await common.async_set_preset_mode(hass, preset)
     state = hass.states.get(common.ENTITY)
     assert state.attributes.get(ATTR_TARGET_TEMP_LOW) == temp_low
     assert state.attributes.get(ATTR_TARGET_TEMP_HIGH) == temp_high
 
     # set temperature updates targets and keeps preset
-    await common.async_set_temperature(hass, 23, common.ENTITY, 24, 17)
+    await common.async_set_temperature_range(hass, common.ENTITY, 24, 17)
     await hass.async_block_till_done()
     state = hass.states.get(common.ENTITY)
     assert state.attributes.get(ATTR_TARGET_TEMP_LOW) == 17
@@ -726,7 +727,7 @@ async def test_set_heat_cool_fan_preset_mode_and_restore_prev_temp(
 
     Verify original temperature is restored.
     """
-    await common.async_set_temperature(hass, 23, common.ENTITY, 22, 18)
+    await common.async_set_temperature_range(hass, common.ENTITY, 22, 18)
     await common.async_set_preset_mode(hass, preset)
     state = hass.states.get(common.ENTITY)
     assert state.attributes.get("target_temp_low") == temp_low
@@ -898,7 +899,7 @@ async def test_set_heat_cool_preset_mode_twice_and_restore_prev_temp(
 
     Verify original temperature is restored.
     """
-    await common.async_set_temperature(hass, 23, common.ENTITY, 22, 18)
+    await common.async_set_temperature_range(hass, common.ENTITY, 22, 18)
     await common.async_set_preset_mode(hass, preset)
     await common.async_set_preset_mode(hass, preset)
     state = hass.states.get(common.ENTITY)
@@ -913,14 +914,14 @@ async def test_set_heat_cool_preset_mode_twice_and_restore_prev_temp(
 @pytest.mark.parametrize(
     ("preset", "temp_low", "temp_high"),
     [
-        # (PRESET_NONE, 18, 22),
+        (PRESET_NONE, 18, 22),
         (PRESET_AWAY, 16, 30),
-        # (PRESET_COMFORT, 20, 27),
-        # (PRESET_ECO, 18, 29),
-        # (PRESET_HOME, 19, 23),
-        # (PRESET_SLEEP, 17, 24),
-        # (PRESET_ACTIVITY, 21, 28),
-        # (PRESET_ANTI_FREEZE, 5, 32),
+        (PRESET_COMFORT, 20, 27),
+        (PRESET_ECO, 18, 29),
+        (PRESET_HOME, 19, 23),
+        (PRESET_SLEEP, 17, 24),
+        (PRESET_ACTIVITY, 21, 28),
+        (PRESET_ANTI_FREEZE, 5, 32),
     ],
 )
 async def test_set_heat_cool_preset_mode_and_restore_prev_temp_apply_preset_again(
@@ -934,7 +935,7 @@ async def test_set_heat_cool_preset_mode_and_restore_prev_temp_apply_preset_agai
 
     Verify original temperature is restored.
     """
-    await common.async_set_temperature(hass, 23, common.ENTITY, 22, 18)
+    await common.async_set_temperature_range(hass, common.ENTITY, 22, 18)
     await common.async_set_preset_mode(hass, preset)
 
     # targets match preset
@@ -995,7 +996,7 @@ async def test_set_heat_cool_preset_mode_invalid(
     hass: HomeAssistant, setup_comp_heat_cool_presets  # noqa: F811
 ) -> None:
     """Test an invalid mode raises an error and ignore case when checking modes."""
-    await common.async_set_temperature(hass, 23, common.ENTITY, 22, 18)
+    await common.async_set_temperature_range(hass, common.ENTITY, 22, 18)
     await common.async_set_preset_mode(hass, "away")
     state = hass.states.get(common.ENTITY)
     assert state.attributes.get("preset_mode") == "away"
@@ -1019,7 +1020,7 @@ async def test_sensor_unknown_secure_heat_cool_off_outside_stale_duration_cooler
 
     setup_sensor(hass, 28)
     await common.async_set_hvac_mode(hass, HVACMode.HEAT_COOL)
-    await common.async_set_temperature(hass, 30, common.ENTITY, 25, 22)
+    await common.async_set_temperature_range(hass, common.ENTITY, 25, 22)
     calls = setup_switch_dual(hass, common.ENT_COOLER, False, True)
 
     # set up sensor in th edesired state
@@ -1050,7 +1051,7 @@ async def test_sensor_unknown_secure_heat_cool_off_outside_stale_duration_heater
 
     setup_sensor(hass, 18)
     await common.async_set_hvac_mode(hass, HVACMode.HEAT_COOL)
-    await common.async_set_temperature(hass, 30, common.ENTITY, 25, 22)
+    await common.async_set_temperature_range(hass, common.ENTITY, 25, 22)
     calls = setup_switch_dual(hass, common.ENT_COOLER, True, False)
     await hass.async_block_till_done()
 
@@ -1095,7 +1096,7 @@ async def test_sensor_unknown_secure_heat_cool_off_outside_stale_duration(
 
     setup_sensor(hass, sensor_value)
     await common.async_set_hvac_mode(hass, HVACMode.HEAT_COOL)
-    await common.async_set_temperature(hass, 30, common.ENTITY, temp_high, temp_low)
+    await common.async_set_temperature_range(hass, common.ENTITY, temp_high, temp_low)
     calls = setup_switch_dual(
         hass, common.ENT_COOLER, sensor_value < temp_low, sensor_value > temp_high
     )
@@ -1141,7 +1142,7 @@ async def test_sensor_unknown_secure_heat_cool_off_outside_stale_duration_reason
 
     setup_sensor(hass, sensor_value)
     await common.async_set_hvac_mode(hass, HVACMode.HEAT_COOL)
-    await common.async_set_temperature(hass, 30, common.ENTITY, temp_high, temp_low)
+    await common.async_set_temperature_range(hass, common.ENTITY, temp_high, temp_low)
     calls = setup_switch_dual(  # noqa: F841
         hass, common.ENT_COOLER, sensor_value < temp_low, sensor_value > temp_high
     )
@@ -1232,16 +1233,15 @@ async def test_heat_cool_set_preset_mode_set_temp_keeps_preset_mode(
     """
     test_target_temp_low = 7
     test_target_temp_high = 33
-    await common.async_set_temperature(hass, 18, common.ENTITY, 22, 18)
+    await common.async_set_temperature_range(hass, common.ENTITY, 22, 18)
     await hass.async_block_till_done()
 
     await common.async_set_preset_mode(hass, preset)
     state = hass.states.get(common.ENTITY)
     assert state.attributes.get("target_temp_low") == temp_low
     assert state.attributes.get("target_temp_high") == temp_high
-    await common.async_set_temperature(
+    await common.async_set_temperature_range(
         hass,
-        test_target_temp_low,
         common.ENTITY,
         test_target_temp_high,
         test_target_temp_low,
@@ -1384,14 +1384,13 @@ async def test_heat_cool_fan_set_preset_mode_set_temp_keeps_preset_mode(
     """
     test_target_temp_low = 7
     test_target_temp_high = 33
-    await common.async_set_temperature(hass, 18, common.ENTITY, 22, 18)
+    await common.async_set_temperature_range(hass, common.ENTITY, 22, 18)
     await common.async_set_preset_mode(hass, preset)
     state = hass.states.get(common.ENTITY)
     assert state.attributes.get("target_temp_low") == temp_low
     assert state.attributes.get("target_temp_high") == temp_high
-    await common.async_set_temperature(
+    await common.async_set_temperature_range(
         hass,
-        test_target_temp_low,
         common.ENTITY,
         test_target_temp_high,
         test_target_temp_low,
@@ -1438,7 +1437,7 @@ async def test_heat_cool_fan_set_preset_mode_change_hvac_mode(
 
     # sets the temperate and then the preset mode
     # the manually set temperature must have been saved
-    await common.async_set_temperature(hass, 18, common.ENTITY, 22, 18)
+    await common.async_set_temperature_range(hass, common.ENTITY, 22, 18)
     await common.async_set_preset_mode(hass, preset)
     state = hass.states.get(common.ENTITY)
     assert state.attributes.get(ATTR_TARGET_TEMP_LOW) == temp_low
@@ -1662,7 +1661,7 @@ async def test_hvac_mode_mode_heat_cool(
     assert hass.states.get(cooler_switch).state == STATE_OFF
 
     await common.async_set_hvac_mode(hass, HVACMode.HEAT_COOL)
-    await common.async_set_temperature(hass, 18, ENTITY_MATCH_ALL, 25, 22)
+    await common.async_set_temperature_range(hass, ENTITY_MATCH_ALL, 25, 22)
     setup_sensor(hass, 26)
     await hass.async_block_till_done()
 
@@ -1684,7 +1683,7 @@ async def test_hvac_mode_mode_heat_cool(
 
     # switch to heat only mode
     await common.async_set_hvac_mode(hass, HVACMode.HEAT)
-    await common.async_set_temperature(hass, 25, ENTITY_MATCH_ALL, 25, 22)
+    await common.async_set_temperature(hass, 25, ENTITY_MATCH_ALL)
     await hass.async_block_till_done()
 
     state = hass.states.get(common.ENTITY)
@@ -1780,7 +1779,17 @@ async def test_hvac_mode_mode_heat_cool_fan_tolerance(
     # and outside the fan_hot_tolerance the AC
 
     await common.async_set_hvac_mode(hass, hvac_mode)
-    await common.async_set_temperature(hass, 20, ENTITY_MATCH_ALL, 20, 18)
+    state = hass.states.get(common.ENTITY)
+    supports_temperature_range = (
+        state.attributes.get("supported_features")
+        & ClimateEntityFeature.TARGET_TEMPERATURE_RANGE
+    )
+
+    if supports_temperature_range:
+        await common.async_set_temperature_range(hass, ENTITY_MATCH_ALL, 20, 18)
+    else:
+        await common.async_set_temperature(hass, 20, ENTITY_MATCH_ALL)
+
     setup_sensor(hass, 20)
     await hass.async_block_till_done()
 
@@ -1883,7 +1892,15 @@ async def test_hvac_mode_mode_heat_cool_ignore_fan_tolerance(
     # and outside the fan_hot_tolerance the AC
 
     await common.async_set_hvac_mode(hass, hvac_mode)
-    await common.async_set_temperature(hass, 20, ENTITY_MATCH_ALL, 20, 18)
+
+    supports_temperature_range = (
+        hass.states.get(common.ENTITY).attributes.get("supported_features")
+        & ClimateEntityFeature.TARGET_TEMPERATURE_RANGE
+    )
+    if supports_temperature_range:
+        await common.async_set_temperature_range(hass, ENTITY_MATCH_ALL, 20, 18)
+    else:
+        await common.async_set_temperature(hass, 20, ENTITY_MATCH_ALL)
 
     # below hot_tolerance
     setup_sensor(hass, 20)
@@ -1993,7 +2010,15 @@ async def test_hvac_mode_mode_heat_cool_dont_ignore_fan_tolerance(
     # and outside the fan_hot_tolerance the AC
 
     await common.async_set_hvac_mode(hass, hvac_mode)
-    await common.async_set_temperature(hass, 20, ENTITY_MATCH_ALL, 20, 18)
+
+    supports_temperature_range = (
+        hass.states.get(common.ENTITY).attributes.get("supported_features")
+        & ClimateEntityFeature.TARGET_TEMPERATURE_RANGE
+    )
+    if supports_temperature_range:
+        await common.async_set_temperature_range(hass, ENTITY_MATCH_ALL, 20, 18)
+    else:
+        await common.async_set_temperature(hass, 20, ENTITY_MATCH_ALL)
 
     # below hot_tolerance
     setup_sensor(hass, 20)
@@ -2104,7 +2129,7 @@ async def test_hvac_mode_mode_heat_cool_fan_tolerance_with_floor_sensor(
     # and outside the fan_hot_tolerance the AC
 
     await common.async_set_hvac_mode(hass, hvac_mode)
-    await common.async_set_temperature(hass, 20, ENTITY_MATCH_ALL, 20, 18)
+    await common.async_set_temperature_range(hass, ENTITY_MATCH_ALL, 20, 18)
     setup_sensor(hass, 20)
     setup_floor_sensor(hass, 27)
     await hass.async_block_till_done()
@@ -2188,7 +2213,7 @@ async def test_hvac_mode_mode_heat_cool_hvac_modes_temps(
     assert hass.states.get(cooler_switch).state == STATE_OFF
 
     await common.async_set_hvac_mode(hass, HVACMode.HEAT_COOL)
-    await common.async_set_temperature(hass, 18, ENTITY_MATCH_ALL, 25, 22)
+    await common.async_set_temperature_range(hass, ENTITY_MATCH_ALL, 25, 22)
     await hass.async_block_till_done()
 
     state = hass.states.get(common.ENTITY)
@@ -2273,7 +2298,7 @@ async def test_hvac_mode_mode_heat_cool_hvac_modes_temps_avoid_unrealism(
     assert hass.states.get(cooler_switch).state == STATE_OFF
 
     await common.async_set_hvac_mode(hass, HVACMode.HEAT_COOL)
-    await common.async_set_temperature(hass, 18, ENTITY_MATCH_ALL, 25, 22)
+    await common.async_set_temperature_range(hass, ENTITY_MATCH_ALL, 25, 22)
     await hass.async_block_till_done()
 
     state = hass.states.get(common.ENTITY)
@@ -2355,7 +2380,7 @@ async def test_hvac_mode_mode_heat_cool_hvac_modes_temps_picks_range_values(
     assert hass.states.get(cooler_switch).state == STATE_OFF
 
     await common.async_set_hvac_mode(hass, HVACMode.HEAT_COOL)
-    await common.async_set_temperature(hass, 18, ENTITY_MATCH_ALL, 25, 22)
+    await common.async_set_temperature_range(hass, ENTITY_MATCH_ALL, 25, 22)
     await hass.async_block_till_done()
 
     state = hass.states.get(common.ENTITY)
@@ -2452,7 +2477,7 @@ async def test_hvac_mode_heat_cool_floor_temp(
     await hass.async_block_till_done()
 
     await common.async_set_hvac_mode(hass, HVACMode.HEAT_COOL)
-    await common.async_set_temperature(hass, 18, ENTITY_MATCH_ALL, 25, 22)
+    await common.async_set_temperature_range(hass, ENTITY_MATCH_ALL, 25, 22)
     await hass.async_block_till_done()
     assert hass.states.get(heater_switch).state == STATE_OFF
     assert hass.states.get(cooler_switch).state == STATE_ON
@@ -2604,7 +2629,7 @@ async def test_hvac_mode_cool_cycle(
 
     fake_changed = dt.utcnow() - duration
     with freeze_time(fake_changed):
-        await common.async_set_temperature(hass, 18, ENTITY_MATCH_ALL, 18, 16)
+        await common.async_set_temperature(hass, 18)
         await hass.async_block_till_done()
         assert hass.states.get(heater_switch).state == STATE_OFF
         assert hass.states.get(cooler_switch).state == STATE_ON
@@ -2870,7 +2895,7 @@ async def test_hvac_mode_heat_cool_dry_mode(
     setup_sensor(hass, 23)
     await hass.async_block_till_done()
 
-    await common.async_set_temperature(hass, 18)
+    await common.async_set_temperature_range(hass, ENTITY_MATCH_ALL, 18, 10)
     await hass.async_block_till_done()
     assert hass.states.get(heater_switch).state == STATE_OFF
     assert hass.states.get(cooler_switch).state == STATE_ON
@@ -2953,7 +2978,7 @@ async def test_hvac_mode_heat_cool_tolerances(
 
     setup_sensor(hass, 24)
     await hass.async_block_till_done()
-    await common.async_set_temperature(hass, 18, ENTITY_MATCH_ALL, 25, 22)
+    await common.async_set_temperature_range(hass, ENTITY_MATCH_ALL, 25, 22)
     await hass.async_block_till_done()
 
     assert hass.states.get(heater_switch).state == STATE_OFF

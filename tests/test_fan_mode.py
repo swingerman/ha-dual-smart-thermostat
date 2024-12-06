@@ -3100,7 +3100,7 @@ async def test_cooler_fan_mode_opening_hvac_action_reason(
     setup_sensor(hass, 23)
     await hass.async_block_till_done()
 
-    await common.async_set_temperature(hass, 18, common.ENTITY_MATCH_ALL, 18, 10)
+    await common.async_set_temperature(hass, 18)
     await hass.async_block_till_done()
     assert (
         hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_ACTION_REASON)

@@ -45,7 +45,6 @@ class FeatureManager(StateManager):
     ) -> None:
         self.hass = hass
         self.environment = environment
-        self._supported_features = 0
         self._cooler_entity_id = config.get(CONF_COOLER)
         self._heater_entity_id = config.get(CONF_HEATER)
         self._ac_mode = config.get(CONF_AC_MODE)
@@ -71,6 +70,8 @@ class FeatureManager(StateManager):
         self._default_support_flags = (
             ClimateEntityFeature.TURN_OFF | ClimateEntityFeature.TURN_ON
         )
+
+        self._supported_features = self._default_support_flags
 
         self._hvac_power_levels = config.get(CONF_HVAC_POWER_LEVELS)
         self._hvac_power_tolerance = config.get(CONF_HVAC_POWER_TOLERANCE)

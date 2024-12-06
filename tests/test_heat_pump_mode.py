@@ -372,7 +372,7 @@ async def test_set_preset_mode_heat_cool(
 ) -> None:
     """Test the setting preset mode."""
     setup_sensor(hass, 23)
-    await common.async_set_temperature(hass, 23, common.ENTITY, 22, 18)
+    await common.async_set_temperature_range(hass, common.ENTITY, 22, 18)
     await common.async_set_preset_mode(hass, preset)
     state = hass.states.get(common.ENTITY)
     assert state.attributes.get(ATTR_TARGET_TEMP_LOW) == temp_low
@@ -433,7 +433,7 @@ async def test_set_preset_mode_heat_cool_and_restore_prev_temp(
 ) -> None:
     """Test the setting preset mode."""
     setup_sensor(hass, 23)
-    await common.async_set_temperature(hass, 23, common.ENTITY, 22, 18)
+    await common.async_set_temperature_range(hass, common.ENTITY, 22, 18)
     await common.async_set_preset_mode(hass, preset)
     state = hass.states.get(common.ENTITY)
     assert state.attributes.get(ATTR_TARGET_TEMP_LOW) == temp_low
@@ -500,7 +500,7 @@ async def test_set_preset_mode_heat_cool_twice_and_restore_prev_temp(
 ) -> None:
     """Test the setting preset mode."""
     setup_sensor(hass, 23)
-    await common.async_set_temperature(hass, 23, common.ENTITY, 22, 18)
+    await common.async_set_temperature_range(hass, common.ENTITY, 22, 18)
     await common.async_set_preset_mode(hass, preset)
     await common.async_set_preset_mode(hass, preset)
     state = hass.states.get(common.ENTITY)
@@ -605,15 +605,15 @@ async def test_set_preset_mode_heat_cool_set_temp_keeps_preset_mode(
     """
     target_temp_high = 32
     target_temp_low = 18
-    await common.async_set_temperature(hass, 23, common.ENTITY, 22, 18)
+    await common.async_set_temperature_range(hass, common.ENTITY, 22, 18)
     await common.async_set_preset_mode(hass, preset)
 
     state = hass.states.get(common.ENTITY)
     assert state.attributes.get(ATTR_TARGET_TEMP_LOW) == temp_low
     assert state.attributes.get(ATTR_TARGET_TEMP_HIGH) == temp_high
 
-    await common.async_set_temperature(
-        hass, 18, common.ENTITY, target_temp_high, target_temp_low
+    await common.async_set_temperature_range(
+        hass, common.ENTITY, target_temp_high, target_temp_low
     )
     assert state.attributes.get("supported_features") == 402
 
