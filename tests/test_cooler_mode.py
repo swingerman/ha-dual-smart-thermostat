@@ -488,6 +488,31 @@ async def test_hvac_mode_cool(
     assert call.data["entity_id"] == common.ENT_SWITCH
 
 
+async def test_sensor_chhange_dont_control_ac_on_when_off(
+    hass: HomeAssistant, setup_comp_heat_ac_cool  # noqa: F811
+) -> None:
+    """Test if temperature change doesn't turn ac on when off."""
+    # Given
+    await common.async_set_hvac_mode(hass, HVACMode.OFF)
+    await common.async_set_temperature(hass, 25)
+    await hass.async_block_till_done()
+    calls = setup_switch(hass, False)
+
+    # When
+    setup_sensor(hass, 30)
+    await hass.async_block_till_done()
+
+    # Then
+    assert len(calls) == 0
+
+    # When
+    setup_sensor(hass, 31)
+    await hass.async_block_till_done()
+
+    # Then
+    assert len(calls) == 0
+
+
 async def test_set_target_temp_ac_on(
     hass: HomeAssistant, setup_comp_heat_ac_cool  # noqa: F811
 ) -> None:

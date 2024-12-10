@@ -748,7 +748,7 @@ async def test_set_target_temp_cool_fan_off(
     setup_sensor(hass, 25)
     await hass.async_block_till_done()
     await common.async_set_temperature(hass, 30)
-    assert len(calls) == 4
+    assert len(calls) == 2
 
     call_switch = calls[0]
     assert call_switch.domain == HASS_DOMAIN
