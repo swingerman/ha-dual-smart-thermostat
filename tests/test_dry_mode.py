@@ -515,6 +515,25 @@ async def test_hvac_mode_cdry(
     assert call.data["entity_id"] == common.ENT_DRYER
 
 
+async def test_sensor_chhange_dont_control_dryer_when_off(
+    hass: HomeAssistant, setup_comp_heat_ac_cool_dry  # noqa: F811
+) -> None:
+    """Test that the humidifier switch doesn't turn on when the thermostat is off."""
+    # Given
+    await common.async_set_hvac_mode(hass, HVACMode.OFF)
+    await common.async_set_humidity(hass, 65)
+    setup_humidity_sensor(hass, 70)
+    await hass.async_block_till_done()
+    calls = setup_switch_dual(hass, common.ENT_DRYER, False, True)
+
+    # When
+    setup_humidity_sensor(hass, 71)
+    await hass.async_block_till_done()
+
+    # Then
+    assert len(calls) == 0
+
+
 async def test_set_target_temp_ac_dryer_on(
     hass: HomeAssistant, setup_comp_heat_ac_cool_dry  # noqa: F811
 ) -> None:
