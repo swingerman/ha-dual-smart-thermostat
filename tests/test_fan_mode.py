@@ -743,12 +743,14 @@ async def test_set_target_temp_cool_fan_off(
     hass: HomeAssistant, setup_comp_heat_ac_cool_fan_config  # noqa: F811
 ) -> None:
     """Test if target temperature turn ac off."""
+    await common.async_set_hvac_mode(hass, HVACMode.COOL)
+    await hass.async_block_till_done()
     calls = setup_switch_dual(hass, common.ENT_FAN, True, True)
 
     setup_sensor(hass, 25)
     await hass.async_block_till_done()
     await common.async_set_temperature(hass, 30)
-    assert len(calls) == 2
+    assert len(calls) == 4
 
     call_switch = calls[0]
     assert call_switch.domain == HASS_DOMAIN

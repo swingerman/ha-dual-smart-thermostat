@@ -1199,6 +1199,11 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         _LOGGER.info("Attempting to control climate, time %s, force %s", time, force)
 
         async with self._temp_lock:
+
+            if self.hvac_device.hvac_mode == HVACMode.OFF:
+                _LOGGER.debug("Climate is off, skipping control")
+                return
+
             await self.hvac_device.async_control_hvac(time, force)
 
             _LOGGER.info(
