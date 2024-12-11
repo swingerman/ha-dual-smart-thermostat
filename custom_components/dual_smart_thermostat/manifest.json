@@ -7,7 +7,10 @@
   "dependencies": [
     "climate",
     "sensor",
-    "switch"
+    "switch",
+    "input_select",
+    "input_boolean",
+    "input_number"
   ],
   "documentation": "https://github.com/swingerman/ha-dual-smart-thermostat.git",
   "iot_class": "local_polling",
