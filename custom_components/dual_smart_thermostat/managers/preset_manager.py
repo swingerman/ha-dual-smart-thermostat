@@ -192,16 +192,22 @@ class PresetManager(StateManager):
                         )
                         self._environment.saved_target_temp = float(old_temperature)
 
-                    self._environment.target_temp_low = (
-                        float(old_target_temp_low)
-                        if old_target_temp_low
-                        else float(preset.to_dict.get(ATTR_TARGET_TEMP_LOW))
-                    )
-                    self._environment.target_temp_high = (
-                        float(old_target_temp_high)
-                        if old_target_temp_high
-                        else float(preset.to_dict.get(ATTR_TARGET_TEMP_HIGH))
-                    )
+                    preset_target_temp_low = preset.to_dict.get(ATTR_TARGET_TEMP_LOW)
+                    preset_target_temp_high = preset.to_dict.get(ATTR_TARGET_TEMP_HIGH)
+
+                    if preset_target_temp_low is not None:
+                        self._environment.target_temp_low = (
+                            float(old_target_temp_low)
+                            if old_target_temp_low
+                            else float(preset_target_temp_low)
+                        )
+
+                    if preset_target_temp_high is not None:
+                        self._environment.target_temp_high = (
+                            float(old_target_temp_high)
+                            if old_target_temp_high
+                            else float(preset_target_temp_high)
+                        )
 
         elif self._preset_modes and old_pres_mode in self._presets:
             _LOGGER.debug("Restoring previous preset mode target: %s", old_pres_mode)
