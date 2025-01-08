@@ -131,3 +131,7 @@ class HeaterHvacConroller(GenericHvacController):
                 time,
             )
             await self.async_turn_off_callback()
+            if strategy.hvac_goal_reached:
+                self._hvac_action_reason = strategy.goal_reached_reason()
+            else:
+                self._hvac_action_reason = strategy.goal_not_reached_reason()

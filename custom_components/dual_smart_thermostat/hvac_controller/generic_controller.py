@@ -199,3 +199,7 @@ class GenericHvacController(HvacController):
                 self._hvac_action_reason = HVACActionReason.OPENING
         else:
             _LOGGER.debug("No case matched when - keeping device off")
+            if strategy.hvac_goal_reached:
+                self._hvac_action_reason = strategy.goal_reached_reason()
+            else:
+                self._hvac_action_reason = strategy.goal_not_reached_reason()

@@ -1803,7 +1803,7 @@ async def test_heater_mode_floor_temp_hvac_action_reason(
     await hass.async_block_till_done()
     assert (
         hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_ACTION_REASON)
-        == HVACActionReason.NONE
+        == HVACActionReason.TARGET_TEMP_REACHED
     )
 
     setup_sensor(hass, 17)
