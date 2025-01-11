@@ -488,6 +488,27 @@ async def test_set_target_temp(
     assert state.attributes.get("temperature") == 30.0
 
 
+async def test_set_target_temp_and_hvac_mode(
+    hass: HomeAssistant, setup_comp_heat  # noqa: F811
+) -> None:
+    """Test the setting of the target temperature and HVAC mode together."""
+
+    # Given
+    await common.async_set_hvac_mode(hass, HVACMode.OFF)
+    await hass.async_block_till_done()
+    state = hass.states.get(common.ENTITY)
+    assert state.state == HVACMode.OFF
+
+    # When
+    await common.async_set_temperature(hass, temperature=30, hvac_mode=HVACMode.HEAT)
+    await hass.async_block_till_done()
+
+    # Then
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes.get("temperature") == 30.0
+    assert state.state == HVACMode.HEAT
+
+
 @pytest.mark.parametrize(
     ("preset", "temp"),
     [

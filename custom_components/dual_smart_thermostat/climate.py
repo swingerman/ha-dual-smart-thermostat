@@ -12,6 +12,7 @@ from homeassistant.components.climate import (
     HVACMode,
 )
 from homeassistant.components.climate.const import (
+    ATTR_HVAC_MODE,
     ATTR_TARGET_TEMP_HIGH,
     ATTR_TARGET_TEMP_LOW,
     PRESET_NONE,
@@ -892,15 +893,21 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         temperature = kwargs.get(ATTR_TEMPERATURE)
         temp_low = kwargs.get(ATTR_TARGET_TEMP_LOW)
         temp_high = kwargs.get(ATTR_TARGET_TEMP_HIGH)
+        hvac_mode = kwargs.get(ATTR_HVAC_MODE)
 
         _LOGGER.info(
-            "Setting temperatures. Temp: %s, Low: %s, High: %s",
+            "Setting temperatures. Temp: %s, Low: %s, High: %s, Hvac Mode: %s",
             temperature,
             temp_low,
             temp_high,
+            hvac_mode,
         )
 
         temperatures = TargetTemperatures(temperature, temp_high, temp_low)
+
+        if hvac_mode is not None:
+            _LOGGER.info("Setting hvac mode with temperature: %s", hvac_mode)
+            await self.async_set_hvac_mode(hvac_mode)
 
         if self.features.is_configured_for_heat_cool_mode:
             self._set_temperatures_dual_mode(temperatures)
