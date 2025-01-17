@@ -30,8 +30,6 @@ _LOGGER = logging.getLogger(__name__)
 
 class HeaterAUXHeaterDevice(MultiHvacDevice):
 
-    _target_env_attr: str = "_target_temp"
-
     def __init__(
         self,
         hass: HomeAssistant,
@@ -51,10 +49,11 @@ class HeaterAUXHeaterDevice(MultiHvacDevice):
         self._aux_heater_timeout = self._features.aux_heater_timeout
         self._aux_heater_dual_mode = self._features.aux_heater_dual_mode
 
-        if features.is_range_mode:
-            self._target_env_attr = "_target_temp_low"
-
         self._aux_heater_last_run: datetime = None
+
+    @property
+    def _target_env_attr(self) -> str:
+        return "_target_temp_low" if self._features.is_range_mode else "_target_temp"
 
     async def async_control_hvac(self, time=None, force=False):
         _LOGGER.debug({self.__class__.__name__})
@@ -69,6 +68,7 @@ class HeaterAUXHeaterDevice(MultiHvacDevice):
 
     async def async_control_devices(self, time=None, force=False):
         _LOGGER.debug("async_control_devices at: %s", dt.utcnow())
+        _LOGGER.debug("is_active: %s", self.is_active)
         if self.is_active:
             await self._async_control_devices_when_on(time)
         else:
@@ -87,6 +87,18 @@ class HeaterAUXHeaterDevice(MultiHvacDevice):
         is_floor_hot = self.environment.is_floor_hot
         is_floor_cold = self.environment.is_floor_cold
         any_opening_open = self.openings.any_opening_open(self.hvac_mode)
+
+        _LOGGER.debug(
+            "_target_env_attr: %s, too_cold: %s, is_floor_hot: %s, is_floor_cold: %s, any_opening_open: %s, time: %s",
+            self._target_env_attr,
+            too_cold,
+            is_floor_hot,
+            is_floor_cold,
+            any_opening_open,
+            time,
+        )
+
+        _LOGGER.debug("is_range-Mode: %s", self._features.is_range_mode)
 
         if (too_cold and not any_opening_open and not is_floor_hot) or is_floor_cold:
 
@@ -111,6 +123,9 @@ class HeaterAUXHeaterDevice(MultiHvacDevice):
                 self._hvac_action_reason = HVACActionReason.OVERHEAT
             if any_opening_open:
                 self._hvac_action_reason = HVACActionReason.OPENING
+
+        else:
+            _LOGGER.debug("No case matched when - keep device off")
 
     async def _async_handle_aux_heater_ran_today(self) -> None:
         _LOGGER.info("Aux heater has already ran today")

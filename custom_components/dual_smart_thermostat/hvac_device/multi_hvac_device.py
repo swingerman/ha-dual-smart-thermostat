@@ -75,6 +75,7 @@ class MultiHvacDevice(HVACDevice, ControlableHVACDevice):
         for device in self.hvac_devices:
             if device.is_active:
                 return True
+        return False
 
     @property
     def hvac_mode(self) -> HVACMode:

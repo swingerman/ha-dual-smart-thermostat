@@ -199,6 +199,7 @@ class HVACDeviceFactory:
             )
 
         if aux_heater_device and heater_device:
+            _LOGGER.info("Creating heater aux heater device")
             heater_device = HeaterAUXHeaterDevice(
                 self.hass,
                 [heater_device, aux_heater_device],
