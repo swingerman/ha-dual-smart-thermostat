@@ -417,6 +417,27 @@ async def test_set_target_temp_ac_off(
     assert call.data["entity_id"] == common.ENT_SWITCH
 
 
+async def test_set_target_temp_ac_and_hvac_mode(
+    hass: HomeAssistant, setup_comp_heat_ac_cool  # noqa: F811
+) -> None:
+    """Test the setting of the target temperature and HVAC mode together."""
+
+    # Given
+    await common.async_set_hvac_mode(hass, HVACMode.OFF)
+    await hass.async_block_till_done()
+    state = hass.states.get(common.ENTITY)
+    assert state.state == HVACMode.OFF
+
+    # When
+    await common.async_set_temperature(hass, temperature=30, hvac_mode=HVACMode.COOL)
+    await hass.async_block_till_done()
+
+    # Then
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes.get("temperature") == 30.0
+    assert state.state == HVACMode.COOL
+
+
 async def test_turn_away_mode_on_cooling(
     hass: HomeAssistant, setup_comp_heat_ac_cool  # noqa: F811
 ) -> None:
