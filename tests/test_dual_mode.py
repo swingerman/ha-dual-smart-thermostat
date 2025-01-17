@@ -1,5 +1,6 @@
 """The tests for the dual_smart_thermostat."""
 
+import asyncio
 import datetime
 from datetime import timedelta
 import logging
@@ -2651,6 +2652,150 @@ async def test_hvac_mode_heat_cool_floor_temp(
     await hass.async_block_till_done()
     assert hass.states.get(heater_switch).state == STATE_OFF
     assert hass.states.get(cooler_switch).state == STATE_OFF
+
+
+@pytest.mark.parametrize("expected_lingering_timers", [True])
+async def test_hvac_mode_mode_heat_cool_aux_heat(
+    hass: HomeAssistant, setup_comp_1  # noqa: F811
+):
+    """Test thermostat heater and cooler switch in heat/cool mode."""
+
+    heater_switch = "input_boolean.heater"
+    cooler_switch = "input_boolean.cooler"
+    secondary_heater_switch = "input_boolean.aux_heater"
+    secondaty_heater_timeout = 10
+    assert await async_setup_component(
+        hass,
+        input_boolean.DOMAIN,
+        {"input_boolean": {"heater": None, "aux_heater": None, "cooler": None}},
+    )
+
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {"name": "test", "initial": 10, "min": 0, "max": 40, "step": 1}
+            }
+        },
+    )
+
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "cooler": cooler_switch,
+                "heater": heater_switch,
+                "secondary_heater": secondary_heater_switch,
+                "secondary_heater_timeout": {"seconds": secondaty_heater_timeout},
+                "heat_cool_mode": True,
+                "target_sensor": common.ENT_SENSOR,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    # check if all hvac modes are available
+    hvac_modes = hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_MODES)
+    assert HVACMode.HEAT in hvac_modes
+    assert HVACMode.COOL in hvac_modes
+    assert HVACMode.HEAT_COOL in hvac_modes
+    assert HVACMode.OFF in hvac_modes
+
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes["supported_features"] == 386
+
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(secondary_heater_switch).state == STATE_OFF
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+
+    await common.async_set_hvac_mode(hass, HVACMode.HEAT_COOL)
+    await common.async_set_temperature_range(hass, ENTITY_MATCH_ALL, 25, 22)
+    setup_sensor(hass, 26)
+    await hass.async_block_till_done()
+
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes["supported_features"] == 386
+
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(secondary_heater_switch).state == STATE_OFF
+    assert hass.states.get(cooler_switch).state == STATE_ON
+
+    setup_sensor(hass, 24)
+    await hass.async_block_till_done()
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(secondary_heater_switch).state == STATE_OFF
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+
+    setup_sensor(hass, 18)
+    await hass.async_block_till_done()
+    assert hass.states.get(heater_switch).state == STATE_ON
+    assert hass.states.get(secondary_heater_switch).state == STATE_OFF
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+
+    # switch to heat only mode
+    await common.async_set_hvac_mode(hass, HVACMode.HEAT)
+    await common.async_set_temperature(hass, 25, ENTITY_MATCH_ALL)
+    await hass.async_block_till_done()
+
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes["supported_features"] == 385
+
+    setup_sensor(hass, 20)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(heater_switch).state == STATE_ON
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+
+    setup_sensor(hass, 26)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+
+    setup_sensor(hass, 20)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(heater_switch).state == STATE_ON
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+
+    # until secondary heater timeout everything should be the same
+    await asyncio.sleep(secondaty_heater_timeout - 4)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(heater_switch).state == STATE_ON
+    assert hass.states.get(secondary_heater_switch).state == STATE_OFF
+
+    # after secondary heater timeout secondary heater should be on
+    await asyncio.sleep(secondaty_heater_timeout + 5)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(secondary_heater_switch).state == STATE_ON
+
+    # triggers reaching target temp should turn off secondary heater
+    setup_sensor(hass, 26)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(secondary_heater_switch).state == STATE_OFF
+
+    # switch to cool only mode
+    await common.async_set_hvac_mode(hass, HVACMode.COOL)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes["supported_features"] == 385
+
+    await common.async_set_hvac_mode(hass, HVACMode.HEAT_COOL)
+    await hass.async_block_till_done()
+
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes["supported_features"] == 386
 
 
 # TODO: test handling setting only target temp without low and high

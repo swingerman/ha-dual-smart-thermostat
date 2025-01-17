@@ -98,7 +98,9 @@ class FeatureManager(StateManager):
     @property
     def is_range_mode(self) -> bool:
         """Check if current support flag is for range temp mode."""
-        return self._supported_features & ClimateEntityFeature.TARGET_TEMPERATURE_RANGE
+        return bool(
+            self._supported_features & ClimateEntityFeature.TARGET_TEMPERATURE_RANGE
+        )
 
     @property
     def is_configured_for_cooler_mode(self) -> bool:
