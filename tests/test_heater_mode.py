@@ -1720,6 +1720,262 @@ async def test_heater_mode_floor_temp(
     assert hass.states.get(heater_switch).state == STATE_OFF
 
 
+async def test_heater_mode_floor_temp_presets(
+    hass: HomeAssistant, setup_comp_1  # noqa: F811
+) -> None:
+    """Test thermostat heater switch with floor temp in heating mode."""
+    heater_switch = "input_boolean.test"
+    assert await async_setup_component(
+        hass, input_boolean.DOMAIN, {"input_boolean": {"test": None}}
+    )
+
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {"name": "temp", "initial": 10, "min": 0, "max": 40, "step": 1}
+            }
+        },
+    )
+
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {
+                    "name": "floor_temp",
+                    "initial": 10,
+                    "min": 0,
+                    "max": 40,
+                    "step": 1,
+                }
+            }
+        },
+    )
+
+    # Given
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "heater": heater_switch,
+                "target_sensor": common.ENT_SENSOR,
+                "initial_hvac_mode": HVACMode.HEAT,
+                "floor_sensor": common.ENT_FLOOR_SENSOR,
+                "min_floor_temp": 5,
+                "max_floor_temp": 28,
+                "cold_tolerance": COLD_TOLERANCE,
+                "hot_tolerance": HOT_TOLERANCE,
+                "away": {"temperature": 30, "min_floor_temp": 10, "max_floor_temp": 25},
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    assert hass.states.get(heater_switch).state == STATE_OFF
+
+    # When
+    # Temperature is below target
+    # Floor temperature is above min_floor_temp
+    setup_sensor(hass, 18.6)
+    setup_floor_sensor(hass, 10)
+    await common.async_set_temperature(hass, 18)
+    await hass.async_block_till_done()
+
+    # Then
+    # Heater should be off
+    assert hass.states.get(heater_switch).state == STATE_OFF
+
+    # When
+    # Temperature is below target
+    setup_sensor(hass, 17)
+    await hass.async_block_till_done()
+
+    # Then
+    # Heater should be on
+    assert hass.states.get(heater_switch).state == STATE_ON
+
+    # When
+    # Floor temperature reaches max_floor_temp
+    setup_floor_sensor(hass, 28)
+    await hass.async_block_till_done()
+
+    # Then
+    # Heater should be off
+    assert hass.states.get(heater_switch).state == STATE_OFF
+
+    # When
+    # Floor temperature is below max_floor_temp
+    setup_floor_sensor(hass, 26)
+    await hass.async_block_till_done()
+
+    # Then
+    # Heater should be on
+    assert hass.states.get(heater_switch).state == STATE_ON
+
+    # When
+    # Temperature reaches target
+    setup_sensor(hass, 22)
+    await hass.async_block_till_done()
+
+    # Then
+    # Heater should be off
+    assert hass.states.get(heater_switch).state == STATE_OFF
+
+    # When
+    # Floor temperature is below min_floor_temp
+    setup_floor_sensor(hass, 4)
+    await hass.async_block_till_done()
+
+    # Then
+    # Heater should be on
+    assert hass.states.get(heater_switch).state == STATE_ON
+
+    # When
+    # Floor temperature is below min_floor_temp
+    setup_floor_sensor(hass, 3)
+    await hass.async_block_till_done()
+
+    # Then
+    # Heater should be on
+    assert hass.states.get(heater_switch).state == STATE_ON
+
+    # When
+    # Floor temperature reaches min_floor_temp
+    setup_floor_sensor(hass, 10)
+    await hass.async_block_till_done()
+
+    # Then
+    assert hass.states.get(heater_switch).state == STATE_OFF
+
+    # away mode
+    # When
+    # Temperature is below target from preset away
+    await common.async_set_preset_mode(hass, "away")
+    await hass.async_block_till_done()
+
+    # Then
+    # Heater should be on
+    assert hass.states.get(heater_switch).state == STATE_ON
+
+    # When
+    # Floor temperature is above max_floor_temp from preset away
+    setup_floor_sensor(hass, 26)
+    await hass.async_block_till_done()
+
+    # Then
+    # Heater should be off
+    assert hass.states.get(heater_switch).state == STATE_OFF
+
+    # When
+    # Floor temperature is within range from preset away
+    setup_floor_sensor(hass, 20)
+    await hass.async_block_till_done()
+
+    # Then
+    # Heater should be on
+    assert hass.states.get(heater_switch).state == STATE_ON
+
+    # When
+    # Floor temperature reaches max_floor_temp from preset away
+    setup_floor_sensor(hass, 25)
+    await hass.async_block_till_done()
+
+    # Then
+    # Heater should be off
+    assert hass.states.get(heater_switch).state == STATE_OFF
+
+    # When
+    # Floor temperature is within range from preset away
+    setup_floor_sensor(hass, 20)
+    await hass.async_block_till_done()
+
+    # Then
+    # Heater should be on
+    assert hass.states.get(heater_switch).state == STATE_ON
+
+    # When
+    # No preset mode
+    await common.async_set_preset_mode(hass, "none")
+    # Temperature is below target
+    # Floor temperature is above min_floor_temp
+    setup_sensor(hass, 18.6)
+    setup_floor_sensor(hass, 10)
+    await common.async_set_temperature(hass, 18)
+    await hass.async_block_till_done()
+
+    # Then
+    # Heater should be off
+    assert hass.states.get(heater_switch).state == STATE_OFF
+
+    # When
+    # Temperature is below target
+    setup_sensor(hass, 17)
+    await hass.async_block_till_done()
+
+    # Then
+    # Heater should be on
+    assert hass.states.get(heater_switch).state == STATE_ON
+
+    # When
+    # Floor temperature reaches max_floor_temp
+    setup_floor_sensor(hass, 28)
+    await hass.async_block_till_done()
+
+    # Then
+    # Heater should be off
+    assert hass.states.get(heater_switch).state == STATE_OFF
+
+    # When
+    # Floor temperature is below max_floor_temp
+    setup_floor_sensor(hass, 26)
+    await hass.async_block_till_done()
+
+    # Then
+    # Heater should be on
+    assert hass.states.get(heater_switch).state == STATE_ON
+
+    # When
+    # Temperature reaches target
+    setup_sensor(hass, 22)
+    await hass.async_block_till_done()
+
+    # Then
+    # Heater should be off
+    assert hass.states.get(heater_switch).state == STATE_OFF
+
+    # When
+    # Floor temperature is below min_floor_temp
+    setup_floor_sensor(hass, 4)
+    await hass.async_block_till_done()
+
+    # Then
+    # Heater should be on
+    assert hass.states.get(heater_switch).state == STATE_ON
+
+    # When
+    # Floor temperature is below min_floor_temp
+    setup_floor_sensor(hass, 3)
+    await hass.async_block_till_done()
+
+    # Then
+    # Heater should be on
+    assert hass.states.get(heater_switch).state == STATE_ON
+
+    # When
+    # Floor temperature reaches min_floor_temp
+    setup_floor_sensor(hass, 10)
+    await hass.async_block_till_done()
+
+    # Then
+    assert hass.states.get(heater_switch).state == STATE_OFF
+
+
 ######################
 # HVAC ACTION REASON #
 ######################

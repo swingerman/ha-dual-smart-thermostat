@@ -112,6 +112,7 @@ class EnvironmentManager(StateManager):
         self._cur_humidity = None
         self._saved_target_humidity = None
         self._config_heat_cool_mode = config.get(CONF_HEAT_COOL_MODE) or False
+        self._config = config
 
     @property
     def cur_temp(self) -> float:
@@ -191,6 +192,10 @@ class EnvironmentManager(StateManager):
     @property
     def min_floor_temp(self) -> float:
         return self._min_floor_temp
+
+    @min_floor_temp.setter
+    def min_floor_temp(self, temp: float) -> None:
+        self._min_floor_temp = temp
 
     @property
     def saved_target_temp(self) -> float:
@@ -595,15 +600,16 @@ class EnvironmentManager(StateManager):
             self._set_temps_when_no_preset_mode(
                 hvac_mode, is_range_mode, supports_temp_range, old_preset_mode
             )
+            self._set_floor_temp_limits_from_config()
         else:
             self._set_temps_when_have_preset_mode(
                 preset_mode,
                 preset_env,
                 hvac_mode,
-                supports_temp_range,
                 is_range_mode,
                 old_preset_mode,
             )
+            self._set_floor_temp_limits_from_preset(preset_env)
 
     def _set_temps_when_no_preset_mode(
         self,
@@ -613,6 +619,7 @@ class EnvironmentManager(StateManager):
         old_preset_mode: str | None,
     ) -> None:
         _LOGGER.debug("Setting temperatures from no preset mode")
+
         if is_range_mode:
             _LOGGER.debug(
                 "Setting temperatures from no preset range mode. Old preset: %s",
@@ -633,7 +640,6 @@ class EnvironmentManager(StateManager):
         preset_mode: str,
         preset_env: PresetEnv | None,
         hvac_mode: HVACMode,
-        supports_temp_range: bool,
         is_range_mode: bool,
         old_preset_mode: str | None = None,
     ) -> None:
@@ -785,6 +791,31 @@ class EnvironmentManager(StateManager):
                 self.target_temp = self.target_temp_low
         else:
             self.saved_target_temp = self.target_temp
+
+    def _set_floor_temp_limits_from_preset(self, preset_env: PresetEnv) -> None:
+        _LOGGER.debug("Setting floor temp limits from preset: %s", preset_env.to_dict)
+
+        if preset_env.has_floor_temp_limits():
+            preset_max_floor_temp = (
+                preset_env.to_dict["max_floor_temp"]
+                or self._config.get(CONF_MAX_FLOOR_TEMP)
+                or DEFAULT_MAX_FLOOR_TEMP
+            )
+            preset_min_floor_temp = preset_env.to_dict[
+                "min_floor_temp"
+            ] or self._config.get(CONF_MIN_FLOOR_TEMP)
+
+            self.max_floor_temp = preset_max_floor_temp
+            self.min_floor_temp = preset_min_floor_temp
+
+    def _set_floor_temp_limits_from_config(self) -> None:
+        _LOGGER.debug("Setting floor temp limits from config")
+        self._max_floor_temp = (
+            self._config.get(CONF_MAX_FLOOR_TEMP) or DEFAULT_MAX_FLOOR_TEMP
+        )
+        self._min_floor_temp = (
+            self._config.get(CONF_MIN_FLOOR_TEMP) or DEFAULT_MAX_FLOOR_TEMP
+        )
 
     def apply_old_state(self, old_state: State) -> None:
         _LOGGER.debug("Applying old state: %s", old_state)
