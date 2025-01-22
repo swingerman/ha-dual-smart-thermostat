@@ -157,6 +157,8 @@ PRESET_SCHEMA = {
     vol.Optional(ATTR_HUMIDITY): vol.Coerce(float),
     vol.Optional(ATTR_TARGET_TEMP_LOW): vol.Coerce(float),
     vol.Optional(ATTR_TARGET_TEMP_HIGH): vol.Coerce(float),
+    vol.Optional(CONF_MAX_FLOOR_TEMP): vol.Coerce(float),
+    vol.Optional(CONF_MIN_FLOOR_TEMP): vol.Coerce(float),
 }
 
 SECONDARY_HEATING_SCHEMA = {

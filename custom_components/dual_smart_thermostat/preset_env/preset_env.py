@@ -7,6 +7,11 @@ from homeassistant.components.climate.const import (
 )
 from homeassistant.const import ATTR_TEMPERATURE
 
+from custom_components.dual_smart_thermostat.const import (
+    CONF_MAX_FLOOR_TEMP,
+    CONF_MIN_FLOOR_TEMP,
+)
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -28,7 +33,18 @@ class RangeTempEnv:
         self.target_temp_high = kwargs.get(ATTR_TARGET_TEMP_HIGH) or None
 
 
-class TempEnv(TargeTempEnv, RangeTempEnv):
+class FloorTempLimitEnv:
+    min_floor_temp: float | None
+    max_floor_temp: float | None
+
+    def __init__(self, **kwargs) -> None:
+        super(FloorTempLimitEnv, self).__init__(**kwargs)
+        _LOGGER.debug(f"FloorTempLimitEnv kwargs: {kwargs}")
+        self.min_floor_temp = kwargs.get(CONF_MIN_FLOOR_TEMP) or None
+        self.max_floor_temp = kwargs.get(CONF_MAX_FLOOR_TEMP) or None
+
+
+class TempEnv(TargeTempEnv, RangeTempEnv, FloorTempLimitEnv):
     def __init__(self, **kwargs) -> None:
         super(TempEnv, self).__init__(**kwargs)
         _LOGGER.debug(f"TempEnv kwargs: {kwargs}")
@@ -60,3 +76,6 @@ class PresetEnv(TempEnv, HumidityEnv):
 
     def has_humidity(self) -> bool:
         return self.humidity is not None
+
+    def has_floor_temp_limits(self) -> bool:
+        return self.min_floor_temp is not None or self.max_floor_temp is not None

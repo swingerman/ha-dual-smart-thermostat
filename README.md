@@ -258,9 +258,13 @@ climate:
 
 ## Floor heating temperature control
 
+The `dual_smart_thermostat` can control the floor heating temperature. The thermostat can turn off if the floor heating reaches the maximum allowed temperature you define in order to protect the floor from overheating and damage.
+These limits also can be set in presets.
+
 ### Maximum floor temperature
 
 The `dual_smart_thermostat` can turn off if the floor heating reaches the maximum allowed temperature you define in order to protect the floor from overheating and damage.
+There is a default value of 28 degrees Celsius as per inustry recommendations.
 To enable this protection you need to set two variables:
 
 ```yaml
@@ -268,9 +272,36 @@ floor_sensor: sensor.floor_temp
 max_floor_temp: 28
 ```
 
+#### Set in presets
+
+You can also set the `max_floor_temp` in the presets configuration. This will allow you to set different maximum floor temperatures for different presets.
+
+```yaml
+floor_sensor: sensor.floor_temp
+max_floor_temp: 28
+preset_name:
+  max_floor_temp: 25
+```
+
 ### Minimum floor temperature
 
 The `dual_smart_thermostat` can turn on if the floor temperature reaches the minimum required temperature you define in order to protect the floor from freezing or to keep it on a comfortable temperature.
+
+```yaml
+floor_sensor: sensor.floor_temp
+min_floor_temp: 5
+```
+
+#### Set in presets
+
+You can also set the `min_floor_temp` in the presets configuration. This will allow you to set different minimum floor temperatures for different presets.
+
+```yaml
+floor_sensor: sensor.floor_temp
+min_floor_temp: 5
+preset_name:
+  min_floor_temp: 8
+```
 
 ### Floor Temperature Control Configuration
 
@@ -306,12 +337,14 @@ Currently supported presets are:
 
 To set presets you need to add entries for them in the configuration file like this:
 
-You have 4 options here:
+You have 6 options here:
 
 1. Set the `temperature` for heat, cool or fan-only mode
 2. Set the `target_temp_low` and `target_temp_high` for heat_cool mode. If `temperature` is not set but `target_temp_low` and `target_temp_high` are set, the `temperature` will be picked based on hvac mode. For heat mode it will be `target_temp_low` and for cool, fan_only mode it will be `target_temp_high`
 3. Set the `humidity` for dry mode
-4. Set all above
+4. Set `min_floor_temp` for floor heating temperature control
+5. Set `max_floor_temp` for floor heating temperature control
+6. Set all above
 
 ### Presets Configuration
 
@@ -321,6 +354,8 @@ preset_name:
   humidity: 50 # <-- only if dry mode configured
   target_temp_low: 12
   target_temp_high: 14
+  min_floor_temp: 5
+  max_floor_temp: 28
 ```
 
 ## HVAC Action Reason

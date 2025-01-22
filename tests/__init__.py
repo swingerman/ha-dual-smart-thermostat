@@ -33,7 +33,11 @@ from homeassistant.util.unit_system import METRIC_SYSTEM
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.dual_smart_thermostat.const import DOMAIN
+from custom_components.dual_smart_thermostat.const import (
+    CONF_MAX_FLOOR_TEMP,
+    CONF_MIN_FLOOR_TEMP,
+    DOMAIN,
+)
 
 from . import common
 
@@ -648,6 +652,68 @@ async def setup_comp_heat_presets(hass: HomeAssistant) -> None:
                 PRESET_SLEEP: {"temperature": 17},
                 PRESET_BOOST: {"temperature": 24},
                 "anti_freeze": {"temperature": 5},
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+
+@pytest.fixture
+async def setup_comp_heat_presets_floor(hass: HomeAssistant) -> None:
+    """Initialize components."""
+    hass.config.units = METRIC_SYSTEM
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "cold_tolerance": 2,
+                "hot_tolerance": 4,
+                "heater": common.ENT_HEATER,
+                "target_sensor": common.ENT_SENSOR,
+                "initial_hvac_mode": HVACMode.HEAT,
+                PRESET_AWAY: {
+                    "temperature": 16,
+                    CONF_MAX_FLOOR_TEMP: 30,
+                    CONF_MIN_FLOOR_TEMP: 15,
+                },
+                PRESET_ACTIVITY: {
+                    "temperature": 21,
+                    CONF_MAX_FLOOR_TEMP: 30,
+                    CONF_MIN_FLOOR_TEMP: 15,
+                },
+                PRESET_COMFORT: {
+                    "temperature": 20,
+                    CONF_MAX_FLOOR_TEMP: 30,
+                    CONF_MIN_FLOOR_TEMP: 15,
+                },
+                PRESET_ECO: {
+                    "temperature": 18,
+                    CONF_MAX_FLOOR_TEMP: 30,
+                    CONF_MIN_FLOOR_TEMP: 15,
+                },
+                PRESET_HOME: {
+                    "temperature": 19,
+                    CONF_MAX_FLOOR_TEMP: 30,
+                    CONF_MIN_FLOOR_TEMP: 15,
+                },
+                PRESET_SLEEP: {
+                    "temperature": 17,
+                    CONF_MAX_FLOOR_TEMP: 30,
+                    CONF_MIN_FLOOR_TEMP: 15,
+                },
+                PRESET_BOOST: {
+                    "temperature": 24,
+                    CONF_MAX_FLOOR_TEMP: 30,
+                    CONF_MIN_FLOOR_TEMP: 15,
+                },
+                "anti_freeze": {
+                    "temperature": 5,
+                    CONF_MAX_FLOOR_TEMP: 30,
+                    CONF_MIN_FLOOR_TEMP: 15,
+                },
             }
         },
     )
