@@ -2169,7 +2169,7 @@ async def test_heater_mode_opening_hvac_action_reason(
                 "initial_hvac_mode": HVACMode.HEAT,
                 "openings": [
                     opening_1,
-                    {"entity_id": opening_2, "timeout": {"seconds": 10}},
+                    {"entity_id": opening_2, "timeout": {"seconds": 5}},
                 ],
             }
         },
@@ -2214,11 +2214,11 @@ async def test_heater_mode_opening_hvac_action_reason(
         == HVACActionReason.TARGET_TEMP_NOT_REACHED
     )
 
-    # wait 10 seconds
-    common.async_fire_time_changed(
-        hass, dt_util.utcnow() + datetime.timedelta(minutes=10)
-    )
-
+    # wait 5 seconds
+    # common.async_fire_time_changed(
+    #     hass, dt_util.utcnow() + datetime.timedelta(minutes=10)
+    # )
+    await asyncio.sleep(5)
     await hass.async_block_till_done()
 
     assert (
@@ -2334,7 +2334,7 @@ async def test_heater_mode_opening(
                 "initial_hvac_mode": HVACMode.HEAT,
                 "openings": [
                     opening_1,
-                    {"entity_id": opening_2, "timeout": {"seconds": 10}},
+                    {"entity_id": opening_2, "timeout": {"seconds": 5}},
                 ],
             }
         },
@@ -2365,10 +2365,11 @@ async def test_heater_mode_opening(
 
     assert hass.states.get(heater_switch).state == STATE_ON
 
-    # wait 10 seconds
-    common.async_fire_time_changed(
-        hass, dt_util.utcnow() + datetime.timedelta(minutes=10)
-    )
+    # wait 5 seconds
+    # common.async_fire_time_changed(
+    #     hass, dt_util.utcnow() + datetime.timedelta(minutes=10)
+    # )
+    await asyncio.sleep(5)
     await hass.async_block_till_done()
 
     assert hass.states.get(heater_switch).state == STATE_OFF

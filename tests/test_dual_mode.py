@@ -3678,3 +3678,215 @@ async def test_heat_cool_mode_opening_scope(
         if hvac_mode == HVACMode.COOL
         else STATE_OFF
     )
+
+
+@pytest.mark.parametrize("expected_lingering_timers", [True])
+async def test_heat_cool_mode_opening_timeout(
+    hass: HomeAssistant,
+    setup_comp_1,  # noqa: F811
+) -> None:
+    """Test thermostat reacting to opening with timeout."""
+    heater_switch = "input_boolean.heater"
+    cooler_switch = "input_boolean.cooler"
+    opening_1 = "input_boolean.opening_1"
+    opening_2 = "input_boolean.opening_2"
+
+    assert await async_setup_component(
+        hass,
+        input_boolean.DOMAIN,
+        {
+            "input_boolean": {
+                "heater": None,
+                "cooler": None,
+                "opening_1": None,
+                "opening_2": None,
+            }
+        },
+    )
+
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {"name": "temp", "initial": 10, "min": 0, "max": 40, "step": 1},
+                "outside_temp": {
+                    "name": "test",
+                    "initial": 10,
+                    "min": 0,
+                    "max": 40,
+                    "step": 1,
+                },
+                "humidity": {
+                    "name": "humididty",
+                    "initial": 50,
+                    "min": 20,
+                    "max": 99,
+                    "step": 1,
+                },
+            }
+        },
+    )
+
+    # Given
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "cooler": cooler_switch,
+                "heater": heater_switch,
+                "heat_cool_mode": True,
+                "target_sensor": common.ENT_SENSOR,
+                "outside_sensor": common.ENT_OUTSIDE_SENSOR,
+                "humidity_sensor": common.ENT_HUMIDITY_SENSOR,
+                "initial_hvac_mode": HVACMode.HEAT_COOL,
+                "openings": [
+                    opening_1,
+                    {"entity_id": opening_2, "timeout": {"seconds": 5}},
+                ],
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    assert hass.states.get(common.ENTITY).state == HVACMode.HEAT_COOL
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+
+    # When
+    setup_sensor(hass, 23)
+    setup_outside_sensor(hass, 21)
+    await common.async_set_temperature_range(hass, "all", 28, 24)
+    await hass.async_block_till_done()
+
+    # Then
+    assert hass.states.get(heater_switch).state == STATE_ON
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+
+    # When
+    # opening_1 is open
+    setup_boolean(hass, opening_1, STATE_OPEN)
+    await hass.async_block_till_done()
+
+    # Then
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+
+    # When
+    # opening_1 is closed
+    setup_boolean(hass, opening_1, STATE_CLOSED)
+    await hass.async_block_till_done()
+
+    # Then
+    assert hass.states.get(heater_switch).state == STATE_ON
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+
+    # When
+    # opening_2 is open within timeout
+    setup_boolean(hass, opening_2, STATE_OPEN)
+    await hass.async_block_till_done()
+
+    # Then
+    assert hass.states.get(heater_switch).state == STATE_ON
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+
+    # When
+    # within of timeout
+    # common.async_fire_time_changed(
+    #     hass, dt_util.utcnow() + datetime.timedelta(seconds=3)
+    # )
+    await asyncio.sleep(3)
+    await hass.async_block_till_done()
+
+    # Then
+    assert hass.states.get(heater_switch).state == STATE_ON
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+
+    # When
+    # outside of timeout
+    # common.async_fire_time_changed(
+    #     hass, dt_util.utcnow() + datetime.timedelta(seconds=5)
+    # )
+    await asyncio.sleep(2)
+    await hass.async_block_till_done()
+
+    # Then
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+    assert (
+        hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_ACTION_REASON)
+        == HVACActionReason.OPENING
+    )
+
+    # When
+    setup_boolean(hass, opening_2, STATE_CLOSED)
+    await hass.async_block_till_done()
+
+    # Then
+    assert hass.states.get(heater_switch).state == STATE_ON
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+
+    # Cooling
+    # When
+    setup_sensor(hass, 25)
+    await hass.async_block_till_done()
+
+    # Then
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+
+    # When
+    setup_sensor(hass, 30)
+    await hass.async_block_till_done()
+
+    # Then
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(cooler_switch).state == STATE_ON
+
+    # When
+    # opening_2 is open within timeout
+    setup_boolean(hass, opening_2, STATE_OPEN)
+    await hass.async_block_till_done()
+
+    # Then
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(cooler_switch).state == STATE_ON
+
+    # When
+    # within of timeout
+    # common.async_fire_time_changed(
+    #     hass, dt_util.utcnow() + datetime.timedelta(seconds=5)
+    # )
+    await asyncio.sleep(3)
+    await hass.async_block_till_done()
+
+    # Then
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(cooler_switch).state == STATE_ON
+
+    # When
+    # outside of timeout
+    # common.async_fire_time_changed(
+    #     hass, dt_util.utcnow() + datetime.timedelta(seconds=10)
+    # )
+    await asyncio.sleep(3)
+    await hass.async_block_till_done()
+
+    # Then
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+    assert (
+        hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_ACTION_REASON)
+        == HVACActionReason.OPENING
+    )
+
+    # When
+    setup_boolean(hass, opening_2, STATE_CLOSED)
+    await hass.async_block_till_done()
+
+    # Then
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(cooler_switch).state == STATE_ON

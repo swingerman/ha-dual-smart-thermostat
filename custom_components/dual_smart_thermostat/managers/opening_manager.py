@@ -71,6 +71,41 @@ class OpeningManager:
         """Return a list of entities from a list of openings."""
         return [entry[ATTR_ENTITY_ID] for entry in openings]
 
+    def _is_opening_available(self, opening: TIMED_OPENING_SCHEMA) -> bool:  # type: ignore
+        """If the opening is available."""
+        opening_entity = opening[ATTR_ENTITY_ID]
+        opening_entity_state = self.hass.states.get(opening_entity)
+
+        if opening_entity_state is None:
+            _LOGGER.debug("Opening %s is not available.", opening)
+            return False
+
+        if opening_entity_state.state == STATE_UNAVAILABLE:
+            _LOGGER.debug("Opening %s is unavailable.", opening)
+            return False
+
+        if opening_entity_state.state == STATE_UNKNOWN:
+            _LOGGER.debug("Opening %s is unknown.", opening)
+            return False
+
+        return True
+
+    def _has_timeout_mode(self, opening: TIMED_OPENING_SCHEMA) -> bool:  # type: ignore
+        """If the opening has a timeout mode."""
+        return opening[ATTR_TIMEOUT] is not None
+
+    def _is_opening_open_state(self, opening: TIMED_OPENING_SCHEMA) -> bool:  # type: ignore
+        """If the opening is currently open."""
+
+        if not self._is_opening_available(opening):
+            _LOGGER.debug("Opening %s is not available.", opening)
+            return False
+
+        opening_entity = opening[ATTR_ENTITY_ID]
+        return self.hass.states.is_state(
+            opening_entity, STATE_OPEN
+        ) or self.hass.states.is_state(opening_entity, STATE_ON)
+
     def any_opening_open(
         self, hvac_mode_scope: OpeningHvacModeScope = OpeningHvacModeScope.ALL
     ) -> bool:
@@ -105,31 +140,29 @@ class OpeningManager:
 
     def _is_opening_open(self, opening: TIMED_OPENING_SCHEMA) -> bool:  # type: ignore
         """If the opening is currently open."""
-        opening_entity = opening[ATTR_ENTITY_ID]
-        opening_entity_state = self.hass.states.get(opening_entity)
-        _is_open = False
-        if (
-            opening_entity_state not in (STATE_UNAVAILABLE, STATE_UNKNOWN)
-            and opening[ATTR_TIMEOUT] is not None
-            and self._is_opening_timed_out(opening)
-        ):
-            _is_open = True
+
+        # the opening is closed or unavailable
+        if not self._is_opening_open_state(opening):
+            _LOGGER.debug("Opening %s is not open.", opening)
+            return False
+
+        # the opening is open
+        if self._has_timeout_mode(opening):
             _LOGGER.debug(
-                "Have timeout mode for opening %s, is open: %s",
+                "Have timeout mode for opening: %s. Opening Timed out: %s, is open: %s",
                 opening,
-                _is_open,
+                self._is_opening_timed_out(opening),
+                True,
             )
+            return self._is_opening_timed_out(opening)
+
         else:
-            if self.hass.states.is_state(
-                opening_entity, STATE_OPEN
-            ) or self.hass.states.is_state(opening_entity, STATE_ON):
-                _is_open = True
             _LOGGER.debug(
                 "No timeout mode for opening %s, is open: %s.",
                 opening,
-                _is_open,
+                True,
             )
-        return _is_open
+            return True
 
     def _is_opening_timed_out(self, opening: TIMED_OPENING_SCHEMA) -> bool:  # type: ignore
         opening_entity = opening[ATTR_ENTITY_ID]
