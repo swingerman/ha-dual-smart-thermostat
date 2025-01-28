@@ -218,6 +218,36 @@ climate:
   #   away_temp: 16
   #   precision: 0.1
 
+  - platform: dual_smart_thermostat
+    name: Edge Case 351
+    unique_id: edge_case_351
+    heater: switch.heater
+    cooler: switch.cooler
+    target_sensor: sensor.room_temp
+    outside_sensor: sensor.outside_temp
+    humidity_sensor: sensor.humidity
+    min_temp: 5
+    max_temp: 40
+    cold_tolerance: 1.5
+    hot_tolerance: 0.5
+    precision: 0.1
+    target_temp_step: 0.5
+    heat_cool_mode: true
+    min_cycle_duration: 00:30:00
+    openings:
+      - entity_id: input_boolean.window_open
+        timeout: 00:00:30
+      - entity_id: input_boolean.window_open2
+        timeout: 00:00:10
+    home:
+      temperature: 24
+      target_temp_low: 16
+      target_temp_high: 25
+    sleep:
+      temperature: 24
+      target_temp_low: 10
+      target_temp_high: 35
+
   # - platform: dual_smart_thermostat
   #   name: Edge Case 80
   #   unique_id: edge_case_80
