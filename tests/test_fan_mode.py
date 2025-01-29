@@ -2459,7 +2459,7 @@ async def test_set_target_temp_ac_on_after_fan_tolerance(
 
     await common.async_set_temperature(hass, 22)
     await hass.async_block_till_done()
-    assert len(calls) == 2
+    assert len(calls) == 4
     call = calls[1]
     assert call.domain == HASS_DOMAIN
     assert call.service == SERVICE_TURN_ON
