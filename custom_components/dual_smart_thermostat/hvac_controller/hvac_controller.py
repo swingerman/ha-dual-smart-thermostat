@@ -46,6 +46,12 @@ class HvacEnvStrategy:
 
     @property
     def hvac_goal_reached(self) -> bool:
+        _LOGGER.debug(
+            "Checking if goal reached. Goal: %s, Above: %s, Below: %s",
+            self.goal,
+            self.above(),
+            self.below(),
+        )
         if self.goal == HvacGoal.LOWER:
             return self.above()
         return self.below()

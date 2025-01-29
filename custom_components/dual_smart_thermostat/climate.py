@@ -1257,12 +1257,22 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         _LOGGER.info(
             "Switch changed: old_state: %s, new_state: %s", old_state, new_state
         )
+
         if new_state is None:
             return
         if old_state is None:
             self.hass.create_task(self._check_device_initial_state())
 
         self.async_write_ha_state()
+
+        from_state = old_state.state
+        to_state = new_state.state
+
+        if to_state not in (STATE_UNAVAILABLE, STATE_UNKNOWN) and from_state in (
+            STATE_UNAVAILABLE,
+            STATE_UNKNOWN,
+        ):
+            self.hass.create_task(self._async_control_climate())
 
     @property
     def _is_device_active(self) -> bool:

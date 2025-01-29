@@ -74,6 +74,11 @@ class HeaterDevice(GenericHVACDevice):
 
     @property
     def hvac_action(self) -> HVACAction:
+        _LOGGER.debug(
+            "HeaterDevice hvac_action. is_active: %s, hvac_mode: %s",
+            self.is_active,
+            self.hvac_mode,
+        )
         if self.hvac_mode == HVACMode.OFF:
             return HVACAction.OFF
         if self.is_active:

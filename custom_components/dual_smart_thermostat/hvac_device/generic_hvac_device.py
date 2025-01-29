@@ -312,13 +312,25 @@ class GenericHVACDevice(
             self.entity_id, STATE_OFF
         ):
             _LOGGER.debug("Turning on entity if state not on %s", self.entity_id)
-            await self.hass.services.async_call(
-                HA_DOMAIN,
-                SERVICE_TURN_ON,
-                {ATTR_ENTITY_ID: self.entity_id},
-                context=self._context,
-                blocking=True,
-            )
+            try:
+                await self.hass.services.async_call(
+                    HA_DOMAIN,
+                    SERVICE_TURN_ON,
+                    {ATTR_ENTITY_ID: self.entity_id},
+                    context=self._context,
+                    blocking=True,
+                )
+            except Exception as e:
+                _LOGGER.error(
+                    "Error turning on entity %s. Error: %s", self.entity_id, e
+                )
+            # await self.hass.services.async_call(
+            #     HA_DOMAIN,
+            #     SERVICE_TURN_ON,
+            #     {ATTR_ENTITY_ID: self.entity_id},
+            #     context=self._context,
+            #     blocking=True,
+            # )
 
     async def _async_turn_off_entity(self) -> None:
         """Turn off the entity."""
