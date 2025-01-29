@@ -130,7 +130,11 @@ class HeaterHvacConroller(GenericHvacController):
                 is_floor_cold,
                 time,
             )
-            await self.async_turn_off_callback()
+            # await self.async_turn_off_callback()
+            _LOGGER.debug(
+                "Setting hvac_action_reason. Target temp recached: %s",
+                strategy.hvac_goal_reached,
+            )
             if strategy.hvac_goal_reached:
                 self._hvac_action_reason = strategy.goal_reached_reason()
             else:

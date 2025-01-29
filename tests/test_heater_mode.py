@@ -461,6 +461,78 @@ async def test_floor_sensor_unavailable(hass: HomeAssistant) -> None:  # noqa: F
     assert state.attributes.get("current_floor_temperature") is None
 
 
+async def test_heater_unknown_to_available(hass: HomeAssistant) -> None:  # noqa: F811
+    """Test when heater turns on after been Unknown and then becomes available."""
+    heater_switch = "input_boolean.test"
+    # hass.states.async_set(heater_switch, STATE_UNKNOWN)
+
+    # Given
+    assert await async_setup_component(
+        hass,
+        input_boolean.DOMAIN,
+        {"input_boolean": {"test": None}},
+    )
+
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {"name": "test", "initial": 10, "min": 0, "max": 40, "step": 1}
+            }
+        },
+    )
+
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "heater": heater_switch,
+                "target_sensor": common.ENT_SENSOR,
+                "initial_hvac_mode": HVACMode.HEAT,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    # When
+    setup_sensor(hass, 19)
+    await hass.async_block_till_done()
+    await common.async_set_temperature(hass, 18)
+    await hass.async_block_till_done()
+
+    # Then
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert (
+        hass.states.get(common.ENTITY).attributes.get("hvac_action") == HVACAction.IDLE
+    )
+
+    # When
+    # heater is in unknown state and target temperature is set
+    hass.states.async_set(heater_switch, STATE_UNKNOWN)
+    await hass.async_block_till_done()
+    await common.async_set_temperature(hass, 21)
+    await hass.async_block_till_done()
+
+    # Then
+    assert hass.states.get(heater_switch).state == STATE_UNKNOWN
+    assert (
+        hass.states.get(common.ENTITY).attributes.get("hvac_action") == HVACAction.IDLE
+    )
+
+    # When
+    # heater becomes available again
+    calls = setup_switch(hass, False, heater_switch)
+    await asyncio.sleep(1)
+
+    # Then
+    assert len(calls) == 1
+    assert calls[0].data.get("entity_id") == heater_switch
+
+
 ###################
 # CHANGE SETTINGS #
 ###################

@@ -379,6 +379,14 @@ class EnvironmentManager(StateManager):
         )
         return self._cur_temp >= target_temp + self._hot_tolerance
 
+    def is_equal_to_target(self, target_attr="_target_temp") -> bool:
+        """Checks if the current temperature is equal to target."""
+        target_temp = getattr(self, target_attr)
+        if self._cur_temp is None or target_temp is None:
+            return False
+
+        return self._cur_temp == target_temp
+
     @property
     def is_too_moist(self) -> bool:
         """Checks if the current humidity is above target."""
