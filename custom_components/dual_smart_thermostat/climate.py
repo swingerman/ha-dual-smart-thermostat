@@ -1265,14 +1265,31 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
         self.async_write_ha_state()
 
-        from_state = old_state.state
-        to_state = new_state.state
+        self._resume_from_state(old_state, new_state)
 
-        if to_state not in (STATE_UNAVAILABLE, STATE_UNKNOWN) and from_state in (
-            STATE_UNAVAILABLE,
-            STATE_UNKNOWN,
-        ):
+    def _resume_from_state(self, old_state: State, new_state: State) -> None:
+        """Resume from state."""
+
+        if old_state is None and new_state is not None:
+            _LOGGER.debug(
+                "Resuming from state. Old state is None, New State: %s", new_state
+            )
             self.hass.create_task(self._async_control_climate())
+
+        if old_state is not None and new_state is not None:
+            _LOGGER.debug(
+                "Resuming from state. Old state: %s, New State: %s",
+                old_state.state,
+                new_state.state,
+            )
+            from_state = old_state.state
+            to_state = new_state.state
+
+            if to_state not in (STATE_UNAVAILABLE, STATE_UNKNOWN) and from_state in (
+                STATE_UNAVAILABLE,
+                STATE_UNKNOWN,
+            ):
+                self.hass.create_task(self._async_control_climate())
 
     @property
     def _is_device_active(self) -> bool:
