@@ -55,9 +55,9 @@ Optionally you can set [`secondary heater_dual_mode`](#secondar_heater_dual_mode
 
 ### How Two Stage Heating Works?
 
-If the timeout ends and the [`heater`](#heater) was on for the whole time the thermostat switches to the [`secondary heater`](#secondary_heater). In this case the primary heater ([`heater`](#heater)) will be turned off. This will be remembered for the day it turned on and in the next heating cycle the [`secondary heater`](#secondary_heater) will turn on automatically.
-On the next day the primary heater will turn on again the second stage will again only turn on after a timeout.
-If the third [`secondary heater_dual_mode`](#secondar_heater_dual_mode) is set to `true` the secondary heater will be turned on together with the primary heater.
+If the timeout ends and the [`heater`](#heater) was on for the whole time, the thermostat switches to the [`secondary heater`](#secondary_heater). In this case, the primary heater ([`heater`](#heater)) will be turned off. This will be remembered for the day it turned on, and in the next heating cycle, the [`secondary heater`](#secondary_heater) will turn on automatically.
+On the following day the primary heater will turn on again, and the second stage will again only turn on after a timeout.
+If the third [`secondary heater_dual_mode`](#secondar_heater_dual_mode) is set to `true`, the secondary heater will be turned on together with the primary heater.
 
 ### Two Stage Heating Example
 
@@ -80,8 +80,8 @@ fan_mode: true
 
 ## Fan With Cooler Mode
 
-If the [`ac_mode`](#ac_mode) is set to true and the [`fan`](#fan) entity is also set, the heater entity will be treated as a cooler (AC) device with an additional fan device. This will allow not only to use a separate physical fan device but also to turn on the fan mode of an AC using advanced switches.
-With this setup, you can use the fan mode of your AC in a simpler way.
+If the [`ac_mode`](#ac_mode) is set to true and the [`fan`](#fan) entity is also set, the heater entity will be treated as a cooler (AC) device with an additional fan device. This will allow not only the use of a separate physical fan device but also turning on the fan mode of an AC using advanced switches.
+With this setup, you can use your AC's fan mode more easily.
 
 ### Fan With Cooler Mode Example
 
@@ -109,11 +109,11 @@ If you set the [`fan_hot_tolerance`](#fan_hot_tolerance), [`outside_sensor`](#ou
 
 ## AC With Fan Switch Support
 
-Some AC systems have independent fan controls to cycle the house air for filtering or humidity control; without using the heating or cooling elements. Central AC systems require the thermostat to turn on both the AC wire ("Y" wire) and the air-handler/fan wire ("G" wire) in order to activate the AC
+Some AC systems have independent fan controls to cycle the house air for filtering or humidity control, without using the heating or cooling elements. Central AC systems require the thermostat to turn on both the AC wire ("Y" wire) and the air-handler/fan wire ("G" wire) to activate the AC
 
 This feature lets you do just that.
 
-In order to use this feature you need to set the [`heater`](#heater) entity, the [`ac_mode`](#ac_mode), the [`fan)`](#fan) entity and the [`fan_on_with_ac`](#fan_on_with_ac) to `true`.
+To use this feature, you need to set the [`heater`](#heater) entity, the [`ac_mode`](#ac_mode), and the [`fan)`](#fan) entity and the [`fan_on_with_ac`](#fan_on_with_ac) to `true`.
 
 
 ### example
@@ -126,13 +126,13 @@ fan_on_with_ac: true
 
 ## Cooler Only Mode
 
-If only the [`cooler`](#cooler) entity is set the thermostat works only in cooling mode.
+If only the [`cooler`](#cooler) entity is set, the thermostat works only in cooling mode.
 
 [all features ⤴️](#features)
 
 ## Dry mode
 
-If the [`dryer`](#dryer) entity is set the thermostat can switch to dry mode. The dryer will turn on when the humidity is above the target humidity and the [`moist_tolerance`](#moist_tolerance) is not reached. If the humidity is above the target humidity and the [`moist_tolerance`](#moist_tolerance) is reached the dryer will stop.
+If the [`dryer`](#dryer) entity is set, the thermostat can switch to dry mode. The dryer will turn on when the humidity is above the target humidity and the [`moist_tolerance`](#moist_tolerance) is not reached. If the humidity is above the target humidity and the [`moist_tolerance`](#moist_tolerance) is reached, the dryer will stop.
 
 
 ### Dry Mode Example with cooler
@@ -161,9 +161,9 @@ dry_tolerance: 5
 
 ### Heat Pump (one switch heat/cool) mode
 
-This setup allows you to use a single switch for both heating and cooling. To enable this mode you define only a single switch for the heater and set the set youer heat pump's current state (heating or cooling) as for the [`heat_pump_cooling`](#heat_pump_cooling) attribute. This must be an entity id of a sensor that has a state of `heating` or `cooling`.
+This setup allows you to use a single switch for both heating and cooling. To enable this mode, you define only a single switch for the heater and set your heat pump's current state (heating or cooling) as for the [`heat_pump_cooling`](#heat_pump_cooling) attribute. This must be an entity ID of a sensor with a state of `on` or `off`.
 
-The entity can be an input buulean for manual control or  an entity that provided by the heat pump.
+The entity can be a Boolean input for manual control or an entity provided by the heat pump.
 
 ```yaml
 heater: switch.study_heat_pump
@@ -171,7 +171,7 @@ target_sensor: sensor.study_temperature
 heat_pump_cooling: sensor.study_heat_pump_state
 ```
 
-#### Heat Pump Hvac Modes
+#### Heat Pump HVAC Modes
 
 ##### Heat-Cool Mode
 
@@ -212,17 +212,17 @@ heat_cool_mode: false # <-- or not set
 
 ## Openings
 
-The `dual_smart_thermostat` can turn off heating or cooling if a window or door is opened and turn heating or cooling back on when the door or window is closed to save energy.
+The `dual_smart_thermostat` can turn off heating or cooling when a window or door is opened and turn it back on when the door or window is closed, saving energy.
 The `openings` configuration variable accepts a list of opening entities and opening objects.
 
 ### Opening entities and objects
 
-An opening entity is a sensor that can be in two states: `on` or `off`. If the state is `on` the opening is considered open, if the state is `off` the opening is considered closed.
-The opening object can contain a timeout property that defines the time in seconds after which the opening is considered open even if the state is still `on`. This is useful if you would want to ignore windows opened only for a short time.
+An opening entity is a sensor that can be in two states: `on` or `off`. If the state is `on`, the opening is considered open; if the state is `off`, the opening is considered closed.
+The opening object can contain a timeout property that defines the time in seconds after which the opening is considered open, even if the state is still `on`. This is useful if you want to ignore windows that are only open for a short time.
 
 ### Openings Scope
 
-The `openings_scope` configuration variable defines the scope of the openings. If set to `all` or not defined, any open openings will turn off the current hvac device and it will be in the idle state. If set, only devices that operating in the defined HVAC modes will be turned off. For example, if set to `heat` only the heater will be turned off if any of the openings are open.
+The `openings_scope` configuration variable defines the scope of the openings. If set to `all` or not defined, any open openings will turn off the current HVAC device, and it will be in the idle state. If set, only devices that are operating in the defined HVAC modes will be turned off. For example, if set to `heat`, only the heater will be turned off if any of the openings are open.
 
 ### Openings Scope Configuration
 
@@ -540,7 +540,7 @@ The internal values can be set by the component only and the external values can
 
 ### heat_pump_cooling
 
-  _(optional) (string)_  "`entity_id` for the heat pump cooling state sensor, heat_pump_cooling.state must be `heating` or `cooling`."
+  _(optional) (string)_  "`entity_id` for the heat pump cooling state sensor, heat_pump_cooling.state must be `on` or `off`."
   enables [heat pump mode](#heat-pump-one-switch-heatcool-mode)
 
 ### min_temp
