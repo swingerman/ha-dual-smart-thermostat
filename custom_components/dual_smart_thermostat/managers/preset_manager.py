@@ -209,6 +209,10 @@ class PresetManager(StateManager):
                             else float(preset_target_temp_high)
                         )
 
+            else:
+                _LOGGER.debug(
+                    "Restoring previous preset mode range no match: %s", old_pres_mode
+                )
         elif self._preset_modes and old_pres_mode in self._presets:
             _LOGGER.debug("Restoring previous preset mode target: %s", old_pres_mode)
             _LOGGER.debug("Target temp: %s", self._environment.target_temp)
@@ -236,3 +240,6 @@ class PresetManager(StateManager):
 
         else:
             _LOGGER.debug("Restoring previous preset mode no match")
+            if old_temperature is not None and old_pres_mode is None:
+                _LOGGER.debug("Restoring previous target temp: %s", old_temperature)
+                self._environment.target_temp = float(old_temperature)
