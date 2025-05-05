@@ -187,6 +187,45 @@ async def test_setup_gets_current_temp_from_sensor(
     assert hass.states.get(common.ENTITY).attributes["current_temperature"] == 18
 
 
+async def test_restore_state_while_off(hass: HomeAssistant) -> None:
+    """Ensure states are restored on startup."""
+    common.mock_restore_cache(
+        hass,
+        (
+            State(
+                "climate.test",
+                HVACMode.OFF,
+                {ATTR_TEMPERATURE: "20"},
+            ),
+        ),
+    )
+
+    hass.set_state(CoreState.starting)
+
+    await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "cold_tolerance": 2,
+                "hot_tolerance": 4,
+                "heater": common.ENT_HEATER,
+                "cooler": common.ENT_COOLER,
+                "target_sensor": common.ENT_SENSOR,
+                "target_temp": 19.5,
+            }
+        },
+    )
+
+    await hass.async_block_till_done()
+    state = hass.states.get("climate.test")
+    _LOGGER.debug("Attributes: %s", state.attributes)
+    assert state.attributes[ATTR_TEMPERATURE] == 20
+    assert state.state == HVACMode.OFF
+
+
 # issue 80
 async def test_presets_use_case_80(
     hass: HomeAssistant, setup_comp_1  # noqa: F811

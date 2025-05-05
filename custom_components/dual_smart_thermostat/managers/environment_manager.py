@@ -798,6 +798,9 @@ class EnvironmentManager(StateManager):
                 )
                 self.target_temp = self.target_temp_low
         else:
+            _LOGGER.debug(
+                "Setting temperatures from no preset target mode. Fallback to target_temp"
+            )
             self.saved_target_temp = self.target_temp
 
     def _set_floor_temp_limits_from_preset(self, preset_env: PresetEnv) -> None:
