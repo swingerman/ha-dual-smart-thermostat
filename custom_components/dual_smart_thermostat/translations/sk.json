@@ -1,0 +1,25 @@
+{
+  "selector": {
+    "hac_action_reason": {
+      "options": {
+        "presence": "Prítomnosť",
+        "schedule": "Rozvrh",
+        "emergency": "Núdzový stav",
+        "malfunction": "Porucha",
+        "misconfiguration": "Nesprávna konfigurácia"
+      }
+    }
+  },
+  "services": {
+    "set_hvac_action_reason": {
+      "name": "Nastaviť dôvod činnosti HVAC",
+      "description": "Nastaví dôvod činnosti HVAC.",
+      "fields": {
+        "hvac_action_reason": {
+          "name": "Dôvod činnosti HVAC",
+          "description": "Dôvod prečo bola vykonaná posledná činnosť HVAC."
+        }
+      }
+    }
+  }
+}
