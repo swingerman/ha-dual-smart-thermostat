@@ -569,7 +569,13 @@ class EnvironmentManager(StateManager):
         else:
             self._target_temp_high += PRECISION_WHOLE
 
-    def set_humidity_from_preset(self, preset_mode: str, preset_env: PresetEnv) -> None:
+    def set_humidity_from_preset(
+        self,
+        preset_mode: str,
+        preset_env: PresetEnv,
+        old_preset_mode: str | None = None,
+    ) -> None:
+
         if preset_mode is None:
             return
 
@@ -583,7 +589,8 @@ class EnvironmentManager(StateManager):
 
         else:
             if preset_env.to_dict[ATTR_HUMIDITY] is not None:
-                self.saved_target_humidity = self.target_humidity
+                if old_preset_mode != preset_mode:
+                    self.saved_target_humidity = self.target_humidity
                 self.target_humidity = preset_env.to_dict[ATTR_HUMIDITY]
 
     def set_temepratures_from_hvac_mode_and_presets(

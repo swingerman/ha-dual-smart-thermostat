@@ -719,18 +719,12 @@ async def test_set_heat_cool_preset_mode_and_restore_prev_temp_2(
     assert state.attributes.get(ATTR_PRESET_MODE) == preset
 
     # set preset mode again should set the temps to the preset
-    # await common.async_set_preset_mode(hass, preset)
-    # state = hass.states.get(common.ENTITY)
-    # assert state.attributes.get(ATTR_TARGET_TEMP_LOW) == temp_low
-    # assert state.attributes.get(ATTR_TARGET_TEMP_HIGH) == temp_high
-
-    # set preset moe again should not set the temps to the preset
     await common.async_set_preset_mode(hass, preset)
     state = hass.states.get(common.ENTITY)
-    assert state.attributes.get(ATTR_TARGET_TEMP_LOW) == 17
-    assert state.attributes.get(ATTR_TARGET_TEMP_HIGH) == 24
+    assert state.attributes.get(ATTR_TARGET_TEMP_LOW) == temp_low
+    assert state.attributes.get(ATTR_TARGET_TEMP_HIGH) == temp_high
 
-    # preset non should restore the original temps
+    # preset none should restore the original temps
     await common.async_set_preset_mode(hass, PRESET_NONE)
     state = hass.states.get(common.ENTITY)
     assert state.attributes.get(ATTR_TARGET_TEMP_LOW) == 18

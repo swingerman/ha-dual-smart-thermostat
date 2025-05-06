@@ -724,6 +724,46 @@ async def test_set_preset_mode_set_temp_keeps_preset_mode(
         assert state.attributes.get("temperature") == 23
 
 
+@pytest.mark.parametrize(
+    ("preset", "temp"),
+    [
+        (PRESET_AWAY, 16),
+        (PRESET_COMFORT, 20),
+        (PRESET_ECO, 18),
+        (PRESET_HOME, 19),
+        (PRESET_SLEEP, 17),
+        (PRESET_BOOST, 24),
+        (PRESET_ACTIVITY, 21),
+        (PRESET_ANTI_FREEZE, 5),
+    ],
+)
+async def test_set_same_preset_mode_restores_preset_temp_from_modified(
+    hass: HomeAssistant, setup_comp_heat_presets, preset, temp  # noqa: F811
+) -> None:
+    """Test the setting preset mode again after modifying temperature.
+
+    Verify preset mode called twice restores presete temperatures.
+    """
+    target_temp = 32
+    await common.async_set_temperature(hass, 23)
+    await common.async_set_preset_mode(hass, preset)
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes.get("temperature") == temp
+    await common.async_set_temperature(hass, target_temp)
+
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes.get("temperature") == target_temp
+    assert state.attributes.get("preset_mode") == preset
+
+    await common.async_set_preset_mode(hass, preset)
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes.get("temperature") == temp
+
+    await common.async_set_preset_mode(hass, PRESET_NONE)
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes.get("temperature") == 23
+
+
 ###################
 # HVAC OPERATIONS #
 ###################
