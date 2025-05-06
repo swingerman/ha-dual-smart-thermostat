@@ -346,6 +346,58 @@ async def test_set_preset_mode_set_temp_keeps_preset_mode(
 @pytest.mark.parametrize(
     ("preset", "preset_temp"),
     [
+        (PRESET_AWAY, 16),
+        (PRESET_COMFORT, 20),
+        (PRESET_ECO, 18),
+        (PRESET_HOME, 19),
+        (PRESET_SLEEP, 17),
+        (PRESET_BOOST, 10),
+        (PRESET_ACTIVITY, 21),
+        (PRESET_ANTI_FREEZE, 5),
+    ],
+)
+async def test_set_same_preset_mode_restores_preset_temp_from_modified(
+    hass: HomeAssistant,
+    setup_comp_heat_ac_cool_presets,  # noqa: F811
+    preset,
+    preset_temp,
+) -> None:
+    """Test the setting preset mode again after modifying temperature.
+
+    Verify preset mode called twice restores presete temperatures.
+    """
+
+    target_temp = 32
+
+    # Sets the temperature and apply preset mode, temp should be preset_temp
+    await common.async_set_temperature(hass, 23)
+    await common.async_set_preset_mode(hass, preset)
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes.get("temperature") == preset_temp
+    assert state.attributes.get(ATTR_PREV_TARGET) == 23
+
+    # Changes target temperature, preset mode should be preserved
+    await common.async_set_temperature(hass, target_temp)
+
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes.get("temperature") == target_temp
+    assert state.attributes.get("preset_mode") == preset
+    assert state.attributes.get(ATTR_PREV_TARGET) == 23
+
+    # Sets the same preset_mode again, temp should be picked from preset
+    await common.async_set_preset_mode(hass, preset)
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes.get("temperature") == preset_temp
+
+    # Sets the  preset_mode to none, temp should be picked from saved temp
+    await common.async_set_preset_mode(hass, PRESET_NONE)
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes.get("temperature") == 23
+
+
+@pytest.mark.parametrize(
+    ("preset", "preset_temp"),
+    [
         (PRESET_NONE, 23),
         (PRESET_AWAY, 16),
         (PRESET_COMFORT, 20),
