@@ -1298,17 +1298,14 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
     async def async_set_preset_mode(self, preset_mode: str) -> None:
         """Set new preset mode."""
-        _LOGGER.info(
-            "Climate Setting preset mode: %s, is_range_mode: %s",
-            preset_mode,
-            self.features.is_range_mode,
-        )
-
         old_preset_mode = self.presets.preset_mode
 
-        if old_preset_mode == preset_mode:
-            _LOGGER.debug("Preset mode is the same, skipping")
-            return
+        _LOGGER.info(
+            "Climate Setting preset mode: %s, old_preset_mode: %s, is_range_mode: %s",
+            preset_mode,
+            old_preset_mode,
+            self.features.is_range_mode,
+        )
 
         self.presets.set_preset_mode(preset_mode)
 
@@ -1326,7 +1323,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         if self.features.is_configured_for_dryer_mode:
 
             self.environment.set_humidity_from_preset(
-                self.presets.preset_mode, self.presets.preset_env
+                self.presets.preset_mode, self.presets.preset_env, old_preset_mode
             )
 
         await self._async_control_climate(force=True)
