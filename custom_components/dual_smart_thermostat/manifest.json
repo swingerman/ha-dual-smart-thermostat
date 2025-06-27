@@ -8,6 +8,8 @@
     "climate",
     "sensor",
     "switch",
+    "template",
+    "binary_sensor",
     "input_select",
     "input_boolean",
     "input_number"
