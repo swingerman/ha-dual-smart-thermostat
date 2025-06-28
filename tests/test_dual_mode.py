@@ -2806,7 +2806,7 @@ async def test_hvac_mode_mode_heat_cool_aux_heat(
 
     # after secondary heater timeout secondary heater should be on
     # await asyncio.sleep(secondaty_heater_timeout + 5)
-    freezer.tick(timedelta(seconds=secondaty_heater_timeout - 5))
+    freezer.tick(timedelta(seconds=secondaty_heater_timeout + 5))
     common.async_fire_time_changed(hass)
     await hass.async_block_till_done()
 
