@@ -1,11 +1,11 @@
 """The tests for the dual_smart_thermostat."""
 
-import asyncio
 import datetime
 from datetime import timedelta
 import logging
 
 from freezegun import freeze_time
+from freezegun.api import FrozenDateTimeFactory
 from homeassistant.components import input_boolean, input_number
 from homeassistant.components.climate import (
     PRESET_ACTIVITY,
@@ -3021,7 +3021,7 @@ async def test_set_target_temp_ac_on_dont_ignore_fan_tolerance(
 
 
 async def test_fan_mode_opening_hvac_action_reason(
-    hass: HomeAssistant, setup_comp_1  # noqa: F811
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory, setup_comp_1  # noqa: F811
 ) -> None:
     """Test thermostat cooler switch in cooling mode."""
     cooler_switch = "input_boolean.test"
@@ -3072,6 +3072,11 @@ async def test_fan_mode_opening_hvac_action_reason(
     setup_sensor(hass, 23)
     await hass.async_block_till_done()
 
+    # wait openings
+    freezer.tick(timedelta(seconds=6))
+    common.async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+
     await common.async_set_temperature(hass, 18)
     await hass.async_block_till_done()
     assert (
@@ -3107,7 +3112,9 @@ async def test_fan_mode_opening_hvac_action_reason(
     # common.async_fire_time_changed(
     #     hass, dt_util.utcnow() + datetime.timedelta(minutes=10)
     # )
-    await asyncio.sleep(5)
+    # await asyncio.sleep(5)
+    freezer.tick(timedelta(seconds=6))
+    common.async_fire_time_changed(hass)
     await hass.async_block_till_done()
 
     assert (
@@ -3116,6 +3123,16 @@ async def test_fan_mode_opening_hvac_action_reason(
     )
 
     setup_boolean(hass, opening_2, "closed")
+    await hass.async_block_till_done()
+
+    assert (
+        hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_ACTION_REASON)
+        == HVACActionReason.OPENING
+    )
+
+    # wait openings
+    freezer.tick(timedelta(seconds=6))
+    common.async_fire_time_changed(hass)
     await hass.async_block_till_done()
 
     assert (
@@ -3132,7 +3149,10 @@ async def test_fan_mode_opening_hvac_action_reason(
     ],
 )
 async def test_cooler_fan_mode_opening_hvac_action_reason(
-    hass: HomeAssistant, hvac_mode, setup_comp_1  # noqa: F811
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+    hvac_mode,
+    setup_comp_1,  # noqa: F811
 ) -> None:
     """Test thermostat cooler switch in cooling mode."""
     cooler_switch = "input_boolean.test"
@@ -3193,6 +3213,11 @@ async def test_cooler_fan_mode_opening_hvac_action_reason(
     setup_sensor(hass, 23)
     await hass.async_block_till_done()
 
+    # wait openings
+    freezer.tick(timedelta(seconds=6))
+    common.async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+
     await common.async_set_temperature(hass, 18)
     await hass.async_block_till_done()
     assert (
@@ -3228,7 +3253,9 @@ async def test_cooler_fan_mode_opening_hvac_action_reason(
     # common.async_fire_time_changed(
     #     hass, dt_util.utcnow() + datetime.timedelta(minutes=10)
     # )
-    await asyncio.sleep(5)
+    # await asyncio.sleep(5)
+    freezer.tick(timedelta(seconds=6))
+    common.async_fire_time_changed(hass)
     await hass.async_block_till_done()
 
     assert (
@@ -3237,6 +3264,16 @@ async def test_cooler_fan_mode_opening_hvac_action_reason(
     )
 
     setup_boolean(hass, opening_2, "closed")
+    await hass.async_block_till_done()
+
+    assert (
+        hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_ACTION_REASON)
+        == HVACActionReason.OPENING
+    )
+
+    # wait openings
+    freezer.tick(timedelta(seconds=6))
+    common.async_fire_time_changed(hass)
     await hass.async_block_till_done()
 
     assert (
@@ -3251,7 +3288,7 @@ async def test_cooler_fan_mode_opening_hvac_action_reason(
 
 
 async def test_fan_mode_opening(
-    hass: HomeAssistant, setup_comp_1  # noqa: F811
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory, setup_comp_1  # noqa: F811
 ) -> None:
     """Test thermostat cooler switch in cooling mode."""
     cooler_switch = "input_boolean.test"
@@ -3299,6 +3336,11 @@ async def test_fan_mode_opening(
     setup_sensor(hass, 23)
     await hass.async_block_till_done()
 
+    # wait openings
+    freezer.tick(timedelta(seconds=6))
+    common.async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+
     await common.async_set_temperature(hass, 18)
     await hass.async_block_till_done()
     assert hass.states.get(cooler_switch).state == STATE_ON
@@ -3322,12 +3364,21 @@ async def test_fan_mode_opening(
     # common.async_fire_time_changed(
     #     hass, dt_util.utcnow() + datetime.timedelta(minutes=10)
     # )
-    await asyncio.sleep(5)
+    # await asyncio.sleep(5)
+    freezer.tick(timedelta(seconds=6))
+    common.async_fire_time_changed(hass)
     await hass.async_block_till_done()
 
     assert hass.states.get(cooler_switch).state == STATE_OFF
 
     setup_boolean(hass, opening_2, "closed")
+    await hass.async_block_till_done()
+
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+
+    # wait openings
+    freezer.tick(timedelta(seconds=6))
+    common.async_fire_time_changed(hass)
     await hass.async_block_till_done()
 
     assert hass.states.get(cooler_switch).state == STATE_ON
@@ -3341,7 +3392,10 @@ async def test_fan_mode_opening(
     ],
 )
 async def test_cooler_fan_mode_opening(
-    hass: HomeAssistant, hvac_mode, setup_comp_1  # noqa: F811
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+    hvac_mode,
+    setup_comp_1,  # noqa: F811
 ) -> None:
     """Test thermostat cooler switch in cooling mode."""
     cooler_switch = "input_boolean.test"
@@ -3400,6 +3454,11 @@ async def test_cooler_fan_mode_opening(
     setup_sensor(hass, 23)
     await hass.async_block_till_done()
 
+    # wait openings
+    freezer.tick(timedelta(seconds=6))
+    common.async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+
     await common.async_set_temperature(hass, 18)
     await hass.async_block_till_done()
     assert (
@@ -3451,13 +3510,23 @@ async def test_cooler_fan_mode_opening(
     # common.async_fire_time_changed(
     #     hass, dt_util.utcnow() + datetime.timedelta(minutes=10)
     # )
-    await asyncio.sleep(5)
+    # await asyncio.sleep(5)
+    freezer.tick(timedelta(seconds=6))
+    common.async_fire_time_changed(hass)
     await hass.async_block_till_done()
 
     assert hass.states.get(cooler_switch).state == STATE_OFF
     assert hass.states.get(fan_switch).state == STATE_OFF
 
     setup_boolean(hass, opening_2, "closed")
+    await hass.async_block_till_done()
+
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+    assert hass.states.get(fan_switch).state == STATE_OFF
+
+    # wait openings
+    freezer.tick(timedelta(seconds=6))
+    common.async_fire_time_changed(hass)
     await hass.async_block_till_done()
 
     assert (
