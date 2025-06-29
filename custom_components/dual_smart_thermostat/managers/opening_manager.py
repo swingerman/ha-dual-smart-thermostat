@@ -8,6 +8,8 @@ from typing import List
 from homeassistant.components.climate import HVACMode
 from homeassistant.const import (
     ATTR_ENTITY_ID,
+    STATE_CLOSED,
+    STATE_OFF,
     STATE_ON,
     STATE_OPEN,
     STATE_UNAVAILABLE,
@@ -51,8 +53,9 @@ class OpeningManager:
 
         self.openings = self.conform_openings_list(openings) if openings else []
         self.opening_entities = (
-            self.conform_opnening_entities(self.openings) if openings else []
+            self.conform_opening_entities(self.openings) if openings else []
         )
+        self._opening_curr_state = {k: None for k in self.opening_entities}
 
     @staticmethod
     def conform_openings_list(openings: list) -> list:
@@ -67,7 +70,7 @@ class OpeningManager:
         ]
 
     @staticmethod
-    def conform_opnening_entities(openings: [TIMED_OPENING_SCHEMA]) -> list:  # type: ignore
+    def conform_opening_entities(openings: [TIMED_OPENING_SCHEMA]) -> list:  # type: ignore
         """Return a list of entities from a list of openings."""
         return [entry[ATTR_ENTITY_ID] for entry in openings]
 
@@ -140,56 +143,69 @@ class OpeningManager:
 
     def _is_opening_open(self, opening: TIMED_OPENING_SCHEMA) -> bool:  # type: ignore
         """If the opening is currently open."""
+        opening_entity = opening[ATTR_ENTITY_ID]
 
         # the opening is closed or unavailable
-        if not self._is_opening_open_state(opening):
-            _LOGGER.debug("Opening %s is not open.", opening)
+        if not self._is_opening_available(opening):
+            _LOGGER.debug("Opening %s is not available.", opening)
+            self._opening_curr_state[opening_entity] = False
             return False
 
-        # the opening is open
+        is_open = self._is_opening_open_state(opening)
+        # check timeout
         if self._has_timeout_mode(opening):
             _LOGGER.debug(
-                "Have timeout mode for opening: %s. Opening Timed out: %s, is open: %s",
+                "Have timeout mode for opening: %s, is open: %s",
                 opening,
-                self._is_opening_timed_out(opening),
-                True,
+                is_open,
             )
-            return self._is_opening_timed_out(opening)
 
-        else:
-            _LOGGER.debug(
-                "No timeout mode for opening %s, is open: %s.",
-                opening,
-                True,
-            )
-            return True
+            result = is_open
+            if self._is_opening_timed_out(opening, is_open):
+                result = is_open
 
-    def _is_opening_timed_out(self, opening: TIMED_OPENING_SCHEMA) -> bool:  # type: ignore
-        opening_entity = opening[ATTR_ENTITY_ID]
-        _is_open = False
+            # this is to avoid debounce when state change multiple times
+            # inside timeout interval or incorrect detection at startup
+            elif (
+                self._opening_curr_state[opening_entity] == is_open
+                or self._opening_curr_state[opening_entity] is None
+            ):
+                result = is_open
+
+            else:
+                result = not is_open
+
+            self._opening_curr_state[opening_entity] = result
+            return result
 
         _LOGGER.debug(
-            "Checking if opening %s is timed out, state: %s, timeout: %s, is_timed_out: %s",
+            "No timeout mode for opening %s, is open: %s.",
+            opening,
+            is_open,
+        )
+        self._opening_curr_state[opening_entity] = is_open
+        return is_open
+
+    def _is_opening_timed_out(self, opening: TIMED_OPENING_SCHEMA, check_open: True) -> bool:  # type: ignore
+        opening_entity = opening[ATTR_ENTITY_ID]
+
+        _LOGGER.debug(
+            "Checking if opening %s is timed out, state: %s, timeout: %s, waiting state: %s",
             opening,
             self.hass.states.get(opening_entity),
             opening[ATTR_TIMEOUT],
-            condition.state(
-                self.hass,
-                opening_entity,
-                STATE_OPEN,
-                opening[ATTR_TIMEOUT],
-            ),
+            STATE_OPEN if check_open else STATE_CLOSED,
         )
         if condition.state(
             self.hass,
             opening_entity,
-            STATE_OPEN,
+            STATE_OPEN if check_open else STATE_CLOSED,
             opening[ATTR_TIMEOUT],
         ) or condition.state(
             self.hass,
             opening_entity,
-            STATE_ON,
+            STATE_ON if check_open else STATE_OFF,
             opening[ATTR_TIMEOUT],
         ):
-            _is_open = True
-        return _is_open
+            return True
+        return False
