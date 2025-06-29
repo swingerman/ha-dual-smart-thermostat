@@ -1410,11 +1410,6 @@ async def test_dryer_mode_opening_hvac_action_reason(
     setup_humidity_sensor(hass, 70)
     await hass.async_block_till_done()
 
-    # wait openings
-    freezer.tick(timedelta(seconds=6))
-    common.async_fire_time_changed(hass)
-    await hass.async_block_till_done()
-
     await common.async_set_humidity(hass, 60)
     await hass.async_block_till_done()
     assert (
@@ -1556,11 +1551,6 @@ async def test_dryer_mode_opening(
     assert hass.states.get(dryer_switch).state == STATE_OFF
 
     setup_humidity_sensor(hass, 70)
-    await hass.async_block_till_done()
-
-    # wait openings
-    freezer.tick(timedelta(seconds=6))
-    common.async_fire_time_changed(hass)
     await hass.async_block_till_done()
 
     await common.async_set_humidity(hass, 60)

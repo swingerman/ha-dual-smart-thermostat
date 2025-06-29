@@ -53,9 +53,9 @@ class OpeningManager:
 
         self.openings = self.conform_openings_list(openings) if openings else []
         self.opening_entities = (
-            self.conform_opnening_entities(self.openings) if openings else []
+            self.conform_opening_entities(self.openings) if openings else []
         )
-        self._is_current_state_open: bool = None
+        self._opening_curr_state = {k: None for k in self.opening_entities}
 
     @staticmethod
     def conform_openings_list(openings: list) -> list:
@@ -70,7 +70,7 @@ class OpeningManager:
         ]
 
     @staticmethod
-    def conform_opnening_entities(openings: [TIMED_OPENING_SCHEMA]) -> list:  # type: ignore
+    def conform_opening_entities(openings: [TIMED_OPENING_SCHEMA]) -> list:  # type: ignore
         """Return a list of entities from a list of openings."""
         return [entry[ATTR_ENTITY_ID] for entry in openings]
 
@@ -115,7 +115,6 @@ class OpeningManager:
         """If any opening is currently open."""
         _LOGGER.debug("_any_opening_open")
         if not self.opening_entities:
-            self._is_current_state_open = None
             return False
 
         _is_open = False
@@ -140,15 +139,16 @@ class OpeningManager:
                     _is_open = True
                     break
 
-        self._is_current_state_open = _is_open
         return _is_open
 
     def _is_opening_open(self, opening: TIMED_OPENING_SCHEMA) -> bool:  # type: ignore
         """If the opening is currently open."""
+        opening_entity = opening[ATTR_ENTITY_ID]
 
         # the opening is closed or unavailable
         if not self._is_opening_available(opening):
             _LOGGER.debug("Opening %s is not available.", opening)
+            self._opening_curr_state[opening_entity] = False
             return False
 
         is_open = self._is_opening_open_state(opening)
@@ -160,24 +160,30 @@ class OpeningManager:
                 is_open,
             )
 
+            result = is_open
             if self._is_opening_timed_out(opening, is_open):
-                return is_open
+                result = is_open
 
             # this is to avoid debounce when state change multiple times
             # inside timeout interval or incorrect detection at startup
-            if (
-                self._is_current_state_open == is_open
-                or self._is_current_state_open is None
+            elif (
+                self._opening_curr_state[opening_entity] == is_open
+                or self._opening_curr_state[opening_entity] is None
             ):
-                return is_open
+                result = is_open
 
-            return not is_open
+            else:
+                result = not is_open
+
+            self._opening_curr_state[opening_entity] = result
+            return result
 
         _LOGGER.debug(
             "No timeout mode for opening %s, is open: %s.",
             opening,
             is_open,
         )
+        self._opening_curr_state[opening_entity] = is_open
         return is_open
 
     def _is_opening_timed_out(self, opening: TIMED_OPENING_SCHEMA, check_open: True) -> bool:  # type: ignore

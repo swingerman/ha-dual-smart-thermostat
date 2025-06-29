@@ -3798,11 +3798,6 @@ async def test_heat_cool_mode_opening_timeout(
     setup_sensor(hass, 23)
     setup_outside_sensor(hass, 21)
 
-    # wait openings
-    freezer.tick(timedelta(seconds=6))
-    common.async_fire_time_changed(hass)
-    await hass.async_block_till_done()
-
     await common.async_set_temperature_range(hass, "all", 28, 24)
     await hass.async_block_till_done()
 

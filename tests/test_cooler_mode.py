@@ -1346,11 +1346,6 @@ async def test_cooler_mode_opening_hvac_action_reason(
     setup_sensor(hass, 23)
     await hass.async_block_till_done()
 
-    # wait 5 seconds
-    freezer.tick(timedelta(seconds=6))
-    common.async_fire_time_changed(hass)
-    await hass.async_block_till_done()
-
     await common.async_set_temperature(hass, 18)
     await hass.async_block_till_done()
     assert (
@@ -1645,12 +1640,7 @@ async def test_cooler_mode_opening(
 
     assert hass.states.get(cooler_switch).state == STATE_OFF
 
-    setup_boolean(hass, opening_2, "closed")
     setup_sensor(hass, 23)
-    await hass.async_block_till_done()
-
-    freezer.tick(timedelta(seconds=6))
-    common.async_fire_time_changed(hass)
     await hass.async_block_till_done()
 
     await common.async_set_temperature(hass, 18)
