@@ -1,6 +1,5 @@
 """Opening Manager for Dual Smart Thermostat."""
 
-from calendar import c
 import enum
 from itertools import chain
 import logging
@@ -56,6 +55,7 @@ class OpeningManager:
         self.opening_entities = (
             self.conform_opnening_entities(self.openings) if openings else []
         )
+        self._is_current_state_open: bool = None
 
     @staticmethod
     def conform_openings_list(openings: list) -> list:
@@ -115,6 +115,7 @@ class OpeningManager:
         """If any opening is currently open."""
         _LOGGER.debug("_any_opening_open")
         if not self.opening_entities:
+            self._is_current_state_open = None
             return False
 
         _is_open = False
@@ -139,6 +140,7 @@ class OpeningManager:
                     _is_open = True
                     break
 
+        self._is_current_state_open = _is_open
         return _is_open
 
     def _is_opening_open(self, opening: TIMED_OPENING_SCHEMA) -> bool:  # type: ignore
@@ -157,8 +159,18 @@ class OpeningManager:
                 opening,
                 is_open,
             )
+
             if self._is_opening_timed_out(opening, is_open):
                 return is_open
+
+            # this is to avoid debounce when state change multiple times
+            # inside timeout interval or incorrect detection at startup
+            if (
+                self._is_current_state_open == is_open
+                or self._is_current_state_open is None
+            ):
+                return is_open
+
             return not is_open
 
         _LOGGER.debug(
