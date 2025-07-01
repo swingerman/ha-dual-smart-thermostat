@@ -2296,7 +2296,11 @@ async def test_heater_mode_opening_hvac_action_reason(
                 "initial_hvac_mode": HVACMode.HEAT,
                 "openings": [
                     opening_1,
-                    {"entity_id": opening_2, "timeout": {"seconds": 5}},
+                    {
+                        "entity_id": opening_2,
+                        "timeout": {"seconds": 5},
+                        "closing_timeout": {"seconds": 5},
+                    },
                 ],
             }
         },
@@ -2473,7 +2477,11 @@ async def test_heater_mode_opening(
                 "initial_hvac_mode": HVACMode.HEAT,
                 "openings": [
                     opening_1,
-                    {"entity_id": opening_2, "timeout": {"seconds": 5}},
+                    {
+                        "entity_id": opening_2,
+                        "timeout": {"seconds": 5},
+                        "closing_timeout": {"seconds": 5},
+                    },
                 ],
             }
         },

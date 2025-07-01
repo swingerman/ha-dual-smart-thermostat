@@ -3783,7 +3783,11 @@ async def test_heat_cool_mode_opening_timeout(
                 "initial_hvac_mode": HVACMode.HEAT_COOL,
                 "openings": [
                     opening_1,
-                    {"entity_id": opening_2, "timeout": {"seconds": 5}},
+                    {
+                        "entity_id": opening_2,
+                        "timeout": {"seconds": 5},
+                        "closing_timeout": {"seconds": 5},
+                    },
                 ],
             }
         },

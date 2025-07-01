@@ -84,6 +84,7 @@ from custom_components.dual_smart_thermostat.managers.preset_manager import (
 
 from . import DOMAIN, PLATFORMS
 from .const import (
+    ATTR_CLOSING_TIMEOUT,
     ATTR_HVAC_ACTION_REASON,
     ATTR_HVAC_POWER_LEVEL,
     ATTR_HVAC_POWER_PERCENT,
@@ -1185,7 +1186,10 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         opening_timeout = None
         for opening in self.openings.openings:
             if opening_entity == opening[ATTR_ENTITY_ID]:
-                opening_timeout = opening[ATTR_TIMEOUT]
+                if new_state.state in (STATE_OPEN, STATE_ON):
+                    opening_timeout = opening.get(ATTR_TIMEOUT)
+                else:
+                    opening_timeout = opening.get(ATTR_CLOSING_TIMEOUT)
                 break
 
         # schedule the control for the opening
