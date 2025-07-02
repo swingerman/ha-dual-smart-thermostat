@@ -78,7 +78,8 @@ ATTR_PREV_TARGET_LOW = "prev_target_temp_low"
 ATTR_PREV_TARGET_HIGH = "prev_target_temp_high"
 ATTR_PREV_HUMIDITY = "prev_humidity"
 ATTR_HVAC_ACTION_REASON = "hvac_action_reason"
-ATTR_TIMEOUT = "timeout"
+ATTR_OPENING_TIMEOUT = "timeout"
+ATTR_CLOSING_TIMEOUT = "closing_timeout"
 
 PRESET_ANTI_FREEZE = "Anti Freeze"
 
@@ -101,7 +102,12 @@ CONF_PRESETS_OLD = {k: f"{v}_temp" for k, v in CONF_PRESETS.items()}
 TIMED_OPENING_SCHEMA = vol.Schema(
     {
         vol.Required(ATTR_ENTITY_ID): cv.entity_id,
-        vol.Required(ATTR_TIMEOUT): vol.All(cv.time_period, cv.positive_timedelta),
+        vol.Optional(ATTR_OPENING_TIMEOUT): vol.All(
+            cv.time_period, cv.positive_timedelta
+        ),
+        vol.Optional(ATTR_CLOSING_TIMEOUT): vol.All(
+            cv.time_period, cv.positive_timedelta
+        ),
     }
 )
 
