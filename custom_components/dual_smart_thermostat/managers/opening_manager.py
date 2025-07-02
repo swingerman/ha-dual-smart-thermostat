@@ -21,7 +21,7 @@ from homeassistant.helpers.typing import ConfigType
 
 from custom_components.dual_smart_thermostat.const import (
     ATTR_CLOSING_TIMEOUT,
-    ATTR_TIMEOUT,
+    ATTR_OPENING_TIMEOUT,
     CONF_OPENINGS,
     CONF_OPENINGS_SCOPE,
     TIMED_OPENING_SCHEMA,
@@ -92,7 +92,7 @@ class OpeningManager:
 
     def _has_timeout_mode(self, opening: TIMED_OPENING_SCHEMA, is_open: bool) -> bool:  # type: ignore
         """If the opening has a timeout mode."""
-        timeout_attr = ATTR_TIMEOUT if is_open else ATTR_CLOSING_TIMEOUT
+        timeout_attr = ATTR_OPENING_TIMEOUT if is_open else ATTR_CLOSING_TIMEOUT
         return timeout_attr in opening
 
     def _is_opening_open_state(self, opening: TIMED_OPENING_SCHEMA) -> bool:  # type: ignore
@@ -186,7 +186,7 @@ class OpeningManager:
 
     def _is_opening_timed_out(self, opening: TIMED_OPENING_SCHEMA, check_open: True) -> bool:  # type: ignore
         opening_entity = opening[ATTR_ENTITY_ID]
-        timeout_attr = ATTR_TIMEOUT if check_open else ATTR_CLOSING_TIMEOUT
+        timeout_attr = ATTR_OPENING_TIMEOUT if check_open else ATTR_CLOSING_TIMEOUT
 
         _LOGGER.debug(
             "Checking if opening %s is timed out, state: %s, timeout: %s, waiting state: %s",
