@@ -2299,7 +2299,7 @@ async def test_heater_mode_opening_hvac_action_reason(
                     {
                         "entity_id": opening_2,
                         "timeout": {"seconds": 5},
-                        "closing_timeout": {"seconds": 5},
+                        "closing_timeout": {"seconds": 3},
                     },
                 ],
             }
@@ -2368,7 +2368,7 @@ async def test_heater_mode_opening_hvac_action_reason(
     )
 
     # wait openings
-    freezer.tick(timedelta(seconds=6))
+    freezer.tick(timedelta(seconds=4))
     common.async_fire_time_changed(hass)
     await hass.async_block_till_done()
 
@@ -2480,7 +2480,7 @@ async def test_heater_mode_opening(
                     {
                         "entity_id": opening_2,
                         "timeout": {"seconds": 5},
-                        "closing_timeout": {"seconds": 5},
+                        "closing_timeout": {"seconds": 3},
                     },
                 ],
             }
@@ -2529,7 +2529,7 @@ async def test_heater_mode_opening(
     assert hass.states.get(heater_switch).state == STATE_OFF
 
     # wait openings
-    freezer.tick(timedelta(seconds=6))
+    freezer.tick(timedelta(seconds=4))
     common.async_fire_time_changed(hass)
     await hass.async_block_till_done()
 

@@ -3786,7 +3786,7 @@ async def test_heat_cool_mode_opening_timeout(
                     {
                         "entity_id": opening_2,
                         "timeout": {"seconds": 5},
-                        "closing_timeout": {"seconds": 5},
+                        "closing_timeout": {"seconds": 3},
                     },
                 ],
             }
@@ -3876,7 +3876,7 @@ async def test_heat_cool_mode_opening_timeout(
     assert hass.states.get(cooler_switch).state == STATE_OFF
 
     # wait openings
-    freezer.tick(timedelta(seconds=6))
+    freezer.tick(timedelta(seconds=4))
     common.async_fire_time_changed(hass)
     await hass.async_block_till_done()
 
