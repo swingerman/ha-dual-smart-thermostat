@@ -218,7 +218,7 @@ The `openings` configuration variable accepts a list of opening entities and ope
 ### Opening entities and objects
 
 An opening entity is a sensor that can be in two states: `on` or `off`. If the state is `on`, the opening is considered open; if the state is `off`, the opening is considered closed.
-The opening object can contain a `timeout` and a `closing_timeout` property that defines the time in seconds for which the opening is still considered closed or open, even if the state is `on` or `off`. This is useful if you want to ignore windows that are only open or closed for a short time.
+The opening object can contain a `timeout` and a `closing_timeout` property that defines the time for which the opening is still considered closed or open, even if the state is `on` or `off`. This is useful if you want to ignore windows that are only open or closed for a short time.
 
 ### Openings Scope
 
