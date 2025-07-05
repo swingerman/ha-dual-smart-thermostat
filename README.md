@@ -218,7 +218,7 @@ The `openings` configuration variable accepts a list of opening entities and ope
 ### Opening entities and objects
 
 An opening entity is a sensor that can be in two states: `on` or `off`. If the state is `on`, the opening is considered open; if the state is `off`, the opening is considered closed.
-The opening object can contain a `timeout` and a `closing_timeout` property that defines the time in seconds after which the opening is considered open or closed, even if the state is still `on` or `off`. This is useful if you want to ignore windows that are only open and close for a short time.
+The opening object can contain a `timeout` and a `closing_timeout` property that defines the time for which the opening is still considered closed or open, even if the state is `on` or `off`. This is useful if you want to ignore windows that are only open or closed for a short time.
 
 ### Openings Scope
 
@@ -247,9 +247,11 @@ climate:
     cooler: switch.study_cooler
     openings:
       - binary_sensor.window1
-      - binary_sensor.window2
+      - entity_id: binary_sensor.window2
+        timeout: 00:00:30
       - entity_id: binary_sensor.window3
         timeout: 00:00:30
+        closing_timeout: 00:00:15
     openings_scope: [heat, cool]
     target_sensor: sensor.study_temperature
 ```
@@ -519,11 +521,13 @@ The internal values can be set by the component only and the external values can
 
 ### openings
 
-  _(optional) (list)_  "list of opening `entity_id`'s and/or objects for detecting open widows or doors that will idle the thermostat until any of them are open. Note: if min_floor_temp is set and the floor temperature is below the minimum temperature, the thermostat will not idle even if any of the openings are open."
+  _(optional) (list)_  "list of opening `entity_id`'s and/or objects for detecting open windows or doors that will idle the thermostat until any of them are open. Note: if min_floor_temp is set and the floor temperature is below the minimum temperature, the thermostat will not idle even if any of the openings are open."
 
-  `entity_id: <value>`The entity id of the opening bstate sensor (string)</br>
+  `entity_id: <value>` The entity id of the opening bstate sensor (string)</br>
 
-  `timeout: <value>` The time after which the opening is considered open even if the state is still `on` (timedata)</br>
+  `timeout: <value>` The time for which the opening is still considered closed even if the state of the sensor is `on` (timedelta)</br>
+
+  `closing_timeout: <value>` The time for which the opening is still considered open even if the state of the sensor is `off` (timedelta)</br>
 
 ### openings_scope
 
