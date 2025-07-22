@@ -144,6 +144,7 @@ from .const import (
     DEFAULT_NAME,
     DEFAULT_TOLERANCE,
     TIMED_OPENING_SCHEMA,
+    entity_id_or_list,
 )
 from .hvac_action_reason.hvac_action_reason import (
     SERVICE_SET_HVAC_ACTION_REASON,
@@ -215,8 +216,8 @@ HVAC_POWER_SCHEMA = {
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
-        vol.Required(CONF_HEATER): cv.entity_id,
-        vol.Optional(CONF_COOLER): cv.entity_id,
+        vol.Required(CONF_HEATER): entity_id_or_list,
+        vol.Optional(CONF_COOLER): entity_id_or_list,
         vol.Required(CONF_SENSOR): cv.entity_id,
         vol.Optional(CONF_STALE_DURATION): vol.All(
             cv.time_period, cv.positive_timedelta

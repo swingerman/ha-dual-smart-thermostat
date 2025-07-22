@@ -119,3 +119,13 @@ class ToleranceDevice(enum.StrEnum):
     COOLER = "cooler"
     DRYER = "dryer"
     AUTO = "auto"
+
+
+def entity_id_or_list(value):
+    """Validate entity ID or list of entity IDs."""
+    if isinstance(value, str):
+        return cv.entity_id(value)
+    elif isinstance(value, list):
+        return [cv.entity_id(item) for item in value]
+    else:
+        raise vol.Invalid("Expected entity ID or list of entity IDs")

@@ -40,6 +40,12 @@ from custom_components.dual_smart_thermostat.hvac_device.heater_cooler_device im
 from custom_components.dual_smart_thermostat.hvac_device.heater_device import (
     HeaterDevice,
 )
+from custom_components.dual_smart_thermostat.hvac_device.multi_cooler_device import (
+    MultiCoolerDevice,
+)
+from custom_components.dual_smart_thermostat.hvac_device.multi_heater_device import (
+    MultiHeaterDevice,
+)
 from custom_components.dual_smart_thermostat.hvac_device.multi_hvac_device import (
     MultiHvacDevice,
 )
@@ -68,17 +74,35 @@ class HVACDeviceFactory:
         self.hass = hass
         self._features = features
 
-        self._heater_entity_id = config[CONF_HEATER]
-        self._cooler_entity_id = None
-        if cooler_entity_id := config.get(CONF_COOLER):
-            if cooler_entity_id == self._heater_entity_id:
+        self._heater_entity_ids = config[CONF_HEATER]
+        # Ensure heater_entity_ids is always a list for consistent handling
+        if isinstance(self._heater_entity_ids, str):
+            self._heater_entity_ids = [self._heater_entity_ids]
+
+        self._cooler_entity_ids = None
+        if cooler_entity_ids := config.get(CONF_COOLER):
+            # Ensure cooler_entity_ids is always a list for consistent handling
+            if isinstance(cooler_entity_ids, str):
+                cooler_entity_ids = [cooler_entity_ids]
+            
+            # Check for conflicts with heater entities
+            heater_set = set(self._heater_entity_ids)
+            cooler_set = set(cooler_entity_ids)
+            if heater_set & cooler_set:
                 _LOGGER.warning(
-                    "'cooler' entity cannot be equal to 'heater' entity. "
-                    "'cooler' entity will be ignored"
+                    "'cooler' entities cannot overlap with 'heater' entities. "
+                    "Overlapping entities will be ignored: %s",
+                    heater_set & cooler_set,
                 )
-                self._cooler_entity_id = None
+                # Remove overlapping entities from cooler list
+                self._cooler_entity_ids = [
+                    entity_id for entity_id in cooler_entity_ids 
+                    if entity_id not in heater_set
+                ]
+                if not self._cooler_entity_ids:
+                    self._cooler_entity_ids = None
             else:
-                self._cooler_entity_id = cooler_entity_id
+                self._cooler_entity_ids = cooler_entity_ids
 
         self._fan_entity_id = config.get(CONF_FAN)
         self._fan_on_with_cooler = config.get(CONF_FAN_ON_WITH_AC)
@@ -122,7 +146,7 @@ class HVACDeviceFactory:
         if self._features.is_configured_for_fan_only_mode:
             fan_device = FanDevice(
                 self.hass,
-                self._heater_entity_id,
+                self._heater_entity_ids[0],  # Fan only mode uses single entity
                 self._min_cycle_duration,
                 self._initial_hvac_mode,
                 environment,
@@ -156,22 +180,22 @@ class HVACDeviceFactory:
             )
 
         if self._features.is_configured_for_dual_mode:
-            cooler_entity_id = self._cooler_entity_id
+            cooler_entity_ids = self._cooler_entity_ids
         else:
-            cooler_entity_id = self._heater_entity_id
+            cooler_entity_ids = self._heater_entity_ids
 
         if (
             self._features.is_configured_for_cooler_mode
-            or self._cooler_entity_id is not None
+            or self._cooler_entity_ids is not None
         ):
             cooler_device = self._create_cooler_device(
-                environment, openings, hvac_power, cooler_entity_id, fan_device
+                environment, openings, hvac_power, cooler_entity_ids, fan_device
             )
 
         if self._features.is_configured_for_heat_pump_mode:
             heater_device = HeatPumpDevice(
                 self.hass,
-                self._heater_entity_id,
+                self._heater_entity_ids[0],  # Heat pump uses single entity
                 self._min_cycle_duration,
                 self._initial_hvac_mode,
                 environment,
@@ -181,22 +205,36 @@ class HVACDeviceFactory:
             )
 
         if (
-            self._heater_entity_id
+            self._heater_entity_ids
             and not self._features.is_configured_for_cooler_mode
             and not self._features.is_configured_for_fan_only_mode
             and not self._features.is_configured_for_heat_pump_mode
         ):
             """Create a heater device if no other specific device is configured"""
-            heater_device = HeaterDevice(
-                self.hass,
-                self._heater_entity_id,
-                self._min_cycle_duration,
-                self._initial_hvac_mode,
-                environment,
-                openings,
-                self._features,
-                hvac_power,
-            )
+            if len(self._heater_entity_ids) == 1:
+                # Single heater entity - use original HeaterDevice
+                heater_device = HeaterDevice(
+                    self.hass,
+                    self._heater_entity_ids[0],
+                    self._min_cycle_duration,
+                    self._initial_hvac_mode,
+                    environment,
+                    openings,
+                    self._features,
+                    hvac_power,
+                )
+            else:
+                # Multiple heater entities - use MultiHeaterDevice
+                heater_device = MultiHeaterDevice(
+                    self.hass,
+                    self._heater_entity_ids,
+                    self._min_cycle_duration,
+                    self._initial_hvac_mode,
+                    environment,
+                    openings,
+                    self._features,
+                    hvac_power,
+                )
 
         if aux_heater_device and heater_device:
             _LOGGER.info("Creating heater aux heater device")
@@ -270,20 +308,37 @@ class HVACDeviceFactory:
         environment: EnvironmentManager,
         openings: OpeningManager,
         hvac_power: HvacPowerManager,
-        cooler_entitiy_id: str,
+        cooler_entity_ids: list[str] | None,
         fan_device: FanDevice | None,
     ) -> CoolerDevice:
 
-        cooler_device = CoolerDevice(
-            self.hass,
-            cooler_entitiy_id,
-            self._min_cycle_duration,
-            self._initial_hvac_mode,
-            environment,
-            openings,
-            self._features,
-            hvac_power,
-        )
+        if not cooler_entity_ids:
+            return None
+
+        if len(cooler_entity_ids) == 1:
+            # Single cooler entity - use original CoolerDevice
+            cooler_device = CoolerDevice(
+                self.hass,
+                cooler_entity_ids[0],
+                self._min_cycle_duration,
+                self._initial_hvac_mode,
+                environment,
+                openings,
+                self._features,
+                hvac_power,
+            )
+        else:
+            # Multiple cooler entities - use MultiCoolerDevice
+            cooler_device = MultiCoolerDevice(
+                self.hass,
+                cooler_entity_ids,
+                self._min_cycle_duration,
+                self._initial_hvac_mode,
+                environment,
+                openings,
+                self._features,
+                hvac_power,
+            )
 
         if fan_device:
             cooler_device = CoolerFanDevice(
