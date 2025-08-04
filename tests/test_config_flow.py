@@ -45,44 +45,9 @@ async def test_config_flow_basic(hass: HomeAssistant) -> None:
             },
         )
         assert result["type"] == "form"
-        assert result["step_id"] == "advanced"
+        assert result["step_id"] == "additional"
 
-        # Skip advanced step
-        result = await hass.config_entries.flow.async_configure(
-            result["flow_id"], user_input={}
-        )
-        assert result["type"] == "form"
-        assert result["step_id"] == "heating"
-
-        # Skip heating step
-        result = await hass.config_entries.flow.async_configure(
-            result["flow_id"], user_input={}
-        )
-        assert result["type"] == "form"
-        assert result["step_id"] == "floor_temp"
-
-        # Skip floor temp step
-        result = await hass.config_entries.flow.async_configure(
-            result["flow_id"], user_input={}
-        )
-        assert result["type"] == "form"
-        assert result["step_id"] == "fan"
-
-        # Skip fan step
-        result = await hass.config_entries.flow.async_configure(
-            result["flow_id"], user_input={}
-        )
-        assert result["type"] == "form"
-        assert result["step_id"] == "humidity"
-
-        # Skip humidity step
-        result = await hass.config_entries.flow.async_configure(
-            result["flow_id"], user_input={}
-        )
-        assert result["type"] == "form"
-        assert result["step_id"] == "power"
-
-        # Skip power step
+        # Skip additional step
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"], user_input={}
         )
@@ -127,12 +92,11 @@ async def test_config_flow_with_presets(hass: HomeAssistant) -> None:
             },
         )
 
-        # Skip steps to get to presets
-        for step in ["advanced", "heating", "floor_temp", "fan", "humidity", "power"]:
-            result = await hass.config_entries.flow.async_configure(
-                result["flow_id"], user_input={}
-            )
-            assert result["step_id"] == step
+        # Skip additional step
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], user_input={}
+        )
+        assert result["step_id"] == "presets"
 
         # Add presets
         result = await hass.config_entries.flow.async_configure(
