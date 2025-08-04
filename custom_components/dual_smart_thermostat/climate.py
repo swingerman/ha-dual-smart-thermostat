@@ -4,6 +4,7 @@ import asyncio
 from collections.abc import Callable
 from datetime import datetime, timedelta
 import logging
+from typing import Any
 
 from homeassistant.components.climate import (
     PLATFORM_SCHEMA,
@@ -18,6 +19,7 @@ from homeassistant.components.climate.const import (
     PRESET_NONE,
 )
 from homeassistant.components.humidifier import ATTR_HUMIDITY
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     ATTR_ENTITY_ID,
     ATTR_TEMPERATURE,
@@ -274,6 +276,20 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
 )
 
 
+async def async_setup_entry(
+    hass: HomeAssistant,
+    config_entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
+    """Initialize config entry."""
+    await _async_setup_config(
+        hass,
+        config_entry.options,
+        config_entry.entry_id,
+        async_add_entities,
+    )
+
+
 async def async_setup_platform(
     hass: HomeAssistant,
     config: ConfigType,
@@ -283,6 +299,18 @@ async def async_setup_platform(
     """Set up the smart dual thermostat platform."""
 
     await async_setup_reload_service(hass, DOMAIN, PLATFORMS)
+    await _async_setup_config(
+        hass, config, config.get(CONF_UNIQUE_ID), async_add_entities
+    )
+
+
+async def _async_setup_config(
+    hass: HomeAssistant,
+    config: dict[str, Any],
+    unique_id: str | None,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
+    """Set up the smart dual thermostat platform."""
 
     name = config[CONF_NAME]
     sensor_entity_id = config[CONF_SENSOR]
@@ -295,7 +323,6 @@ async def async_setup_platform(
 
     precision = config.get(CONF_PRECISION)
     unit = hass.config.units.temperature_unit
-    unique_id = config.get(CONF_UNIQUE_ID)
 
     opening_manager = OpeningManager(hass, config)
 

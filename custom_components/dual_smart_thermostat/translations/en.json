@@ -1,4 +1,211 @@
 {
+    "title": "Dual Smart Thermostat",
+    "config": {
+        "step": {
+            "user": {
+                "title": "Basic Configuration",
+                "description": "Configure the basic settings for your dual smart thermostat.",
+                "data": {
+                    "name": "Name",
+                    "heater": "Heater switch",
+                    "target_sensor": "Temperature sensor",
+                    "cooler": "Cooler switch",
+                    "ac_mode": "Air conditioning mode",
+                    "heat_cool_mode": "Heat/Cool mode",
+                    "cold_tolerance": "Cold tolerance",
+                    "hot_tolerance": "Hot tolerance"
+                },
+                "data_description": {
+                    "name": "The name of the thermostat.",
+                    "heater": "Switch entity used for heating.",
+                    "target_sensor": "Temperature sensor that reflects the current temperature.",
+                    "cooler": "Switch entity used for cooling (optional).",
+                    "ac_mode": "Set the switches to be treated as cooling devices instead of heating devices.",
+                    "heat_cool_mode": "Enable heat/cool mode for automatic switching between heating and cooling.",
+                    "cold_tolerance": "Minimum temperature difference before turning on heating.",
+                    "hot_tolerance": "Minimum temperature difference before turning off heating or turning on cooling."
+                }
+            },
+            "advanced": {
+                "title": "Advanced Settings",
+                "description": "Configure advanced settings for your thermostat.",
+                "data": {
+                    "min_cycle_duration": "Minimum cycle duration",
+                    "keep_alive": "Keep alive duration", 
+                    "sensor_stale_duration": "Sensor stale duration",
+                    "initial_hvac_mode": "Initial HVAC mode",
+                    "precision": "Temperature precision",
+                    "target_temp_step": "Temperature step",
+                    "min_temp": "Minimum temperature",
+                    "max_temp": "Maximum temperature",
+                    "target_temp": "Target temperature",
+                    "target_temp_high": "Target temperature high",
+                    "target_temp_low": "Target temperature low",
+                    "outside_sensor": "Outside temperature sensor"
+                }
+            },
+            "heating": {
+                "title": "Heating Features",
+                "description": "Configure heating-specific features.",
+                "data": {
+                    "secondary_heater": "Secondary heater switch",
+                    "secondary_heater_dual_mode": "Secondary heater dual mode",
+                    "secondary_heater_timeout": "Secondary heater timeout",
+                    "heat_pump_cooling": "Heat pump cooling sensor"
+                }
+            },
+            "floor_temp": {
+                "title": "Floor Temperature",
+                "description": "Configure floor temperature monitoring.",
+                "data": {
+                    "floor_sensor": "Floor temperature sensor",
+                    "max_floor_temp": "Maximum floor temperature",
+                    "min_floor_temp": "Minimum floor temperature"
+                }
+            },
+            "fan": {
+                "title": "Fan Features",
+                "description": "Configure fan-related features.",
+                "data": {
+                    "fan": "Fan switch",
+                    "fan_mode": "Fan mode",
+                    "fan_on_with_ac": "Fan on with AC",
+                    "fan_air_outside": "Fan air outside",
+                    "fan_hot_tolerance": "Fan hot tolerance"
+                }
+            },
+            "humidity": {
+                "title": "Humidity Control",
+                "description": "Configure humidity control features.",
+                "data": {
+                    "dryer": "Dryer switch",
+                    "humidity_sensor": "Humidity sensor",
+                    "min_humidity": "Minimum humidity",
+                    "max_humidity": "Maximum humidity",
+                    "target_humidity": "Target humidity",
+                    "dry_tolerance": "Dry tolerance",
+                    "moist_tolerance": "Moist tolerance"
+                }
+            },
+            "power": {
+                "title": "Power Management",
+                "description": "Configure power management features.",
+                "data": {
+                    "hvac_power_levels": "HVAC power levels",
+                    "hvac_power_min": "HVAC power minimum",
+                    "hvac_power_max": "HVAC power maximum",
+                    "hvac_power_tolerance": "HVAC power tolerance"
+                }
+            },
+            "presets": {
+                "title": "Temperature Presets",
+                "description": "Configure temperature presets for different scenarios.",
+                "data": {
+                    "away_temp": "Away",
+                    "comfort_temp": "Comfort", 
+                    "eco_temp": "Eco",
+                    "home_temp": "Home",
+                    "sleep_temp": "Sleep",
+                    "anti_freeze_temp": "Anti Freeze",
+                    "activity_temp": "Activity",
+                    "boost_temp": "Boost"
+                }
+            }
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "title": "Basic Options",
+                "description": "Modify basic thermostat settings.",
+                "data": {
+                    "cooler": "Cooler switch",
+                    "ac_mode": "Air conditioning mode",
+                    "heat_cool_mode": "Heat/Cool mode",
+                    "cold_tolerance": "Cold tolerance", 
+                    "hot_tolerance": "Hot tolerance"
+                }
+            },
+            "advanced": {
+                "title": "Advanced Settings",
+                "data": {
+                    "min_cycle_duration": "Minimum cycle duration",
+                    "keep_alive": "Keep alive duration",
+                    "sensor_stale_duration": "Sensor stale duration",
+                    "initial_hvac_mode": "Initial HVAC mode",
+                    "precision": "Temperature precision",
+                    "target_temp_step": "Temperature step",
+                    "min_temp": "Minimum temperature",
+                    "max_temp": "Maximum temperature",
+                    "target_temp": "Target temperature",
+                    "target_temp_high": "Target temperature high",
+                    "target_temp_low": "Target temperature low",
+                    "outside_sensor": "Outside temperature sensor"
+                }
+            },
+            "heating": {
+                "title": "Heating Features",
+                "data": {
+                    "secondary_heater": "Secondary heater switch",
+                    "secondary_heater_dual_mode": "Secondary heater dual mode",
+                    "secondary_heater_timeout": "Secondary heater timeout",
+                    "heat_pump_cooling": "Heat pump cooling sensor"
+                }
+            },
+            "floor_temp": {
+                "title": "Floor Temperature",
+                "data": {
+                    "floor_sensor": "Floor temperature sensor",
+                    "max_floor_temp": "Maximum floor temperature",
+                    "min_floor_temp": "Minimum floor temperature"
+                }
+            },
+            "fan": {
+                "title": "Fan Features",
+                "data": {
+                    "fan": "Fan switch",
+                    "fan_mode": "Fan mode",
+                    "fan_on_with_ac": "Fan on with AC",
+                    "fan_air_outside": "Fan air outside",
+                    "fan_hot_tolerance": "Fan hot tolerance"
+                }
+            },
+            "humidity": {
+                "title": "Humidity Control",
+                "data": {
+                    "dryer": "Dryer switch",
+                    "humidity_sensor": "Humidity sensor",
+                    "min_humidity": "Minimum humidity",
+                    "max_humidity": "Maximum humidity",
+                    "target_humidity": "Target humidity",
+                    "dry_tolerance": "Dry tolerance",
+                    "moist_tolerance": "Moist tolerance"
+                }
+            },
+            "power": {
+                "title": "Power Management",
+                "data": {
+                    "hvac_power_levels": "HVAC power levels",
+                    "hvac_power_min": "HVAC power minimum",
+                    "hvac_power_max": "HVAC power maximum",
+                    "hvac_power_tolerance": "HVAC power tolerance"
+                }
+            },
+            "presets": {
+                "title": "Temperature Presets",
+                "data": {
+                    "away_temp": "Away",
+                    "comfort_temp": "Comfort",
+                    "eco_temp": "Eco", 
+                    "home_temp": "Home",
+                    "sleep_temp": "Sleep",
+                    "anti_freeze_temp": "Anti Freeze",
+                    "activity_temp": "Activity",
+                    "boost_temp": "Boost"
+                }
+            }
+        }
+    },
     "selector": {
         "hac_action_reason": {
             "options": {

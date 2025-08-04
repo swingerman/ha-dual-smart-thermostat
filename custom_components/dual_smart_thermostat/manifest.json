@@ -4,6 +4,7 @@
   "codeowners": [
     "@swingerman"
   ],
+  "config_flow": true,
   "dependencies": [
     "climate",
     "sensor",
@@ -15,6 +16,7 @@
     "input_number"
   ],
   "documentation": "https://github.com/swingerman/ha-dual-smart-thermostat.git",
+  "integration_type": "helper",
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/swingerman/ha-dual-smart-thermostat/issues",
   "requirements": [],
