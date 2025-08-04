@@ -2,12 +2,11 @@
 
 from unittest.mock import patch
 
-import pytest
-
 from homeassistant.components.climate import PRESET_AWAY
 from homeassistant.config_entries import SOURCE_USER
 from homeassistant.const import CONF_NAME
 from homeassistant.core import HomeAssistant
+import pytest
 
 from custom_components.dual_smart_thermostat.const import (
     CONF_AC_MODE,
@@ -151,11 +150,16 @@ async def test_config_flow_with_presets(hass: HomeAssistant) -> None:
 async def test_options_flow(hass: HomeAssistant) -> None:
     """Test the options flow."""
     # Create a config entry
-    config_entry = hass.config_entries.async_entries(DOMAIN)[0] if hass.config_entries.async_entries(DOMAIN) else None
-    
+    config_entry = (
+        hass.config_entries.async_entries(DOMAIN)[0]
+        if hass.config_entries.async_entries(DOMAIN)
+        else None
+    )
+
     if not config_entry:
         # Create a mock config entry for the test
         from homeassistant.config_entries import ConfigEntry
+
         config_entry = ConfigEntry(
             version=1,
             domain=DOMAIN,
@@ -170,12 +174,12 @@ async def test_options_flow(hass: HomeAssistant) -> None:
             source=SOURCE_USER,
         )
         config_entry.add_to_hass(hass)
-    
+
     # Test options flow
     result = await hass.config_entries.options.async_init(config_entry.entry_id)
     assert result["type"] == "form"
     assert result["step_id"] == "init"
-    
+
     # Test configuring options
     result = await hass.config_entries.options.async_configure(
         result["flow_id"],

@@ -3,12 +3,9 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, cast
 import logging
+from typing import Any, cast
 
-import voluptuous as vol
-
-from homeassistant.components.binary_sensor import DOMAIN as BINARY_SENSOR_DOMAIN
 from homeassistant.components.sensor import DOMAIN as SENSOR_DOMAIN, SensorDeviceClass
 from homeassistant.components.switch import DOMAIN as SWITCH_DOMAIN
 from homeassistant.const import CONF_NAME, DEGREE
@@ -17,6 +14,7 @@ from homeassistant.helpers.schema_config_entry_flow import (
     SchemaConfigFlowHandler,
     SchemaFlowFormStep,
 )
+import voluptuous as vol
 
 from .const import (
     CONF_AC_MODE,
@@ -66,22 +64,22 @@ CONFIG_SCHEMA = {
         CONF_COLD_TOLERANCE, default=DEFAULT_TOLERANCE
     ): selector.NumberSelector(
         selector.NumberSelectorConfig(
-            mode=selector.NumberSelectorMode.BOX, 
-            unit_of_measurement=DEGREE, 
+            mode=selector.NumberSelectorMode.BOX,
+            unit_of_measurement=DEGREE,
             step=0.1,
             min=0.1,
-            max=5.0
+            max=5.0,
         )
     ),
     vol.Optional(
         CONF_HOT_TOLERANCE, default=DEFAULT_TOLERANCE
     ): selector.NumberSelector(
         selector.NumberSelectorConfig(
-            mode=selector.NumberSelectorMode.BOX, 
-            unit_of_measurement=DEGREE, 
+            mode=selector.NumberSelectorMode.BOX,
+            unit_of_measurement=DEGREE,
             step=0.1,
             min=0.1,
-            max=5.0
+            max=5.0,
         )
     ),
     vol.Optional(CONF_MIN_DUR): selector.DurationSelector(
@@ -111,8 +109,7 @@ ADDITIONAL_FEATURES_SCHEMA = {
     ),
     vol.Optional(CONF_MAX_FLOOR_TEMP): selector.NumberSelector(
         selector.NumberSelectorConfig(
-            mode=selector.NumberSelectorMode.BOX, 
-            unit_of_measurement=DEGREE
+            mode=selector.NumberSelectorMode.BOX, unit_of_measurement=DEGREE
         )
     ),
 }
@@ -142,20 +139,17 @@ ADVANCED_SETTINGS_SCHEMA = {
     ),
     vol.Optional(CONF_MIN_TEMP): selector.NumberSelector(
         selector.NumberSelectorConfig(
-            mode=selector.NumberSelectorMode.BOX, 
-            unit_of_measurement=DEGREE
+            mode=selector.NumberSelectorMode.BOX, unit_of_measurement=DEGREE
         )
     ),
     vol.Optional(CONF_MAX_TEMP): selector.NumberSelector(
         selector.NumberSelectorConfig(
-            mode=selector.NumberSelectorMode.BOX, 
-            unit_of_measurement=DEGREE
+            mode=selector.NumberSelectorMode.BOX, unit_of_measurement=DEGREE
         )
     ),
     vol.Optional(CONF_TARGET_TEMP): selector.NumberSelector(
         selector.NumberSelectorConfig(
-            mode=selector.NumberSelectorMode.BOX, 
-            unit_of_measurement=DEGREE
+            mode=selector.NumberSelectorMode.BOX, unit_of_measurement=DEGREE
         )
     ),
 }
@@ -164,8 +158,7 @@ ADVANCED_SETTINGS_SCHEMA = {
 PRESETS_SCHEMA = {
     vol.Optional(v): selector.NumberSelector(
         selector.NumberSelectorConfig(
-            mode=selector.NumberSelectorMode.BOX, 
-            unit_of_measurement=DEGREE
+            mode=selector.NumberSelectorMode.BOX, unit_of_measurement=DEGREE
         )
     )
     for v in CONF_PRESETS.values()
@@ -180,20 +173,20 @@ OPTIONS_SCHEMA = {
     vol.Optional(CONF_HEAT_COOL_MODE): selector.BooleanSelector(),
     vol.Optional(CONF_COLD_TOLERANCE): selector.NumberSelector(
         selector.NumberSelectorConfig(
-            mode=selector.NumberSelectorMode.BOX, 
-            unit_of_measurement=DEGREE, 
+            mode=selector.NumberSelectorMode.BOX,
+            unit_of_measurement=DEGREE,
             step=0.1,
             min=0.1,
-            max=5.0
+            max=5.0,
         )
     ),
     vol.Optional(CONF_HOT_TOLERANCE): selector.NumberSelector(
         selector.NumberSelectorConfig(
-            mode=selector.NumberSelectorMode.BOX, 
-            unit_of_measurement=DEGREE, 
+            mode=selector.NumberSelectorMode.BOX,
+            unit_of_measurement=DEGREE,
             step=0.1,
             min=0.1,
-            max=5.0
+            max=5.0,
         )
     ),
     vol.Optional(CONF_MIN_DUR): selector.DurationSelector(
@@ -203,15 +196,23 @@ OPTIONS_SCHEMA = {
 
 CONFIG_FLOW = {
     "user": SchemaFlowFormStep(vol.Schema(CONFIG_SCHEMA), next_step="additional"),
-    "additional": SchemaFlowFormStep(vol.Schema(ADDITIONAL_FEATURES_SCHEMA), next_step="advanced"),
-    "advanced": SchemaFlowFormStep(vol.Schema(ADVANCED_SETTINGS_SCHEMA), next_step="presets"),
+    "additional": SchemaFlowFormStep(
+        vol.Schema(ADDITIONAL_FEATURES_SCHEMA), next_step="advanced"
+    ),
+    "advanced": SchemaFlowFormStep(
+        vol.Schema(ADVANCED_SETTINGS_SCHEMA), next_step="presets"
+    ),
     "presets": SchemaFlowFormStep(vol.Schema(PRESETS_SCHEMA)),
 }
 
 OPTIONS_FLOW = {
     "init": SchemaFlowFormStep(vol.Schema(OPTIONS_SCHEMA), next_step="additional"),
-    "additional": SchemaFlowFormStep(vol.Schema(ADDITIONAL_FEATURES_SCHEMA), next_step="advanced"),
-    "advanced": SchemaFlowFormStep(vol.Schema(ADVANCED_SETTINGS_SCHEMA), next_step="presets"),
+    "additional": SchemaFlowFormStep(
+        vol.Schema(ADDITIONAL_FEATURES_SCHEMA), next_step="advanced"
+    ),
+    "advanced": SchemaFlowFormStep(
+        vol.Schema(ADVANCED_SETTINGS_SCHEMA), next_step="presets"
+    ),
     "presets": SchemaFlowFormStep(vol.Schema(PRESETS_SCHEMA)),
 }
 
@@ -225,7 +226,7 @@ class ConfigFlowHandler(SchemaConfigFlowHandler, domain=DOMAIN):
     def async_config_entry_title(self, options: Mapping[str, Any]) -> str:
         """Return config entry title."""
         return cast(str, options[CONF_NAME])
-    
+
     async def async_step_user(self, user_input: dict[str, Any] | None = None):
         """Handle the initial step."""
         if user_input is not None:
@@ -236,7 +237,7 @@ class ConfigFlowHandler(SchemaConfigFlowHandler, domain=DOMAIN):
                     data_schema=vol.Schema(CONFIG_SCHEMA),
                     errors={"base": "same_heater_sensor"},
                 )
-            
+
             # Validate that heater and cooler are different if both specified
             heater = user_input.get(CONF_HEATER)
             cooler = user_input.get(CONF_COOLER)
@@ -246,5 +247,5 @@ class ConfigFlowHandler(SchemaConfigFlowHandler, domain=DOMAIN):
                     data_schema=vol.Schema(CONFIG_SCHEMA),
                     errors={"base": "same_heater_cooler"},
                 )
-        
+
         return await super().async_step_user(user_input)
