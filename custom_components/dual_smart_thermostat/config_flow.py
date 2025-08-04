@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from typing import Any, cast
+import logging
 
 import voluptuous as vol
 
@@ -42,6 +43,8 @@ from .const import (
     DEFAULT_TOLERANCE,
     DOMAIN,
 )
+
+_LOGGER = logging.getLogger(__name__)
 
 # Basic configuration schema - essential settings
 CONFIG_SCHEMA = {
@@ -222,3 +225,26 @@ class ConfigFlowHandler(SchemaConfigFlowHandler, domain=DOMAIN):
     def async_config_entry_title(self, options: Mapping[str, Any]) -> str:
         """Return config entry title."""
         return cast(str, options[CONF_NAME])
+    
+    async def async_step_user(self, user_input: dict[str, Any] | None = None):
+        """Handle the initial step."""
+        if user_input is not None:
+            # Validate that heater and sensor are different entities
+            if user_input.get(CONF_HEATER) == user_input.get(CONF_SENSOR):
+                return self.async_show_form(
+                    step_id="user",
+                    data_schema=vol.Schema(CONFIG_SCHEMA),
+                    errors={"base": "same_heater_sensor"},
+                )
+            
+            # Validate that heater and cooler are different if both specified
+            heater = user_input.get(CONF_HEATER)
+            cooler = user_input.get(CONF_COOLER)
+            if heater and cooler and heater == cooler:
+                return self.async_show_form(
+                    step_id="user",
+                    data_schema=vol.Schema(CONFIG_SCHEMA),
+                    errors={"base": "same_heater_cooler"},
+                )
+        
+        return await super().async_step_user(user_input)

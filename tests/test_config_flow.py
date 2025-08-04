@@ -76,6 +76,29 @@ async def test_config_flow_basic(hass: HomeAssistant) -> None:
     assert config_entry.title == "My Dual Thermostat"
 
 
+async def test_config_flow_validation_errors(hass: HomeAssistant) -> None:
+    """Test that validation errors are handled properly."""
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": SOURCE_USER}
+    )
+
+    # Test same heater and sensor
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"],
+        {
+            CONF_NAME: "My Dual Thermostat",
+            CONF_HEATER: "switch.heater",
+            CONF_SENSOR: "switch.heater",  # Same as heater
+            CONF_AC_MODE: False,
+            CONF_COLD_TOLERANCE: 0.3,
+            CONF_HOT_TOLERANCE: 0.3,
+        },
+    )
+    assert result["type"] == "form"
+    assert result["step_id"] == "user"
+    assert result["errors"]["base"] == "same_heater_sensor"
+
+
 async def test_config_flow_with_presets(hass: HomeAssistant) -> None:
     """Test the config flow with presets."""
     with patch(
@@ -123,3 +146,44 @@ async def test_config_flow_with_presets(hass: HomeAssistant) -> None:
     config_entry = hass.config_entries.async_entries(DOMAIN)[0]
     assert CONF_PRESETS[PRESET_AWAY] in config_entry.options
     assert config_entry.options[CONF_PRESETS[PRESET_AWAY]] == 18.0
+
+
+async def test_options_flow(hass: HomeAssistant) -> None:
+    """Test the options flow."""
+    # Create a config entry
+    config_entry = hass.config_entries.async_entries(DOMAIN)[0] if hass.config_entries.async_entries(DOMAIN) else None
+    
+    if not config_entry:
+        # Create a mock config entry for the test
+        from homeassistant.config_entries import ConfigEntry
+        config_entry = ConfigEntry(
+            version=1,
+            domain=DOMAIN,
+            title="Test Thermostat",
+            data={},
+            options={
+                CONF_NAME: "Test Thermostat",
+                CONF_HEATER: "switch.heater",
+                CONF_SENSOR: "sensor.temperature",
+            },
+            entry_id="test_id",
+            source=SOURCE_USER,
+        )
+        config_entry.add_to_hass(hass)
+    
+    # Test options flow
+    result = await hass.config_entries.options.async_init(config_entry.entry_id)
+    assert result["type"] == "form"
+    assert result["step_id"] == "init"
+    
+    # Test configuring options
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        user_input={
+            CONF_AC_MODE: True,
+            CONF_COLD_TOLERANCE: 0.5,
+            CONF_HOT_TOLERANCE: 0.5,
+        },
+    )
+    assert result["type"] == "form"
+    assert result["step_id"] == "additional"

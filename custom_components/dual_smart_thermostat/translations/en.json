@@ -1,6 +1,10 @@
 {
     "title": "Dual Smart Thermostat",
     "config": {
+        "error": {
+            "same_heater_sensor": "Heater and temperature sensor cannot be the same entity",
+            "same_heater_cooler": "Heater and cooler cannot be the same entity"
+        },
         "step": {
             "user": {
                 "title": "Basic Configuration",
