@@ -6,7 +6,6 @@ from homeassistant.components.climate import PRESET_AWAY
 from homeassistant.config_entries import SOURCE_USER
 from homeassistant.const import CONF_NAME
 from homeassistant.core import HomeAssistant
-import pytest
 
 from custom_components.dual_smart_thermostat.const import (
     CONF_AC_MODE,
