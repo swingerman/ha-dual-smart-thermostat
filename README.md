@@ -16,20 +16,20 @@ The `dual_smart_thermostat` is an enhanced version of generic thermostat impleme
 
 ## Features
 
-|  |  | |
+| Feature | Icon | Documentation |
 | :--- | :---: | :---: |
-| **Heater/Cooler Mode** | ![cooler](docs/images/sun-snowflake-custom.png) | [docs](#heatcool-mode) |
+| **Heater/Cooler Mode (Heat-Cool)** | ![cooler](docs/images/sun-snowflake-custom.png) | [docs](#heatcool-mode) |
 | **Heater Only Mode** | ![heating](/docs/images/fire-custom.png) | [docs](#heater-only-mode) |
+| **Cooler Only Mode** | ![cool](/docs/images/snowflake-custom.png) | [docs](#cooler-only-mode) |
 | **Two Stage (AUX) Heating Mode** | ![heating](/docs/images/fire-custom.png) ![heating](/docs/images/radiator-custom.png) | [docs](#two-stage-heating) |
-| **Fan Only mode** | ![fan](/docs/images/fan-custom.png) | [docs](#fan-only-mode) |
-| **Fan With Cooler mode** | ![fan](/docs/images/fan-custom.png)  ![cool](/docs/images/snowflake-custom.png) | [docs](#fan-with-cooler-mode) |
-| **Cooler Only mode** | ![cool](/docs/images/snowflake-custom.png) | [docs](#cooler-only-mode) |
-| **Dry mode** | ![humidity](docs/images/water-percent-custom.png) | [docs](#dry-mode) |
-| **Heat Pump mode** | ![haet/cool](docs/images/sun-snowflake-custom.png) | [docs](#heat-pump-one-switch-heatcool-mode) |
+| **Fan Only Mode** | ![fan](/docs/images/fan-custom.png) | [docs](#fan-only-mode) |
+| **Fan With Cooler Mode** | ![fan](/docs/images/fan-custom.png)  ![cool](/docs/images/snowflake-custom.png) | [docs](#fan-with-cooler-mode) |
+| **Dry Mode (Humidity Control)** | ![humidity](docs/images/water-percent-custom.png) | [docs](#dry-mode) |
+| **Heat Pump Mode** | ![heat/cool](docs/images/sun-snowflake-custom.png) | [docs](#heat-pump-one-switch-heatcool-mode) |
 | **Floor Temperature Control** | ![heating-coil](docs/images/heating-coil-custom.png) ![snowflake-thermometer](docs/images/snowflake-thermometer-custom.png)  ![thermometer-alert](docs/images/thermometer-alert-custom.png) | [docs](#floor-heating-temperature-control) |
-| **Window/Door sensor integration** | ![window-open](docs/images/window-open-custom.png)  ![window-open](docs/images/door-open-custom.png) ![chevron-right](docs/images/chevron-right-custom.png) ![timer-cog](docs/images/timer-cog-outline-custom.png)  ![chevron-right](docs/images/chevron-right-custom.png) ![hvac-off](docs/images/hvac-off-custom.png)| [docs](#openings) |
-| **Presets** |  | [docs](#presets) |
-| **HVAC Action Reason** | | [docs](#hvac-action-reason) |
+| **Window/Door Sensor Integration (Openings)** | ![window-open](docs/images/window-open-custom.png)  ![window-open](docs/images/door-open-custom.png) ![chevron-right](docs/images/chevron-right-custom.png) ![timer-cog](docs/images/timer-cog-outline-custom.png)  ![chevron-right](docs/images/chevron-right-custom.png) ![hvac-off](docs/images/hvac-off-custom.png)| [docs](#openings) |
+| **Preset Modes Support** |  | [docs](#presets) |
+| **HVAC Action Reason Tracking** | | [docs](#hvac-action-reason) |
 
 ## Heat/Cool Mode
 
