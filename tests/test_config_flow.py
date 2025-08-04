@@ -52,6 +52,13 @@ async def test_config_flow_basic(hass: HomeAssistant) -> None:
             result["flow_id"], user_input={}
         )
         assert result["type"] == "form"
+        assert result["step_id"] == "advanced"
+
+        # Skip advanced step
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], user_input={}
+        )
+        assert result["type"] == "form"
         assert result["step_id"] == "presets"
 
         # Skip presets step and create entry
@@ -93,6 +100,12 @@ async def test_config_flow_with_presets(hass: HomeAssistant) -> None:
         )
 
         # Skip additional step
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], user_input={}
+        )
+        assert result["step_id"] == "advanced"
+
+        # Skip advanced step
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"], user_input={}
         )

@@ -29,13 +29,43 @@
                 }
             },
             "additional": {
-                "title": "Additional Features",
-                "description": "Configure additional heating features.",
+                "title": "Additional Sensors",
+                "description": "Configure additional sensors and features.",
                 "data": {
-                    "secondary_heater": "Secondary heater switch"
+                    "secondary_heater": "Secondary heater switch",
+                    "outside_sensor": "Outside temperature sensor",
+                    "floor_sensor": "Floor temperature sensor",
+                    "humidity_sensor": "Humidity sensor",
+                    "max_floor_temp": "Maximum floor temperature"
                 },
                 "data_description": {
-                    "secondary_heater": "Optional secondary heater switch for auxiliary heating."
+                    "secondary_heater": "Optional secondary heater switch for auxiliary heating.",
+                    "outside_sensor": "Optional outside temperature sensor for better control.",
+                    "floor_sensor": "Optional floor temperature sensor for floor heating systems.",
+                    "humidity_sensor": "Optional humidity sensor for humidity control.",
+                    "max_floor_temp": "Maximum allowed floor temperature when using floor sensor."
+                }
+            },
+            "advanced": {
+                "title": "Advanced Settings",
+                "description": "Configure advanced thermostat settings.",
+                "data": {
+                    "keep_alive": "Keep alive duration",
+                    "initial_hvac_mode": "Initial HVAC mode",
+                    "precision": "Temperature precision",
+                    "target_temp_step": "Temperature step",
+                    "min_temp": "Minimum temperature",
+                    "max_temp": "Maximum temperature",
+                    "target_temp": "Target temperature"
+                },
+                "data_description": {
+                    "keep_alive": "Keep alive duration for periodic switching.",
+                    "initial_hvac_mode": "Initial HVAC mode when starting Home Assistant.",
+                    "precision": "Temperature precision for display and control.",
+                    "target_temp_step": "Temperature step size for adjustments.",
+                    "min_temp": "Minimum allowed temperature setting.",
+                    "max_temp": "Maximum allowed temperature setting.",
+                    "target_temp": "Initial target temperature."
                 }
             },
             "presets": {
@@ -69,9 +99,25 @@
                 }
             },
             "additional": {
-                "title": "Additional Features",
+                "title": "Additional Sensors",
                 "data": {
-                    "secondary_heater": "Secondary heater switch"
+                    "secondary_heater": "Secondary heater switch",
+                    "outside_sensor": "Outside temperature sensor",
+                    "floor_sensor": "Floor temperature sensor", 
+                    "humidity_sensor": "Humidity sensor",
+                    "max_floor_temp": "Maximum floor temperature"
+                }
+            },
+            "advanced": {
+                "title": "Advanced Settings",
+                "data": {
+                    "keep_alive": "Keep alive duration",
+                    "initial_hvac_mode": "Initial HVAC mode",
+                    "precision": "Temperature precision",
+                    "target_temp_step": "Temperature step",
+                    "min_temp": "Minimum temperature",
+                    "max_temp": "Maximum temperature",
+                    "target_temp": "Target temperature"
                 }
             },
             "presets": {

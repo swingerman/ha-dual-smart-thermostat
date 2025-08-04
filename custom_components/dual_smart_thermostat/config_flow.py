@@ -22,12 +22,23 @@ from .const import (
     CONF_AUX_HEATER,
     CONF_COLD_TOLERANCE,
     CONF_COOLER,
+    CONF_FLOOR_SENSOR,
     CONF_HEAT_COOL_MODE,
     CONF_HEATER,
     CONF_HOT_TOLERANCE,
+    CONF_HUMIDITY_SENSOR,
+    CONF_INITIAL_HVAC_MODE,
+    CONF_KEEP_ALIVE,
+    CONF_MAX_FLOOR_TEMP,
+    CONF_MAX_TEMP,
     CONF_MIN_DUR,
+    CONF_MIN_TEMP,
+    CONF_OUTSIDE_SENSOR,
+    CONF_PRECISION,
     CONF_PRESETS,
     CONF_SENSOR,
+    CONF_TARGET_TEMP,
+    CONF_TEMP_STEP,
     DEFAULT_TOLERANCE,
     DOMAIN,
 )
@@ -80,6 +91,70 @@ ADDITIONAL_FEATURES_SCHEMA = {
     vol.Optional(CONF_AUX_HEATER): selector.EntitySelector(
         selector.EntitySelectorConfig(domain=SWITCH_DOMAIN)
     ),
+    vol.Optional(CONF_OUTSIDE_SENSOR): selector.EntitySelector(
+        selector.EntitySelectorConfig(
+            domain=SENSOR_DOMAIN, device_class=SensorDeviceClass.TEMPERATURE
+        )
+    ),
+    vol.Optional(CONF_FLOOR_SENSOR): selector.EntitySelector(
+        selector.EntitySelectorConfig(
+            domain=SENSOR_DOMAIN, device_class=SensorDeviceClass.TEMPERATURE
+        )
+    ),
+    vol.Optional(CONF_HUMIDITY_SENSOR): selector.EntitySelector(
+        selector.EntitySelectorConfig(
+            domain=SENSOR_DOMAIN, device_class=SensorDeviceClass.HUMIDITY
+        )
+    ),
+    vol.Optional(CONF_MAX_FLOOR_TEMP): selector.NumberSelector(
+        selector.NumberSelectorConfig(
+            mode=selector.NumberSelectorMode.BOX, 
+            unit_of_measurement=DEGREE
+        )
+    ),
+}
+
+# Advanced settings schema
+ADVANCED_SETTINGS_SCHEMA = {
+    vol.Optional(CONF_KEEP_ALIVE): selector.DurationSelector(
+        selector.DurationSelectorConfig(allow_negative=False)
+    ),
+    vol.Optional(CONF_INITIAL_HVAC_MODE): selector.SelectSelector(
+        selector.SelectSelectorConfig(
+            options=["heat", "cool", "heat_cool", "off", "fan_only", "dry"],
+            mode=selector.SelectSelectorMode.DROPDOWN,
+        )
+    ),
+    vol.Optional(CONF_PRECISION): selector.SelectSelector(
+        selector.SelectSelectorConfig(
+            options=["0.1", "0.5", "1.0"],
+            mode=selector.SelectSelectorMode.DROPDOWN,
+        )
+    ),
+    vol.Optional(CONF_TEMP_STEP): selector.SelectSelector(
+        selector.SelectSelectorConfig(
+            options=["0.1", "0.5", "1.0"],
+            mode=selector.SelectSelectorMode.DROPDOWN,
+        )
+    ),
+    vol.Optional(CONF_MIN_TEMP): selector.NumberSelector(
+        selector.NumberSelectorConfig(
+            mode=selector.NumberSelectorMode.BOX, 
+            unit_of_measurement=DEGREE
+        )
+    ),
+    vol.Optional(CONF_MAX_TEMP): selector.NumberSelector(
+        selector.NumberSelectorConfig(
+            mode=selector.NumberSelectorMode.BOX, 
+            unit_of_measurement=DEGREE
+        )
+    ),
+    vol.Optional(CONF_TARGET_TEMP): selector.NumberSelector(
+        selector.NumberSelectorConfig(
+            mode=selector.NumberSelectorMode.BOX, 
+            unit_of_measurement=DEGREE
+        )
+    ),
 }
 
 # Presets schema
@@ -125,13 +200,15 @@ OPTIONS_SCHEMA = {
 
 CONFIG_FLOW = {
     "user": SchemaFlowFormStep(vol.Schema(CONFIG_SCHEMA), next_step="additional"),
-    "additional": SchemaFlowFormStep(vol.Schema(ADDITIONAL_FEATURES_SCHEMA), next_step="presets"),
+    "additional": SchemaFlowFormStep(vol.Schema(ADDITIONAL_FEATURES_SCHEMA), next_step="advanced"),
+    "advanced": SchemaFlowFormStep(vol.Schema(ADVANCED_SETTINGS_SCHEMA), next_step="presets"),
     "presets": SchemaFlowFormStep(vol.Schema(PRESETS_SCHEMA)),
 }
 
 OPTIONS_FLOW = {
     "init": SchemaFlowFormStep(vol.Schema(OPTIONS_SCHEMA), next_step="additional"),
-    "additional": SchemaFlowFormStep(vol.Schema(ADDITIONAL_FEATURES_SCHEMA), next_step="presets"),
+    "additional": SchemaFlowFormStep(vol.Schema(ADDITIONAL_FEATURES_SCHEMA), next_step="advanced"),
+    "advanced": SchemaFlowFormStep(vol.Schema(ADVANCED_SETTINGS_SCHEMA), next_step="presets"),
     "presets": SchemaFlowFormStep(vol.Schema(PRESETS_SCHEMA)),
 }
 
