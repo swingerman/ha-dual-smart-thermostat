@@ -11,11 +11,14 @@ import pytest
 from custom_components.dual_smart_thermostat.const import (
     CONF_AC_MODE,
     CONF_COLD_TOLERANCE,
+    CONF_COOLER,
     CONF_HEATER,
     CONF_HOT_TOLERANCE,
     CONF_PRESETS,
     CONF_SENSOR,
+    CONF_SYSTEM_TYPE,
     DOMAIN,
+    SYSTEM_TYPE_AC_ONLY,
 )
 
 
@@ -31,38 +34,26 @@ async def test_config_flow_basic(hass: HomeAssistant) -> None:
         assert result["type"] == "form"
         assert result["step_id"] == "user"
 
-        # Test the first step with basic config
+        # Submit system type to move to the basic step
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], {CONF_SYSTEM_TYPE: SYSTEM_TYPE_AC_ONLY}
+        )
+        assert result["type"] == "form"
+        # Submit basic data (only fields accepted by basic step)
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"],
             {
                 CONF_NAME: "My Dual Thermostat",
                 CONF_HEATER: "switch.heater",
                 CONF_SENSOR: "sensor.temperature",
-                CONF_AC_MODE: False,
-                CONF_COLD_TOLERANCE: 0.3,
-                CONF_HOT_TOLERANCE: 0.3,
             },
         )
         assert result["type"] == "form"
-        assert result["step_id"] == "additional"
+        assert result["step_id"] == "ac_only_features"
 
-        # Skip additional step
+        # Submit AC-only features decision: don't configure presets -> finish
         result = await hass.config_entries.flow.async_configure(
-            result["flow_id"], user_input={}
-        )
-        assert result["type"] == "form"
-        assert result["step_id"] == "advanced"
-
-        # Skip advanced step
-        result = await hass.config_entries.flow.async_configure(
-            result["flow_id"], user_input={}
-        )
-        assert result["type"] == "form"
-        assert result["step_id"] == "presets"
-
-        # Skip presets step and create entry
-        result = await hass.config_entries.flow.async_configure(
-            result["flow_id"], user_input={}
+            result["flow_id"], user_input={"configure_presets": False}
         )
         assert result["type"] == "create_entry"
         assert result["title"] == "My Dual Thermostat"
@@ -81,6 +72,11 @@ async def test_config_flow_validation_errors(hass: HomeAssistant) -> None:
         DOMAIN, context={"source": SOURCE_USER}
     )
 
+    # Move to basic step first
+    await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_SYSTEM_TYPE: SYSTEM_TYPE_AC_ONLY}
+    )
+
     # Test that the schema validation catches wrong domain for sensor
     # This should raise an exception because schema validation fails
     with pytest.raises(Exception) as exc_info:
@@ -90,7 +86,6 @@ async def test_config_flow_validation_errors(hass: HomeAssistant) -> None:
                 CONF_NAME: "My Dual Thermostat",
                 CONF_HEATER: "switch.heater",
                 CONF_SENSOR: "switch.heater",  # Wrong domain for sensor
-                CONF_AC_MODE: False,
                 CONF_COLD_TOLERANCE: 0.3,
                 CONF_HOT_TOLERANCE: 0.3,
             },
@@ -112,42 +107,43 @@ async def test_config_flow_with_presets(hass: HomeAssistant) -> None:
         )
 
         # Basic config
+        # Move to basic step
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], {CONF_SYSTEM_TYPE: SYSTEM_TYPE_AC_ONLY}
+        )
+        # Basic config
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"],
             {
                 CONF_NAME: "My Dual Thermostat",
                 CONF_HEATER: "switch.heater",
                 CONF_SENSOR: "sensor.temperature",
-                CONF_AC_MODE: False,
-                CONF_COLD_TOLERANCE: 0.3,
-                CONF_HOT_TOLERANCE: 0.3,
             },
         )
 
-        # Skip additional step
+        # Request presets to be configured in AC-only features
         result = await hass.config_entries.flow.async_configure(
-            result["flow_id"], user_input={}
+            result["flow_id"], user_input={"configure_presets": True}
         )
-        assert result["step_id"] == "advanced"
+        assert result["step_id"] == "preset_selection"
 
-        # Skip advanced step
+        # Select the away preset using multi-select format
         result = await hass.config_entries.flow.async_configure(
-            result["flow_id"], user_input={}
+            result["flow_id"], user_input={"presets": [PRESET_AWAY]}
         )
         assert result["step_id"] == "presets"
 
-        # Add presets
+        # Configure the away preset temperature (preset key uses '<preset>_temp')
         result = await hass.config_entries.flow.async_configure(
-            result["flow_id"],
-            user_input={
-                CONF_PRESETS[PRESET_AWAY]: 18.0,
-            },
+            result["flow_id"], user_input={f"{CONF_PRESETS[PRESET_AWAY]}_temp": 18.0}
         )
         assert result["type"] == "create_entry"
 
     config_entry = hass.config_entries.async_entries(DOMAIN)[0]
-    assert CONF_PRESETS[PRESET_AWAY] in config_entry.options
-    assert config_entry.options[CONF_PRESETS[PRESET_AWAY]] == 18.0
+    # For config flow, selected presets are stored as a list and temps under '<preset>_temp'
+    assert "presets" in config_entry.data
+    assert CONF_PRESETS[PRESET_AWAY] in config_entry.data["presets"]
+    assert config_entry.data[f"{CONF_PRESETS[PRESET_AWAY]}_temp"] == 18.0
 
 
 async def test_options_flow(hass: HomeAssistant) -> None:
@@ -161,40 +157,53 @@ async def test_options_flow(hass: HomeAssistant) -> None:
 
     if not config_entry:
         # Create a mock config entry for the test
-        from homeassistant.config_entries import ConfigEntry
+        from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-        config_entry = ConfigEntry(
-            version=1,
-            minor_version=1,
+        config_entry = MockConfigEntry(
             domain=DOMAIN,
-            title="Test Thermostat",
-            data={},
-            options={
+            data={
                 CONF_NAME: "Test Thermostat",
                 CONF_HEATER: "switch.heater",
+                CONF_COOLER: "switch.cooler",
                 CONF_SENSOR: "sensor.temperature",
             },
+            options={},
             entry_id="test_id",
-            source=SOURCE_USER,
-            unique_id=None,
-            discovery_keys={},
-            subentries_data={},
         )
-        hass.config_entries._entries[config_entry.entry_id] = config_entry
+        config_entry.add_to_hass(hass)
 
-    # Test options flow
-    result = await hass.config_entries.options.async_init(config_entry.entry_id)
-    assert result["type"] == "form"
-    assert result["step_id"] == "init"
+        # Start options flow via hass helper
+        result = await hass.config_entries.options.async_init(config_entry.entry_id)
+        assert result["type"] == "form"
+        assert result["step_id"] == "init"
 
-    # Test configuring options
-    result = await hass.config_entries.options.async_configure(
-        result["flow_id"],
-        user_input={
-            CONF_AC_MODE: True,
-            CONF_COLD_TOLERANCE: 0.5,
-            CONF_HOT_TOLERANCE: 0.5,
-        },
-    )
-    assert result["type"] == "form"
-    assert result["step_id"] == "additional"
+        # Advance init step to core (leave system_type unchanged)
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"], user_input={}
+        )
+        assert result["type"] == "form"
+        assert result["step_id"] == "core"
+
+        # Test configuring options at core step
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"],
+            user_input={
+                CONF_AC_MODE: True,
+                CONF_COLD_TOLERANCE: 0.5,
+                CONF_HOT_TOLERANCE: 0.5,
+            },
+        )
+        assert result["type"] == "form"
+
+        # Advance through optional intermediate steps until we reach the
+        # 'additional' or 'preset_selection' step that we expect next.
+        while result["type"] == "form" and result.get("step_id") not in (
+            "additional",
+            "preset_selection",
+        ):
+            # submit empty to skip the optional step
+            result = await hass.config_entries.options.async_configure(
+                result["flow_id"], user_input={}
+            )
+
+        assert result.get("step_id") in ("additional", "preset_selection")

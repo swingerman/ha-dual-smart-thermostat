@@ -16,7 +16,7 @@
     "input_number"
   ],
   "documentation": "https://github.com/swingerman/ha-dual-smart-thermostat.git",
-  "integration_type": "helper",
+  "integration_type": "device",
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/swingerman/ha-dual-smart-thermostat/issues",
   "requirements": [],
