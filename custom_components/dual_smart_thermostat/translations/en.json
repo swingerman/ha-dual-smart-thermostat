@@ -1,4 +1,144 @@
 {
+    "title": "Dual Smart Thermostat",
+    "config": {
+        "error": {
+            "same_heater_sensor": "Heater and temperature sensor cannot be the same entity",
+            "same_heater_cooler": "Heater and cooler cannot be the same entity"
+        },
+        "step": {
+            "user": {
+                "title": "Basic Configuration",
+                "description": "Configure the basic settings for your dual smart thermostat.",
+                "data": {
+                    "name": "Name",
+                    "heater": "Heater switch",
+                    "target_sensor": "Temperature sensor",
+                    "cooler": "Cooler switch",
+                    "ac_mode": "Air conditioning mode",
+                    "heat_cool_mode": "Heat/Cool mode",
+                    "cold_tolerance": "Cold tolerance",
+                    "hot_tolerance": "Hot tolerance",
+                    "min_cycle_duration": "Minimum cycle duration"
+                },
+                "data_description": {
+                    "name": "The name of the thermostat.",
+                    "heater": "Switch entity used for heating.",
+                    "target_sensor": "Temperature sensor that reflects the current temperature.",
+                    "cooler": "Switch entity used for cooling (optional).",
+                    "ac_mode": "Set the switches to be treated as cooling devices instead of heating devices.",
+                    "heat_cool_mode": "Enable heat/cool mode for automatic switching between heating and cooling.",
+                    "cold_tolerance": "Minimum temperature difference before turning on heating.",
+                    "hot_tolerance": "Minimum temperature difference before turning off heating or turning on cooling.",
+                    "min_cycle_duration": "Minimum amount of time that the switch must be in its current state prior to being switched."
+                }
+            },
+            "additional": {
+                "title": "Additional Sensors",
+                "description": "Configure additional sensors and features.",
+                "data": {
+                    "secondary_heater": "Secondary heater switch",
+                    "outside_sensor": "Outside temperature sensor",
+                    "floor_sensor": "Floor temperature sensor",
+                    "humidity_sensor": "Humidity sensor",
+                    "max_floor_temp": "Maximum floor temperature"
+                },
+                "data_description": {
+                    "secondary_heater": "Optional secondary heater switch for auxiliary heating.",
+                    "outside_sensor": "Optional outside temperature sensor for better control.",
+                    "floor_sensor": "Optional floor temperature sensor for floor heating systems.",
+                    "humidity_sensor": "Optional humidity sensor for humidity control.",
+                    "max_floor_temp": "Maximum allowed floor temperature when using floor sensor."
+                }
+            },
+            "advanced": {
+                "title": "Advanced Settings",
+                "description": "Configure advanced thermostat settings.",
+                "data": {
+                    "keep_alive": "Keep alive duration",
+                    "initial_hvac_mode": "Initial HVAC mode",
+                    "precision": "Temperature precision",
+                    "target_temp_step": "Temperature step",
+                    "min_temp": "Minimum temperature",
+                    "max_temp": "Maximum temperature",
+                    "target_temp": "Target temperature"
+                },
+                "data_description": {
+                    "keep_alive": "Keep alive duration for periodic switching.",
+                    "initial_hvac_mode": "Initial HVAC mode when starting Home Assistant.",
+                    "precision": "Temperature precision for display and control.",
+                    "target_temp_step": "Temperature step size for adjustments.",
+                    "min_temp": "Minimum allowed temperature setting.",
+                    "max_temp": "Maximum allowed temperature setting.",
+                    "target_temp": "Initial target temperature."
+                }
+            },
+            "presets": {
+                "title": "Temperature Presets",
+                "description": "Configure temperature presets for different scenarios.",
+                "data": {
+                    "away_temp": "Away",
+                    "comfort_temp": "Comfort", 
+                    "eco_temp": "Eco",
+                    "home_temp": "Home",
+                    "sleep_temp": "Sleep",
+                    "anti_freeze_temp": "Anti Freeze",
+                    "activity_temp": "Activity",
+                    "boost_temp": "Boost"
+                }
+            }
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "title": "Basic Options",
+                "description": "Modify basic thermostat settings.",
+                "data": {
+                    "cooler": "Cooler switch",
+                    "ac_mode": "Air conditioning mode",
+                    "heat_cool_mode": "Heat/Cool mode",
+                    "cold_tolerance": "Cold tolerance", 
+                    "hot_tolerance": "Hot tolerance",
+                    "min_cycle_duration": "Minimum cycle duration"
+                }
+            },
+            "additional": {
+                "title": "Additional Sensors",
+                "data": {
+                    "secondary_heater": "Secondary heater switch",
+                    "outside_sensor": "Outside temperature sensor",
+                    "floor_sensor": "Floor temperature sensor", 
+                    "humidity_sensor": "Humidity sensor",
+                    "max_floor_temp": "Maximum floor temperature"
+                }
+            },
+            "advanced": {
+                "title": "Advanced Settings",
+                "data": {
+                    "keep_alive": "Keep alive duration",
+                    "initial_hvac_mode": "Initial HVAC mode",
+                    "precision": "Temperature precision",
+                    "target_temp_step": "Temperature step",
+                    "min_temp": "Minimum temperature",
+                    "max_temp": "Maximum temperature",
+                    "target_temp": "Target temperature"
+                }
+            },
+            "presets": {
+                "title": "Temperature Presets",
+                "data": {
+                    "away_temp": "Away",
+                    "comfort_temp": "Comfort",
+                    "eco_temp": "Eco", 
+                    "home_temp": "Home",
+                    "sleep_temp": "Sleep",
+                    "anti_freeze_temp": "Anti Freeze",
+                    "activity_temp": "Activity",
+                    "boost_temp": "Boost"
+                }
+            }
+        }
+    },
     "selector": {
         "hac_action_reason": {
             "options": {
