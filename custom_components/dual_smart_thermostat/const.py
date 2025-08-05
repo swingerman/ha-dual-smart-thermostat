@@ -21,6 +21,26 @@ DEFAULT_MAX_FLOOR_TEMP = 28.0
 
 DOMAIN = "dual_smart_thermostat"
 
+# Configuration keys
+CONF_SYSTEM_TYPE = "system_type"
+
+# System type values
+SYSTEM_TYPE_SIMPLE_HEATER = "simple_heater"
+SYSTEM_TYPE_AC_ONLY = "ac_only"
+SYSTEM_TYPE_HEATER_COOLER = "heater_cooler"
+SYSTEM_TYPE_HEAT_PUMP = "heat_pump"
+SYSTEM_TYPE_DUAL_STAGE = "dual_stage"
+SYSTEM_TYPE_FLOOR_HEATING = "floor_heating"
+
+# System types for UI selection
+SYSTEM_TYPES = {
+    SYSTEM_TYPE_SIMPLE_HEATER: "Simple Heater Only",
+    SYSTEM_TYPE_AC_ONLY: "Air Conditioning Only",
+    SYSTEM_TYPE_HEATER_COOLER: "Heater with Cooler",
+    SYSTEM_TYPE_HEAT_PUMP: "Heat Pump",
+    "advanced": "Advanced (Custom Setup)",
+}
+
 CONF_HEATER = "heater"
 CONF_AUX_HEATER = "secondary_heater"
 CONF_AUX_HEATING_TIMEOUT = "secondary_heater_timeout"
