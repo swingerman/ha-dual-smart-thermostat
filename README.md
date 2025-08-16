@@ -595,7 +595,7 @@ The internal values can be set by the component only and the external values can
 
 ### min_cycle_duration
 
-  _(optional) (time, integer)_  Set a minimum amount of time that the switch specified in the _heater_  and/or _cooler_ option must be in its current state prior to being switched either off or on.
+  _(optional) (time, integer)_  Set a minimum amount of time that the switch specified in the _heater_  and/or _cooler_ option must be in its current state prior to being switched either off or on. This option will be ignored if the `keep_alive` option is set.
 
 ### cold_tolerance
 
@@ -611,7 +611,7 @@ The internal values can be set by the component only and the external values can
 
 ### keep_alive
 
-  _(optional) (time, integer)_ Set a keep-alive interval. If set, the switch specified in the _heater_ and/or _cooler_ option will be triggered every time the interval elapses. Use with heaters and A/C units that shut off if they don't receive a signal from their remote for a while. Use also with switches that might lose state. The keep-alive call is done with the current valid climate integration state (either on or off).
+  _(optional) (time, integer)_ Set a keep-alive interval. If set, the switch specified in the _heater_ and/or _cooler_ option will be triggered every time the interval elapses. Use with heaters and A/C units that shut off if they don't receive a signal from their remote for a while. Use also with switches that might lose state. The keep-alive call is done with the current valid climate integration state (either on or off). When `keep_alive` is set the `min_cycle_duration` option will be ignored.
 
 ### initial_hvac_mode
 
@@ -845,8 +845,7 @@ climate:
     cold_tolerance: 0.3
     hot_tolerance: 0
     min_cycle_duration:
-      seconds: 5
-      seconds: 5
+      minutes: 5
     keep_alive:
       minutes: 3
     initial_hvac_mode: "off" # hvac mode will reset to this value after restart

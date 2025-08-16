@@ -270,7 +270,7 @@ class GenericHVACDevice(
             await self.async_turn_off()
 
     async def async_turn_on(self):
-        _LOGGER.info(
+        _LOGGER.debug(
             "%s. Turning on or opening entity %s",
             self.__class__.__name__,
             self.entity_id,
@@ -285,7 +285,7 @@ class GenericHVACDevice(
             await self._async_turn_on_entity()
 
     async def async_turn_off(self):
-        _LOGGER.info(
+        _LOGGER.debug(
             "%s. Turning off or closing entity %s",
             self.__class__.__name__,
             self.entity_id,
@@ -308,29 +308,16 @@ class GenericHVACDevice(
             "%s. Turning on entity %s", self.__class__.__name__, self.entity_id
         )
 
-        if self.entity_id is not None and self.hass.states.is_state(
-            self.entity_id, STATE_OFF
-        ):
-            _LOGGER.debug("Turning on entity if state not on %s", self.entity_id)
-            try:
-                await self.hass.services.async_call(
-                    HA_DOMAIN,
-                    SERVICE_TURN_ON,
-                    {ATTR_ENTITY_ID: self.entity_id},
-                    context=self._context,
-                    blocking=True,
-                )
-            except Exception as e:
-                _LOGGER.error(
-                    "Error turning on entity %s. Error: %s", self.entity_id, e
-                )
-            # await self.hass.services.async_call(
-            #     HA_DOMAIN,
-            #     SERVICE_TURN_ON,
-            #     {ATTR_ENTITY_ID: self.entity_id},
-            #     context=self._context,
-            #     blocking=True,
-            # )
+        try:
+            await self.hass.services.async_call(
+                HA_DOMAIN,
+                SERVICE_TURN_ON,
+                {ATTR_ENTITY_ID: self.entity_id},
+                context=self._context,
+                blocking=True,
+            )
+        except Exception as e:
+            _LOGGER.error("Error turning on entity %s. Error: %s", self.entity_id, e)
 
     async def _async_turn_off_entity(self) -> None:
         """Turn off the entity."""
@@ -338,9 +325,7 @@ class GenericHVACDevice(
             "%s. Turning off entity %s", self.__class__.__name__, self.entity_id
         )
 
-        if self.entity_id is not None and self.hass.states.is_state(
-            self.entity_id, STATE_ON
-        ):
+        try:
             await self.hass.services.async_call(
                 HA_DOMAIN,
                 SERVICE_TURN_OFF,
@@ -348,14 +333,14 @@ class GenericHVACDevice(
                 context=self._context,
                 blocking=True,
             )
+        except Exception as e:
+            _LOGGER.error("Error turning off entity %s. Error: %s", self.entity_id, e)
 
     async def _async_open_valve_entity(self) -> None:
         """Open the entity."""
         _LOGGER.info("%s. Opening entity %s", self.__class__.__name__, self.entity_id)
 
-        if self.entity_id is not None and self.hass.states.is_state(
-            self.entity_id, STATE_CLOSED
-        ):
+        try:
             await self.hass.services.async_call(
                 HA_DOMAIN,
                 SERVICE_OPEN_VALVE,
@@ -363,14 +348,14 @@ class GenericHVACDevice(
                 context=self._context,
                 blocking=True,
             )
+        except Exception as e:
+            _LOGGER.error("Error opening entity %s. Error: %s", self.entity_id, e)
 
     async def _async_close_valve_entity(self) -> None:
         """Close the entity."""
         _LOGGER.info("%s. Closing entity %s", self.__class__.__name__, self.entity_id)
 
-        if self.entity_id is not None and self.hass.states.is_state(
-            self.entity_id, STATE_OPEN
-        ):
+        try:
             await self.hass.services.async_call(
                 HA_DOMAIN,
                 SERVICE_CLOSE_VALVE,
@@ -378,3 +363,5 @@ class GenericHVACDevice(
                 context=self._context,
                 blocking=True,
             )
+        except Exception as e:
+            _LOGGER.error("Error closing entity %s. Error: %s", self.entity_id, e)

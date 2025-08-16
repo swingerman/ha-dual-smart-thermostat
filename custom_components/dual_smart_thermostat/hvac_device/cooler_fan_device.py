@@ -132,11 +132,12 @@ class CoolerFanDevice(MultiHvacDevice):
                     await self._async_control_cooler(time, force)
 
             case HVACMode.FAN_ONLY:
-                await self.cooler_device.async_turn_off()
+                if self.cooler_device.is_active:
+                    await self.cooler_device.async_turn_off()
                 await self.fan_device.async_control_hvac(time, force)
                 self.HVACActionReason = self.fan_device.HVACActionReason
             case HVACMode.OFF:
-                await self.async_turn_off()
+                await self.async_turn_off_all(time=time)
                 self.HVACActionReason = HVACActionReason.NONE
             case _:
                 if self._hvac_mode is not None:
@@ -184,11 +185,13 @@ class CoolerFanDevice(MultiHvacDevice):
 
             self.fan_device.hvac_mode = HVACMode.FAN_ONLY
             await self.fan_device.async_control_hvac(time, force_override)
-            await self.cooler_device.async_turn_off()
+            if self.cooler_device.is_active:
+                await self.cooler_device.async_turn_off()
             self.HVACActionReason = HVACActionReason.TARGET_TEMP_NOT_REACHED_WITH_FAN
         else:
             _LOGGER.debug("outside fan tolerance")
             _LOGGER.debug("fan_hot_tolerance_on: %s", self._fan_hot_tolerance_on)
             await self.cooler_device.async_control_hvac(time, force_override)
-            await self.fan_device.async_turn_off()
+            if self.fan_device.is_active:
+                await self.fan_device.async_turn_off()
             self.HVACActionReason = self.cooler_device.HVACActionReason
