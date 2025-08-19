@@ -110,7 +110,7 @@ class GenericHvacController(HvacController):
         self, active: bool, hvac_mode: HVACMode, time=None, force=False
     ) -> bool:
         """Checks if the controller needs to continue."""
-        if not active or hvac_mode == HVACMode.OFF:
+        if (not active or hvac_mode == HVACMode.OFF) and time is None:
             _LOGGER.debug(
                 "Not active or hvac mode is off active: %s, _hvac_mode: %s",
                 active,

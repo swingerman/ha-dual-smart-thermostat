@@ -203,16 +203,11 @@ class GenericHVACDevice(
 
         self._set_self_active()
 
-        _LOGGER.debug(
-            "needs_control: %s",
-            self.hvac_controller.needs_control(
-                self._active, self.hvac_mode, time, force
-            ),
-        )
-
+        _LOGGER.debug("Check if needs control.")
         if not self.hvac_controller.needs_control(
             self._active, self.hvac_mode, time, force
         ):
+            _LOGGER.debug("Control not needed. exit.")
             return
 
         any_opening_open = self.openings.any_opening_open(self.hvac_mode)

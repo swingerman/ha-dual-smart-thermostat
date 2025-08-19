@@ -130,7 +130,7 @@ class MultiHvacDevice(HVACDevice, ControlableHVACDevice):
 
         self.set_sub_devices_hvac_mode(hvac_mode)
 
-        await self.async_control_hvac(self, force=True)
+        await self.async_control_hvac(force=True)
 
         _LOGGER.info("Hvac mode set to %s", self._hvac_mode)
 

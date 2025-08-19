@@ -59,7 +59,6 @@ from . import (  # noqa: F401
     setup_comp_1,
     setup_comp_heat_ac_cool,
     setup_comp_heat_ac_cool_cycle,
-    setup_comp_heat_ac_cool_cycle_kepp_alive,
     setup_comp_heat_ac_cool_fan_config,
     setup_comp_heat_ac_cool_presets,
     setup_comp_heat_ac_cool_presets_range,

@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 import logging
-from typing import Callable
+from typing import Callable, Generic
 
 from homeassistant.components.climate import HVACMode
 from homeassistant.const import STATE_ON, STATE_UNAVAILABLE, STATE_UNKNOWN
@@ -9,6 +9,9 @@ from homeassistant.helpers.event import async_track_state_change_event
 
 from custom_components.dual_smart_thermostat.hvac_action_reason.hvac_action_reason import (
     HVACActionReason,
+)
+from custom_components.dual_smart_thermostat.hvac_device.generic_hvac_device import (
+    GenericHVACDevice,
 )
 from custom_components.dual_smart_thermostat.hvac_device.multi_hvac_device import (
     MultiHvacDevice,
@@ -31,7 +34,7 @@ class CoolerFanDevice(MultiHvacDevice):
     def __init__(
         self,
         hass: HomeAssistant,
-        devices: list,
+        devices: list[GenericHVACDevice],
         initial_hvac_mode: HVACMode,
         environment: EnvironmentManager,
         openings: OpeningManager,

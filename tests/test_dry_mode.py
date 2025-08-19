@@ -57,7 +57,6 @@ from . import (  # noqa: F401
     setup_comp_1,
     setup_comp_heat_ac_cool,
     setup_comp_heat_ac_cool_cycle,
-    setup_comp_heat_ac_cool_cycle_kepp_alive,
     setup_comp_heat_ac_cool_fan_config,
     setup_comp_heat_ac_cool_presets,
     setup_comp_heat_ac_cool_safety_delay,
@@ -758,7 +757,7 @@ async def test_mode_change_ac_dry_trigger_off_not_long_enough(
     """Test if mode change turns dryer despite minimum cycle."""
     calls = setup_switch_dual(hass, common.ENT_DRYER, False, sw_on)
     await common.async_set_humidity(hass, 65)
-    setup_humidity_sensor(hass, 71 if sw_on else 50)
+    setup_humidity_sensor(hass, 50 if sw_on else 71)
     await hass.async_block_till_done()
     assert len(calls) == 0
     await common.async_set_hvac_mode(hass, HVACMode.OFF if sw_on else HVACMode.DRY)

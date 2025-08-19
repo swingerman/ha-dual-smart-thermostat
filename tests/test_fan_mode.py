@@ -48,12 +48,13 @@ from . import (  # noqa: F401
     setup_comp_1,
     setup_comp_fan_only_config,
     setup_comp_fan_only_config_cycle,
+    setup_comp_fan_only_config_keep_alive,
     setup_comp_fan_only_config_presets,
     setup_comp_heat_ac_cool,
     setup_comp_heat_ac_cool_cycle,
-    setup_comp_heat_ac_cool_cycle_kepp_alive,
     setup_comp_heat_ac_cool_fan_config,
     setup_comp_heat_ac_cool_fan_config_cycle,
+    setup_comp_heat_ac_cool_fan_config_keep_alive,
     setup_comp_heat_ac_cool_fan_config_presets,
     setup_comp_heat_ac_cool_fan_config_tolerance,
     setup_comp_heat_ac_cool_fan_config_tolerance_min_cycle,
@@ -1151,7 +1152,7 @@ async def test_mode_change_fan_trigger_not_long_enough(
     """Test if mode change turns fan despite minimum cycle."""
     calls = setup_switch(hass, sw_on)
     await common.async_set_temperature(hass, 25)
-    setup_sensor(hass, 30 if sw_on else 20)
+    setup_sensor(hass, 20 if sw_on else 30)
     await hass.async_block_till_done()
     assert len(calls) == 0
     await common.async_set_hvac_mode(hass, HVACMode.OFF if sw_on else HVACMode.FAN_ONLY)
@@ -1349,7 +1350,7 @@ async def test_mode_change_cooler_fan_ac_trigger_off_not_long_enough(
     await common.async_set_hvac_mode(hass, HVACMode.COOL if sw_on else HVACMode.OFF)
     calls = setup_switch_dual(hass, common.ENT_FAN, sw_on, False)
     await common.async_set_temperature(hass, 25)
-    setup_sensor(hass, 30 if sw_on else 20)
+    setup_sensor(hass, 20 if sw_on else 30)
     await hass.async_block_till_done()
     assert len(calls) == 0
     await common.async_set_hvac_mode(hass, HVACMode.OFF if sw_on else HVACMode.COOL)
@@ -1369,7 +1370,7 @@ async def test_mode_change_cooler_fan_trigger_off_not_long_enough(
     await common.async_set_hvac_mode(hass, HVACMode.FAN_ONLY if sw_on else HVACMode.OFF)
     calls = setup_switch_dual(hass, common.ENT_FAN, False, sw_on)
     await common.async_set_temperature(hass, 25)
-    setup_sensor(hass, 30 if sw_on else 20)
+    setup_sensor(hass, 20 if sw_on else 30)
     await hass.async_block_till_done()
     assert len(calls) == 0
     await common.async_set_hvac_mode(hass, HVACMode.OFF if sw_on else HVACMode.FAN_ONLY)
@@ -1378,6 +1379,123 @@ async def test_mode_change_cooler_fan_trigger_off_not_long_enough(
     assert call.domain == HASS_DOMAIN
     assert call.service == SERVICE_TURN_OFF if sw_on else SERVICE_TURN_ON
     assert call.data["entity_id"] == common.ENT_FAN
+
+
+@pytest.mark.parametrize("sw_on", [True, False])
+@pytest.mark.parametrize("expected_lingering_timers", [True])
+async def test_time_change_fan_trigger_keep_alive(
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+    sw_on,
+    setup_comp_fan_only_config_keep_alive,  # noqa: F811
+) -> None:
+    """Test turn fan on or off when keep alive time is past."""
+    await common.async_set_hvac_mode(hass, HVACMode.FAN_ONLY if sw_on else HVACMode.OFF)
+    calls = setup_switch(hass, sw_on)
+    await common.async_set_temperature(hass, 25)
+    setup_sensor(hass, 30 if sw_on else 23)
+    await hass.async_block_till_done()
+
+    freezer.tick(timedelta(minutes=5))
+    common.async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+
+    # no call, not enought time
+    assert len(calls) == 0
+
+    # complete keep-alive time
+    freezer.tick(timedelta(minutes=5))
+    common.async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+
+    # keep-alive call triggered, time is enought
+    assert len(calls) == 1
+    call = calls[0]
+    assert call.domain == HASS_DOMAIN
+    assert call.service == SERVICE_TURN_ON if sw_on else SERVICE_TURN_OFF
+    assert call.data["entity_id"] == common.ENT_SWITCH
+
+
+@pytest.mark.parametrize("sw_on", [True, False])
+@pytest.mark.parametrize("expected_lingering_timers", [True])
+async def test_time_change_ac_trigger_keep_alive(
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+    sw_on,
+    setup_comp_heat_ac_cool_fan_config_keep_alive,  # noqa: F811
+) -> None:
+    """Test turn ac on or off when keep alive time is past."""
+    await common.async_set_hvac_mode(hass, HVACMode.COOL if sw_on else HVACMode.OFF)
+    calls = setup_switch_dual(hass, common.ENT_FAN, sw_on, False)
+    await common.async_set_temperature(hass, 25)
+    setup_sensor(hass, 30 if sw_on else 20)
+    await hass.async_block_till_done()
+
+    freezer.tick(timedelta(minutes=5))
+    common.async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+
+    # no call, not enought time
+    assert len(calls) == 0
+
+    # complete keep-alive time
+    freezer.tick(timedelta(minutes=5))
+    common.async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+
+    # keep-alive call triggered, time is enought
+    # on turn off we have 2 call, 1 per switch
+    assert len(calls) == 1 if sw_on else 2
+    call = calls[0]
+    assert call.domain == HASS_DOMAIN
+    assert call.service == SERVICE_TURN_ON if sw_on else SERVICE_TURN_OFF
+    assert call.data["entity_id"] == common.ENT_SWITCH
+    if len(calls) == 2:
+        call = calls[1]
+        assert call.domain == HASS_DOMAIN
+        assert call.service == SERVICE_TURN_OFF
+        assert call.data["entity_id"] == common.ENT_FAN
+
+
+@pytest.mark.parametrize("sw_on", [True, False])
+@pytest.mark.parametrize("expected_lingering_timers", [True])
+async def test_time_change_ac_fan_trigger_keep_alive(
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+    sw_on,
+    setup_comp_heat_ac_cool_fan_config_keep_alive,  # noqa: F811
+) -> None:
+    """Test turn fan on or off when keep alive time is past."""
+    await common.async_set_hvac_mode(hass, HVACMode.FAN_ONLY if sw_on else HVACMode.OFF)
+    calls = setup_switch_dual(hass, common.ENT_FAN, False, sw_on)
+    await common.async_set_temperature(hass, 25)
+    setup_sensor(hass, 30 if sw_on else 20)
+    await hass.async_block_till_done()
+
+    freezer.tick(timedelta(minutes=5))
+    common.async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+
+    # no call, not enought time
+    assert len(calls) == 0
+
+    # complete keep-alive time
+    freezer.tick(timedelta(minutes=5))
+    common.async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+
+    # keep-alive call triggered, time is enought
+    # on turn off we have 2 call, 1 per switch
+    assert len(calls) == 1 if sw_on else 2
+    call = calls[0]
+    assert call.domain == HASS_DOMAIN
+    assert call.service == SERVICE_TURN_ON if sw_on else SERVICE_TURN_OFF
+    assert call.data["entity_id"] == common.ENT_FAN if sw_on else common.ENT_SWITCH
+    if len(calls) == 2:
+        call = calls[1]
+        assert call.domain == HASS_DOMAIN
+        assert call.service == SERVICE_TURN_OFF
+        assert call.data["entity_id"] == common.ENT_FAN
 
 
 async def test_fan_mode(hass: HomeAssistant, setup_comp_1) -> None:  # noqa: F811
