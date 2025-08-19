@@ -199,7 +199,7 @@ class GenericHvacController(HvacController):
             await self.async_turn_on_callback()
             self._hvac_action_reason = strategy.goal_not_reached_reason()
 
-        elif time is not None or any_opening_open:
+        elif time is not None:
             # The time argument is passed only in keep-alive case
             _LOGGER.info("Keep-alive - Turning off entity %s", self.entity_id)
             await self.async_turn_off_callback()
