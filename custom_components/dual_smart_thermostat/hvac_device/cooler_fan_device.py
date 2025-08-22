@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 import logging
-from typing import Callable
+from typing import Callable, Generic
 
 from homeassistant.components.climate import HVACMode
 from homeassistant.const import STATE_ON, STATE_UNAVAILABLE, STATE_UNKNOWN
@@ -9,6 +9,9 @@ from homeassistant.helpers.event import async_track_state_change_event
 
 from custom_components.dual_smart_thermostat.hvac_action_reason.hvac_action_reason import (
     HVACActionReason,
+)
+from custom_components.dual_smart_thermostat.hvac_device.generic_hvac_device import (
+    GenericHVACDevice,
 )
 from custom_components.dual_smart_thermostat.hvac_device.multi_hvac_device import (
     MultiHvacDevice,
@@ -31,7 +34,7 @@ class CoolerFanDevice(MultiHvacDevice):
     def __init__(
         self,
         hass: HomeAssistant,
-        devices: list,
+        devices: list[GenericHVACDevice],
         initial_hvac_mode: HVACMode,
         environment: EnvironmentManager,
         openings: OpeningManager,
@@ -132,11 +135,12 @@ class CoolerFanDevice(MultiHvacDevice):
                     await self._async_control_cooler(time, force)
 
             case HVACMode.FAN_ONLY:
-                await self.cooler_device.async_turn_off()
+                if self.cooler_device.is_active:
+                    await self.cooler_device.async_turn_off()
                 await self.fan_device.async_control_hvac(time, force)
                 self.HVACActionReason = self.fan_device.HVACActionReason
             case HVACMode.OFF:
-                await self.async_turn_off()
+                await self.async_turn_off_all(time=time)
                 self.HVACActionReason = HVACActionReason.NONE
             case _:
                 if self._hvac_mode is not None:
@@ -184,11 +188,13 @@ class CoolerFanDevice(MultiHvacDevice):
 
             self.fan_device.hvac_mode = HVACMode.FAN_ONLY
             await self.fan_device.async_control_hvac(time, force_override)
-            await self.cooler_device.async_turn_off()
+            if self.cooler_device.is_active:
+                await self.cooler_device.async_turn_off()
             self.HVACActionReason = HVACActionReason.TARGET_TEMP_NOT_REACHED_WITH_FAN
         else:
             _LOGGER.debug("outside fan tolerance")
             _LOGGER.debug("fan_hot_tolerance_on: %s", self._fan_hot_tolerance_on)
             await self.cooler_device.async_control_hvac(time, force_override)
-            await self.fan_device.async_turn_off()
+            if self.fan_device.is_active:
+                await self.fan_device.async_turn_off()
             self.HVACActionReason = self.cooler_device.HVACActionReason
