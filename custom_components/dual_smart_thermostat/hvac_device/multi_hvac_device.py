@@ -4,22 +4,12 @@ from typing import Callable
 from homeassistant.components.climate import HVACAction, HVACMode
 from homeassistant.core import Context, HomeAssistant, callback
 
-from custom_components.dual_smart_thermostat.hvac_action_reason.hvac_action_reason import (
-    HVACActionReason,
-)
-from custom_components.dual_smart_thermostat.hvac_device.controllable_hvac_device import (
-    ControlableHVACDevice,
-)
-from custom_components.dual_smart_thermostat.hvac_device.hvac_device import HVACDevice
-from custom_components.dual_smart_thermostat.managers.environment_manager import (
-    EnvironmentManager,
-)
-from custom_components.dual_smart_thermostat.managers.feature_manager import (
-    FeatureManager,
-)
-from custom_components.dual_smart_thermostat.managers.opening_manager import (
-    OpeningManager,
-)
+from ..hvac_action_reason.hvac_action_reason import HVACActionReason
+from ..hvac_device.controllable_hvac_device import ControlableHVACDevice
+from ..hvac_device.hvac_device import HVACDevice
+from ..managers.environment_manager import EnvironmentManager
+from ..managers.feature_manager import FeatureManager
+from ..managers.opening_manager import OpeningManager
 
 _LOGGER = logging.getLogger(__name__)
 

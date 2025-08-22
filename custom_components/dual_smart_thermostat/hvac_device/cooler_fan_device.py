@@ -7,24 +7,12 @@ from homeassistant.const import STATE_ON, STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import Event, EventStateChangedData, HomeAssistant
 from homeassistant.helpers.event import async_track_state_change_event
 
-from custom_components.dual_smart_thermostat.hvac_action_reason.hvac_action_reason import (
-    HVACActionReason,
-)
-from custom_components.dual_smart_thermostat.hvac_device.generic_hvac_device import (
-    GenericHVACDevice,
-)
-from custom_components.dual_smart_thermostat.hvac_device.multi_hvac_device import (
-    MultiHvacDevice,
-)
-from custom_components.dual_smart_thermostat.managers.environment_manager import (
-    EnvironmentManager,
-)
-from custom_components.dual_smart_thermostat.managers.feature_manager import (
-    FeatureManager,
-)
-from custom_components.dual_smart_thermostat.managers.opening_manager import (
-    OpeningManager,
-)
+from ..hvac_action_reason.hvac_action_reason import HVACActionReason
+from ..hvac_device.generic_hvac_device import GenericHVACDevice
+from ..hvac_device.multi_hvac_device import MultiHvacDevice
+from ..managers.environment_manager import EnvironmentManager
+from ..managers.feature_manager import FeatureManager
+from ..managers.opening_manager import OpeningManager
 
 _LOGGER = logging.getLogger(__name__)
 
