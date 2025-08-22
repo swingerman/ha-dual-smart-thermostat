@@ -10,19 +10,11 @@ from homeassistant.exceptions import ConditionError
 from homeassistant.helpers import condition
 import homeassistant.util.dt as dt_util
 
-from custom_components.dual_smart_thermostat.hvac_action_reason.hvac_action_reason import (
-    HVACActionReason,
-)
-from custom_components.dual_smart_thermostat.hvac_controller.hvac_controller import (
-    HvacController,
-    HvacEnvStrategy,
-)
-from custom_components.dual_smart_thermostat.managers.environment_manager import (
-    EnvironmentManager,
-)
-from custom_components.dual_smart_thermostat.managers.opening_manager import (
-    OpeningManager,
-)
+from ..hvac_action_reason.hvac_action_reason import HVACActionReason
+from ..hvac_controller.hvac_controller import HvacController, HvacEnvStrategy
+from ..managers.environment_manager import EnvironmentManager
+from ..managers.opening_manager import OpeningManager
+
 
 _LOGGER = logging.getLogger(__name__)
 

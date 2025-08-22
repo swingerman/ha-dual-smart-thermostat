@@ -19,37 +19,19 @@ from homeassistant.const import (
 )
 from homeassistant.core import DOMAIN as HA_DOMAIN, Context, HomeAssistant
 
-from custom_components.dual_smart_thermostat.hvac_action_reason.hvac_action_reason import (
-    HVACActionReason,
-)
-from custom_components.dual_smart_thermostat.hvac_controller.generic_controller import (
-    GenericHvacController,
-)
-from custom_components.dual_smart_thermostat.hvac_controller.hvac_controller import (
-    HvacController,
-    HvacEnvStrategy,
-    HvacGoal,
-)
-from custom_components.dual_smart_thermostat.hvac_device.controllable_hvac_device import (
-    ControlableHVACDevice,
-)
-from custom_components.dual_smart_thermostat.hvac_device.hvac_device import (
+from ..hvac_action_reason.hvac_action_reason import HVACActionReason
+from ..hvac_controller.generic_controller import GenericHvacController
+from ..hvac_controller.hvac_controller import HvacController, HvacEnvStrategy, HvacGoal
+from ..hvac_device.controllable_hvac_device import ControlableHVACDevice
+from ..hvac_device.hvac_device import (
     HVACDevice,
     Switchable,
     TargetsEnvironmentAttribute,
 )
-from custom_components.dual_smart_thermostat.managers.environment_manager import (
-    EnvironmentManager,
-)
-from custom_components.dual_smart_thermostat.managers.feature_manager import (
-    FeatureManager,
-)
-from custom_components.dual_smart_thermostat.managers.hvac_power_manager import (
-    HvacPowerManager,
-)
-from custom_components.dual_smart_thermostat.managers.opening_manager import (
-    OpeningManager,
-)
+from ..managers.environment_manager import EnvironmentManager
+from ..managers.feature_manager import FeatureManager
+from ..managers.hvac_power_manager import HvacPowerManager
+from ..managers.opening_manager import OpeningManager
 
 _LOGGER = logging.getLogger(__name__)
 

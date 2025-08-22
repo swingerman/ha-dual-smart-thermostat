@@ -7,10 +7,7 @@ from homeassistant.components.climate.const import (
 )
 from homeassistant.const import ATTR_TEMPERATURE
 
-from custom_components.dual_smart_thermostat.const import (
-    CONF_MAX_FLOOR_TEMP,
-    CONF_MIN_FLOOR_TEMP,
-)
+from ..const import CONF_MAX_FLOOR_TEMP, CONF_MIN_FLOOR_TEMP
 
 _LOGGER = logging.getLogger(__name__)
 

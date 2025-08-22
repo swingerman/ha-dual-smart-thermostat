@@ -5,19 +5,14 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.util.unit_system import US_CUSTOMARY_SYSTEM
 
-from custom_components.dual_smart_thermostat.const import (
+from ..const import (
     CONF_HVAC_POWER_LEVELS,
     CONF_HVAC_POWER_MAX,
     CONF_HVAC_POWER_MIN,
     CONF_HVAC_POWER_TOLERANCE,
 )
-from custom_components.dual_smart_thermostat.hvac_controller.hvac_controller import (
-    HvacEnvStrategy,
-)
-from custom_components.dual_smart_thermostat.managers.environment_manager import (
-    EnvironmentAttributeType,
-    EnvironmentManager,
-)
+from ..hvac_controller.hvac_controller import HvacEnvStrategy
+from ..managers.environment_manager import EnvironmentAttributeType, EnvironmentManager
 
 _LOGGER = logging.getLogger(__name__)
 

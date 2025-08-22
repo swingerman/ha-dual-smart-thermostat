@@ -4,12 +4,8 @@ import logging
 from homeassistant.components.climate import HVACAction, HVACMode
 from homeassistant.core import CALLBACK_TYPE, Context, HomeAssistant, State, callback
 
-from custom_components.dual_smart_thermostat.hvac_action_reason.hvac_action_reason import (
-    HVACActionReason,
-)
-from custom_components.dual_smart_thermostat.managers.environment_manager import (
-    TargetTemperatures,
-)
+from ..hvac_action_reason.hvac_action_reason import HVACActionReason
+from ..managers.environment_manager import TargetTemperatures
 
 _LOGGER = logging.getLogger(__name__)
 

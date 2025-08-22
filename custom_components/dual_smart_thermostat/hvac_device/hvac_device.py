@@ -5,15 +5,9 @@ from typing import Self
 from homeassistant.components.climate import HVACMode
 from homeassistant.core import Context, HomeAssistant
 
-from custom_components.dual_smart_thermostat.hvac_controller.hvac_controller import (
-    HvacGoal,
-)
-from custom_components.dual_smart_thermostat.managers.environment_manager import (
-    EnvironmentManager,
-)
-from custom_components.dual_smart_thermostat.managers.opening_manager import (
-    OpeningManager,
-)
+from ..hvac_controller.hvac_controller import HvacGoal
+from ..managers.environment_manager import EnvironmentManager
+from ..managers.opening_manager import OpeningManager
 
 _LOGGER = logging.getLogger(__name__)
 

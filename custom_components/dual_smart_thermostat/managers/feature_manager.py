@@ -9,7 +9,7 @@ from homeassistant.const import ATTR_SUPPORTED_FEATURES
 from homeassistant.core import HomeAssistant, State
 from homeassistant.helpers.typing import ConfigType
 
-from custom_components.dual_smart_thermostat.const import (
+from ..const import (
     CONF_AC_MODE,
     CONF_AUX_HEATER,
     CONF_AUX_HEATING_DUAL_MODE,
@@ -29,11 +29,9 @@ from custom_components.dual_smart_thermostat.const import (
     CONF_HVAC_POWER_LEVELS,
     CONF_HVAC_POWER_TOLERANCE,
 )
-from custom_components.dual_smart_thermostat.managers.environment_manager import (
-    EnvironmentManager,
-)
-from custom_components.dual_smart_thermostat.managers.state_manager import StateManager
-from custom_components.dual_smart_thermostat.preset_env.preset_env import PresetEnv
+from ..managers.environment_manager import EnvironmentManager
+from ..managers.state_manager import StateManager
+from ..preset_env.preset_env import PresetEnv
 
 _LOGGER = logging.getLogger(__name__)
 

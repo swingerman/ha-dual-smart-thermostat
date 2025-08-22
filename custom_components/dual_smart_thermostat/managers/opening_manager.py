@@ -19,7 +19,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import condition
 from homeassistant.helpers.typing import ConfigType
 
-from custom_components.dual_smart_thermostat.const import (
+from ..const import (
     ATTR_CLOSING_TIMEOUT,
     ATTR_OPENING_TIMEOUT,
     CONF_OPENINGS,

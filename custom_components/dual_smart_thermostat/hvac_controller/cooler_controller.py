@@ -4,15 +4,9 @@ from typing import Callable
 
 from homeassistant.core import HomeAssistant
 
-from custom_components.dual_smart_thermostat.hvac_controller.generic_controller import (
-    GenericHvacController,
-)
-from custom_components.dual_smart_thermostat.managers.environment_manager import (
-    EnvironmentManager,
-)
-from custom_components.dual_smart_thermostat.managers.opening_manager import (
-    OpeningManager,
-)
+from ..hvac_controller.generic_controller import GenericHvacController
+from ..managers.environment_manager import EnvironmentManager
+from ..managers.opening_manager import OpeningManager
 
 _LOGGER = logging.getLogger(__name__)
 
