@@ -1,0 +1,340 @@
+{
+  "conditional_parameters": {
+    "secondary_heater_timeout": {
+      "required_parameter": "secondary_heater",
+      "description": "Secondary heater timeout only works when secondary heater is defined",
+      "example": "secondary_heater: switch.aux_heater \u2192 secondary_heater_timeout: '00:05:00'"
+    },
+    "secondary_heater_dual_mode": {
+      "required_parameter": "secondary_heater",
+      "description": "Dual mode operation only works when secondary heater is defined",
+      "example": "secondary_heater: switch.aux_heater \u2192 secondary_heater_dual_mode: true"
+    },
+    "max_floor_temp": {
+      "required_parameter": "floor_sensor",
+      "description": "Floor temperature limits only work when floor sensor is defined",
+      "example": "floor_sensor: sensor.floor_temp \u2192 max_floor_temp: 28"
+    },
+    "min_floor_temp": {
+      "required_parameter": "floor_sensor",
+      "description": "Minimum floor temperature only works when floor sensor is defined",
+      "example": "floor_sensor: sensor.floor_temp \u2192 min_floor_temp: 5"
+    },
+    "target_temp_low": {
+      "required_parameter": "heat_cool_mode",
+      "description": "Low temperature setting only works in heat/cool mode",
+      "example": "heat_cool_mode: true \u2192 target_temp_low: 18"
+    },
+    "target_temp_high": {
+      "required_parameter": "heat_cool_mode",
+      "description": "High temperature setting only works in heat/cool mode",
+      "example": "heat_cool_mode: true \u2192 target_temp_high: 24"
+    },
+    "fan_mode": {
+      "required_parameter": "fan",
+      "description": "Fan mode only works when fan entity is defined",
+      "example": "fan: switch.ceiling_fan \u2192 fan_mode: true"
+    },
+    "fan_on_with_ac": {
+      "required_parameter": "fan",
+      "description": "Fan with AC only works when fan entity is defined",
+      "example": "fan: switch.ceiling_fan \u2192 fan_on_with_ac: true"
+    },
+    "fan_hot_tolerance": {
+      "required_parameter": "fan",
+      "description": "Fan temperature tolerance only works when fan entity is defined",
+      "example": "fan: switch.ceiling_fan \u2192 fan_hot_tolerance: 1.0"
+    },
+    "fan_hot_tolerance_toggle": {
+      "required_parameter": "fan",
+      "description": "Fan tolerance toggle only works when fan entity is defined",
+      "example": "fan: switch.ceiling_fan \u2192 fan_hot_tolerance_toggle: input_boolean.fan_auto"
+    },
+    "fan_air_outside": {
+      "required_parameter": "outside_sensor",
+      "description": "Fan air outside control only works when outside sensor is defined",
+      "example": "outside_sensor: sensor.outdoor_temp \u2192 fan_air_outside: true"
+    },
+    "target_humidity": {
+      "required_parameter": "humidity_sensor",
+      "description": "Target humidity only works when humidity sensor is defined",
+      "example": "humidity_sensor: sensor.room_humidity \u2192 target_humidity: 50"
+    },
+    "min_humidity": {
+      "required_parameter": "humidity_sensor",
+      "description": "Minimum humidity only works when humidity sensor is defined",
+      "example": "humidity_sensor: sensor.room_humidity \u2192 min_humidity: 30"
+    },
+    "max_humidity": {
+      "required_parameter": "humidity_sensor",
+      "description": "Maximum humidity only works when humidity sensor is defined",
+      "example": "humidity_sensor: sensor.room_humidity \u2192 max_humidity: 70"
+    },
+    "dry_tolerance": {
+      "required_parameter": "dryer",
+      "description": "Dry tolerance only works when dryer entity is defined",
+      "example": "dryer: switch.dehumidifier \u2192 dry_tolerance: 5"
+    },
+    "moist_tolerance": {
+      "required_parameter": "dryer",
+      "description": "Moist tolerance only works when dryer entity is defined",
+      "example": "dryer: switch.dehumidifier \u2192 moist_tolerance: 5"
+    },
+    "hvac_power_min": {
+      "required_parameter": "hvac_power_levels",
+      "description": "Minimum power level only works when power levels are defined",
+      "example": "hvac_power_levels: 5 \u2192 hvac_power_min: 1"
+    },
+    "hvac_power_max": {
+      "required_parameter": "hvac_power_levels",
+      "description": "Maximum power level only works when power levels are defined",
+      "example": "hvac_power_levels: 5 \u2192 hvac_power_max: 100"
+    },
+    "hvac_power_tolerance": {
+      "required_parameter": "hvac_power_levels",
+      "description": "Power tolerance only works when power levels are defined",
+      "example": "hvac_power_levels: 5 \u2192 hvac_power_tolerance: 0.5"
+    }
+  },
+  "dependency_groups": {
+    "enables": [
+      {
+        "source": "secondary_heater",
+        "target": "secondary_heater_timeout",
+        "description": "Secondary heater timeout only works when secondary heater is defined",
+        "example": "secondary_heater: switch.aux_heater \u2192 secondary_heater_timeout: '00:05:00'"
+      },
+      {
+        "source": "secondary_heater",
+        "target": "secondary_heater_dual_mode",
+        "description": "Dual mode operation only works when secondary heater is defined",
+        "example": "secondary_heater: switch.aux_heater \u2192 secondary_heater_dual_mode: true"
+      },
+      {
+        "source": "floor_sensor",
+        "target": "max_floor_temp",
+        "description": "Floor temperature limits only work when floor sensor is defined",
+        "example": "floor_sensor: sensor.floor_temp \u2192 max_floor_temp: 28"
+      },
+      {
+        "source": "floor_sensor",
+        "target": "min_floor_temp",
+        "description": "Minimum floor temperature only works when floor sensor is defined",
+        "example": "floor_sensor: sensor.floor_temp \u2192 min_floor_temp: 5"
+      },
+      {
+        "source": "heat_cool_mode",
+        "target": "target_temp_low",
+        "description": "Low temperature setting only works in heat/cool mode",
+        "example": "heat_cool_mode: true \u2192 target_temp_low: 18"
+      },
+      {
+        "source": "heat_cool_mode",
+        "target": "target_temp_high",
+        "description": "High temperature setting only works in heat/cool mode",
+        "example": "heat_cool_mode: true \u2192 target_temp_high: 24"
+      },
+      {
+        "source": "fan",
+        "target": "fan_mode",
+        "description": "Fan mode only works when fan entity is defined",
+        "example": "fan: switch.ceiling_fan \u2192 fan_mode: true"
+      },
+      {
+        "source": "fan",
+        "target": "fan_on_with_ac",
+        "description": "Fan with AC only works when fan entity is defined",
+        "example": "fan: switch.ceiling_fan \u2192 fan_on_with_ac: true"
+      },
+      {
+        "source": "fan",
+        "target": "fan_hot_tolerance",
+        "description": "Fan temperature tolerance only works when fan entity is defined",
+        "example": "fan: switch.ceiling_fan \u2192 fan_hot_tolerance: 1.0"
+      },
+      {
+        "source": "fan",
+        "target": "fan_hot_tolerance_toggle",
+        "description": "Fan tolerance toggle only works when fan entity is defined",
+        "example": "fan: switch.ceiling_fan \u2192 fan_hot_tolerance_toggle: input_boolean.fan_auto"
+      },
+      {
+        "source": "outside_sensor",
+        "target": "fan_air_outside",
+        "description": "Fan air outside control only works when outside sensor is defined",
+        "example": "outside_sensor: sensor.outdoor_temp \u2192 fan_air_outside: true"
+      },
+      {
+        "source": "humidity_sensor",
+        "target": "target_humidity",
+        "description": "Target humidity only works when humidity sensor is defined",
+        "example": "humidity_sensor: sensor.room_humidity \u2192 target_humidity: 50"
+      },
+      {
+        "source": "humidity_sensor",
+        "target": "min_humidity",
+        "description": "Minimum humidity only works when humidity sensor is defined",
+        "example": "humidity_sensor: sensor.room_humidity \u2192 min_humidity: 30"
+      },
+      {
+        "source": "humidity_sensor",
+        "target": "max_humidity",
+        "description": "Maximum humidity only works when humidity sensor is defined",
+        "example": "humidity_sensor: sensor.room_humidity \u2192 max_humidity: 70"
+      },
+      {
+        "source": "dryer",
+        "target": "dry_tolerance",
+        "description": "Dry tolerance only works when dryer entity is defined",
+        "example": "dryer: switch.dehumidifier \u2192 dry_tolerance: 5"
+      },
+      {
+        "source": "dryer",
+        "target": "moist_tolerance",
+        "description": "Moist tolerance only works when dryer entity is defined",
+        "example": "dryer: switch.dehumidifier \u2192 moist_tolerance: 5"
+      },
+      {
+        "source": "hvac_power_levels",
+        "target": "hvac_power_min",
+        "description": "Minimum power level only works when power levels are defined",
+        "example": "hvac_power_levels: 5 \u2192 hvac_power_min: 1"
+      },
+      {
+        "source": "hvac_power_levels",
+        "target": "hvac_power_max",
+        "description": "Maximum power level only works when power levels are defined",
+        "example": "hvac_power_levels: 5 \u2192 hvac_power_max: 100"
+      },
+      {
+        "source": "hvac_power_levels",
+        "target": "hvac_power_tolerance",
+        "description": "Power tolerance only works when power levels are defined",
+        "example": "hvac_power_levels: 5 \u2192 hvac_power_tolerance: 0.5"
+      }
+    ],
+    "mutual_exclusive": [
+      {
+        "source": "cooler",
+        "target": "ac_mode",
+        "description": "AC mode is ignored when separate cooler entity is defined",
+        "example": "If cooler: switch.ac_unit is set, ac_mode setting is ignored"
+      },
+      {
+        "source": "heater",
+        "target": "target_sensor",
+        "description": "Heater and temperature sensor must be different entities",
+        "example": "heater: switch.heater \u2260 target_sensor: sensor.temp (must be different)"
+      },
+      {
+        "source": "heater",
+        "target": "cooler",
+        "description": "Heater and cooler must be different entities when both are defined",
+        "example": "heater: switch.heater \u2260 cooler: switch.ac (must be different)"
+      }
+    ]
+  },
+  "configuration_examples": {
+    "floor_heating": {
+      "description": "Floor heating with temperature protection",
+      "required": [
+        "floor_sensor"
+      ],
+      "optional": [
+        "max_floor_temp",
+        "min_floor_temp"
+      ],
+      "example": {
+        "floor_sensor": "sensor.floor_temperature",
+        "max_floor_temp": 28,
+        "min_floor_temp": 5
+      }
+    },
+    "two_stage_heating": {
+      "description": "Two-stage heating with auxiliary heater",
+      "required": [
+        "secondary_heater"
+      ],
+      "optional": [
+        "secondary_heater_timeout",
+        "secondary_heater_dual_mode"
+      ],
+      "example": {
+        "secondary_heater": "switch.aux_heater",
+        "secondary_heater_timeout": "00:05:00",
+        "secondary_heater_dual_mode": true
+      }
+    },
+    "fan_control": {
+      "description": "Fan control with advanced features",
+      "required": [
+        "fan"
+      ],
+      "optional": [
+        "fan_mode",
+        "fan_on_with_ac",
+        "fan_hot_tolerance",
+        "fan_hot_tolerance_toggle"
+      ],
+      "example": {
+        "fan": "switch.ceiling_fan",
+        "fan_mode": true,
+        "fan_on_with_ac": true,
+        "fan_hot_tolerance": 1.0
+      }
+    },
+    "humidity_control": {
+      "description": "Humidity control with dry mode",
+      "required": [
+        "humidity_sensor",
+        "dryer"
+      ],
+      "optional": [
+        "target_humidity",
+        "min_humidity",
+        "max_humidity",
+        "dry_tolerance",
+        "moist_tolerance"
+      ],
+      "example": {
+        "humidity_sensor": "sensor.room_humidity",
+        "dryer": "switch.dehumidifier",
+        "target_humidity": 50,
+        "dry_tolerance": 5,
+        "moist_tolerance": 3
+      }
+    },
+    "heat_cool_mode": {
+      "description": "Heat/Cool mode with temperature ranges",
+      "required": [
+        "heat_cool_mode"
+      ],
+      "optional": [
+        "target_temp_low",
+        "target_temp_high"
+      ],
+      "example": {
+        "heat_cool_mode": true,
+        "target_temp_low": 18,
+        "target_temp_high": 24
+      }
+    },
+    "power_management": {
+      "description": "HVAC power level management",
+      "required": [
+        "hvac_power_levels"
+      ],
+      "optional": [
+        "hvac_power_min",
+        "hvac_power_max",
+        "hvac_power_tolerance"
+      ],
+      "example": {
+        "hvac_power_levels": 5,
+        "hvac_power_min": 20,
+        "hvac_power_max": 100,
+        "hvac_power_tolerance": 0.5
+      }
+    }
+  }
+}
