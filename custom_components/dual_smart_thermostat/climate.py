@@ -55,33 +55,6 @@ from homeassistant.helpers.service import extract_entity_ids
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 import voluptuous as vol
 
-from custom_components.dual_smart_thermostat.hvac_action_reason.hvac_action_reason_external import (
-    HVACActionReasonExternal,
-)
-from custom_components.dual_smart_thermostat.hvac_device.controllable_hvac_device import (
-    ControlableHVACDevice,
-)
-from custom_components.dual_smart_thermostat.hvac_device.hvac_device_factory import (
-    HVACDeviceFactory,
-)
-from custom_components.dual_smart_thermostat.managers.environment_manager import (
-    EnvironmentManager,
-    TargetTemperatures,
-)
-from custom_components.dual_smart_thermostat.managers.feature_manager import (
-    FeatureManager,
-)
-from custom_components.dual_smart_thermostat.managers.hvac_power_manager import (
-    HvacPowerManager,
-)
-from custom_components.dual_smart_thermostat.managers.opening_manager import (
-    OpeningHvacModeScope,
-    OpeningManager,
-)
-from custom_components.dual_smart_thermostat.managers.preset_manager import (
-    PresetManager,
-)
-
 from . import DOMAIN, PLATFORMS
 from .const import (
     ATTR_CLOSING_TIMEOUT,
@@ -151,6 +124,15 @@ from .hvac_action_reason.hvac_action_reason import (
     SET_HVAC_ACTION_REASON_SIGNAL,
     HVACActionReason,
 )
+from .hvac_action_reason.hvac_action_reason_external import HVACActionReasonExternal
+from .hvac_device.controllable_hvac_device import ControlableHVACDevice
+from .hvac_device.hvac_device_factory import HVACDeviceFactory
+from .managers.environment_manager import EnvironmentManager, TargetTemperatures
+from .managers.feature_manager import FeatureManager
+from .managers.hvac_power_manager import HvacPowerManager
+from .managers.opening_manager import OpeningHvacModeScope, OpeningManager
+from .managers.preset_manager import PresetManager
+
 
 _LOGGER = logging.getLogger(__name__)
 

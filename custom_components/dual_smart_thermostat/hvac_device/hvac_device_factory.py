@@ -4,7 +4,7 @@ import logging
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.typing import ConfigType
 
-from custom_components.dual_smart_thermostat.const import (
+from ..const import (
     CONF_AUX_HEATER,
     CONF_AUX_HEATING_DUAL_MODE,
     CONF_AUX_HEATING_TIMEOUT,
@@ -17,44 +17,20 @@ from custom_components.dual_smart_thermostat.const import (
     CONF_INITIAL_HVAC_MODE,
     CONF_MIN_DUR,
 )
-from custom_components.dual_smart_thermostat.hvac_device.controllable_hvac_device import (
-    ControlableHVACDevice,
-)
-from custom_components.dual_smart_thermostat.hvac_device.cooler_device import (
-    CoolerDevice,
-)
-from custom_components.dual_smart_thermostat.hvac_device.cooler_fan_device import (
-    CoolerFanDevice,
-)
-from custom_components.dual_smart_thermostat.hvac_device.dryer_device import DryerDevice
-from custom_components.dual_smart_thermostat.hvac_device.fan_device import FanDevice
-from custom_components.dual_smart_thermostat.hvac_device.heat_pump_device import (
-    HeatPumpDevice,
-)
-from custom_components.dual_smart_thermostat.hvac_device.heater_aux_heater_device import (
-    HeaterAUXHeaterDevice,
-)
-from custom_components.dual_smart_thermostat.hvac_device.heater_cooler_device import (
-    HeaterCoolerDevice,
-)
-from custom_components.dual_smart_thermostat.hvac_device.heater_device import (
-    HeaterDevice,
-)
-from custom_components.dual_smart_thermostat.hvac_device.multi_hvac_device import (
-    MultiHvacDevice,
-)
-from custom_components.dual_smart_thermostat.managers.environment_manager import (
-    EnvironmentManager,
-)
-from custom_components.dual_smart_thermostat.managers.feature_manager import (
-    FeatureManager,
-)
-from custom_components.dual_smart_thermostat.managers.hvac_power_manager import (
-    HvacPowerManager,
-)
-from custom_components.dual_smart_thermostat.managers.opening_manager import (
-    OpeningManager,
-)
+from ..hvac_device.controllable_hvac_device import ControlableHVACDevice
+from ..hvac_device.cooler_device import CoolerDevice
+from ..hvac_device.cooler_fan_device import CoolerFanDevice
+from ..hvac_device.dryer_device import DryerDevice
+from ..hvac_device.fan_device import FanDevice
+from ..hvac_device.heat_pump_device import HeatPumpDevice
+from ..hvac_device.heater_aux_heater_device import HeaterAUXHeaterDevice
+from ..hvac_device.heater_cooler_device import HeaterCoolerDevice
+from ..hvac_device.heater_device import HeaterDevice
+from ..hvac_device.multi_hvac_device import MultiHvacDevice
+from ..managers.environment_manager import EnvironmentManager
+from ..managers.feature_manager import FeatureManager
+from ..managers.hvac_power_manager import HvacPowerManager
+from ..managers.opening_manager import OpeningManager
 
 _LOGGER = logging.getLogger(__name__)
 
