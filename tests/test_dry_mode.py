@@ -4,7 +4,6 @@ import datetime
 from datetime import timedelta
 import logging
 
-from freezegun import freeze_time
 from freezegun.api import FrozenDateTimeFactory
 from homeassistant.components import input_boolean, input_number
 from homeassistant.components.climate import (
@@ -58,7 +57,6 @@ from . import (  # noqa: F401
     setup_comp_1,
     setup_comp_heat_ac_cool,
     setup_comp_heat_ac_cool_cycle,
-    setup_comp_heat_ac_cool_cycle_kepp_alive,
     setup_comp_heat_ac_cool_fan_config,
     setup_comp_heat_ac_cool_presets,
     setup_comp_heat_ac_cool_safety_delay,
@@ -664,183 +662,109 @@ async def setup_comp_heat_ac_cool_dry_cycle(hass: HomeAssistant) -> None:
     await hass.async_block_till_done()
 
 
-async def test_temp_change_ac_dry_trigger_on_not_long_enough(
-    hass: HomeAssistant, setup_comp_heat_ac_cool_dry_cycle  # noqa: F811
+@pytest.mark.parametrize("sw_on", [True, False])
+@pytest.mark.parametrize("expected_lingering_timers", [True])
+async def test_temp_change_ac_dry_trigger_on_long_enough(
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+    sw_on,
+    setup_comp_heat_ac_cool_dry_cycle,  # noqa: F811
 ) -> None:
     """Test if humidity change turn dryer on."""
-    calls = setup_switch_dual(hass, common.ENT_DRYER, False, False)
+    calls = setup_switch_dual(hass, common.ENT_DRYER, False, sw_on)
     await common.async_set_humidity(hass, 65)
-    setup_humidity_sensor(hass, 71)
+    setup_humidity_sensor(hass, 71 if sw_on else 50)
     await hass.async_block_till_done()
+
+    freezer.tick(timedelta(minutes=6))
+    common.async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+
+    # set humidity to switch
+    setup_humidity_sensor(hass, 50 if sw_on else 71)
+    await hass.async_block_till_done()
+
+    # no call, not enought time
     assert len(calls) == 0
 
-
-async def test_temp_change_ac_dry_trigger_on_long_enough(
-    hass: HomeAssistant, setup_comp_heat_ac_cool_dry_cycle  # noqa: F811
-) -> None:
-    """Test if humidity change turn ac on."""
-    fake_changed = datetime.datetime(1970, 11, 11, 11, 11, 11, tzinfo=dt_util.UTC)
-    with freeze_time(fake_changed):
-        calls = setup_switch_dual(hass, common.ENT_DRYER, False, False)
-    await common.async_set_humidity(hass, 65)
-    setup_humidity_sensor(hass, 71)
+    # move back to no switch humidity
+    setup_humidity_sensor(hass, 71 if sw_on else 50)
     await hass.async_block_till_done()
+
+    # go over cycle time
+    freezer.tick(timedelta(minutes=6))
+    common.async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+
+    # no call, not needed
+    assert len(calls) == 0
+
+    # set humidity to switch
+    setup_humidity_sensor(hass, 50 if sw_on else 71)
+    await hass.async_block_till_done()
+
+    # call triggered, time is enought and humidity reached
     assert len(calls) == 1
     call = calls[0]
     assert call.domain == HASS_DOMAIN
-    assert call.service == SERVICE_TURN_ON
+    assert call.service == SERVICE_TURN_OFF if sw_on else SERVICE_TURN_ON
     assert call.data["entity_id"] == common.ENT_DRYER
 
 
-async def test_temp_change_ac_dry_trigger_off_not_long_enough(
-    hass: HomeAssistant, setup_comp_heat_ac_cool_dry_cycle  # noqa: F811
+@pytest.mark.parametrize("sw_on", [True, False])
+@pytest.mark.parametrize("expected_lingering_timers", [True])
+async def test_time_change_ac_dry_trigger_on_long_enough(
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+    sw_on,
+    setup_comp_heat_ac_cool_dry_cycle,  # noqa: F811
 ) -> None:
-    """Test if humidity change turn ac on."""
-    calls = setup_switch_dual(hass, common.ENT_DRYER, False, False)
+    """Test if humidity change turn dryer on when cycle time is past."""
+    calls = setup_switch_dual(hass, common.ENT_DRYER, False, sw_on)
     await common.async_set_humidity(hass, 65)
-    setup_humidity_sensor(hass, 71)
+    setup_humidity_sensor(hass, 71 if sw_on else 50)
     await hass.async_block_till_done()
+
+    freezer.tick(timedelta(minutes=6))
+    common.async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+
+    # set humidity to switch
+    setup_humidity_sensor(hass, 50 if sw_on else 71)
+    await hass.async_block_till_done()
+
+    # no call, not enought time
     assert len(calls) == 0
 
-
-async def test_temp_change_ac_dry_trigger_off_long_enough(
-    hass: HomeAssistant, setup_comp_heat_ac_cool_dry_cycle  # noqa: F811
-) -> None:
-    """Test if himidity change turn ac on."""
-    fake_changed = datetime.datetime(1970, 11, 11, 11, 11, 11, tzinfo=dt_util.UTC)
-    with freeze_time(fake_changed):
-        calls = setup_switch_dual(hass, common.ENT_DRYER, False, True)
-    await common.async_set_humidity(hass, 65)
-    setup_humidity_sensor(hass, 50)
+    # go over cycle time
+    freezer.tick(timedelta(minutes=6))
+    common.async_fire_time_changed(hass)
     await hass.async_block_till_done()
+
+    # call triggered, time is enought and humidity reached
     assert len(calls) == 1
     call = calls[0]
     assert call.domain == HASS_DOMAIN
-    assert call.service == SERVICE_TURN_OFF
+    assert call.service == SERVICE_TURN_OFF if sw_on else SERVICE_TURN_ON
     assert call.data["entity_id"] == common.ENT_DRYER
 
 
+@pytest.mark.parametrize("sw_on", [True, False])
+@pytest.mark.parametrize("expected_lingering_timers", [True])
 async def test_mode_change_ac_dry_trigger_off_not_long_enough(
-    hass: HomeAssistant, setup_comp_heat_ac_cool_dry_cycle  # noqa: F811
+    hass: HomeAssistant, sw_on, setup_comp_heat_ac_cool_dry_cycle  # noqa: F811
 ) -> None:
-    """Test if mode change turns ac off despite minimum cycle."""
-    calls = setup_switch_dual(hass, common.ENT_DRYER, False, True)
+    """Test if mode change turns dryer despite minimum cycle."""
+    calls = setup_switch_dual(hass, common.ENT_DRYER, False, sw_on)
     await common.async_set_humidity(hass, 65)
-    setup_humidity_sensor(hass, 50)
+    setup_humidity_sensor(hass, 50 if sw_on else 71)
     await hass.async_block_till_done()
     assert len(calls) == 0
-    await common.async_set_hvac_mode(hass, HVACMode.OFF)
-    assert len(calls) == 1
-    call = calls[0]
-    assert call.domain == "homeassistant"
-    assert call.service == SERVICE_TURN_OFF
-    assert call.data["entity_id"] == common.ENT_DRYER
-
-
-async def test_mode_change_ac_dry_trigger_on_not_long_enough(
-    hass: HomeAssistant, setup_comp_heat_ac_cool_dry_cycle  # noqa: F811
-) -> None:
-    """Test if mode change turns ac on despite minimum cycle."""
-    calls = setup_switch_dual(hass, common.ENT_DRYER, False, False)
-    await common.async_set_humidity(hass, 65)
-    setup_humidity_sensor(hass, 70)
-    await hass.async_block_till_done()
-    assert len(calls) == 0
-    await common.async_set_hvac_mode(hass, HVACMode.DRY)
-    assert len(calls) == 1
-    call = calls[0]
-    assert call.domain == "homeassistant"
-    assert call.service == SERVICE_TURN_ON
-    assert call.data["entity_id"] == common.ENT_DRYER
-
-
-async def test_temp_change_ac_dry_trigger_on_not_long_enough_2(
-    hass: HomeAssistant, setup_comp_heat_ac_cool_dry_cycle  # noqa: F811
-) -> None:
-    """Test if humidity change turn ac on."""
-    calls = setup_switch_dual(hass, common.ENT_DRYER, False, False)
-    await common.async_set_humidity(hass, 65)
-    setup_humidity_sensor(hass, 70)
-    await hass.async_block_till_done()
-    assert len(calls) == 0
-
-
-async def test_temp_change_ac_dryer_trigger_on_long_enough_2(
-    hass: HomeAssistant, setup_comp_heat_ac_cool_dry_cycle  # noqa: F811
-) -> None:
-    """Test if humidity change turn ac on."""
-    fake_changed = datetime.datetime(1970, 11, 11, 11, 11, 11, tzinfo=dt_util.UTC)
-    with freeze_time(fake_changed):
-        calls = setup_switch_dual(hass, common.ENT_DRYER, False, False)
-    await common.async_set_humidity(hass, 65)
-    setup_humidity_sensor(hass, 70)
-    await hass.async_block_till_done()
+    await common.async_set_hvac_mode(hass, HVACMode.OFF if sw_on else HVACMode.DRY)
     assert len(calls) == 1
     call = calls[0]
     assert call.domain == HASS_DOMAIN
-    assert call.service == SERVICE_TURN_ON
-    assert call.data["entity_id"] == common.ENT_DRYER
-
-
-async def test_temp_change_ac_dry_trigger_off_not_long_enough_2(
-    hass: HomeAssistant, setup_comp_heat_ac_cool_dry_cycle  # noqa: F811
-) -> None:
-    """Test if humidity change turn ac on."""
-    calls = setup_switch_dual(hass, common.ENT_DRYER, False, True)
-    await common.async_set_humidity(hass, 65)
-    setup_humidity_sensor(hass, 50)
-    await hass.async_block_till_done()
-    assert len(calls) == 0
-
-
-async def test_temp_change_ac_dry_trigger_off_long_enough_2(
-    hass: HomeAssistant, setup_comp_heat_ac_cool_dry_cycle  # noqa: F811
-) -> None:
-    """Test if humidity change turn ac on."""
-    fake_changed = datetime.datetime(1970, 11, 11, 11, 11, 11, tzinfo=dt_util.UTC)
-    with freeze_time(fake_changed):
-        calls = setup_switch_dual(hass, common.ENT_DRYER, False, True)
-    await common.async_set_humidity(hass, 65)
-    setup_humidity_sensor(hass, 50)
-    await hass.async_block_till_done()
-    assert len(calls) == 1
-    call = calls[0]
-    assert call.domain == HASS_DOMAIN
-    assert call.service == SERVICE_TURN_OFF
-    assert call.data["entity_id"] == common.ENT_DRYER
-
-
-async def test_mode_change_ac_dry_trigger_off_not_long_enough_2(
-    hass: HomeAssistant, setup_comp_heat_ac_cool_dry_cycle  # noqa: F811
-) -> None:
-    """Test if mode change turns ac off despite minimum cycle."""
-    calls = setup_switch_dual(hass, common.ENT_DRYER, False, True)
-    await common.async_set_humidity(hass, 65)
-    setup_humidity_sensor(hass, 50)
-    await hass.async_block_till_done()
-    assert len(calls) == 0
-    await common.async_set_hvac_mode(hass, HVACMode.OFF)
-    assert len(calls) == 1
-    call = calls[0]
-    assert call.domain == "homeassistant"
-    assert call.service == SERVICE_TURN_OFF
-    assert call.data["entity_id"] == common.ENT_DRYER
-
-
-async def test_mode_change_ac_dry_trigger_on_not_long_enough_2(
-    hass: HomeAssistant, setup_comp_heat_ac_cool_dry_cycle  # noqa: F811
-) -> None:
-    """Test if mode change turns ac on despite minimum cycle."""
-    calls = setup_switch_dual(hass, common.ENT_DRYER, False, False)
-    await common.async_set_humidity(hass, 65)
-    setup_humidity_sensor(hass, 70)
-    await hass.async_block_till_done()
-    assert len(calls) == 0
-    await common.async_set_hvac_mode(hass, HVACMode.DRY)
-    assert len(calls) == 1
-    call = calls[0]
-    assert call.domain == "homeassistant"
-    assert call.service == SERVICE_TURN_ON
+    assert call.service == SERVICE_TURN_OFF if sw_on else SERVICE_TURN_ON
     assert call.data["entity_id"] == common.ENT_DRYER
 
 
@@ -1270,9 +1194,13 @@ async def test_dryer_mode_tolerance(
         (timedelta(seconds=30), STATE_OFF),
     ],
 )
-@pytest.mark.asyncio
+@pytest.mark.parametrize("expected_lingering_timers", [True])
 async def test_dryer_mode_cycle(
-    hass: HomeAssistant, duration, result_state, setup_comp_1  # noqa: F811
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+    duration,
+    result_state,
+    setup_comp_1,  # noqa: F811
 ) -> None:
     """Test thermostat dryer switch in cooling mode with cycle duration."""
     cooler_switch = "input_boolean.test"
@@ -1324,12 +1252,13 @@ async def test_dryer_mode_cycle(
     setup_humidity_sensor(hass, 70)
     await hass.async_block_till_done()
 
-    fake_changed = dt.utcnow() - duration
-    common.async_fire_time_changed(hass, fake_changed)
-    with freeze_time(fake_changed):
-        await common.async_set_humidity(hass, 60)
-        await hass.async_block_till_done()
-        assert hass.states.get(dryer_switch).state == STATE_ON
+    await common.async_set_humidity(hass, 60)
+    await hass.async_block_till_done()
+    assert hass.states.get(dryer_switch).state == STATE_ON
+
+    freezer.tick(duration)
+    common.async_fire_time_changed(hass)
+    await hass.async_block_till_done()
 
     setup_humidity_sensor(hass, 60)
     await hass.async_block_till_done()

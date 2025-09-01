@@ -4,7 +4,6 @@ import datetime
 from datetime import timedelta
 import logging
 
-from freezegun import freeze_time
 from freezegun.api import FrozenDateTimeFactory
 from homeassistant.components import input_boolean, input_number
 from homeassistant.components.climate import (
@@ -227,6 +226,7 @@ async def test_restore_state_while_off(hass: HomeAssistant) -> None:
 
 
 # issue 80
+@pytest.mark.parametrize("expected_lingering_timers", [True])
 async def test_presets_use_case_80(
     hass: HomeAssistant, setup_comp_1  # noqa: F811
 ) -> None:
@@ -270,6 +270,7 @@ async def test_presets_use_case_80(
 
 
 # issue 150
+@pytest.mark.parametrize("expected_lingering_timers", [True])
 async def test_presets_use_case_150(
     hass: HomeAssistant, setup_comp_1  # noqa: F811
 ) -> None:  # noqa: F811
@@ -3038,8 +3039,13 @@ async def test_hvac_mode_heat_hvac_action_reason(
         (timedelta(seconds=30), STATE_OFF),
     ],
 )
+@pytest.mark.parametrize("expected_lingering_timers", [True])
 async def test_hvac_mode_cool_cycle(
-    hass: HomeAssistant, duration, result_state, setup_comp_1  # noqa: F811
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+    duration,
+    result_state,
+    setup_comp_1,  # noqa: F811
 ):
     """Test thermostat cooler switch in cooling mode with cycle duration."""
     heater_switch = "input_boolean.heater"
@@ -3084,12 +3090,14 @@ async def test_hvac_mode_cool_cycle(
     setup_sensor(hass, 23)
     await hass.async_block_till_done()
 
-    fake_changed = dt.utcnow() - duration
-    with freeze_time(fake_changed):
-        await common.async_set_temperature(hass, 18)
-        await hass.async_block_till_done()
-        assert hass.states.get(heater_switch).state == STATE_OFF
-        assert hass.states.get(cooler_switch).state == STATE_ON
+    await common.async_set_temperature(hass, 18)
+    await hass.async_block_till_done()
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(cooler_switch).state == STATE_ON
+
+    freezer.tick(duration)
+    common.async_fire_time_changed(hass)
+    await hass.async_block_till_done()
 
     setup_sensor(hass, 17)
     await hass.async_block_till_done()
@@ -3104,19 +3112,23 @@ async def test_hvac_mode_cool_cycle(
         (timedelta(seconds=30), STATE_OFF),
     ],
 )
+@pytest.mark.parametrize("expected_lingering_timers", [True])
 async def test_hvac_mode_heat_cycle(
-    hass: HomeAssistant, duration, result_state, setup_comp_1  # noqa: F811
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+    duration,
+    result_state,
+    setup_comp_1,  # noqa: F811
 ):
     """Test thermostat heater and cooler switch in heat mode with min_cycle_duration."""
     heater_switch = "input_boolean.heater"
     cooler_switch = "input_boolean.cooler"
-    fake_changed = dt.utcnow() - duration
-    with freeze_time(fake_changed):
-        assert await async_setup_component(
-            hass,
-            input_boolean.DOMAIN,
-            {"input_boolean": {"heater": None, "cooler": None}},
-        )
+
+    assert await async_setup_component(
+        hass,
+        input_boolean.DOMAIN,
+        {"input_boolean": {"heater": None, "cooler": None}},
+    )
 
     assert await async_setup_component(
         hass,
@@ -3152,12 +3164,14 @@ async def test_hvac_mode_heat_cycle(
     setup_sensor(hass, 20)
     await hass.async_block_till_done()
 
-    fake_changed = dt.utcnow() - duration
-    with freeze_time(fake_changed):
-        await common.async_set_temperature(hass, None, ENTITY_MATCH_ALL, 25, 22)
-        await hass.async_block_till_done()
-        assert hass.states.get(heater_switch).state == STATE_ON
-        assert hass.states.get(cooler_switch).state == STATE_OFF
+    await common.async_set_temperature(hass, None, ENTITY_MATCH_ALL, 25, 22)
+    await hass.async_block_till_done()
+    assert hass.states.get(heater_switch).state == STATE_ON
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+
+    freezer.tick(duration)
+    common.async_fire_time_changed(hass)
+    await hass.async_block_till_done()
 
     setup_sensor(hass, 24)
     await hass.async_block_till_done()
@@ -3172,19 +3186,23 @@ async def test_hvac_mode_heat_cycle(
         (timedelta(seconds=30), STATE_OFF),
     ],
 )
+@pytest.mark.parametrize("expected_lingering_timers", [True])
 async def test_hvac_mode_heat_cool_cycle(
-    hass: HomeAssistant, duration, result_state, setup_comp_1  # noqa: F811
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+    duration,
+    result_state,
+    setup_comp_1,  # noqa: F811
 ):
     """Test thermostat heater and cooler switch in cool mode with min_cycle_duration."""
     heater_switch = "input_boolean.heater"
     cooler_switch = "input_boolean.cooler"
-    fake_changed = dt.utcnow() - duration
-    with freeze_time(fake_changed):
-        assert await async_setup_component(
-            hass,
-            input_boolean.DOMAIN,
-            {"input_boolean": {"heater": None, "cooler": None}},
-        )
+
+    assert await async_setup_component(
+        hass,
+        input_boolean.DOMAIN,
+        {"input_boolean": {"heater": None, "cooler": None}},
+    )
 
     assert await async_setup_component(
         hass,
@@ -3220,12 +3238,14 @@ async def test_hvac_mode_heat_cool_cycle(
     setup_sensor(hass, 26)
     await hass.async_block_till_done()
 
-    fake_changed = dt.utcnow() - duration
-    with freeze_time(fake_changed):
-        await common.async_set_temperature(hass, None, ENTITY_MATCH_ALL, 25, 22)
-        await hass.async_block_till_done()
-        assert hass.states.get(heater_switch).state == STATE_OFF
-        assert hass.states.get(cooler_switch).state == STATE_ON
+    await common.async_set_temperature(hass, None, ENTITY_MATCH_ALL, 25, 22)
+    await hass.async_block_till_done()
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(cooler_switch).state == STATE_ON
+
+    freezer.tick(duration)
+    common.async_fire_time_changed(hass)
+    await hass.async_block_till_done()
 
     setup_sensor(hass, 24)
     await hass.async_block_till_done()
@@ -3838,10 +3858,6 @@ async def test_heat_cool_mode_opening_timeout(
 
     # When
     # within of timeout
-    # common.async_fire_time_changed(
-    #     hass, dt_util.utcnow() + datetime.timedelta(seconds=3)
-    # )
-    # await asyncio.sleep(3)
     freezer.tick(timedelta(seconds=3))
     common.async_fire_time_changed(hass)
     await hass.async_block_till_done()
@@ -3852,10 +3868,6 @@ async def test_heat_cool_mode_opening_timeout(
 
     # When
     # outside of timeout
-    # common.async_fire_time_changed(
-    #     hass, dt_util.utcnow() + datetime.timedelta(seconds=5)
-    # )
-    # await asyncio.sleep(2)
     freezer.tick(timedelta(seconds=3))
     common.async_fire_time_changed(hass)
     await hass.async_block_till_done()
@@ -3912,10 +3924,6 @@ async def test_heat_cool_mode_opening_timeout(
 
     # When
     # within of timeout
-    # common.async_fire_time_changed(
-    #     hass, dt_util.utcnow() + datetime.timedelta(seconds=5)
-    # )
-    # await asyncio.sleep(3)
     freezer.tick(timedelta(seconds=3))
     common.async_fire_time_changed(hass)
     await hass.async_block_till_done()
@@ -3926,10 +3934,6 @@ async def test_heat_cool_mode_opening_timeout(
 
     # When
     # outside of timeout
-    # common.async_fire_time_changed(
-    #     hass, dt_util.utcnow() + datetime.timedelta(seconds=10)
-    # )
-    # await asyncio.sleep(3)
     freezer.tick(timedelta(seconds=3))
     common.async_fire_time_changed(hass)
     await hass.async_block_till_done()

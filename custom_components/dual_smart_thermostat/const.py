@@ -19,6 +19,8 @@ DEFAULT_TOLERANCE = 0.3
 DEFAULT_NAME = "Dual Smart Thermostat"
 DEFAULT_MAX_FLOOR_TEMP = 28.0
 
+MIN_CYCLE_KEEP_ALIVE = 60.0
+
 DOMAIN = "dual_smart_thermostat"
 
 # Configuration keys

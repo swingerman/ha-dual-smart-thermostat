@@ -16,7 +16,7 @@ from homeassistant.core import HomeAssistant, State, callback
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.util.unit_conversion import TemperatureConverter
 
-from custom_components.dual_smart_thermostat.const import (
+from ..const import (
     ATTR_PREV_TARGET,
     ATTR_PREV_TARGET_HIGH,
     ATTR_PREV_TARGET_LOW,
@@ -44,8 +44,8 @@ from custom_components.dual_smart_thermostat.const import (
     CONF_TEMP_STEP,
     DEFAULT_MAX_FLOOR_TEMP,
 )
-from custom_components.dual_smart_thermostat.managers.state_manager import StateManager
-from custom_components.dual_smart_thermostat.preset_env.preset_env import PresetEnv
+from ..managers.state_manager import StateManager
+from ..preset_env.preset_env import PresetEnv
 
 _LOGGER = logging.getLogger(__name__)
 

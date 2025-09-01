@@ -57,33 +57,6 @@ from homeassistant.helpers.service import extract_entity_ids
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 import voluptuous as vol
 
-from custom_components.dual_smart_thermostat.hvac_action_reason.hvac_action_reason_external import (
-    HVACActionReasonExternal,
-)
-from custom_components.dual_smart_thermostat.hvac_device.controllable_hvac_device import (
-    ControlableHVACDevice,
-)
-from custom_components.dual_smart_thermostat.hvac_device.hvac_device_factory import (
-    HVACDeviceFactory,
-)
-from custom_components.dual_smart_thermostat.managers.environment_manager import (
-    EnvironmentManager,
-    TargetTemperatures,
-)
-from custom_components.dual_smart_thermostat.managers.feature_manager import (
-    FeatureManager,
-)
-from custom_components.dual_smart_thermostat.managers.hvac_power_manager import (
-    HvacPowerManager,
-)
-from custom_components.dual_smart_thermostat.managers.opening_manager import (
-    OpeningHvacModeScope,
-    OpeningManager,
-)
-from custom_components.dual_smart_thermostat.managers.preset_manager import (
-    PresetManager,
-)
-
 from . import DOMAIN, PLATFORMS
 from .const import (
     ATTR_CLOSING_TIMEOUT,
@@ -145,6 +118,7 @@ from .const import (
     DEFAULT_MAX_FLOOR_TEMP,
     DEFAULT_NAME,
     DEFAULT_TOLERANCE,
+    MIN_CYCLE_KEEP_ALIVE,
     TIMED_OPENING_SCHEMA,
 )
 from .hvac_action_reason.hvac_action_reason import (
@@ -152,6 +126,15 @@ from .hvac_action_reason.hvac_action_reason import (
     SET_HVAC_ACTION_REASON_SIGNAL,
     HVACActionReason,
 )
+from .hvac_action_reason.hvac_action_reason_external import HVACActionReasonExternal
+from .hvac_device.controllable_hvac_device import ControlableHVACDevice
+from .hvac_device.hvac_device_factory import HVACDeviceFactory
+from .managers.environment_manager import EnvironmentManager, TargetTemperatures
+from .managers.feature_manager import FeatureManager
+from .managers.hvac_power_manager import HvacPowerManager
+from .managers.opening_manager import OpeningHvacModeScope, OpeningManager
+from .managers.preset_manager import PresetManager
+
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -321,6 +304,15 @@ async def _async_setup_config(
     sensor_heat_pump_cooling_entity_id = config.get(CONF_HEAT_PUMP_COOLING)
     keep_alive = config.get(CONF_KEEP_ALIVE)
 
+    # we ignore min cycle duration if keep alive is configured (conflicting config)
+    if keep_alive is not None:
+        if CONF_MIN_DUR in config:
+            _LOGGER.warning(
+                "The configuration option 'min_cycle_duration' will be ignored "
+                "beacuse incompatible with the defined option 'keep_alive'."
+            )
+            config.pop(CONF_MIN_DUR)
+
     precision = config.get(CONF_PRECISION)
     unit = hass.config.units.temperature_unit
 
@@ -343,6 +335,7 @@ async def _async_setup_config(
         environment_manager, opening_manager, hvac_power_manager
     )
 
+    has_min_cycle = CONF_MIN_DUR in config
     async_add_entities(
         [
             DualSmartThermostat(
@@ -354,6 +347,7 @@ async def _async_setup_config(
                 sensor_stale_duration,
                 sensor_heat_pump_cooling_entity_id,
                 keep_alive,
+                has_min_cycle,
                 precision,
                 unit,
                 unique_id,
@@ -408,7 +402,8 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         sensor_humidity_entity_id,
         sensor_stale_duration,
         sensor_heat_pump_cooling_entity_id,
-        keep_alive,
+        keep_alive: timedelta | None,
+        has_min_cycle: bool,
         precision,
         unit,
         unique_id,
@@ -450,6 +445,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self.sensor_heat_pump_cooling_entity_id = sensor_heat_pump_cooling_entity_id
 
         self._keep_alive = keep_alive
+        self._has_min_cycle = has_min_cycle
 
         self._sensor_stale_duration = sensor_stale_duration
         self._remove_stale_tracking: Callable[[], None] | None = None
@@ -501,7 +497,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
         switch_entities = self.hvac_device.get_device_ids()
         if switch_entities:
-            _LOGGER.info("Adding switch listener: %s", switch_entities)
+            _LOGGER.debug("Adding switch listener: %s", switch_entities)
             self.async_on_remove(
                 async_track_state_change_event(
                     self.hass, switch_entities, self._async_switch_changed_event
@@ -560,12 +556,25 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                 )
             )
 
-        if self._keep_alive:
-            self.async_on_remove(
-                async_track_time_interval(
-                    self.hass, self._async_control_climate, self._keep_alive
+        if self._keep_alive or self._has_min_cycle:
+            if self._keep_alive:
+                self.async_on_remove(
+                    async_track_time_interval(
+                        self.hass,
+                        self._async_control_climate,
+                        self._keep_alive,
+                    )
                 )
-            )
+            else:
+                # when min_cycle_duration is set and no keep-alive defined
+                # we poll every 60 seconds to check conditions
+                self.async_on_remove(
+                    async_track_time_interval(
+                        self.hass,
+                        self._async_control_climate_no_time,
+                        timedelta(seconds=MIN_CYCLE_KEEP_ALIVE),
+                    )
+                )
 
         if self.openings.opening_entities:
             self.async_on_remove(
@@ -576,7 +585,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                 )
             )
 
-        _LOGGER.info(
+        _LOGGER.debug(
             "Setting up signal: %s",
             SET_HVAC_ACTION_REASON_SIGNAL.format(self.entity_id),
         )
@@ -925,7 +934,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         temp_high = kwargs.get(ATTR_TARGET_TEMP_HIGH)
         hvac_mode = kwargs.get(ATTR_HVAC_MODE)
 
-        _LOGGER.info(
+        _LOGGER.debug(
             "Setting temperatures. Temp: %s, Low: %s, High: %s, Hvac Mode: %s",
             temperature,
             temp_low,
@@ -936,7 +945,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         temperatures = TargetTemperatures(temperature, temp_high, temp_low)
 
         if hvac_mode is not None:
-            _LOGGER.info("Setting hvac mode with temperature: %s", hvac_mode)
+            _LOGGER.debug("Setting hvac mode with temperature: %s", hvac_mode)
             await self.async_set_hvac_mode(hvac_mode)
 
         if self.features.is_configured_for_heat_cool_mode:
@@ -952,7 +961,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
     async def async_set_humidity(self, humidity: float) -> None:
         """Set new target humidity."""
-        _LOGGER.info("Setting humidity: %s", humidity)
+        _LOGGER.debug("Setting humidity: %s", humidity)
 
         self.environment.target_humidity = humidity
         self._target_humidity = self.environment.target_humidity
@@ -1011,7 +1020,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self, new_state: State | None, trigger_control=True
     ) -> None:
         """Handle temperature changes."""
-        _LOGGER.info(
+        _LOGGER.debug(
             "Sensor change: %s, trigger_control: %s", new_state, trigger_control
         )
         if new_state is None or new_state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
@@ -1095,7 +1104,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self, new_state: State | None, trigger_control=True
     ) -> None:
         """Handle floor temperature changes."""
-        _LOGGER.info("Sensor floor change: %s", new_state)
+        _LOGGER.debug("Sensor floor change: %s", new_state)
         if new_state is None or new_state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
             return
 
@@ -1117,7 +1126,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self, new_state: State | None, trigger_control=True
     ) -> None:
         """Handle outside temperature changes."""
-        _LOGGER.info("Sensor outside change: %s", new_state)
+        _LOGGER.debug("Sensor outside change: %s", new_state)
         if new_state is None or new_state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
             return
 
@@ -1139,7 +1148,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self, new_state: State | None, trigger_control=True
     ) -> None:
         """Handle humidity changes."""
-        _LOGGER.info("Sensor humidity change: %s", new_state)
+        _LOGGER.debug("Sensor humidity change: %s", new_state)
         if new_state is None or new_state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
             return
 
@@ -1242,27 +1251,32 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
     async def _async_control_climate(self, time=None, force=False) -> None:
         """Control the climate device based on config."""
 
-        _LOGGER.info("Attempting to control climate, time %s, force %s", time, force)
+        _LOGGER.debug("Attempting to control climate, time %s, force %s", time, force)
 
         async with self._temp_lock:
 
-            if self.hvac_device.hvac_mode == HVACMode.OFF:
+            if self.hvac_device.hvac_mode == HVACMode.OFF and time is None:
                 _LOGGER.debug("Climate is off, skipping control")
                 return
 
             await self.hvac_device.async_control_hvac(time, force)
 
-            _LOGGER.info(
+            _LOGGER.debug(
                 "updating HVACActionReason: %s", self.hvac_device.HVACActionReason
             )
 
             self._hvac_action_reason = self.hvac_device.HVACActionReason
 
     async def _async_control_climate_forced(self, time=None) -> None:
-        _LOGGER.info("Attempting to forcefully control climate, time %s", time)
-        await self._async_control_climate(force=True, time=time)
+        """Forcefully control the climate device based on config."""
+        _LOGGER.debug("Attempting to forcefully control climate, time %s", time)
+        await self._async_control_climate(time=None, force=True)
 
         self.async_write_ha_state()
+
+    async def _async_control_climate_no_time(self, time=None, force=False) -> None:
+        """Control the climate device based on config removing time param."""
+        await self._async_control_climate(time=None, force=force)
 
     @callback
     def _async_hvac_mode_changed(self, hvac_mode) -> None:
