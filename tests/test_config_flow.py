@@ -9,11 +9,11 @@ from homeassistant.core import HomeAssistant
 import pytest
 
 from custom_components.dual_smart_thermostat.const import (
-    CONF_AC_MODE,
     CONF_COLD_TOLERANCE,
     CONF_COOLER,
     CONF_HEATER,
     CONF_HOT_TOLERANCE,
+    CONF_MIN_DUR,
     CONF_PRESETS,
     CONF_SENSOR,
     CONF_SYSTEM_TYPE,
@@ -182,15 +182,17 @@ async def test_options_flow(hass: HomeAssistant) -> None:
             result["flow_id"], user_input={}
         )
         assert result["type"] == "form"
-        assert result["step_id"] == "core"
+        assert result["step_id"] == "basic"
 
-        # Test configuring options at core step
+        # Test configuring options at core step (simple heater system doesn't support AC mode)
         result = await hass.config_entries.options.async_configure(
             result["flow_id"],
             user_input={
-                CONF_AC_MODE: True,
-                CONF_COLD_TOLERANCE: 0.5,
-                CONF_HOT_TOLERANCE: 0.5,
+                "advanced_settings": {
+                    CONF_COLD_TOLERANCE: 0.5,
+                    CONF_HOT_TOLERANCE: 0.5,
+                    CONF_MIN_DUR: 300,
+                }
             },
         )
         assert result["type"] == "form"
@@ -206,4 +208,7 @@ async def test_options_flow(hass: HomeAssistant) -> None:
                 result["flow_id"], user_input={}
             )
 
-        assert result.get("step_id") in ("additional", "preset_selection")
+        assert (
+            result.get("step_id") in ("additional", "preset_selection")
+            or result["type"] == "create_entry"
+        )

@@ -4,7 +4,6 @@ import datetime
 from datetime import timedelta
 import logging
 
-from freezegun import freeze_time
 from freezegun.api import FrozenDateTimeFactory
 from homeassistant.components import input_boolean, input_number
 from homeassistant.components.climate import (
@@ -34,7 +33,7 @@ from homeassistant.core import DOMAIN as HASS_DOMAIN, HomeAssistant
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import entity_registry as er
 from homeassistant.setup import async_setup_component
-from homeassistant.util import dt, dt as dt_util
+from homeassistant.util import dt as dt_util
 from homeassistant.util.unit_system import METRIC_SYSTEM
 import pytest
 
@@ -59,7 +58,6 @@ from . import (  # noqa: F401
     setup_comp_1,
     setup_comp_heat_ac_cool,
     setup_comp_heat_ac_cool_cycle,
-    setup_comp_heat_ac_cool_cycle_kepp_alive,
     setup_comp_heat_ac_cool_fan_config,
     setup_comp_heat_ac_cool_presets,
     setup_comp_heat_ac_cool_presets_range,
@@ -680,183 +678,125 @@ async def test_no_state_change_when_operation_mode_off_2(
     assert len(calls) == 0
 
 
-async def test_temp_change_ac_trigger_on_not_long_enough(
-    hass: HomeAssistant, setup_comp_heat_ac_cool_cycle  # noqa: F811
+@pytest.mark.parametrize("sw_on", [True, False])
+@pytest.mark.parametrize("expected_lingering_timers", [True])
+async def test_temp_change_ac_trigger_long_enough(
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+    sw_on,
+    setup_comp_heat_ac_cool_cycle,  # noqa: F811
 ) -> None:
-    """Test if temperature change turn ac on."""
-    calls = setup_switch(hass, False)
-    await common.async_set_temperature(hass, 25)
-    setup_sensor(hass, 30)
+    """Test if temperature change turn ac on or off."""
+    calls = setup_switch(hass, sw_on)
+    await common.async_set_temperature(hass, 28)
+    setup_sensor(hass, 30 if sw_on else 25)
     await hass.async_block_till_done()
+
+    freezer.tick(timedelta(minutes=6))
+    common.async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+
+    # set temperature to switch
+    setup_sensor(hass, 25 if sw_on else 30)
+    await hass.async_block_till_done()
+
+    # no call, not enough time
     assert len(calls) == 0
 
-
-async def test_temp_change_ac_trigger_on_long_enough(
-    hass: HomeAssistant, setup_comp_heat_ac_cool_cycle  # noqa: F811
-) -> None:
-    """Test if temperature change turn ac on."""
-    fake_changed = datetime.datetime(1970, 11, 11, 11, 11, 11, tzinfo=dt_util.UTC)
-    with freeze_time(fake_changed):
-        calls = setup_switch(hass, False)
-    await common.async_set_temperature(hass, 25)
-    setup_sensor(hass, 30)
+    # move back to no switch temp
+    setup_sensor(hass, 30 if sw_on else 25)
     await hass.async_block_till_done()
+
+    # go over cycle time
+    freezer.tick(timedelta(minutes=6))
+    common.async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+
+    # no call, not needed
+    assert len(calls) == 0
+
+    # set temperature to switch
+    setup_sensor(hass, 25 if sw_on else 30)
+    await hass.async_block_till_done()
+
+    # call triggered, time is enough and temp reached
     assert len(calls) == 1
     call = calls[0]
     assert call.domain == HASS_DOMAIN
-    assert call.service == SERVICE_TURN_ON
+    assert call.service == SERVICE_TURN_OFF if sw_on else SERVICE_TURN_ON
     assert call.data["entity_id"] == common.ENT_SWITCH
 
 
-async def test_temp_change_ac_trigger_off_not_long_enough(
-    hass: HomeAssistant, setup_comp_heat_ac_cool_cycle  # noqa: F811
+@pytest.mark.parametrize("sw_on", [True, False])
+@pytest.mark.parametrize("expected_lingering_timers", [True])
+async def test_time_change_ac_trigger_long_enough(
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+    sw_on,
+    setup_comp_heat_ac_cool_cycle,  # noqa: F811
 ) -> None:
-    """Test if temperature change turn ac on."""
-    calls = setup_switch(hass, True)
-    await common.async_set_temperature(hass, 30)
-    setup_sensor(hass, 25)
+    """Test if temperature change turn ac on or off when cycle time is past."""
+    calls = setup_switch(hass, sw_on)
+    await common.async_set_temperature(hass, 28)
+    setup_sensor(hass, 30 if sw_on else 25)
     await hass.async_block_till_done()
+
+    freezer.tick(timedelta(minutes=6))
+    common.async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+
+    # set temperature to switch
+    setup_sensor(hass, 25 if sw_on else 30)
+    await hass.async_block_till_done()
+
+    # no call, not enough time
     assert len(calls) == 0
 
-
-async def test_temp_change_ac_trigger_off_long_enough(
-    hass: HomeAssistant, setup_comp_heat_ac_cool_cycle  # noqa: F811
-) -> None:
-    """Test if temperature change turn ac on."""
-    fake_changed = datetime.datetime(1970, 11, 11, 11, 11, 11, tzinfo=dt_util.UTC)
-    with freeze_time(fake_changed):
-        calls = setup_switch(hass, True)
-    await common.async_set_temperature(hass, 30)
-    setup_sensor(hass, 25)
+    # complete cycle time
+    freezer.tick(timedelta(minutes=5))
+    common.async_fire_time_changed(hass)
     await hass.async_block_till_done()
+
+    # call triggered, time is enough
     assert len(calls) == 1
     call = calls[0]
     assert call.domain == HASS_DOMAIN
-    assert call.service == SERVICE_TURN_OFF
+    assert call.service == SERVICE_TURN_OFF if sw_on else SERVICE_TURN_ON
     assert call.data["entity_id"] == common.ENT_SWITCH
 
 
-async def test_mode_change_ac_trigger_off_not_long_enough(
-    hass: HomeAssistant, setup_comp_heat_ac_cool_cycle  # noqa: F811
+@pytest.mark.parametrize("sw_on", [True, False])
+@pytest.mark.parametrize("expected_lingering_timers", [True])
+async def test_mode_change_ac_trigger_not_long_enough(
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+    sw_on,
+    setup_comp_heat_ac_cool_cycle,  # noqa: F811
 ) -> None:
-    """Test if mode change turns ac off despite minimum cycle."""
-    calls = setup_switch(hass, True)
-    await common.async_set_temperature(hass, 30)
-    setup_sensor(hass, 25)
+    """Test if mode change turns ac off or on despite minimum cycle."""
+    calls = setup_switch(hass, sw_on)
+    await common.async_set_temperature(hass, 28)
+    setup_sensor(hass, 30 if sw_on else 25)
     await hass.async_block_till_done()
-    assert len(calls) == 0
-    await common.async_set_hvac_mode(hass, HVACMode.OFF)
-    assert len(calls) == 1
-    call = calls[0]
-    assert call.domain == "homeassistant"
-    assert call.service == SERVICE_TURN_OFF
-    assert call.data["entity_id"] == common.ENT_SWITCH
 
-
-async def test_mode_change_ac_trigger_on_not_long_enough(
-    hass: HomeAssistant, setup_comp_heat_ac_cool_cycle  # noqa: F811
-) -> None:
-    """Test if mode change turns ac on despite minimum cycle."""
-    calls = setup_switch(hass, False)
-    await common.async_set_temperature(hass, 25)
-    setup_sensor(hass, 30)
+    freezer.tick(timedelta(minutes=6))
+    common.async_fire_time_changed(hass)
     await hass.async_block_till_done()
-    assert len(calls) == 0
-    await common.async_set_hvac_mode(hass, HVACMode.COOL)
-    assert len(calls) == 1
-    call = calls[0]
-    assert call.domain == "homeassistant"
-    assert call.service == SERVICE_TURN_ON
-    assert call.data["entity_id"] == common.ENT_SWITCH
 
-
-async def test_temp_change_ac_trigger_on_not_long_enough_2(
-    hass: HomeAssistant, setup_comp_heat_ac_cool_cycle  # noqa: F811
-) -> None:
-    """Test if temperature change turn ac on."""
-    calls = setup_switch(hass, False)
-    await common.async_set_temperature(hass, 25)
-    setup_sensor(hass, 30)
+    # set temperature to switch
+    setup_sensor(hass, 25 if sw_on else 30)
     await hass.async_block_till_done()
+
+    # no call, not enough time
     assert len(calls) == 0
 
+    # change HVAC mode
+    await common.async_set_hvac_mode(hass, HVACMode.OFF if sw_on else HVACMode.COOL)
 
-async def test_temp_change_ac_trigger_on_long_enough_2(
-    hass: HomeAssistant, setup_comp_heat_ac_cool_cycle  # noqa: F811
-) -> None:
-    """Test if temperature change turn ac on."""
-    fake_changed = datetime.datetime(1970, 11, 11, 11, 11, 11, tzinfo=dt_util.UTC)
-    with freeze_time(fake_changed):
-        calls = setup_switch(hass, False)
-    await common.async_set_temperature(hass, 25)
-    setup_sensor(hass, 30)
-    await hass.async_block_till_done()
     assert len(calls) == 1
     call = calls[0]
     assert call.domain == HASS_DOMAIN
-    assert call.service == SERVICE_TURN_ON
-    assert call.data["entity_id"] == common.ENT_SWITCH
-
-
-async def test_temp_change_ac_trigger_off_not_long_enough_2(
-    hass: HomeAssistant, setup_comp_heat_ac_cool_cycle  # noqa: F811
-) -> None:
-    """Test if temperature change turn ac on."""
-    calls = setup_switch(hass, True)
-    await common.async_set_temperature(hass, 30)
-    setup_sensor(hass, 25)
-    await hass.async_block_till_done()
-    assert len(calls) == 0
-
-
-async def test_temp_change_ac_trigger_off_long_enough_2(
-    hass: HomeAssistant, setup_comp_heat_ac_cool_cycle  # noqa: F811
-) -> None:
-    """Test if temperature change turn ac on."""
-    fake_changed = datetime.datetime(1970, 11, 11, 11, 11, 11, tzinfo=dt_util.UTC)
-    with freeze_time(fake_changed):
-        calls = setup_switch(hass, True)
-    await common.async_set_temperature(hass, 30)
-    setup_sensor(hass, 25)
-    await hass.async_block_till_done()
-    assert len(calls) == 1
-    call = calls[0]
-    assert call.domain == HASS_DOMAIN
-    assert call.service == SERVICE_TURN_OFF
-    assert call.data["entity_id"] == common.ENT_SWITCH
-
-
-async def test_mode_change_ac_trigger_off_not_long_enough_2(
-    hass: HomeAssistant, setup_comp_heat_ac_cool_cycle  # noqa: F811
-) -> None:
-    """Test if mode change turns ac off despite minimum cycle."""
-    calls = setup_switch(hass, True)
-    await common.async_set_temperature(hass, 30)
-    setup_sensor(hass, 25)
-    await hass.async_block_till_done()
-    assert len(calls) == 0
-    await common.async_set_hvac_mode(hass, HVACMode.OFF)
-    assert len(calls) == 1
-    call = calls[0]
-    assert call.domain == "homeassistant"
-    assert call.service == SERVICE_TURN_OFF
-    assert call.data["entity_id"] == common.ENT_SWITCH
-
-
-async def test_mode_change_ac_trigger_on_not_long_enough_2(
-    hass: HomeAssistant, setup_comp_heat_ac_cool_cycle  # noqa: F811
-) -> None:
-    """Test if mode change turns ac on despite minimum cycle."""
-    calls = setup_switch(hass, False)
-    await common.async_set_temperature(hass, 25)
-    setup_sensor(hass, 30)
-    await hass.async_block_till_done()
-    assert len(calls) == 0
-    await common.async_set_hvac_mode(hass, HVACMode.COOL)
-    assert len(calls) == 1
-    call = calls[0]
-    assert call.domain == "homeassistant"
-    assert call.service == SERVICE_TURN_ON
+    assert call.service == SERVICE_TURN_OFF if sw_on else SERVICE_TURN_ON
     assert call.data["entity_id"] == common.ENT_SWITCH
 
 
@@ -1237,8 +1177,13 @@ async def test_cooler_mode_tolerance(
     ],
 )
 @pytest.mark.asyncio
+@pytest.mark.parametrize("expected_lingering_timers", [True])
 async def test_cooler_mode_cycle(
-    hass: HomeAssistant, duration, result_state, setup_comp_1  # noqa: F811
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+    duration,
+    result_state,
+    setup_comp_1,  # noqa: F811
 ) -> None:
     """Test thermostat cooler switch in cooling mode with cycle duration."""
     cooler_switch = "input_boolean.test"
@@ -1278,11 +1223,13 @@ async def test_cooler_mode_cycle(
     setup_sensor(hass, 23)
     await hass.async_block_till_done()
 
-    fake_changed = dt.utcnow() - duration
-    with freeze_time(fake_changed):
-        await common.async_set_temperature(hass, 18)
-        await hass.async_block_till_done()
-        assert hass.states.get(cooler_switch).state == STATE_ON
+    await common.async_set_temperature(hass, 18)
+    await hass.async_block_till_done()
+    assert hass.states.get(cooler_switch).state == STATE_ON
+
+    freezer.tick(duration)
+    common.async_fire_time_changed(hass)
+    await hass.async_block_till_done()
 
     setup_sensor(hass, 17)
     await hass.async_block_till_done()

@@ -4,27 +4,13 @@ import logging
 from homeassistant.components.climate import HVACAction, HVACMode
 from homeassistant.core import HomeAssistant
 
-from custom_components.dual_smart_thermostat.hvac_controller.cooler_controller import (
-    CoolerHvacController,
-)
-from custom_components.dual_smart_thermostat.hvac_controller.hvac_controller import (
-    HvacGoal,
-)
-from custom_components.dual_smart_thermostat.hvac_device.generic_hvac_device import (
-    GenericHVACDevice,
-)
-from custom_components.dual_smart_thermostat.managers.environment_manager import (
-    EnvironmentManager,
-)
-from custom_components.dual_smart_thermostat.managers.feature_manager import (
-    FeatureManager,
-)
-from custom_components.dual_smart_thermostat.managers.hvac_power_manager import (
-    HvacPowerManager,
-)
-from custom_components.dual_smart_thermostat.managers.opening_manager import (
-    OpeningManager,
-)
+from ..hvac_controller.cooler_controller import CoolerHvacController
+from ..hvac_controller.hvac_controller import HvacGoal
+from ..hvac_device.generic_hvac_device import GenericHVACDevice
+from ..managers.environment_manager import EnvironmentManager
+from ..managers.feature_manager import FeatureManager
+from ..managers.hvac_power_manager import HvacPowerManager
+from ..managers.opening_manager import OpeningManager
 
 _LOGGER = logging.getLogger(__name__)
 

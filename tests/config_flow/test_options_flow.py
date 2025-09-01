@@ -103,7 +103,7 @@ async def test_ac_only_options_flow_progression(mock_hass, ac_only_config_entry)
     # Step 1: Init with same system type
     result = await handler.async_step_init({CONF_SYSTEM_TYPE: SYSTEM_TYPE_AC_ONLY})
     assert result["type"] == "form"
-    assert result["step_id"] == "core"
+    assert result["step_id"] == "basic"
 
     # Step 2: Core configuration
     core_data = {
@@ -112,7 +112,7 @@ async def test_ac_only_options_flow_progression(mock_hass, ac_only_config_entry)
         "cold_tolerance": 0.3,
         "hot_tolerance": 0.3,
     }
-    result = await handler.async_step_core(core_data)
+    result = await handler.async_step_basic(core_data)
     assert result["type"] == "form"
 
     # Should proceed to AC-only features
@@ -185,8 +185,8 @@ async def test_options_flow_step_progression(mock_hass, ac_only_config_entry):
         "cold_tolerance": 0.3,
         "hot_tolerance": 0.3,
     }
-    result = await handler.async_step_core(core_data)
-    steps_visited.append("core")
+    result = await handler.async_step_basic(core_data)
+    steps_visited.append("basic")
 
     # Continue through remaining steps with minimal configuration
     max_iterations = 10
@@ -207,7 +207,7 @@ async def test_options_flow_step_progression(mock_hass, ac_only_config_entry):
             break
 
     # Verify we visited expected steps for AC-only system
-    expected_steps = ["core", "ac_only_features"]
+    expected_steps = ["basic", "ac_only_features"]
     for step in expected_steps:
         assert step in steps_visited, f"Missing expected step: {step}"
 
@@ -297,7 +297,7 @@ async def test_system_type_preservation(mock_hass, dual_system_config_entry):
     result = await handler.async_step_init(
         {CONF_SYSTEM_TYPE: SYSTEM_TYPE_HEATER_COOLER}
     )
-    assert result["step_id"] == "core"
+    assert result["step_id"] == "basic"
 
     # The flow should determine steps based on original system type
     original_system = handler.config_entry.data.get(CONF_SYSTEM_TYPE)
@@ -311,7 +311,7 @@ async def test_system_type_preservation(mock_hass, dual_system_config_entry):
         "cold_tolerance": 0.3,
         "hot_tolerance": 0.3,
     }
-    result = await handler.async_step_core(core_data)
+    result = await handler.async_step_basic(core_data)
 
     # Should go to the combined system_features step first (not ac_only_features)
     assert result["step_id"] == "system_features"
@@ -464,7 +464,7 @@ async def test_comprehensive_options_flow_multiple_systems(
                 CONF_COOLER: ac_only_config_entry.data.get(CONF_COOLER),
                 CONF_SENSOR: ac_only_config_entry.data.get(CONF_SENSOR),
             },
-            ["core", "ac_only_features"],
+            ["basic", "ac_only_features"],
         ),
         (
             dual_system_config_entry,
@@ -473,7 +473,7 @@ async def test_comprehensive_options_flow_multiple_systems(
                 CONF_COOLER: dual_system_config_entry.data.get(CONF_COOLER),
                 CONF_SENSOR: dual_system_config_entry.data.get(CONF_SENSOR),
             },
-            ["core", "system_features"],
+            ["basic", "system_features"],
         ),
         (
             heat_pump_config_entry,
@@ -481,7 +481,7 @@ async def test_comprehensive_options_flow_multiple_systems(
                 CONF_HEATER: heat_pump_config_entry.data.get(CONF_HEATER),
                 CONF_SENSOR: heat_pump_config_entry.data.get(CONF_SENSOR),
             },
-            ["core", "system_features"],
+            ["basic", "system_features"],
         ),
         (
             dual_stage_config_entry,
@@ -489,7 +489,7 @@ async def test_comprehensive_options_flow_multiple_systems(
                 CONF_HEATER: dual_stage_config_entry.data.get(CONF_HEATER),
                 CONF_SENSOR: dual_stage_config_entry.data.get(CONF_SENSOR),
             },
-            ["core", "system_features"],
+            ["basic", "system_features"],
         ),
     ]
 
@@ -504,9 +504,9 @@ async def test_comprehensive_options_flow_multiple_systems(
         )
         steps_visited.append("init")
 
-        # Submit core data and progress
-        result = await handler.async_step_core(core_data)
-        steps_visited.append("core")
+        # Submit basic data and progress
+        result = await handler.async_step_basic(core_data)
+        steps_visited.append("basic")
 
         # Walk remaining steps until create_entry or iteration limit
         max_iterations = 20

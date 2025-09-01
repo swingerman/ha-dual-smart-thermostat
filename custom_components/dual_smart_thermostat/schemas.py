@@ -57,6 +57,7 @@ from .const import (
     CONF_TEMP_STEP,
     DEFAULT_TOLERANCE,
     SYSTEM_TYPES,
+    SystemType,
 )
 from .schema_utils import (
     get_boolean_selector,
@@ -94,6 +95,129 @@ def get_base_schema():
             vol.Required(CONF_SENSOR): get_entity_selector(SENSOR_DOMAIN),
         }
     )
+
+
+def get_ac_only_schema(defaults=None, include_name=True):
+    """Get AC-only configuration schema with advanced settings in collapsible section."""
+    # Core AC configuration
+    core_schema = {}
+
+    # Add name field if requested (for config flow, not options flow)
+    if include_name:
+        core_schema[
+            vol.Required(
+                CONF_NAME,
+                default=defaults.get(CONF_NAME) if defaults else vol.UNDEFINED,
+            )
+        ] = get_text_selector()
+
+    # Sensors
+    core_schema[
+        vol.Required(
+            CONF_SENSOR,
+            default=defaults.get(CONF_SENSOR) if defaults else vol.UNDEFINED,
+        )
+    ] = get_entity_selector(SENSOR_DOMAIN)
+
+    # Air conditioning switch (using heater field for backward compatibility)
+    core_schema[
+        vol.Required(
+            CONF_HEATER,
+            default=defaults.get(CONF_HEATER) if defaults else vol.UNDEFINED,
+        )
+    ] = get_entity_selector(SWITCH_DOMAIN)
+
+    # Advanced settings in collapsible section
+    advanced_section_schema = vol.Schema(
+        {
+            vol.Optional(
+                CONF_COLD_TOLERANCE,
+                default=(
+                    defaults.get(CONF_COLD_TOLERANCE) if defaults else DEFAULT_TOLERANCE
+                ),
+            ): get_temperature_selector(min_value=0.1, max_value=10, step=0.1),
+            vol.Optional(
+                CONF_HOT_TOLERANCE,
+                default=(
+                    defaults.get(CONF_HOT_TOLERANCE) if defaults else DEFAULT_TOLERANCE
+                ),
+            ): get_temperature_selector(min_value=0.1, max_value=10, step=0.1),
+            vol.Optional(
+                CONF_MIN_DUR, default=defaults.get(CONF_MIN_DUR) if defaults else 300
+            ): get_time_selector(min_value=0, max_value=3600),
+            vol.Optional(
+                CONF_KEEP_ALIVE,
+                default=defaults.get(CONF_KEEP_ALIVE) if defaults else 300,
+            ): get_time_selector(min_value=0, max_value=3600),
+        }
+    )
+
+    # Add advanced settings as a collapsible section
+    core_schema[vol.Optional("advanced_settings")] = section(
+        advanced_section_schema, {"collapsed": True}
+    )
+
+    return vol.Schema(core_schema)
+
+
+def get_simple_heater_schema(defaults=None, include_name=True):
+    """Get simple heater configuration schema with advanced settings in collapsible section."""
+    # Core heater configuration
+    core_schema = {}
+
+    if include_name:
+        # Basic Information
+        core_schema[
+            vol.Required(
+                CONF_NAME,
+                default=defaults.get(CONF_NAME) if defaults else vol.UNDEFINED,
+            )
+        ] = get_text_selector()
+
+    # Sensors
+    core_schema[
+        vol.Required(
+            CONF_SENSOR,
+            default=defaults.get(CONF_SENSOR) if defaults else vol.UNDEFINED,
+        )
+    ] = get_entity_selector(SENSOR_DOMAIN)
+
+    # Heater switch
+    core_schema[
+        vol.Required(
+            CONF_HEATER,
+            default=defaults.get(CONF_HEATER) if defaults else vol.UNDEFINED,
+        )
+    ] = get_entity_selector(SWITCH_DOMAIN)
+
+    # Advanced settings in collapsible section
+    advanced_section_schema = vol.Schema(
+        {
+            vol.Optional(
+                CONF_COLD_TOLERANCE,
+                default=(
+                    defaults.get(CONF_COLD_TOLERANCE) if defaults else DEFAULT_TOLERANCE
+                ),
+            ): get_temperature_selector(min_value=0.1, max_value=10, step=0.1),
+            vol.Optional(
+                CONF_HOT_TOLERANCE,
+                default=(
+                    defaults.get(CONF_HOT_TOLERANCE) if defaults else DEFAULT_TOLERANCE
+                ),
+            ): get_temperature_selector(min_value=0.1, max_value=10, step=0.1),
+            vol.Optional(
+                CONF_MIN_DUR,
+                default=defaults.get(CONF_MIN_DUR) if defaults else 300,
+            ): get_time_selector(min_value=0, max_value=3600),
+        }
+    )
+
+    # Add advanced settings as a collapsible section
+    core_schema[vol.Optional("advanced_settings")] = section(
+        advanced_section_schema, {"collapsed": True}
+    )
+
+    return vol.Schema(core_schema)
 
 
 def get_grouped_schema(
@@ -226,97 +350,104 @@ def get_humidity_toggle_schema():
     )
 
 
+def get_features_schema(
+    system_type: str | SystemType, defaults: dict[str, Any] | None = None
+):
+    """Get unified features selection schema for any system type.
+
+    This replaces the individual get_ac_only_features_schema, get_simple_heater_features_schema,
+    and get_system_features_schema functions with a single DRY implementation.
+
+    Args:
+        system_type: The type of system (SystemType enum value or string)
+        defaults: Optional defaults dict to pre-select features (for options flow)
+
+    Returns:
+        Schema with appropriate feature toggles based on system type
+    """
+    defaults = defaults or {}
+    schema_dict: dict[Any, Any] = {}
+
+    # Convert string to enum if needed
+    if isinstance(system_type, str):
+        try:
+            system_type = SystemType(system_type)
+        except ValueError:
+            # Fallback for unknown system types
+            system_type = SystemType.SIMPLE_HEATER
+
+    # Define feature availability by system type
+    system_features = {
+        SystemType.AC_ONLY: ["fan", "humidity", "openings", "presets", "advanced"],
+        SystemType.SIMPLE_HEATER: ["floor_heating", "openings", "presets", "advanced"],
+        SystemType.HEATER_COOLER: [
+            "floor_heating",
+            "fan",
+            "humidity",
+            "openings",
+            "presets",
+            "advanced",
+        ],
+        SystemType.HEAT_PUMP: [
+            "floor_heating",
+            "fan",
+            "humidity",
+            "openings",
+            "presets",
+            "advanced",
+        ],
+        SystemType.DUAL_STAGE: ["floor_heating", "openings", "presets", "advanced"],
+    }
+
+    # Get available features for this system type
+    available_features = system_features.get(
+        system_type, ["openings", "presets", "advanced"]
+    )
+
+    # Define feature order for consistent UI
+    feature_order = [
+        "floor_heating",
+        "fan",
+        "humidity",
+        "openings",
+        "presets",
+        "advanced",
+    ]
+
+    # Add features in defined order if they're available for this system
+    for feature in feature_order:
+        if feature in available_features:
+            config_key = f"configure_{feature}"
+            schema_dict[
+                vol.Optional(config_key, default=bool(defaults.get(config_key, False)))
+            ] = get_boolean_selector()
+
+    return vol.Schema(schema_dict)
+
+
+# Legacy functions for backward compatibility - these now delegate to the unified function
 def get_ac_only_features_schema(defaults: dict[str, Any] | None = None):
     """Get AC only features selection schema.
 
-    Accepts an optional `defaults` dict to pre-select toggles for features that
-    are already configured in the current entry data (used by the options flow).
+    DEPRECATED: Use get_features_schema(SystemType.AC_ONLY, defaults) instead.
     """
-    defaults = defaults or {}
-    return vol.Schema(
-        {
-            vol.Optional(
-                "configure_fan", default=bool(defaults.get("configure_fan", False))
-            ): get_boolean_selector(),
-            vol.Optional(
-                "configure_openings",
-                default=bool(defaults.get("configure_openings", False)),
-            ): get_boolean_selector(),
-            vol.Optional(
-                "configure_humidity",
-                default=bool(defaults.get("configure_humidity", False)),
-            ): get_boolean_selector(),
-            vol.Optional(
-                "configure_presets",
-                default=bool(defaults.get("configure_presets", False)),
-            ): get_boolean_selector(),
-            vol.Optional(
-                "configure_advanced",
-                default=bool(defaults.get("configure_advanced", False)),
-            ): get_boolean_selector(),
-        }
-    )
+    return get_features_schema(SystemType.AC_ONLY, defaults)
 
 
 def get_simple_heater_features_schema(defaults: dict[str, Any] | None = None):
     """Get Simple Heater features selection schema.
 
-    The simple heater doesn't expose AC-specific features like fan or
-    humidity by default, but users may still want to configure openings,
-    presets or advanced settings. This combined step mirrors the AC-only
-    features step but scoped for simple heater systems.
+    DEPRECATED: Use get_features_schema(SystemType.SIMPLE_HEATER, defaults) instead.
     """
-    defaults = defaults or {}
-    return vol.Schema(
-        {
-            vol.Optional(
-                "configure_openings",
-                default=bool(defaults.get("configure_openings", False)),
-            ): get_boolean_selector(),
-            vol.Optional(
-                "configure_presets",
-                default=bool(defaults.get("configure_presets", False)),
-            ): get_boolean_selector(),
-            vol.Optional(
-                "configure_floor_heating",
-                default=bool(defaults.get("configure_floor_heating", False)),
-            ): get_boolean_selector(),
-            vol.Optional(
-                "configure_advanced",
-                default=bool(defaults.get("configure_advanced", False)),
-            ): get_boolean_selector(),
-        }
-    )
+    return get_features_schema(SystemType.SIMPLE_HEATER, defaults)
 
 
 def get_system_features_schema(system_type: str):
     """Return a features-selection schema tailored to the given system type.
 
-    This lets each system present a single combined "which features do you
-    want to configure" step (including advanced), and subsequent steps are
-    shown conditionally based on the selections.
+    DEPRECATED: Use get_features_schema(system_type) instead.
     """
-    # Base features available to most systems
-    schema = {
-        vol.Optional("configure_presets", default=False): get_boolean_selector(),
-        vol.Optional("configure_openings", default=False): get_boolean_selector(),
-        vol.Optional("configure_advanced", default=False): get_boolean_selector(),
-    }
-
-    if system_type in ["heater_cooler", "heat_pump"]:
-        # These systems can have fans and humidity control
-        schema[vol.Optional("configure_fan", default=False)] = get_boolean_selector()
-        schema[vol.Optional("configure_humidity", default=False)] = (
-            get_boolean_selector()
-        )
-
-    # Floor heating can be configured for most heating-capable systems
-    if system_type in ["simple_heater", "heater_cooler", "heat_pump", "dual_stage"]:
-        schema[vol.Optional("configure_floor_heating", default=False)] = (
-            get_boolean_selector()
-        )
-
-    return vol.Schema(schema)
+    return get_features_schema(system_type)
 
 
 def get_core_schema(

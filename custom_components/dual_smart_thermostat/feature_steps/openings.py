@@ -150,11 +150,10 @@ class OpeningsSteps:
         # Build schema: include scope selector plus section-based per-entity timeout fields
         schema_dict = {}
 
-        # Add HVAC scope options similar to options flow
+        # Add HVAC scope options based on system configuration
         scope_options = [{"value": "all", "label": "All HVAC modes"}]
-        if collected_config.get("heater"):
-            scope_options.append({"value": "heat", "label": "Heating only"})
 
+        # Cool mode - available when cooling capability exists
         has_cooling = (
             bool(collected_config.get("cooler"))
             or bool(collected_config.get("ac_mode"))
@@ -163,11 +162,30 @@ class OpeningsSteps:
         if has_cooling:
             scope_options.append({"value": "cool", "label": "Cooling only"})
 
-        if collected_config.get("heater") and has_cooling:
+        # Heat mode - available when heater is configured AND not in AC-only mode
+        # (AC-only mode uses heater entity as AC unit)
+        has_heating = (
+            bool(collected_config.get("heater"))
+            and not (
+                collected_config.get("ac_mode") and not collected_config.get("cooler")
+            )
+        ) or bool(collected_config.get("heat_pump_cooling"))
+
+        if has_heating:
+            scope_options.append({"value": "heat", "label": "Heating only"})
+
+        # Heat/Cool mode - available when both heating and cooling are configured
+        # and heat_cool_mode is enabled
+        if has_heating and has_cooling and collected_config.get("heat_cool_mode"):
             scope_options.append({"value": "heat_cool", "label": "Heat/Cool mode"})
 
-        if collected_config.get("fan"):
+        # Fan mode - available when fan is configured (all system types)
+        if collected_config.get("fan") or collected_config.get("fan_mode"):
             scope_options.append({"value": "fan_only", "label": "Fan only"})
+
+        # Dry mode - available when dryer is configured (all system types)
+        if collected_config.get("dryer"):
+            scope_options.append({"value": "dry", "label": "Dry mode"})
 
         # Add scope selector
         schema_dict[

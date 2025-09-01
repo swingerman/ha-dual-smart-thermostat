@@ -10,15 +10,11 @@ from homeassistant.const import ATTR_TEMPERATURE
 from homeassistant.core import State
 from homeassistant.helpers.typing import ConfigType
 
-from custom_components.dual_smart_thermostat.const import CONF_PRESETS, CONF_PRESETS_OLD
-from custom_components.dual_smart_thermostat.managers.environment_manager import (
-    EnvironmentManager,
-)
-from custom_components.dual_smart_thermostat.managers.feature_manager import (
-    FeatureManager,
-)
-from custom_components.dual_smart_thermostat.managers.state_manager import StateManager
-from custom_components.dual_smart_thermostat.preset_env.preset_env import PresetEnv
+from ..const import CONF_PRESETS, CONF_PRESETS_OLD
+from ..managers.environment_manager import EnvironmentManager
+from ..managers.feature_manager import FeatureManager
+from ..managers.state_manager import StateManager
+from ..preset_env.preset_env import PresetEnv
 
 _LOGGER = logging.getLogger(__name__)
 

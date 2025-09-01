@@ -143,13 +143,9 @@ class PresetsSteps:
                 defaults = presets_list
             else:
                 # Fallback: detect boolean keys for older format
-                for preset_key in __import__(
-                    "..const", fromlist=["CONF_PRESETS"]
-                ).CONF_PRESETS:
+                for preset_key in CONF_PRESETS:
                     if current_config.get(preset_key) or current_config.get(
-                        __import__(
-                            "..const", fromlist=["CONF_PRESETS"]
-                        ).CONF_PRESETS.get(preset_key)
+                        CONF_PRESETS.get(preset_key)
                     ):
                         defaults.append(preset_key)
 

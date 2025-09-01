@@ -18,7 +18,6 @@ from .const import (  # CONF_MIN_DUR and CONF_SENSOR are not used in this module
     CONF_COLD_TOLERANCE,
     CONF_COOLER,
     CONF_FAN,
-    CONF_FLOOR_SENSOR,
     CONF_HEAT_COOL_MODE,
     CONF_HEAT_PUMP_COOLING,
     CONF_HEATER,
@@ -50,13 +49,13 @@ from .feature_steps import (
     PresetsSteps,
 )
 from .schemas import (
-    get_ac_only_features_schema,
+    get_ac_only_schema,
     get_core_schema,
     get_fan_toggle_schema,
+    get_features_schema,
     get_heat_cool_mode_schema,
     get_humidity_toggle_schema,
-    get_simple_heater_features_schema,
-    get_system_features_schema,
+    get_simple_heater_schema,
 )
 
 
@@ -105,9 +104,7 @@ class OptionsFlowHandler(OptionsFlow):
             step_flags = [
                 "dual_stage_options_shown",
                 "floor_options_shown",
-                "simple_heater_features_shown",
-                "system_features_shown",
-                "ac_only_features_shown",
+                "features_shown",  # The unified features step flag
                 "advanced_shown",
                 "configure_advanced",  # Clear the advanced toggle state
                 "fan_toggle_shown",
@@ -133,8 +130,8 @@ class OptionsFlowHandler(OptionsFlow):
             for flag in step_flags:
                 self.collected_config.pop(flag, None)
 
-            # Proceed to core reconfiguration step
-            return await self.async_step_core()
+            # Proceed to basic reconfiguration step
+            return await self.async_step_basic()
 
         # Reuse existing system type schema but default to current system type
         # Provide description so user understands they can leave unchanged
@@ -159,10 +156,10 @@ class OptionsFlowHandler(OptionsFlow):
             data_schema=schema,
         )
 
-    async def async_step_core(
+    async def async_step_basic(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Core system entities & tolerances reconfiguration (previous init)."""
+        """Basic system entities & tolerances reconfiguration."""
         if user_input is not None:
             # Merge edits with any previously stored overrides
             effective_system_type = self.collected_config.get(
@@ -184,17 +181,35 @@ class OptionsFlowHandler(OptionsFlow):
             current_config.get(CONF_SYSTEM_TYPE, SYSTEM_TYPE_SIMPLE_HEATER),
         )
 
-        # Build a shared core schema used by both config and options flows.
+        # Build a shared basic schema used by both config and options flows.
         # Provide current_config as defaults and omit the name field in options flow.
-        return self.async_show_form(
-            step_id="core",
-            data_schema=get_core_schema(
+
+        # For simple heater systems, use the dedicated schema with advanced settings
+        if effective_system_type == SYSTEM_TYPE_SIMPLE_HEATER:
+            schema = get_simple_heater_schema(
+                defaults=current_config, include_name=False
+            )
+        elif effective_system_type == SYSTEM_TYPE_AC_ONLY:
+            # For AC-only systems, use the dedicated schema with advanced settings in collapsible section
+            schema = get_ac_only_schema(defaults=current_config, include_name=False)
+        else:
+            schema = get_core_schema(
                 effective_system_type, defaults=current_config, include_name=False
-            ),
+            )
+
+        return self.async_show_form(
+            step_id="basic",
+            data_schema=schema,
         )
 
     async def _determine_options_next_step(self) -> FlowResult:
-        """Determine next step for options flow."""
+        """Determine next step for options flow.
+
+        CRITICAL: Configuration step ordering rules (see .copilot-instructions.md):
+        1. Openings steps must be among the last configuration steps (depend on system config)
+        2. Presets steps must be the absolute final steps (depend on all other settings)
+        3. Feature configuration must be ordered based on dependencies
+        """
         current_config = self._get_entry().data
         # If user changed system type earlier, use override; else original persisted
         original_system_type = self.collected_config.get(
@@ -229,35 +244,10 @@ class OptionsFlowHandler(OptionsFlow):
             self.collected_config["floor_options_shown"] = True
             return await self.async_step_floor_options()
 
-        # For AC-only systems, show combined features configuration
-        if (
-            original_system_type == SYSTEM_TYPE_AC_ONLY
-            and "ac_only_features_shown" not in self.collected_config
-        ):
-            self.collected_config["ac_only_features_shown"] = True
-            return await self.async_step_ac_only_features()
-
-        # For simple heater systems, show combined features configuration
-        if (
-            original_system_type == SYSTEM_TYPE_SIMPLE_HEATER
-            and "simple_heater_features_shown" not in self.collected_config
-        ):
-            self.collected_config["simple_heater_features_shown"] = True
-            return await self.async_step_simple_heater_features()
-
-        # For non-AC systems (heater_cooler, heat_pump, dual_stage) show a
-        # combined features-selection step before presenting per-feature toggles
-        if (
-            original_system_type
-            in [
-                SYSTEM_TYPE_HEATER_COOLER,
-                SYSTEM_TYPE_HEAT_PUMP,
-                SYSTEM_TYPE_DUAL_STAGE,
-            ]
-            and "system_features_shown" not in self.collected_config
-        ):
-            self.collected_config["system_features_shown"] = True
-            return await self.async_step_system_features()
+        # Show unified features configuration for all systems
+        if "features_shown" not in self.collected_config:
+            self.collected_config["features_shown"] = True
+            return await self.async_step_features()
 
         # Show fan toggle for other systems with cooling capability
         if (
@@ -304,6 +294,9 @@ class OptionsFlowHandler(OptionsFlow):
         ):
             return await self.async_step_heat_cool_mode()
 
+        # CRITICAL: Show openings options AFTER all feature configuration is complete
+        # This ensures openings scope generation has access to all configured features
+
         # Show openings options.
         # - For AC-only systems: only if user selected configure_openings.
         # - For simple heater: only if user selected configure_openings (the
@@ -339,9 +332,13 @@ class OptionsFlowHandler(OptionsFlow):
             return await self.async_step_preset_selection()
 
         # Final step - update the config entry
+        # Merge collected config with existing entry data to preserve all fields
+        entry = self._get_entry()
+        updated_data = {**entry.data, **self.collected_config}
+
         return self.async_create_entry(
             title="",  # Empty title for options flow
-            data=self.collected_config,
+            data=updated_data,
         )
 
     async def async_step_dual_stage_options(
@@ -421,159 +418,58 @@ class OptionsFlowHandler(OptionsFlow):
             data_schema=get_humidity_toggle_schema(),
         )
 
-    async def async_step_ac_only_features(
+    async def async_step_features(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Handle AC-only system features configuration in options flow."""
+        """Handle unified features configuration for all system types in options flow.
+
+        Present a single combined step where the user picks which feature
+        areas to configure. The available features are automatically determined
+        based on the system type.
+        """
         if user_input is not None:
             # Check if user wants to show advanced options
             show_advanced = user_input.get("configure_advanced", False)
 
-            # Always update the collected config with user input
-            self.collected_config.update(user_input)
-
-            # Mark this selection step as shown so the next-step determiner
-            # does not try to show it again and cause a loop.
-            self.collected_config["ac_only_features_shown"] = True
-
-            # If user toggled advanced options, redirect to the dedicated advanced options step
-            if show_advanced:
+            # If this is the first submission and advanced is enabled, show advanced form
+            if show_advanced and "advanced_shown" not in self.collected_config:
+                self.collected_config.update(user_input)
+                self.collected_config["advanced_shown"] = True
                 return await self.async_step_advanced_options()
 
-            # Otherwise, clear the advanced toggle flags and continue to next step
+            # Otherwise, process the final submission and continue
+            self.collected_config.update(user_input)
+            # Clear the advanced toggle flags to prevent re-showing
             self.collected_config.pop("configure_advanced", None)
             self.collected_config.pop("advanced_shown", None)
             return await self._determine_options_next_step()
 
-        # For initial display in options flow, always start with basic form
+        # For initial display, always start with basic form
         # Reset any advanced state to ensure clean start
         self.collected_config.pop("configure_advanced", None)
         self.collected_config.pop("advanced_shown", None)
 
         current_config = self._get_entry().data
+        system_type = current_config.get(CONF_SYSTEM_TYPE)
 
         return self.async_show_form(
-            step_id="ac_only_features",
-            data_schema=get_ac_only_features_schema(
+            step_id="features",
+            data_schema=get_features_schema(
+                system_type,
                 {
                     # Prefer any explicit collected overrides, otherwise use
                     # the persisted entry data to infer which feature toggles
-                    # should be preselected.
-                    "configure_fan": bool(
-                        self.collected_config.get("configure_fan")
-                        or current_config.get(CONF_FAN)
-                    ),
-                    "configure_openings": bool(
-                        self.collected_config.get("configure_openings")
-                        or current_config.get("openings")
-                    ),
-                    "configure_humidity": bool(
-                        self.collected_config.get("configure_humidity")
-                        or current_config.get(CONF_HUMIDITY_SENSOR)
-                    ),
-                    "configure_presets": bool(
-                        self.collected_config.get("configure_presets")
-                        or current_config.get("presets")
-                    ),
-                    "configure_advanced": bool(
-                        self.collected_config.get("configure_advanced", False)
-                    ),
-                }
+                    # should be pre-checked based on what the user had
+                    # previously enabled. For example, if the user had
+                    # configure_openings=True before, pre-check it again.
+                    **{
+                        k: bool(v)
+                        for k, v in current_config.items()
+                        if k.startswith("configure_")
+                    },
+                    **self.collected_config,
+                },
             ),
-            description_placeholders={
-                "subtitle": "Choose which features to configure for your AC system"
-            },
-        )
-
-    async def async_step_simple_heater_features(
-        self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
-        """Handle Simple Heater system features configuration in options flow."""
-        if user_input is not None:
-            # If advanced requested, redirect to advanced options
-            show_advanced = user_input.get("configure_advanced", False)
-
-            # Always update collected config with user choices
-            self.collected_config.update(user_input)
-
-            # Mark this selection step as shown to avoid _determine_options_next_step
-            # redisplaying the same step.
-            self.collected_config["simple_heater_features_shown"] = True
-
-            if show_advanced:
-                return await self.async_step_advanced_options()
-
-            # If user selected floor heating, go straight to floor options
-            if self.collected_config.get("configure_floor_heating"):
-                self.collected_config["floor_options_shown"] = True
-                return await self.async_step_floor_options()
-
-            # Otherwise continue the normal options sequence
-            self.collected_config.pop("configure_advanced", None)
-            return await self._determine_options_next_step()
-
-        # Initial display: reset advanced flag
-        self.collected_config.pop("configure_advanced", None)
-        current_config = self._get_entry().data
-
-        return self.async_show_form(
-            step_id="simple_heater_features",
-            data_schema=get_simple_heater_features_schema(
-                {
-                    "configure_openings": bool(
-                        self.collected_config.get("configure_openings")
-                        or current_config.get("openings")
-                    ),
-                    "configure_presets": bool(
-                        self.collected_config.get("configure_presets")
-                        or current_config.get("presets")
-                    ),
-                    "configure_floor_heating": bool(
-                        self.collected_config.get("configure_floor_heating")
-                        or current_config.get(CONF_FLOOR_SENSOR)
-                    ),
-                    "configure_advanced": bool(
-                        self.collected_config.get("configure_advanced", False)
-                    ),
-                }
-            ),
-            description_placeholders={
-                "subtitle": "Choose which features to configure for your heater"
-            },
-        )
-
-    async def async_step_system_features(
-        self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
-        """Handle generic system features configuration in options flow.
-
-        Mirrors the config flow's `system_features` step but in the options
-        handler. Presents a combined selection tailored to the system type and
-        redirects to advanced options if requested.
-        """
-        system_type = self.collected_config.get(CONF_SYSTEM_TYPE)
-
-        if user_input is not None:
-            show_advanced = user_input.get("configure_advanced", False)
-
-            # Always update collected config with selections
-            self.collected_config.update(user_input)
-
-            if show_advanced:
-                return await self.async_step_advanced_options()
-
-            # Clear transient flags and continue
-            self.collected_config.pop("configure_advanced", None)
-            self.collected_config.pop("advanced_shown", None)
-            return await self._determine_options_next_step()
-
-        # Initial display: ensure advanced flags cleared
-        self.collected_config.pop("configure_advanced", None)
-        self.collected_config.pop("advanced_shown", None)
-
-        return self.async_show_form(
-            step_id="system_features",
-            data_schema=get_system_features_schema(system_type),
             description_placeholders={
                 "subtitle": "Choose which features to configure for your system"
             },

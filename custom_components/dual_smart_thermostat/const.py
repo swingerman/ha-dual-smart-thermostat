@@ -19,25 +19,39 @@ DEFAULT_TOLERANCE = 0.3
 DEFAULT_NAME = "Dual Smart Thermostat"
 DEFAULT_MAX_FLOOR_TEMP = 28.0
 
+MIN_CYCLE_KEEP_ALIVE = 60.0
+
 DOMAIN = "dual_smart_thermostat"
 
 # Configuration keys
 CONF_SYSTEM_TYPE = "system_type"
 
-# System type values
-SYSTEM_TYPE_SIMPLE_HEATER = "simple_heater"
-SYSTEM_TYPE_AC_ONLY = "ac_only"
-SYSTEM_TYPE_HEATER_COOLER = "heater_cooler"
-SYSTEM_TYPE_HEAT_PUMP = "heat_pump"
-SYSTEM_TYPE_DUAL_STAGE = "dual_stage"
-SYSTEM_TYPE_FLOOR_HEATING = "floor_heating"
+
+class SystemType(enum.StrEnum):
+    """System type enumeration for dual smart thermostat."""
+
+    SIMPLE_HEATER = "simple_heater"
+    AC_ONLY = "ac_only"
+    HEATER_COOLER = "heater_cooler"
+    HEAT_PUMP = "heat_pump"
+    DUAL_STAGE = "dual_stage"
+    FLOOR_HEATING = "floor_heating"
+
+
+# Legacy constants for backward compatibility
+SYSTEM_TYPE_SIMPLE_HEATER = SystemType.SIMPLE_HEATER
+SYSTEM_TYPE_AC_ONLY = SystemType.AC_ONLY
+SYSTEM_TYPE_HEATER_COOLER = SystemType.HEATER_COOLER
+SYSTEM_TYPE_HEAT_PUMP = SystemType.HEAT_PUMP
+SYSTEM_TYPE_DUAL_STAGE = SystemType.DUAL_STAGE
+SYSTEM_TYPE_FLOOR_HEATING = SystemType.FLOOR_HEATING
 
 # System types for UI selection
 SYSTEM_TYPES = {
-    SYSTEM_TYPE_SIMPLE_HEATER: "Simple Heater Only",
-    SYSTEM_TYPE_AC_ONLY: "Air Conditioning Only",
-    SYSTEM_TYPE_HEATER_COOLER: "Heater with Cooler",
-    SYSTEM_TYPE_HEAT_PUMP: "Heat Pump",
+    SystemType.SIMPLE_HEATER: "Simple Heater Only",
+    SystemType.AC_ONLY: "Air Conditioning Only",
+    SystemType.HEATER_COOLER: "Heater with Cooler",
+    SystemType.HEAT_PUMP: "Heat Pump",
     "advanced": "Advanced (Custom Setup)",
 }
 

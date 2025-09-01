@@ -3,12 +3,17 @@
 
 from unittest.mock import Mock, patch
 
+from homeassistant.const import CONF_NAME
 import pytest
 
 from custom_components.dual_smart_thermostat.config_flow import ConfigFlowHandler
 from custom_components.dual_smart_thermostat.const import (
+    CONF_COLD_TOLERANCE,
     CONF_COOLER,
     CONF_HEATER,
+    CONF_HOT_TOLERANCE,
+    CONF_KEEP_ALIVE,
+    CONF_MIN_DUR,
     CONF_SENSOR,
     CONF_SYSTEM_TYPE,
     SYSTEM_TYPE_AC_ONLY,
@@ -62,14 +67,92 @@ async def test_ac_only_config_flow():
 
     # Step 2: Cooling configuration
     cooling_input = {
-        CONF_COOLER: "switch.ac_unit",  # Use cooler field for better UX (gets converted to heater internally)
+        CONF_NAME: "AC Thermostat",
+        CONF_HEATER: "switch.ac_unit",  # AC-only uses heater field for backward compatibility
         CONF_SENSOR: "sensor.temperature",
-        "ac_mode": True,
+        "advanced_settings": {
+            CONF_COLD_TOLERANCE: 0.5,
+            CONF_HOT_TOLERANCE: 0.5,
+            CONF_MIN_DUR: 300,
+            CONF_KEEP_ALIVE: 300,
+        },
     }
     result = await flow.async_step_cooling_only(cooling_input)
 
     assert result["type"] == "form"
     assert result["step_id"] == "ac_only_features"
+
+    # Verify that advanced settings were flattened to top level
+    assert CONF_COLD_TOLERANCE in flow.collected_config
+    assert CONF_HOT_TOLERANCE in flow.collected_config
+    assert CONF_MIN_DUR in flow.collected_config
+    assert CONF_KEEP_ALIVE in flow.collected_config
+    assert flow.collected_config[CONF_COLD_TOLERANCE] == 0.5
+    assert flow.collected_config[CONF_HOT_TOLERANCE] == 0.5
+    assert flow.collected_config[CONF_MIN_DUR] == 300
+    assert flow.collected_config[CONF_KEEP_ALIVE] == 300
+
+
+async def test_ac_only_config_flow_without_advanced_settings():
+    """Test AC-only configuration flow without advanced settings."""
+    flow = ConfigFlowHandler()
+    flow.hass = Mock()
+    flow.collected_config = {}
+
+    # Step 1: User selects AC-only system
+    user_input = {CONF_SYSTEM_TYPE: SYSTEM_TYPE_AC_ONLY}
+    result = await flow.async_step_user(user_input)
+
+    # Step 2: Cooling configuration without advanced settings
+    cooling_input = {
+        CONF_NAME: "AC Thermostat",
+        CONF_HEATER: "switch.ac_unit",
+        CONF_SENSOR: "sensor.temperature",
+    }
+    result = await flow.async_step_cooling_only(cooling_input)
+
+    assert result["type"] == "form"
+    assert result["step_id"] == "ac_only_features"
+
+    # Verify that default values are not set when not provided
+    assert CONF_COLD_TOLERANCE not in flow.collected_config
+    assert CONF_HOT_TOLERANCE not in flow.collected_config
+    assert CONF_MIN_DUR not in flow.collected_config
+    assert CONF_KEEP_ALIVE not in flow.collected_config
+
+
+async def test_ac_only_config_flow_with_custom_tolerances():
+    """Test AC-only configuration flow with custom tolerance values."""
+    flow = ConfigFlowHandler()
+    flow.hass = Mock()
+    flow.collected_config = {}
+
+    # Step 1: User selects AC-only system
+    user_input = {CONF_SYSTEM_TYPE: SYSTEM_TYPE_AC_ONLY}
+    result = await flow.async_step_user(user_input)
+
+    # Step 2: Cooling configuration with custom tolerance values
+    cooling_input = {
+        CONF_NAME: "AC Thermostat",
+        CONF_HEATER: "switch.ac_unit",
+        CONF_SENSOR: "sensor.temperature",
+        "advanced_settings": {
+            CONF_COLD_TOLERANCE: 1.0,
+            CONF_HOT_TOLERANCE: 0.8,
+            CONF_MIN_DUR: 600,
+            CONF_KEEP_ALIVE: 180,
+        },
+    }
+    result = await flow.async_step_cooling_only(cooling_input)
+
+    assert result["type"] == "form"
+    assert result["step_id"] == "ac_only_features"
+
+    # Verify that custom tolerance values are properly set
+    assert flow.collected_config[CONF_COLD_TOLERANCE] == 1.0
+    assert flow.collected_config[CONF_HOT_TOLERANCE] == 0.8
+    assert flow.collected_config[CONF_MIN_DUR] == 600
+    assert flow.collected_config[CONF_KEEP_ALIVE] == 180
 
 
 async def test_ac_only_features_selection():

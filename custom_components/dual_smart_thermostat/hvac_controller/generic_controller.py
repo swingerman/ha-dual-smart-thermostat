@@ -10,19 +10,10 @@ from homeassistant.exceptions import ConditionError
 from homeassistant.helpers import condition
 import homeassistant.util.dt as dt_util
 
-from custom_components.dual_smart_thermostat.hvac_action_reason.hvac_action_reason import (
-    HVACActionReason,
-)
-from custom_components.dual_smart_thermostat.hvac_controller.hvac_controller import (
-    HvacController,
-    HvacEnvStrategy,
-)
-from custom_components.dual_smart_thermostat.managers.environment_manager import (
-    EnvironmentManager,
-)
-from custom_components.dual_smart_thermostat.managers.opening_manager import (
-    OpeningManager,
-)
+from ..hvac_action_reason.hvac_action_reason import HVACActionReason
+from ..hvac_controller.hvac_controller import HvacController, HvacEnvStrategy
+from ..managers.environment_manager import EnvironmentManager
+from ..managers.opening_manager import OpeningManager
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -72,7 +63,7 @@ class GenericHvacController(HvacController):
         """If the toggleable hvac device is currently active."""
         on_state = STATE_OPEN if self._is_valve else STATE_ON
 
-        _LOGGER.info(
+        _LOGGER.debug(
             "Checking if device is active: %s, on_state: %s",
             self.entity_id,
             on_state,
@@ -110,7 +101,7 @@ class GenericHvacController(HvacController):
         self, active: bool, hvac_mode: HVACMode, time=None, force=False
     ) -> bool:
         """Checks if the controller needs to continue."""
-        if not active or hvac_mode == HVACMode.OFF:
+        if (not active or hvac_mode == HVACMode.OFF) and time is None:
             _LOGGER.debug(
                 "Not active or hvac mode is off active: %s, _hvac_mode: %s",
                 active,
@@ -137,8 +128,11 @@ class GenericHvacController(HvacController):
         time=None,
     ) -> None:
         """Check if we need to turn heating on or off when theheater is on."""
-
-        _LOGGER.info("%s Controlling hvac while on", self.__class__.__name__)
+        _LOGGER.debug(
+            "%s Controlling hvac entity %s while on",
+            self.__class__.__name__,
+            self.entity_id,
+        )
         _LOGGER.debug("below_env_attr: %s", strategy.hvac_goal_reached)
         _LOGGER.debug("any_opening_open: %s", any_opening_open)
         _LOGGER.debug("hvac_goal_reached: %s", strategy.hvac_goal_reached)
@@ -176,7 +170,11 @@ class GenericHvacController(HvacController):
         time=None,
     ) -> None:
         """Check if we need to turn heating on or off when the heater is off."""
-        _LOGGER.info("%s Controlling hvac while off", self.__class__.__name__)
+        _LOGGER.debug(
+            "%s Controlling hvac entity %s while off",
+            self.__class__.__name__,
+            self.entity_id,
+        )
         _LOGGER.debug("above_env_attr: %s", strategy.hvac_goal_reached)
         _LOGGER.debug("below_env_attr: %s", strategy.hvac_goal_not_reached)
         _LOGGER.debug("any_opening_open: %s", any_opening_open)
@@ -188,9 +186,11 @@ class GenericHvacController(HvacController):
                 "Turning on entity (from inactive) due to hvac goal is not reached %s",
                 self.entity_id,
             )
+
             await self.async_turn_on_callback()
             self._hvac_action_reason = strategy.goal_not_reached_reason()
-        elif time is not None or any_opening_open:
+
+        elif time is not None:
             # The time argument is passed only in keep-alive case
             _LOGGER.info("Keep-alive - Turning off entity %s", self.entity_id)
             await self.async_turn_off_callback()

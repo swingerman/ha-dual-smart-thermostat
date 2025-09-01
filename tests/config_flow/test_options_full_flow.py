@@ -53,11 +53,11 @@ async def test_ac_only_options_flow_with_fan_and_humidity_enabled():
     # Start with init step (system type selection)
     result = await handler.async_step_init({CONF_SYSTEM_TYPE: SYSTEM_TYPE_AC_ONLY})
     assert result["type"] == "form"
-    assert result["step_id"] == "core"
+    assert result["step_id"] == "basic"
     steps_visited.append("init")
 
     # Core step (main system configuration)
-    result = await handler.async_step_core(
+    result = await handler.async_step_basic(
         {
             CONF_HEATER: "switch.ac_unit",
             CONF_SENSOR: "sensor.temperature",
