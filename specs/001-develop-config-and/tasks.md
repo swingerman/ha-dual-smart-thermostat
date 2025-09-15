@@ -13,7 +13,7 @@ Summary: Priority order is E2E scaffold & tests (T001-T003), remove Advanced opt
 
 Task IDs: T001..T012
 
-T001 — Add E2E Playwright scaffold (Phase 1A) [P]
+T001 — Add E2E Playwright scaffold (Phase 1A) [P] — [GitHub Issue #411](https://github.com/swingerman/ha-dual-smart-thermostat/issues/411)
 - Files to create:
   - `tests/e2e/docker-compose.yml`
   - `tests/e2e/ha_config/configuration.yaml`
@@ -35,7 +35,7 @@ T001 — Add E2E Playwright scaffold (Phase 1A) [P]
   - The `README.md` includes regeneration instructions and token handling notes.
 - Parallelization: [P] with T002 once HA is reachable.
 
-T002 — Add Playwright tests for config & options flows (Phase 1A) [P]
+T002 — Add Playwright tests for config & options flows (Phase 1A) [P] — [GitHub Issue #412](https://github.com/swingerman/ha-dual-smart-thermostat/issues/412)
 - Files to create:
   - `tests/e2e/specs/config_flow.spec.ts`
   - `tests/e2e/specs/options_flow.spec.ts`
@@ -59,7 +59,7 @@ T002 — Add Playwright tests for config & options flows (Phase 1A) [P]
   - Baseline images exist; pixel-diff tolerances documented.
 - Parallelization: [P] with T001 (scaffold) and T004 (CI) when HA reachable.
 
-T003 — Add CI job to run E2E
+T003 — Add CI job to run E2E — [GitHub Issue #413](https://github.com/swingerman/ha-dual-smart-thermostat/issues/413)
 - Files to create:
   - `.github/workflows/e2e.yml`
 - Description:
@@ -68,7 +68,7 @@ T003 — Add CI job to run E2E
   - Workflow starts and runs Playwright tests in CI without exposing secrets in logs.
 - Parallelization: [P] can run while T005/T006 are in progress (E2E covers stable types only).
 
-T004 — Remove Advanced (Custom Setup) option (Phase 1B)
+T004 — Remove Advanced (Custom Setup) option (Phase 1B) — [GitHub Issue #414](https://github.com/swingerman/ha-dual-smart-thermostat/issues/414)
 - Files to edit:
   - `custom_components/dual_smart_thermostat/const.py`
   - `custom_components/dual_smart_thermostat/schemas.py`
@@ -88,7 +88,7 @@ T004 — Remove Advanced (Custom Setup) option (Phase 1B)
   - `pytest -q` passes locally; schema shows only four types.
 - Parallelization: Not parallel; recommend doing after T001 and before T005/T006.
 
-T005 — Complete `heater_cooler` implementation (Phase 1C)
+T005 — Complete `heater_cooler` implementation (Phase 1C) — [GitHub Issue #415](https://github.com/swingerman/ha-dual-smart-thermostat/issues/415)
 - Files to edit/create:
   - `custom_components/dual_smart_thermostat/schemas.py` (add/complete `get_heater_cooler_schema`)
   - `custom_components/dual_smart_thermostat/feature_steps/` (ensure all per-feature steps handle `heater_cooler` cases)
@@ -101,7 +101,7 @@ T005 — Complete `heater_cooler` implementation (Phase 1C)
   - E2E tests for `simple_heater`/`ac_only` remain green.
 - Parallelization: Can be run in parallel with T006 and T008 if no shared files are edited simultaneously.
 
-T006 — Complete `heat_pump` implementation (Phase 1C)
+T006 — Complete `heat_pump` implementation (Phase 1C) — [GitHub Issue #416](https://github.com/swingerman/ha-dual-smart-thermostat/issues/416)
 - Files to edit/create:
   - `custom_components/dual_smart_thermostat/schemas.py` (complete `get_heat_pump_schema` and `heat_pump_cooling` support)
   - `custom_components/dual_smart_thermostat/feature_steps/` handlers
@@ -112,7 +112,7 @@ T006 — Complete `heat_pump` implementation (Phase 1C)
   - Contract tests for `heat_pump` pass; `pytest -q` passes locally.
 - Parallelization: Can run with T005 (different system types), but coordinate on `schemas.py` edits.
 
-T007 — Add contract & options-parity tests [P]
+T007 — Add contract & options-parity tests [P] — [GitHub Issue #417](https://github.com/swingerman/ha-dual-smart-thermostat/issues/417)
 - Files to create:
   - `tests/contracts/test_schemas.py` — tests that load each `get_<system>_schema()` and assert expected keys and types according to `data-model.md`.
   - `tests/options/test_options_parity.py` — tests verifying the options flow pre-fills saved values and preserves unchanged fields.
@@ -127,7 +127,7 @@ T007 — Add contract & options-parity tests [P]
   - The contract tests fail initially (RED), then after implementation pass (GREEN).
 - Parallelization: [P]
 
-T008 — Normalize collected_config keys and constants
+T008 — Normalize collected_config keys and constants — [GitHub Issue #418](https://github.com/swingerman/ha-dual-smart-thermostat/issues/418)
 - Files to edit:
   - `custom_components/dual_smart_thermostat/config_flow.py`
   - `custom_components/dual_smart_thermostat/options_flow.py`
@@ -142,7 +142,7 @@ T008 — Normalize collected_config keys and constants
   - All modules import constants from `const.py` (no string literals used for persisted keys), and tests ensure shapes match `data-model.md`.
 - Parallelization: Not [P] unless changes are limited to separate modules.
 
-T009 — Add `models.py` dataclasses (P)
+T009 — Add `models.py` dataclasses [P] — [GitHub Issue #419](https://github.com/swingerman/ha-dual-smart-thermostat/issues/419)
 - Files to create:
   - `custom_components/dual_smart_thermostat/models.py`
   - `tests/unit/test_models.py`
@@ -156,7 +156,7 @@ T009 — Add `models.py` dataclasses (P)
   - `tests/unit/test_models.py` covers serialization of at least one sample config per system type and passes.
 - Parallelization: [P]
 
-T010 — Perform test reorganization (REORG) [P]
+T010 — Perform test reorganization (REORG) [P] — [GitHub Issue #420](https://github.com/swingerman/ha-dual-smart-thermostat/issues/420)
 - Files to create:
   - `specs/001-develop-config-and/REORG.md`
 - Steps (PoC then single commit):
@@ -169,7 +169,7 @@ T010 — Perform test reorganization (REORG) [P]
   - New `tests/` layout exists, test imports updated, full test-suite passes locally.
 - Parallelization: [P] but coordinate with any test-editing PRs.
 
-T011 — Investigate schema duplication (const vs schemas) (Phase 1C-1)
+T011 — Investigate schema duplication (const vs schemas) (Phase 1C-1) — [GitHub Issue #421](https://github.com/swingerman/ha-dual-smart-thermostat/issues/421)
 - Files to create/edit:
   - `specs/001-develop-config-and/schema-consolidation-proposal.md` (if not already present)
   - PoC: `custom_components/dual_smart_thermostat/metadata.py`
@@ -184,7 +184,7 @@ T011 — Investigate schema duplication (const vs schemas) (Phase 1C-1)
   - PoC passes contract tests and does not change persisted keys.
 - Parallelization: [P]
 
-T012 — Polish documentation & release prep
+T012 — Polish documentation & release prep — [GitHub Issue #422](https://github.com/swingerman/ha-dual-smart-thermostat/issues/422)
 - Files to edit:
   - `specs/001-develop-config-and/quickstart.md`
   - `specs/001-develop-config-and/data-model.md` (if minor clarifications needed)
