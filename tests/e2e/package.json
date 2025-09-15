@@ -1,0 +1,34 @@
+{
+  "name": "dual-smart-thermostat-e2e",
+  "version": "1.0.0",
+  "description": "E2E tests for Dual Smart Thermostat Home Assistant component",
+  "private": true,
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:debug": "playwright test --debug",
+    "test:ui": "playwright test --ui",
+    "test:update-snapshots": "playwright test --update-snapshots",
+    "test:report": "playwright show-report",
+    "install-browsers": "playwright install",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f homeassistant",
+    "docker:health": "docker compose ps",
+    "regenerate-baselines": "./scripts/regenerate_baselines.sh"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.48.0",
+    "@types/node": "^22.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "playwright",
+    "e2e",
+    "testing",
+    "home-assistant",
+    "dual-smart-thermostat"
+  ]
+}

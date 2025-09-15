@@ -1,0 +1,56 @@
+# Node.js dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Playwright
+test-results/
+playwright-report/
+playwright/.cache/
+
+# Authentication state (sensitive)
+.auth/
+
+# Home Assistant data
+ha_config/.storage/
+ha_config/home-assistant.db*
+ha_config/home-assistant_v2.db*
+ha_config/.uuid
+ha_config/known_devices.yaml
+ha_config/entity_registry.yaml
+ha_config/device_registry.yaml
+ha_config/area_registry.yaml
+ha_config/core.config_entries
+ha_config/core.device_registry
+ha_config/core.entity_registry
+ha_config/core.area_registry
+ha_config/core.restore_state
+ha_config/.HA_VERSION
+ha_config/*.log
+
+# Docker volumes
+ha_config/deps/
+ha_config/tts/
+ha_config/www/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary files
+*.tmp
+*.temp
+.env.local
+.env.*.local
