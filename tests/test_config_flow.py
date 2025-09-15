@@ -49,7 +49,8 @@ async def test_config_flow_basic(hass: HomeAssistant) -> None:
             },
         )
         assert result["type"] == "form"
-        assert result["step_id"] == "ac_only_features"
+        # The features step is unified across system types and now uses 'features'
+        assert result["step_id"] == "features"
 
         # Submit AC-only features decision: don't configure presets -> finish
         result = await hass.config_entries.flow.async_configure(

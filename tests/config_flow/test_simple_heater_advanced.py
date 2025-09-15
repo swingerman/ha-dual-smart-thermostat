@@ -72,10 +72,10 @@ async def test_simple_heater_advanced_settings_config_flow(
 
     # Should proceed to features selection
     assert result["type"] == FlowResultType.FORM
-    assert result["step_id"] == "simple_heater_features"
+    assert result["step_id"] == "features"
 
     # Complete the flow without additional features
-    result = await config_flow.async_step_simple_heater_features(
+    result = await config_flow.async_step_features(
         user_input={
             "configure_openings": False,
             "configure_presets": False,
@@ -126,10 +126,10 @@ async def test_simple_heater_default_advanced_settings(
 
     # Should proceed to features selection
     assert result["type"] == FlowResultType.FORM
-    assert result["step_id"] == "simple_heater_features"
+    assert result["step_id"] == "features"
 
     # Complete the flow
-    result = await config_flow.async_step_simple_heater_features(
+    result = await config_flow.async_step_features(
         user_input={
             "configure_openings": False,
             "configure_presets": False,

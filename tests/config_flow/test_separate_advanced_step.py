@@ -21,7 +21,7 @@ def test_separate_advanced_step():
     print()
 
     # Test the AC features schema (should always be basic)
-    from custom_components.dual_smart_thermostat.config_flow import (
+    from custom_components.dual_smart_thermostat.schemas import (
         get_ac_only_features_schema,
     )
 

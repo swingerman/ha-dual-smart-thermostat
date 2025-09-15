@@ -318,8 +318,8 @@ async def test_system_type_preservation(mock_hass, dual_system_config_entry):
     }
     result = await handler.async_step_basic(core_data)
 
-    # Should go to the combined system_features step first (not ac_only_features)
-    assert result["step_id"] == "system_features"
+    # Should go to the combined features step first (not ac_only_features)
+    assert result["step_id"] == "features"
 
 
 async def test_system_features_fields_and_floor_redirect(
@@ -332,10 +332,10 @@ async def test_system_features_fields_and_floor_redirect(
     # Ensure the handler will use heater_cooler as system type
     handler.collected_config = {CONF_SYSTEM_TYPE: SYSTEM_TYPE_HEATER_COOLER}
 
-    # Initial display of system_features should show a form
-    result = await handler.async_step_system_features()
+    # Initial display of features should show a form
+    result = await handler.async_step_features()
     assert result["type"] == "form"
-    assert result["step_id"] == "system_features"
+    assert result["step_id"] == "features"
 
     # Check schema fields include fan/humidity/presets/openings/floor/advanced
     schema_dict = result["data_schema"].schema
@@ -355,7 +355,7 @@ async def test_system_features_fields_and_floor_redirect(
 
     # If user selects floor heating, options flow should go straight to floor options
     user_input = {"configure_floor_heating": True}
-    result = await handler.async_step_system_features(user_input)
+    result = await handler.async_step_features(user_input)
     assert result["type"] == "form"
     assert result["step_id"] == "floor_options"
 
@@ -368,14 +368,14 @@ async def test_heat_pump_options_flow_parity(mock_hass, heat_pump_config_entry):
     # Ensure the handler will use heat_pump as system type
     handler.collected_config = {CONF_SYSTEM_TYPE: "heat_pump"}
 
-    # Initial display should be the combined system_features
-    result = await handler.async_step_system_features()
+    # Initial display should be the combined features
+    result = await handler.async_step_features()
     assert result["type"] == "form"
-    assert result["step_id"] == "system_features"
+    assert result["step_id"] == "features"
 
     # If user selects floor heating, options flow should go straight to floor options
     user_input = {"configure_floor_heating": True}
-    result = await handler.async_step_system_features(user_input)
+    result = await handler.async_step_features(user_input)
     assert result["type"] == "form"
     assert result["step_id"] == "floor_options"
 
@@ -385,15 +385,15 @@ async def test_dual_stage_options_flow_parity(mock_hass, dual_stage_config_entry
     handler = OptionsFlowHandler(dual_stage_config_entry)
     handler.hass = mock_hass
 
-    # dual_stage should show combined system_features first
+    # dual_stage should show combined features first
     handler.collected_config = {CONF_SYSTEM_TYPE: "dual_stage"}
-    result = await handler.async_step_system_features()
+    result = await handler.async_step_features()
     assert result["type"] == "form"
-    assert result["step_id"] == "system_features"
+    assert result["step_id"] == "features"
 
     # Selecting floor heating for dual_stage shows dual-stage specific options first
     user_input = {"configure_floor_heating": True}
-    result = await handler.async_step_system_features(user_input)
+    result = await handler.async_step_features(user_input)
     assert result["type"] == "form"
     assert result["step_id"] == "dual_stage_options"
 
@@ -415,8 +415,11 @@ async def test_simple_heater_select_only_openings_shows_only_openings(
         "system_type": "simple_heater",
     }
 
-    # User selects only openings
-    result = await handler.async_step_simple_heater_features(
+    # Indicate the features form has been shown so a submission will progress
+    handler.collected_config["features_shown"] = True
+
+    # User selects only openings (features are unified into 'features' step)
+    result = await handler.async_step_features(
         {
             "configure_openings": True,
             "configure_presets": False,
@@ -478,7 +481,7 @@ async def test_comprehensive_options_flow_multiple_systems(
                 CONF_COOLER: dual_system_config_entry.data.get(CONF_COOLER),
                 CONF_SENSOR: dual_system_config_entry.data.get(CONF_SENSOR),
             },
-            ["basic", "system_features"],
+            ["basic", "features"],
         ),
         (
             heat_pump_config_entry,
@@ -486,7 +489,7 @@ async def test_comprehensive_options_flow_multiple_systems(
                 CONF_HEATER: heat_pump_config_entry.data.get(CONF_HEATER),
                 CONF_SENSOR: heat_pump_config_entry.data.get(CONF_SENSOR),
             },
-            ["basic", "system_features"],
+            ["basic", "features"],
         ),
         (
             dual_stage_config_entry,
@@ -494,7 +497,7 @@ async def test_comprehensive_options_flow_multiple_systems(
                 CONF_HEATER: dual_stage_config_entry.data.get(CONF_HEATER),
                 CONF_SENSOR: dual_stage_config_entry.data.get(CONF_SENSOR),
             },
-            ["basic", "system_features"],
+            ["basic", "features"],
         ),
     ]
 
