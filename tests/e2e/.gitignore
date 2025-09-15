@@ -28,6 +28,7 @@ ha_config/core.area_registry
 ha_config/core.restore_state
 ha_config/.HA_VERSION
 ha_config/*.log
+ha_config/blueprints/
 
 # Docker volumes
 ha_config/deps/
