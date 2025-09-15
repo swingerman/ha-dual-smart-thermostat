@@ -220,6 +220,82 @@ def get_simple_heater_schema(defaults=None, include_name=True):
     return vol.Schema(core_schema)
 
 
+def get_heater_cooler_schema(defaults=None, include_name=True):
+    """Get heater + cooler configuration schema with advanced settings in collapsible section."""
+    # Core heater + cooler configuration
+    core_schema = {}
+
+    if include_name:
+        # Basic Information
+        core_schema[
+            vol.Required(
+                CONF_NAME,
+                default=defaults.get(CONF_NAME) if defaults else vol.UNDEFINED,
+            )
+        ] = get_text_selector()
+
+    # Sensors
+    core_schema[
+        vol.Required(
+            CONF_SENSOR,
+            default=defaults.get(CONF_SENSOR) if defaults else vol.UNDEFINED,
+        )
+    ] = get_entity_selector(SENSOR_DOMAIN)
+
+    # Heater switch
+    core_schema[
+        vol.Required(
+            CONF_HEATER,
+            default=defaults.get(CONF_HEATER) if defaults else vol.UNDEFINED,
+        )
+    ] = get_entity_selector(SWITCH_DOMAIN)
+
+    # Cooler switch
+    core_schema[
+        vol.Required(
+            CONF_COOLER,
+            default=defaults.get(CONF_COOLER) if defaults else vol.UNDEFINED,
+        )
+    ] = get_entity_selector(SWITCH_DOMAIN)
+
+    # Heat/Cool mode toggle
+    core_schema[
+        vol.Optional(
+            CONF_HEAT_COOL_MODE,
+            default=defaults.get(CONF_HEAT_COOL_MODE, False) if defaults else False,
+        )
+    ] = get_boolean_selector()
+
+    # Advanced settings in collapsible section
+    advanced_section_schema = vol.Schema(
+        {
+            vol.Optional(
+                CONF_COLD_TOLERANCE,
+                default=(
+                    defaults.get(CONF_COLD_TOLERANCE) if defaults else DEFAULT_TOLERANCE
+                ),
+            ): get_temperature_selector(min_value=0.1, max_value=10, step=0.1),
+            vol.Optional(
+                CONF_HOT_TOLERANCE,
+                default=(
+                    defaults.get(CONF_HOT_TOLERANCE) if defaults else DEFAULT_TOLERANCE
+                ),
+            ): get_temperature_selector(min_value=0.1, max_value=10, step=0.1),
+            vol.Optional(
+                CONF_MIN_DUR,
+                default=defaults.get(CONF_MIN_DUR) if defaults else 300,
+            ): get_time_selector(min_value=0, max_value=3600),
+        }
+    )
+
+    # Add advanced settings as a collapsible section
+    core_schema[vol.Optional("advanced_settings")] = section(
+        advanced_section_schema, {"collapsed": True}
+    )
+
+    return vol.Schema(core_schema)
+
+
 def get_grouped_schema(
     system_type: str,
     show_heater: bool = True,
@@ -493,6 +569,19 @@ def get_core_schema(
             schema_dict[
                 vol.Optional(CONF_COOLER, default=defaults.get(CONF_COOLER))
             ] = get_entity_selector(SWITCH_DOMAIN)
+
+            # Expose heat/cool mode toggle when using the core schema for
+            # heater+cooler combinations so the options flow (which often
+            # renders the `basic` step) shows the translated label from
+            # `translations/en.json` under the basic step.
+            schema_dict[
+                vol.Optional(
+                    CONF_HEAT_COOL_MODE,
+                    default=(
+                        defaults.get(CONF_HEAT_COOL_MODE, False) if defaults else False
+                    ),
+                )
+            ] = get_boolean_selector()
 
         # AC mode toggle (not for simple heater)
         if system_type != "simple_heater":
@@ -772,10 +861,36 @@ def get_presets_schema(user_input: dict[str, Any]) -> vol.Schema:
                 if user_input.get(preset_key) or user_input.get(internal_name):
                     selected_presets.append(preset_key)
 
+    # Determine if heat_cool_mode is enabled in the provided context/user_input.
+    # Support both explicit boolean key and old internal naming conventions.
+    heat_cool_enabled = False
+    try:
+        # user_input may include the raw flag or the internal config mapping
+        if user_input:
+            # Direct key
+            if user_input.get(CONF_HEAT_COOL_MODE) is True:
+                heat_cool_enabled = True
+            # Older/alternate keys may exist in user_input or context
+            # Check for truthy values on any known heat_cool related keys
+            if any(user_input.get(k) for k in ("heat_cool_mode",)):
+                heat_cool_enabled = True
+    except Exception:
+        heat_cool_enabled = False
+
     for preset in selected_presets:
         if preset in CONF_PRESETS:
-            schema_dict[vol.Optional(f"{preset}_temp", default=20)] = (
-                get_temperature_selector(min_value=5, max_value=35)
-            )
+            # When heat_cool_mode is enabled, render dual fields (low/high)
+            if heat_cool_enabled:
+                schema_dict[vol.Optional(f"{preset}_temp_low", default=20)] = (
+                    get_temperature_selector(min_value=5, max_value=35)
+                )
+                schema_dict[vol.Optional(f"{preset}_temp_high", default=24)] = (
+                    get_temperature_selector(min_value=5, max_value=35)
+                )
+            else:
+                # Backwards compatible single-temp field
+                schema_dict[vol.Optional(f"{preset}_temp", default=20)] = (
+                    get_temperature_selector(min_value=5, max_value=35)
+                )
 
     return vol.Schema(schema_dict)

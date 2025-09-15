@@ -49,10 +49,10 @@ async def test_config_flow_basic():
     flow.collected_config = {"system_type": "ac_only"}
 
     # Test initial display
-    result = await flow.async_step_ac_only_features()
+    result = await flow.async_step_features()
 
     print(f"✅ Initial form displayed with step_id: {result['step_id']}")
-    assert result["step_id"] == "ac_only_features"
+    assert result["step_id"] == "features"
 
     # Test basic submission (no advanced toggle)
     basic_input = {
@@ -63,7 +63,7 @@ async def test_config_flow_basic():
         "configure_advanced": False,
     }
 
-    result = await flow.async_step_ac_only_features(basic_input)
+    result = await flow.async_step_features(basic_input)
 
     print(
         f"Basic submission processed successfully. Type: {result['type']}, Step: {result.get('step_id', 'N/A')}"
@@ -95,14 +95,14 @@ async def test_config_flow_advanced():
         "configure_advanced": True,  # Enable advanced options
     }
 
-    result = flow.async_step_ac_only_features(advanced_input_1)
+    result = flow.async_step_features(advanced_input_1)
     if hasattr(result, "__await__"):
 
         result = await result
 
     print("✅ Advanced toggle submission processed")
     assert (
-        result["step_id"] == "ac_only_features"
+        result["step_id"] == "features"
     )  # Should show form again with advanced options
     assert "advanced_shown" in flow.collected_config
 
@@ -119,7 +119,7 @@ async def test_config_flow_advanced():
         "max_temp": 30,
     }
 
-    result = flow.async_step_ac_only_features(advanced_input_2)
+    result = flow.async_step_features(advanced_input_2)
     if hasattr(result, "__await__"):
         result = await result
 
@@ -152,13 +152,13 @@ async def test_options_flow_basic():
     flow.collected_config = {}
 
     # Test initial display
-    result = flow.async_step_ac_only_features()
+    result = flow.async_step_features()
     if hasattr(result, "__await__"):
 
         result = await result
 
     print(f"Options flow initial form displayed with step_id: {result['step_id']}")
-    assert result["step_id"] == "ac_only_features"
+    assert result["step_id"] == "features"
 
     # Test basic submission
     basic_input = {
@@ -169,7 +169,7 @@ async def test_options_flow_basic():
         "configure_advanced": False,
     }
 
-    result = flow.async_step_ac_only_features(basic_input)
+    result = flow.async_step_features(basic_input)
     if hasattr(result, "__await__"):
         result = await result
 
@@ -204,7 +204,7 @@ async def test_options_flow_advanced():
         "configure_advanced": True,
     }
 
-    result = flow.async_step_ac_only_features(advanced_input_1)
+    result = flow.async_step_features(advanced_input_1)
     if hasattr(result, "__await__"):
 
         result = await result
@@ -229,7 +229,7 @@ async def test_options_flow_advanced():
         "max_temp": 32,
     }
 
-    result = flow.async_step_ac_only_features(advanced_input_2)
+    result = flow.async_step_features(advanced_input_2)
     if hasattr(result, "__await__"):
         result = await result
 
@@ -260,7 +260,7 @@ async def test_description_placeholders():
     flow.collected_config = {"system_type": "ac_only"}
 
     # Test basic form description
-    result = flow.async_step_ac_only_features()
+    result = flow.async_step_features()
     if hasattr(result, "__await__"):
 
         result = await result
@@ -272,13 +272,13 @@ async def test_description_placeholders():
     # Request the advanced form by submitting the advanced toggle to the
     # handler; this follows the actual implementation behavior and returns a
     # form populated with advanced description placeholders.
-    result = flow.async_step_ac_only_features({"configure_advanced": True})
+    result = flow.async_step_features({"configure_advanced": True})
     if hasattr(result, "__await__"):
         result = await result
 
     advanced_subtitle = result["description_placeholders"].get("subtitle")
     print(f"Advanced form subtitle: '{advanced_subtitle}'")
-    assert "Configure AC system features and advanced settings" in advanced_subtitle
+    assert "Configure advanced settings for your system" in advanced_subtitle
 
     print("Description placeholders correctly change based on toggle state")
 

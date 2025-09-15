@@ -18,7 +18,6 @@ from .const import (
     CONF_COOLER,
     CONF_FAN,
     CONF_FLOOR_SENSOR,
-    CONF_HEAT_COOL_MODE,
     CONF_HEAT_PUMP_COOLING,
     CONF_HEATER,
     CONF_HUMIDITY_SENSOR,
@@ -50,6 +49,7 @@ from .schemas import (
     get_features_schema,
     get_grouped_schema,
     get_heat_cool_mode_schema,
+    get_heater_cooler_schema,
     get_humidity_schema,
     get_preset_selection_schema,
     get_simple_heater_schema,
@@ -237,6 +237,12 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
         errors = {}
 
         if user_input is not None:
+            # Extract advanced settings from section and flatten to top level
+            if "advanced_settings" in user_input:
+                advanced_settings = user_input.pop("advanced_settings")
+                if advanced_settings:
+                    user_input.update(advanced_settings)
+
             if not await self._validate_basic_config(user_input):
                 heater = user_input.get(CONF_HEATER)
                 sensor = user_input.get(CONF_SENSOR)
@@ -250,14 +256,8 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
                 self.collected_config.update(user_input)
                 return await self._determine_next_step()
 
-        # Use grouped schema merged with base schema for better UI organization
-        grouped = get_grouped_schema(
-            system_type="heater_cooler",
-            show_heater=True,
-            show_cooler=True,
-        )
-        base = get_base_schema()
-        schema = vol.Schema({**base.schema, **grouped.schema})
+        # Use dedicated heater+cooler schema with advanced settings in collapsible section
+        schema = get_heater_cooler_schema()
 
         return self.async_show_form(
             step_id="heater_cooler",
@@ -581,36 +581,14 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
                     return await self.async_step_floor_config()
             else:
                 # For other systems that support floor heating, only go to
-                # floor config if the floor sensor has not already been set.
-                if CONF_FLOOR_SENSOR not in self.collected_config:
+                # floor config if the user opted in during features selection
+                if (
+                    self.collected_config.get("configure_floor_heating")
+                    and CONF_FLOOR_SENSOR not in self.collected_config
+                ):
                     return await self.async_step_floor_config()
 
         # Floor heating configuration is handled earlier where required.
-
-        # Show fan toggle for other systems with cooling capability (when not already configured)
-        if (
-            system_type in ["advanced", "heater_cooler", "heat_pump"]
-            and "fan_toggle_shown" not in self.collected_config
-        ):
-            self.collected_config["fan_toggle_shown"] = True
-            return await self.async_step_fan_toggle()
-
-        # Show humidity toggle for other systems with cooling capability (when not already configured)
-        if (
-            system_type in ["advanced", "heater_cooler", "heat_pump"]
-            and "humidity_toggle_shown" not in self.collected_config
-        ):
-            self.collected_config["humidity_toggle_shown"] = True
-            return await self.async_step_humidity_toggle()
-
-        # Show heat/cool mode if not configured and system supports it
-        # This applies to advanced, heater_cooler, and heat_pump system types
-        if (
-            CONF_HEAT_COOL_MODE not in self.collected_config
-            and self._has_both_heating_and_cooling()
-            and system_type in ["advanced", "heater_cooler", "heat_pump"]
-        ):
-            return await self.async_step_heat_cool_mode()
 
         # For AC-only systems, show fan configuration if enabled
         if (
@@ -623,6 +601,22 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
         # For AC-only systems, show humidity configuration if enabled
         if (
             system_type == "ac_only"
+            and self.collected_config.get("configure_humidity")
+            and CONF_HUMIDITY_SENSOR not in self.collected_config
+        ):
+            return await self.async_step_humidity()
+
+        # For heater_cooler and heat_pump systems, show fan configuration if enabled
+        if (
+            system_type in ["heater_cooler", "heat_pump"]
+            and self.collected_config.get("configure_fan")
+            and CONF_FAN not in self.collected_config
+        ):
+            return await self.async_step_fan()
+
+        # For heater_cooler and heat_pump systems, show humidity configuration if enabled
+        if (
+            system_type in ["heater_cooler", "heat_pump"]
             and self.collected_config.get("configure_humidity")
             and CONF_HUMIDITY_SENSOR not in self.collected_config
         ):
@@ -660,28 +654,10 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
         # CRITICAL: Show openings configuration AFTER all feature configuration is complete
         # This ensures openings scope generation has access to all configured features
 
-        # Show openings toggle for systems that will configure openings separately.
-        # AC-only and simple_heater systems use a combined 'features' step instead.
-        if (
-            "openings_toggle_shown" not in self.collected_config
-            and system_type not in ["ac_only", "simple_heater"]
-        ):
-            self.collected_config["openings_toggle_shown"] = True
-            return await self.async_step_openings_toggle()
-
-        # Show openings selection and config if either the legacy toggle
-        # was enabled (enable_openings) or the combined features-selection
+        # Show openings selection and config if the features-selection
         # step requested openings configuration (configure_openings).
         if (
-            self.collected_config.get("enable_openings")
-            or self.collected_config.get("configure_openings")
-        ) and "selected_openings" not in self.collected_config:
-            return await self.async_step_openings_selection()
-
-        # For AC-only systems, show openings selection if enabled
-        if (
-            system_type == "ac_only"
-            and self.collected_config.get("configure_openings")
+            self.collected_config.get("configure_openings")
             and "selected_openings" not in self.collected_config
         ):
             return await self.async_step_openings_selection()

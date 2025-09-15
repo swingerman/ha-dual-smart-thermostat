@@ -85,6 +85,7 @@
                     "name": "Name",
                     "heater": "Heater switch",
                     "target_sensor": "Temperature sensor",
+                    "heat_cool_mode": "Heat/Cool mode",
                     "cold_tolerance": "Cold tolerance",
                     "hot_tolerance": "Hot tolerance",
                     "min_cycle_duration": "Minimum cycle duration"
@@ -93,6 +94,7 @@
                     "name": "[Basic Information] Name of the thermostat entity (default: Dual Smart).",
                     "target_sensor": "[Sensors] Entity ID for temperature sensor that reflects the current temperature. The sensor state must be temperature.",
                     "heater": "[Control Devices] Entity ID for heater switch, must be a toggle device. Becomes air conditioning switch when AC mode is enabled.",
+                    "heat_cool_mode": "[Control Settings] Enable heat/cool mode with dual temperature control. When enabled, allows automatic switching between heating and cooling to maintain a comfortable temperature range.",
                     "cold_tolerance": "[Temperature Settings] Minimum temperature difference between sensor reading and target before turning on heating. For example, if target is 25°C and tolerance is 0.5°C, heater starts when sensor reaches 24.5°C or below (default: 0.3°C).",
                     "hot_tolerance": "[Temperature Settings] Minimum temperature difference between sensor reading and target before turning off heating or turning on cooling. For example, if target is 25°C and tolerance is 0.5°C, heater stops when sensor reaches 25.5°C or above (default: 0.3°C).",
                     "min_cycle_duration": "[Temperature Settings] Minimum time the switch must stay in its current state before being switched. Prevents rapid on/off cycling and protects equipment."
@@ -190,18 +192,33 @@
                     "heater": "Heater switch",
                     "cooler": "Cooler switch",
                     "target_sensor": "Temperature sensor",
-                    "cold_tolerance": "Cold tolerance",
-                    "hot_tolerance": "Hot tolerance",
-                    "min_cycle_duration": "Minimum cycle duration"
+                    "heat_cool_mode": "Heat/Cool mode"
                 },
                 "data_description": {
                     "name": "[Basic Information] Name of the thermostat entity (default: Dual Smart).",
                     "target_sensor": "[Sensors] Entity ID for temperature sensor that reflects the current temperature. The sensor state must be temperature.",
                     "heater": "[Control Devices] Entity ID for heater switch, must be a toggle device. Used for heating when temperature falls below target.",
                     "cooler": "[Control Devices] Entity ID for cooler/AC switch, must be a toggle device. Used for cooling when temperature rises above target. Can be the same as heater for heat pump systems.",
+                    "heat_cool_mode": "[Control Settings] Enable heat/cool mode with dual temperature control. When enabled, allows automatic switching between heating and cooling to maintain a comfortable temperature range.",
                     "cold_tolerance": "[Temperature Settings] Minimum temperature difference between sensor reading and target before turning on heating. Creates a buffer zone to prevent frequent switching.",
                     "hot_tolerance": "[Temperature Settings] Minimum temperature difference between sensor reading and target before turning on cooling. Creates a buffer zone to prevent frequent switching.",
                     "min_cycle_duration": "[Temperature Settings] Minimum time the switches must stay in their current state before being switched. Prevents rapid on/off cycling and protects equipment from damage."
+                },
+                "sections": {
+                    "advanced_settings": {
+                        "name": "Advanced Settings",
+                        "description": "Configure temperature tolerances and cycle protection settings for optimal system control.",
+                        "data": {
+                            "cold_tolerance": "Cold tolerance",
+                            "hot_tolerance": "Hot tolerance",
+                            "min_cycle_duration": "Minimum cycle duration"
+                        },
+                        "data_description": {
+                            "cold_tolerance": "Minimum temperature difference between sensor reading and target before activating heating or deactivating cooling. For example, if target is 25°C and tolerance is 0.5°C, changes occur when sensor reaches 24.5°C or below (default: 0.3°C).",
+                            "hot_tolerance": "Minimum temperature difference between sensor reading and target before activating cooling or deactivating heating. For example, if target is 25°C and tolerance is 0.5°C, changes occur when sensor reaches 25.5°C or above (default: 0.3°C).",
+                            "min_cycle_duration": "Minimum time the system switch must stay in its current state before being switched. Prevents rapid on/off cycling and protects equipment (default: 300 seconds)."
+                        }
+                    }
                 }
             },
             "heat_pump": {
@@ -662,6 +679,7 @@
                     "target_sensor": "Temperature sensor",
                     "cold_tolerance": "Cold tolerance",
                     "hot_tolerance": "Hot tolerance",
+                    "heat_cool_mode": "Heat/Cool mode",
                     "min_cycle_duration": "Minimum cycle duration"
                 },
                 "data_description": {
@@ -670,6 +688,7 @@
                     "target_sensor": "Entity ID for temperature sensor that reflects the current temperature. The sensor state must be temperature.",
                     "cold_tolerance": "Minimum temperature difference between sensor reading and target before turning off cooling. For example, if target is 25°C and tolerance is 0.5°C, cooling stops when sensor reaches 24.5°C or below (default: 0.3°C).",
                     "hot_tolerance": "Minimum temperature difference between sensor reading and target before turning on cooling. For example, if target is 25°C and tolerance is 0.5°C, cooling starts when sensor reaches 25.5°C or above (default: 0.3°C).",
+                    "heat_cool_mode": "Enable heat/cool mode. The first stage heater 'heater' becomes cooling and the second stage 'heater_2' becomes heating. Allows simultaneous heating and cooling control.",
                     "min_cycle_duration": "Minimum time the cooling switch must stay in its current state before being switched. Prevents rapid on/off cycling and protects cooling equipment."
                 },
                 "sections": {

@@ -36,7 +36,6 @@ from .const import (  # CONF_MIN_DUR and CONF_SENSOR are not used in this module
     SYSTEM_TYPE_AC_ONLY,
     SYSTEM_TYPE_DUAL_STAGE,
     SYSTEM_TYPE_FLOOR_HEATING,
-    SYSTEM_TYPE_HEAT_PUMP,
     SYSTEM_TYPE_HEATER_COOLER,
     SYSTEM_TYPE_SIMPLE_HEATER,
     SYSTEM_TYPES,
@@ -54,6 +53,7 @@ from .schemas import (
     get_fan_toggle_schema,
     get_features_schema,
     get_heat_cool_mode_schema,
+    get_heater_cooler_schema,
     get_humidity_toggle_schema,
     get_simple_heater_schema,
 )
@@ -107,9 +107,7 @@ class OptionsFlowHandler(OptionsFlow):
                 "features_shown",  # The unified features step flag
                 "advanced_shown",
                 "configure_advanced",  # Clear the advanced toggle state
-                "fan_toggle_shown",
                 "fan_options_shown",
-                "humidity_toggle_shown",
                 "humidity_options_shown",
                 "openings_options_shown",
                 "presets_shown",
@@ -161,6 +159,12 @@ class OptionsFlowHandler(OptionsFlow):
     ) -> FlowResult:
         """Basic system entities & tolerances reconfiguration."""
         if user_input is not None:
+            # Extract advanced settings from section and flatten to top level
+            if "advanced_settings" in user_input:
+                advanced_settings = user_input.pop("advanced_settings")
+                if advanced_settings:
+                    user_input.update(advanced_settings)
+
             # Merge edits with any previously stored overrides
             effective_system_type = self.collected_config.get(
                 CONF_SYSTEM_TYPE,
@@ -192,6 +196,11 @@ class OptionsFlowHandler(OptionsFlow):
         elif effective_system_type == SYSTEM_TYPE_AC_ONLY:
             # For AC-only systems, use the dedicated schema with advanced settings in collapsible section
             schema = get_ac_only_schema(defaults=current_config, include_name=False)
+        elif effective_system_type == SYSTEM_TYPE_HEATER_COOLER:
+            # For heater+cooler systems, use the dedicated schema with advanced settings in collapsible section
+            schema = get_heater_cooler_schema(
+                defaults=current_config, include_name=False
+            )
         else:
             schema = get_core_schema(
                 effective_system_type, defaults=current_config, include_name=False
@@ -249,28 +258,12 @@ class OptionsFlowHandler(OptionsFlow):
             self.collected_config["features_shown"] = True
             return await self.async_step_features()
 
-        # Show fan toggle for other systems with cooling capability
-        if (
-            original_system_type in [SYSTEM_TYPE_HEATER_COOLER, SYSTEM_TYPE_HEAT_PUMP]
-            and "fan_toggle_shown" not in self.collected_config
-        ):
-            self.collected_config["fan_toggle_shown"] = True
-            return await self.async_step_fan_toggle()
-
         # Show fan options if fan toggle was enabled or if fan is already configured
         if (
             self.collected_config.get("configure_fan") or current_config.get(CONF_FAN)
         ) and "fan_options_shown" not in self.collected_config:
             self.collected_config["fan_options_shown"] = True
             return await self.async_step_fan_options()
-
-        # Show humidity toggle for other systems with cooling capability
-        if (
-            original_system_type in [SYSTEM_TYPE_HEATER_COOLER, SYSTEM_TYPE_HEAT_PUMP]
-            and "humidity_toggle_shown" not in self.collected_config
-        ):
-            self.collected_config["humidity_toggle_shown"] = True
-            return await self.async_step_humidity_toggle()
 
         # Show humidity options if humidity toggle was enabled or if humidity sensor is already configured
         if (
@@ -280,34 +273,12 @@ class OptionsFlowHandler(OptionsFlow):
             self.collected_config["humidity_options_shown"] = True
             return await self.async_step_humidity_options()
 
-        # Show heat/cool mode if not configured and system supports it
-        # This applies to advanced, heater_cooler, and heat_pump system types
-        if (
-            CONF_HEAT_COOL_MODE not in self.collected_config
-            and self._has_both_heating_and_cooling()
-            and original_system_type
-            in [
-                SYSTEM_TYPE_HEATER_COOLER,
-                SYSTEM_TYPE_HEAT_PUMP,
-                "advanced",
-            ]
-        ):
-            return await self.async_step_heat_cool_mode()
-
         # CRITICAL: Show openings options AFTER all feature configuration is complete
         # This ensures openings scope generation has access to all configured features
 
-        # Show openings options.
-        # - For AC-only systems: only if user selected configure_openings.
-        # - For simple heater: only if user selected configure_openings (the
-        #   simple heater features step is an explicit selection step).
-        # - For other systems: show openings by default.
-        if original_system_type == SYSTEM_TYPE_AC_ONLY:
-            should_show_openings = self.collected_config.get("configure_openings")
-        elif original_system_type == SYSTEM_TYPE_SIMPLE_HEATER:
-            should_show_openings = self.collected_config.get("configure_openings")
-        else:
-            should_show_openings = True
+        # Show openings options only if user selected configure_openings in features step
+        # This is now consistent across all system types
+        should_show_openings = self.collected_config.get("configure_openings", False)
 
         if (
             should_show_openings
@@ -316,16 +287,9 @@ class OptionsFlowHandler(OptionsFlow):
             self.collected_config["openings_options_shown"] = True
             return await self.async_step_openings_options()
 
-        # Show preset configuration:
-        # - For AC-only systems: only if user selected configure_presets.
-        # - For simple heater: only if user selected configure_presets.
-        # - For other systems: show presets by default.
-        if original_system_type == SYSTEM_TYPE_AC_ONLY:
-            should_show_presets = self.collected_config.get("configure_presets", False)
-        elif original_system_type == SYSTEM_TYPE_SIMPLE_HEATER:
-            should_show_presets = self.collected_config.get("configure_presets", False)
-        else:
-            should_show_presets = True
+        # Show preset configuration only if user selected configure_presets in features step
+        # This is now consistent across all system types
+        should_show_presets = self.collected_config.get("configure_presets", False)
 
         if should_show_presets and "presets_shown" not in self.collected_config:
             self.collected_config["presets_shown"] = True

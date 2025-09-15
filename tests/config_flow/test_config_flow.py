@@ -10,6 +10,7 @@ from custom_components.dual_smart_thermostat.config_flow import ConfigFlowHandle
 from custom_components.dual_smart_thermostat.const import (
     CONF_COLD_TOLERANCE,
     CONF_COOLER,
+    CONF_HEAT_COOL_MODE,
     CONF_HEATER,
     CONF_HOT_TOLERANCE,
     CONF_KEEP_ALIVE,
@@ -80,7 +81,7 @@ async def test_ac_only_config_flow():
     result = await flow.async_step_cooling_only(cooling_input)
 
     assert result["type"] == "form"
-    assert result["step_id"] == "ac_only_features"
+    assert result["step_id"] == "features"
 
     # Verify that advanced settings were flattened to top level
     assert CONF_COLD_TOLERANCE in flow.collected_config
@@ -112,7 +113,7 @@ async def test_ac_only_config_flow_without_advanced_settings():
     result = await flow.async_step_cooling_only(cooling_input)
 
     assert result["type"] == "form"
-    assert result["step_id"] == "ac_only_features"
+    assert result["step_id"] == "features"
 
     # Verify that default values are not set when not provided
     assert CONF_COLD_TOLERANCE not in flow.collected_config
@@ -146,7 +147,7 @@ async def test_ac_only_config_flow_with_custom_tolerances():
     result = await flow.async_step_cooling_only(cooling_input)
 
     assert result["type"] == "form"
-    assert result["step_id"] == "ac_only_features"
+    assert result["step_id"] == "features"
 
     # Verify that custom tolerance values are properly set
     assert flow.collected_config[CONF_COLD_TOLERANCE] == 1.0
@@ -167,9 +168,9 @@ async def test_ac_only_features_selection():
     }
 
     # Test features form
-    result = await flow.async_step_ac_only_features()
+    result = await flow.async_step_features()
     assert result["type"] == "form"
-    assert result["step_id"] == "ac_only_features"
+    assert result["step_id"] == "features"
 
     # Test feature selection
     features_input = {
@@ -183,7 +184,7 @@ async def test_ac_only_features_selection():
     # Mock the next step to test the flow
     with patch.object(flow, "_determine_next_step") as mock_next:
         mock_next.return_value = {"type": "form", "step_id": "fan_toggle"}
-        result = await flow.async_step_ac_only_features(features_input)
+        result = await flow.async_step_features(features_input)
 
     # Should proceed to next step based on selections
     assert result["type"] == "form"
@@ -213,7 +214,7 @@ async def test_simple_heater_config_flow():
 
     # Simple heater now shows a combined features selection step first
     assert result["type"] == "form"
-    assert result["step_id"] == "simple_heater_features"
+    assert result["step_id"] == "features"
 
 
 async def test_dual_system_config_flow():
@@ -228,26 +229,23 @@ async def test_dual_system_config_flow():
 
     assert result["step_id"] == "heater_cooler"
 
-    # Step 2: Basic configuration
-    basic_input = {
+    # Step 2: Basic configuration with heater, cooler, and heat_cool_mode
+    heater_cooler_input = {
         "name": "Dual Thermostat",
         CONF_SENSOR: "sensor.temperature",
-        "cold_tolerance": 0.3,
-        "hot_tolerance": 0.3,
-    }
-    result = await flow.async_step_basic(basic_input)
-
-    # Should proceed to heater_cooler features selection step
-    assert result["step_id"] == "system_features"
-
-    # Step 3: Heater and cooler configuration
-    heater_cooler_input = {
         CONF_HEATER: "switch.heater",
         CONF_COOLER: "switch.cooler",
+        CONF_HEAT_COOL_MODE: True,
+        "advanced_settings": {
+            "cold_tolerance": 0.3,
+            "hot_tolerance": 0.3,
+        },
     }
     result = await flow.async_step_heater_cooler(heater_cooler_input)
 
-    # Should continue to additional configuration
+    # Should continue to features configuration
+    assert result["type"] == "form"
+    assert result["step_id"] == "features"
     assert result["type"] == "form"
 
 

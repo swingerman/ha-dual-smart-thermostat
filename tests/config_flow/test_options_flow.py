@@ -42,6 +42,7 @@ def ac_only_config_entry():
         "cold_tolerance": 0.3,
         "hot_tolerance": 0.3,
     }
+    config_entry.options = {}  # Add missing options attribute
     config_entry.entry_id = "test_ac_entry"
     return config_entry
 
@@ -59,6 +60,7 @@ def dual_system_config_entry():
         "cold_tolerance": 0.3,
         "hot_tolerance": 0.3,
     }
+    config_entry.options = {}  # Add missing options attribute
     config_entry.entry_id = "test_dual_entry"
     return config_entry
 
@@ -75,6 +77,7 @@ def heat_pump_config_entry():
         "cold_tolerance": 0.3,
         "hot_tolerance": 0.3,
     }
+    config_entry.options = {}  # Add missing options attribute
     config_entry.entry_id = "test_heat_pump_entry"
     return config_entry
 
@@ -91,6 +94,7 @@ def dual_stage_config_entry():
         "cold_tolerance": 0.3,
         "hot_tolerance": 0.3,
     }
+    config_entry.options = {}  # Add missing options attribute
     config_entry.entry_id = "test_dual_stage_entry"
     return config_entry
 
@@ -115,8 +119,8 @@ async def test_ac_only_options_flow_progression(mock_hass, ac_only_config_entry)
     result = await handler.async_step_basic(core_data)
     assert result["type"] == "form"
 
-    # Should proceed to AC-only features
-    assert result["step_id"] == "ac_only_features"
+    # Should proceed to unified features step
+    assert result["step_id"] == "features"
 
 
 async def test_ac_only_features_step(mock_hass, ac_only_config_entry):
@@ -126,9 +130,9 @@ async def test_ac_only_features_step(mock_hass, ac_only_config_entry):
     handler.collected_config = {"ac_only_features_shown": False}
 
     # Test basic AC features form
-    result = await handler.async_step_ac_only_features()
+    result = await handler.async_step_features()
     assert result["type"] == "form"
-    assert result["step_id"] == "ac_only_features"
+    assert result["step_id"] == "features"
 
     # Check that schema has the expected fields
     schema_dict = result["data_schema"].schema
@@ -160,7 +164,7 @@ async def test_advanced_options_separate_step(mock_hass, ac_only_config_entry):
         "configure_advanced": True,
     }
 
-    result = await handler.async_step_ac_only_features(user_input)
+    result = await handler.async_step_features(user_input)
 
     # Should redirect to advanced options step
     assert result["type"] == "form"
@@ -207,7 +211,7 @@ async def test_options_flow_step_progression(mock_hass, ac_only_config_entry):
             break
 
     # Verify we visited expected steps for AC-only system
-    expected_steps = ["basic", "ac_only_features"]
+    expected_steps = ["basic", "features"]
     for step in expected_steps:
         assert step in steps_visited, f"Missing expected step: {step}"
 
@@ -284,8 +288,9 @@ async def test_openings_two_step_options_flow(mock_hass, ac_only_config_entry):
     # Ensure the schema contains per-entity timeout fields for the selected entities
     schema_dict = result["data_schema"].schema
     field_names = [str(key) for key in schema_dict.keys()]
-    assert any("binary_sensor.door" in name for name in field_names)
-    assert any("binary_sensor.window" in name for name in field_names)
+    assert any("opening_1" in name for name in field_names)
+    assert any("opening_2" in name for name in field_names)
+    assert "openings_scope" in field_names
 
 
 async def test_system_type_preservation(mock_hass, dual_system_config_entry):
@@ -464,7 +469,7 @@ async def test_comprehensive_options_flow_multiple_systems(
                 CONF_COOLER: ac_only_config_entry.data.get(CONF_COOLER),
                 CONF_SENSOR: ac_only_config_entry.data.get(CONF_SENSOR),
             },
-            ["basic", "ac_only_features"],
+            ["basic", "features"],
         ),
         (
             dual_system_config_entry,

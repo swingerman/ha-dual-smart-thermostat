@@ -1,50 +1,37 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+# ha-dual-smart-thermostat Constitution
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. Integration-first, library-friendly
+All features should be developed with a clear, testable boundary so they can be exercised independently and reused where reasonable. New functionality should favour small, well-scoped modules (files, helper functions, classes) and avoid cross-cutting global state. Public helpers and constants should live in clearly named modules (for example, `schema_utils`, `const`, `feature_steps`).
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+### II. User-focused UX parity (Config vs Options)
+Config flow and options flow must provide consistent experiences. Schema factories and shared selector helpers should be the single source of truth for UI fields and defaults to avoid divergence between initial install and later options editing.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+### III. Test-first and CI-gated
+Every behavioral change must have at least one test (unit/integration) that documents expected behavior. New features require tests covering happy path and 1-2 edge cases. The repository must remain green on CI for a PR to be merged.
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+### IV. Contracted Integration with Home Assistant
+Respect Home Assistant APIs and selector primitives (domain selectors, number/text/select helpers). Avoid over-restrictive filters in selectors that prevent legitimate entities from being chosen by users. Where defaults exist, mirror them between config and options flows.
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+### V. Simplicity, Observability, and Safety
+Keep integrations small and readable. Add logging for important state transitions. Fail gracefully in flows (validate inputs, provide helpful error messages). Prefer explicit configuration migrations over silent breaking changes.
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+## Additional Constraints
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+- Language: Python 3.13+ (as required by Home Assistant). Keep dependency list minimal and pinned in `requirements.txt`.
+- Tests: Use `pytest` and Home Assistant test helpers provided in the repo. Tests must not rely on external network resources.
+- No secrets in repo: Do not commit credentials or tokens. Use placeholders and document how to supply secrets in local development.
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+## Development Workflow and Quality Gates
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+- Branching: Work on feature branches; open PRs against `master` (default branch) with a clear summary and test results.
+- CI: All PRs must pass linting, type checks (if applicable), and the test suite. Fast pre-merge checks should include the focused test files touched by the PR.
+- Reviews: At least one approving review required. Large or risky changes should include a migration plan and changelog entry.
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+- The constitution governs repository-level expectations. Amendments require a PR that updates this file and references the reason for change.
+- The repository owner or maintainers may veto changes that break the CI or reduce test coverage.
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+**Version**: 1.0.0 | **Ratified**: 2025-09-15 | **Last Amended**: 2025-09-15

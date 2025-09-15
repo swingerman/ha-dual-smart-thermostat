@@ -11,7 +11,7 @@ sys.path.insert(
 
 import voluptuous as vol  # noqa: E402 - import after test path insertion
 
-from custom_components.dual_smart_thermostat.config_flow import (  # noqa: E402 - import after test path insertion
+from custom_components.dual_smart_thermostat.schemas import (  # noqa: E402 - import after test path insertion
     get_ac_only_features_schema,
 )
 

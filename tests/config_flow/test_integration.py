@@ -39,6 +39,7 @@ def config_entry_with_openings():
         ],
         CONF_OPENINGS_SCOPE: ["heat", "cool"],
     }
+    config_entry.options = {}  # Add missing options attribute
     config_entry.entry_id = "test_entry"
     return config_entry
 

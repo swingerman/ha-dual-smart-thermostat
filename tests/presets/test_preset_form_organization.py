@@ -3,16 +3,16 @@
 from homeassistant.const import CONF_NAME
 import pytest
 
-from custom_components.dual_smart_thermostat.config_flow import (
-    get_preset_selection_schema,
-    get_presets_schema,
-)
 from custom_components.dual_smart_thermostat.const import (
     CONF_FAN,
     CONF_FAN_MODE,
     CONF_FLOOR_SENSOR,
     CONF_HEAT_COOL_MODE,
     CONF_HUMIDITY_SENSOR,
+)
+from custom_components.dual_smart_thermostat.schemas import (
+    get_preset_selection_schema,
+    get_presets_schema,
 )
 
 
