@@ -11,12 +11,26 @@
     "test:debug": "playwright test --debug",
     "test:update-snapshots": "playwright test --update-snapshots",
     "install:browsers": "playwright install",
-    "show-report": "playwright show-report"
+    "show-report": "playwright show-report",
+    "lint": "eslint tests/ playwright/ --ext .ts",
+    "lint:fix": "eslint tests/ playwright/ --ext .ts --fix",
+    "type-check": "tsc --noEmit"
   },
-  "keywords": ["playwright", "e2e", "home-assistant", "thermostat"],
+  "keywords": [
+    "playwright",
+    "e2e",
+    "home-assistant",
+    "thermostat"
+  ],
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "@playwright/test": "^1.55.0"
+    "@eslint/js": "^9.35.0",
+    "@playwright/test": "^1.55.0",
+    "@types/node": "^24.5.1",
+    "@typescript-eslint/eslint-plugin": "^8.44.0",
+    "@typescript-eslint/parser": "^8.44.0",
+    "eslint": "^9.35.0",
+    "typescript": "^5.9.2"
   }
 }

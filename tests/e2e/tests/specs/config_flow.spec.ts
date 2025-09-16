@@ -128,7 +128,7 @@ test.describe('Dual Smart Thermostat Config Flow', () => {
 
     // Should show validation errors
     await expect(page.locator('.error, [role="alert"]')).toBeVisible();
-    await expect(page.locator('text=required', { strict: false })).toBeVisible();
+    await expect(page.locator('text=required').first()).toBeVisible();
     
     await page.screenshot({ path: 'baselines/simple_heater/validation-errors.png' });
   });

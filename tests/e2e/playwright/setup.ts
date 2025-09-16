@@ -136,3 +136,4 @@ export class HomeAssistantSetup {
       await this.page.waitForLoadState('networkidle');
     }
   }
+}
