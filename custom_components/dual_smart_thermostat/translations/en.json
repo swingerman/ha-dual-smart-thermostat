@@ -325,8 +325,7 @@
                     "opening_9_timeout_close": "Time to wait after this opening closes before turning HVAC back on. Set to 0 for immediate response.",
                     "opening_10_timeout_open": "Time to wait after this opening activates before turning off HVAC. Set to 0 for immediate response.",
                     "opening_10_timeout_close": "Time to wait after this opening closes before turning HVAC back on. Set to 0 for immediate response."
-                },
-                "openings_scope": "HVAC modes affected by openings"
+                }
             },
             "heat_cool_mode": {
                 "title": "Heat/Cool Mode Configuration",
@@ -819,8 +818,7 @@
                     "opening_9_timeout_close": "Time to wait after this opening closes before turning HVAC back on. Set to 0 for immediate response.",
                     "opening_10_timeout_open": "Time to wait after this opening activates before turning off HVAC. Set to 0 for immediate response.",
                     "opening_10_timeout_close": "Time to wait after this opening closes before turning HVAC back on. Set to 0 for immediate response."
-                },
-                "openings_scope": "HVAC modes affected by openings"
+                }
             },
             "advanced_options": {
                 "title": "Advanced Options",
