@@ -21,11 +21,7 @@ jobs:
           cache: "pip"
 
       - name: Install dependencies
-        run: |
-          sudo apt-get update && sudo apt-get install -y libpcap-dev python3-pcapy ffmpeg libjpeg-turbo-progs build-essential python3-dev || true
-          # try installing distutils package variants when available
-          sudo apt-get install -y python3-distutils || sudo apt-get install -y python3.13-distutils || sudo apt-get install -y python3-all-dev || true
-          pip install -r requirements-dev.txt
+        run: pip install -r requirements-dev.txt
       - name: isort
         run: isort . --recursive --diff
       - name: Black
