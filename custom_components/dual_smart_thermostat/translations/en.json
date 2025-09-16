@@ -132,7 +132,10 @@
                     "heater": "Heater switch",
                     "cooler": "Cooler switch",
                     "target_sensor": "Temperature sensor",
-                    "heat_cool_mode": "Heat/Cool mode"
+                    "heat_cool_mode": "Heat/Cool mode",
+                    "cold_tolerance": "Cold tolerance",
+                    "hot_tolerance": "Hot tolerance",
+                    "min_cycle_duration": "Minimum cycle duration"
                 },
                 "data_description": {
                     "name": "[Basic Information] Name of the thermostat entity (default: Dual Smart).",
