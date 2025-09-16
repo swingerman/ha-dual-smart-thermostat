@@ -4,22 +4,12 @@ from typing import Callable
 from homeassistant.components.climate import HVACAction, HVACMode
 from homeassistant.core import Context, HomeAssistant, callback
 
-from custom_components.dual_smart_thermostat.hvac_action_reason.hvac_action_reason import (
-    HVACActionReason,
-)
-from custom_components.dual_smart_thermostat.hvac_device.controllable_hvac_device import (
-    ControlableHVACDevice,
-)
-from custom_components.dual_smart_thermostat.hvac_device.hvac_device import HVACDevice
-from custom_components.dual_smart_thermostat.managers.environment_manager import (
-    EnvironmentManager,
-)
-from custom_components.dual_smart_thermostat.managers.feature_manager import (
-    FeatureManager,
-)
-from custom_components.dual_smart_thermostat.managers.opening_manager import (
-    OpeningManager,
-)
+from ..hvac_action_reason.hvac_action_reason import HVACActionReason
+from ..hvac_device.controllable_hvac_device import ControlableHVACDevice
+from ..hvac_device.hvac_device import HVACDevice
+from ..managers.environment_manager import EnvironmentManager
+from ..managers.feature_manager import FeatureManager
+from ..managers.opening_manager import OpeningManager
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -31,7 +21,7 @@ class MultiHvacDevice(HVACDevice, ControlableHVACDevice):
     def __init__(
         self,
         hass: HomeAssistant,
-        devices: list,
+        devices: list[ControlableHVACDevice],
         initial_hvac_mode: HVACMode,
         environment: EnvironmentManager,
         openings: OpeningManager,
@@ -130,7 +120,7 @@ class MultiHvacDevice(HVACDevice, ControlableHVACDevice):
 
         self.set_sub_devices_hvac_mode(hvac_mode)
 
-        await self.async_control_hvac(self, force=True)
+        await self.async_control_hvac(force=True)
 
         _LOGGER.info("Hvac mode set to %s", self._hvac_mode)
 
@@ -139,7 +129,7 @@ class MultiHvacDevice(HVACDevice, ControlableHVACDevice):
             "Controlling hvac %s, time: %s, force: %s", self._hvac_mode, time, force
         )
         if self._hvac_mode == HVACMode.OFF:
-            await self.async_turn_off()
+            await self.async_turn_off_all(time)
 
         if self._hvac_mode not in self.hvac_modes and self._hvac_mode is not None:
             _LOGGER.warning("Invalid HVAC mode: %s", self._hvac_mode)
@@ -149,7 +139,7 @@ class MultiHvacDevice(HVACDevice, ControlableHVACDevice):
             if self.hvac_mode in device.hvac_modes:
                 await device.async_control_hvac(time, force)
                 self._hvac_action_reason = device.HVACActionReason
-            else:
+            elif device.is_active:
                 await device.async_turn_off()
 
             # self._hvac_action_reason = device.HVACActionReason
@@ -163,8 +153,12 @@ class MultiHvacDevice(HVACDevice, ControlableHVACDevice):
         await self.async_control_hvac(force=True)
 
     async def async_turn_off(self):
+        await self.async_turn_off_all(time=None)
+
+    async def async_turn_off_all(self, time):
         for device in self.hvac_devices:
-            await device.async_turn_off()
+            if device.is_active or time is not None:
+                await device.async_turn_off()
 
     async def _async_check_device_initial_state(self) -> None:
         """Child devices on_startup handles this."""

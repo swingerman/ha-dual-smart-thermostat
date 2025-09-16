@@ -4,12 +4,8 @@ import logging
 from homeassistant.components.climate import HVACAction, HVACMode
 from homeassistant.core import CALLBACK_TYPE, Context, HomeAssistant, State, callback
 
-from custom_components.dual_smart_thermostat.hvac_action_reason.hvac_action_reason import (
-    HVACActionReason,
-)
-from custom_components.dual_smart_thermostat.managers.environment_manager import (
-    TargetTemperatures,
-)
+from ..hvac_action_reason.hvac_action_reason import HVACActionReason
+from ..managers.environment_manager import TargetTemperatures
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -57,10 +53,11 @@ class ControlableHVACDevice(ABC):
             self.hvac_mode = HVACMode.OFF
 
         if self.hvac_mode == HVACMode.OFF:
-            await self.async_turn_off()
+            if self.is_active:
+                await self.async_turn_off()
             self._hvac_action_reason = HVACActionReason.NONE
         else:
-            await self.async_control_hvac(self, force=True)
+            await self.async_control_hvac(force=True)
 
         _LOGGER.info("Hvac mode set to %s", self._hvac_mode)
 

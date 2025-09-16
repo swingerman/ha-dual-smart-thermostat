@@ -1,1 +1,19 @@
+# Python requirements for development.
+#
+# NOTE: Some runtime dependencies (packet capture, ffmpeg, turbojpeg) are provided
+# as system packages and cannot be installed via pip. Install these on Debian/Ubuntu
+# before running `pip install -r requirements.txt`:
+#
+# 	sudo apt-get install -y libpcap-dev python3-pcapy ffmpeg libjpeg-turbo-progs
+#
+# On some systems you may prefer `python3-pcapy` from apt (prebuilt), otherwise
+# pip packages below will attempt to build C extensions against libpcap headers.
+# Depending on your Python version (e.g. 3.13) some bindings may not build until
+# upstream projects release compatible wheels.
+
+# The minimal supported Home Assistant core dependency for this integration.
 homeassistant>=2024.6.0
+# Optional Python-level pcap bindings. These may require libpcap headers (libpcap-dev)
+# Optional Python-level pcap bindings. These are development-only and may require
+# libpcap headers (`libpcap-dev`) and build tools. Move them to `requirements-dev.txt`
+# so CI jobs that don't have system deps installed won't attempt to build them.
