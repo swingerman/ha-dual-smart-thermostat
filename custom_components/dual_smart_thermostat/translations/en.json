@@ -1,6 +1,5 @@
 {
     "title": "Dual Smart Thermostat",
-    
     "config": {
         "error": {
             "same_heater_sensor": "Heater and temperature sensor cannot be the same entity",
