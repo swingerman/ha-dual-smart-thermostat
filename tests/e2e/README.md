@@ -106,22 +106,28 @@ tests/e2e/
     └── user.json           # Stored login session
 ```
 
-## Token Handling and Authentication
+## Authentication Configuration
 
-Home Assistant requires authentication for API access. The test setup handles this automatically:
+The E2E testing environment is configured with **trusted networks authentication** to enable seamless automated testing:
 
-1. **Initial Setup**: The global setup script will handle first-time authentication
-2. **Session Storage**: Authentication state is stored in `.auth/user.json`
-3. **Token Management**: Long-lived access tokens are preferred for E2E testing
+### Trusted Networks Setup
 
-### Manual Token Setup (if needed)
+The Home Assistant configuration includes a trusted networks auth provider that:
 
-If automatic authentication fails, you can manually create a long-lived access token:
+1. **Allows bypass login**: E2E tests can access Home Assistant without manual authentication
+2. **Docker network trust**: The Docker Compose network (172.16.0.0/12) is trusted
+3. **Local network support**: Common private networks (192.168.0.0/16) and localhost are trusted
+4. **Automatic session management**: Authentication state is stored in `.auth/user.json`
 
-1. Access Home Assistant at `http://localhost:8123`
-2. Go to Profile → Security → Long-lived access tokens
-3. Create a new token and store it securely
-4. Update the test configuration as needed
+### Authentication Flow
+
+1. **First-time setup**: If onboarding is required, the global setup script handles user creation
+2. **Subsequent runs**: Trusted network configuration allows direct access
+3. **Session persistence**: Authentication state is maintained across test runs
+
+### Manual Access (if needed)
+
+You can manually access the Home Assistant instance at `http://localhost:8123`. Due to the trusted networks configuration, no login should be required when accessing from the local machine.
 
 ## Baseline Management
 

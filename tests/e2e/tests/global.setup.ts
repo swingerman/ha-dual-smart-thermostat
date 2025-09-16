@@ -71,21 +71,12 @@ async function globalSetup(config: FullConfig) {
       await page.waitForSelector('home-assistant-main', { timeout: 30000 });
       console.log('✅ Onboarding completed successfully');
     } else {
-      console.log('🔑 Home Assistant already configured, checking authentication...');
+      console.log('🔑 Home Assistant configured with trusted networks - no authentication required');
       
-      // Check if we need to login
-      const loginForm = await page.locator('ha-login-form').isVisible().catch(() => false);
-      
-      if (loginForm) {
-        console.log('🔐 Logging in to Home Assistant...');
-        await page.locator('input[name="username"]').fill('test');
-        await page.locator('input[name="password"]').fill('test123');
-        await page.locator('button[type="submit"]').click();
-        
-        // Wait for successful login
-        await page.waitForSelector('home-assistant-main', { timeout: 15000 });
-        console.log('✅ Login successful');
-      }
+      // With trusted networks configured, we should be able to access directly
+      // Just wait for the main interface to load
+      await page.waitForSelector('home-assistant-main', { timeout: 15000 });
+      console.log('✅ Trusted network access confirmed');
     }
     
     // Verify we can access the integrations page
