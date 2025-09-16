@@ -33,10 +33,9 @@ from homeassistant.core import DOMAIN as HASS_DOMAIN, HomeAssistant
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import entity_registry as er
 from homeassistant.setup import async_setup_component
-from homeassistant.util import dt, dt as dt_util
+from homeassistant.util import dt as dt_util
 from homeassistant.util.unit_system import METRIC_SYSTEM
 import pytest
-
 
 from custom_components.dual_smart_thermostat.const import (
     ATTR_HVAC_ACTION_REASON,
@@ -701,7 +700,7 @@ async def test_temp_change_ac_trigger_long_enough(
     setup_sensor(hass, 25 if sw_on else 30)
     await hass.async_block_till_done()
 
-    # no call, not enought time
+    # no call, not enough time
     assert len(calls) == 0
 
     # move back to no switch temp
@@ -720,7 +719,7 @@ async def test_temp_change_ac_trigger_long_enough(
     setup_sensor(hass, 25 if sw_on else 30)
     await hass.async_block_till_done()
 
-    # call triggered, time is enought and temp reached
+    # call triggered, time is enough and temp reached
     assert len(calls) == 1
     call = calls[0]
     assert call.domain == HASS_DOMAIN
@@ -750,7 +749,7 @@ async def test_time_change_ac_trigger_long_enough(
     setup_sensor(hass, 25 if sw_on else 30)
     await hass.async_block_till_done()
 
-    # no call, not enought time
+    # no call, not enough time
     assert len(calls) == 0
 
     # complete cycle time
@@ -758,7 +757,7 @@ async def test_time_change_ac_trigger_long_enough(
     common.async_fire_time_changed(hass)
     await hass.async_block_till_done()
 
-    # call triggered, time is enought
+    # call triggered, time is enough
     assert len(calls) == 1
     call = calls[0]
     assert call.domain == HASS_DOMAIN
@@ -788,7 +787,7 @@ async def test_mode_change_ac_trigger_not_long_enough(
     setup_sensor(hass, 25 if sw_on else 30)
     await hass.async_block_till_done()
 
-    # no call, not enought time
+    # no call, not enough time
     assert len(calls) == 0
 
     # change HVAC mode

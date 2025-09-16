@@ -1,4 +1,925 @@
 {
+    "title": "Dual Smart Thermostat",
+    "shared": {
+        "step": {
+            "preset_selection": {
+                "data": {
+                    "away": "Away preset",
+                    "comfort": "Comfort preset",
+                    "eco": "Eco preset",
+                    "home": "Home preset",
+                    "sleep": "Sleep preset",
+                    "anti_freeze": "Anti-freeze preset",
+                    "activity": "Activity preset",
+                    "boost": "Boost preset"
+                },
+                "data_description": {
+                    "away": "Energy-saving preset for when nobody is home. Typically set to lower temperatures to save energy.",
+                    "comfort": "Maximum comfort preset for optimal temperature control when comfort is the priority.",
+                    "eco": "Energy-efficient preset that balances comfort with energy savings.",
+                    "home": "Standard preset for daily activities when people are home and active.",
+                    "sleep": "Optimized for sleeping conditions, often set slightly cooler for better sleep quality.",
+                    "anti_freeze": "Minimum temperature preset to prevent freezing in unoccupied spaces or during extended absences.",
+                    "activity": "Higher temperature preset for periods of high activity or when extra warmth is needed.",
+                    "boost": "Quick heating preset for rapidly bringing temperature up to a higher level."
+                }
+            },
+            "features": {
+                "data": {
+                    "configure_fan": "Configure fan settings",
+                    "configure_humidity": "Configure humidity control",
+                    "configure_openings": "Configure window/door sensors",
+                    "configure_presets": "Configure temperature presets",
+                    "configure_floor_heating": "Configure floor heating protection",
+                    "configure_advanced": "Configure advanced settings"
+                },
+                "data_description": {
+                    "configure_fan": "Enable configuration of fan settings. This allows you to set up a separate fan entity that can run independently for air circulation.",
+                    "configure_humidity": "Enable configuration of humidity monitoring and control. This allows you to set up humidity sensors and dry mode operation.",
+                    "configure_openings": "Enable configuration of window and door sensors so the thermostat can pause operation when openings are detected.",
+                    "configure_presets": "Enable configuration of temperature presets like Away, Comfort, and Eco for quick mode changes.",
+                    "configure_floor_heating": "Enable configuration of floor temperature protection. When enabled you can set a floor sensor and max/min limits to protect your flooring.",
+                    "configure_advanced": "Show advanced configuration options such as keep-alive intervals, temperature precision, and default modes for power users."
+                }
+            },
+            "simple_heater_features": {
+                "title": "Heater Features Configuration",
+                "description": "Choose which features to configure for your simple heater system. Select only the features you want to set up - unselected features will not be configured.",
+                "data": {
+                    "configure_openings": "Configure window/door sensors",
+                    "configure_presets": "Configure temperature presets",
+                    "configure_floor_heating": "Configure floor heating protection",
+                    "configure_advanced": "Configure advanced settings"
+                },
+                "data_description": {
+                    "configure_openings": "Enable configuration of window and door sensors so the thermostat can pause heating when openings are detected.",
+                    "configure_presets": "Enable configuration of temperature presets like Away, Comfort, and Eco for quick mode changes.",
+                    "configure_floor_heating": "Enable configuration of floor temperature protection. When enabled you can set a floor sensor and max/min limits to protect your flooring.",
+                    "configure_advanced": "Show advanced configuration options such as keep-alive intervals, temperature precision, and default modes for power users."
+                }
+            }
+        }
+    },
+    "config": {
+        "error": {
+            "same_heater_sensor": "Heater and temperature sensor cannot be the same entity",
+            "same_heater_cooler": "Heater and cooler cannot be the same entity",
+            "aux_heater_timeout_required": "Auxiliary heater timeout is required when auxiliary heater is configured",
+            "aux_heater_entity_required": "Auxiliary heater entity is required when timeout is configured"
+        },
+        "step": {
+            "user": {
+                "title": "System Type Selection",
+                "description": "Choose the type of thermostat system you want to configure.",
+                "data": {
+                    "system_type": "System Type"
+                },
+                "data_description": {
+                    "system_type": "Select the system type that best matches your HVAC setup."
+                }
+            },
+            "basic": {
+                "title": "Basic Configuration",
+                "description": "Configure your thermostat settings organized by category: basic info, sensors, control devices, and temperature settings.",
+                "data": {
+                    "name": "Name",
+                    "heater": "Heater switch",
+                    "target_sensor": "Temperature sensor",
+                    "heat_cool_mode": "Heat/Cool mode",
+                    "cold_tolerance": "Cold tolerance",
+                    "hot_tolerance": "Hot tolerance",
+                    "min_cycle_duration": "Minimum cycle duration"
+                },
+                "data_description": {
+                    "name": "[Basic Information] Name of the thermostat entity (default: Dual Smart).",
+                    "target_sensor": "[Sensors] Entity ID for temperature sensor that reflects the current temperature. The sensor state must be temperature.",
+                    "heater": "[Control Devices] Entity ID for heater switch, must be a toggle device. Becomes air conditioning switch when AC mode is enabled.",
+                    "heat_cool_mode": "[Control Settings] Enable heat/cool mode with dual temperature control. When enabled, allows automatic switching between heating and cooling to maintain a comfortable temperature range.",
+                    "cold_tolerance": "[Temperature Settings] Minimum temperature difference between sensor reading and target before turning on heating. For example, if target is 25°C and tolerance is 0.5°C, heater starts when sensor reaches 24.5°C or below (default: 0.3°C).",
+                    "hot_tolerance": "[Temperature Settings] Minimum temperature difference between sensor reading and target before turning off heating or turning on cooling. For example, if target is 25°C and tolerance is 0.5°C, heater stops when sensor reaches 25.5°C or above (default: 0.3°C).",
+                    "min_cycle_duration": "[Temperature Settings] Minimum time the switch must stay in its current state before being switched. Prevents rapid on/off cycling and protects equipment."
+                },
+                "sections": {
+                    "advanced_settings": {
+                        "name": "Advanced Settings",
+                        "description": "Configure temperature tolerances and cycle protection settings for optimal heating control.",
+                        "data": {
+                            "cold_tolerance": "Cold tolerance",
+                            "hot_tolerance": "Hot tolerance",
+                            "min_cycle_duration": "Minimum cycle duration"
+                        },
+                        "data_description": {
+                            "cold_tolerance": "Minimum temperature difference between sensor reading and target before turning on heating. For example, if target is 25°C and tolerance is 0.5°C, heater starts when sensor reaches 24.5°C or below (default: 0.3°C).",
+                            "hot_tolerance": "Minimum temperature difference between sensor reading and target before turning off heating. For example, if target is 25°C and tolerance is 0.5°C, heater stops when sensor reaches 25.5°C or above (default: 0.3°C).",
+                            "min_cycle_duration": "Minimum time the heater switch must stay in its current state before being switched. Prevents rapid on/off cycling and protects heating equipment (default: 300 seconds)."
+                        }
+                    }
+                }
+            },
+            "features": {
+                "title": "Features Configuration",
+                "description": "Choose which features to configure for your system. This determines which configuration options will be available.",
+                "data": {
+                    "configure_fan": "Configure fan settings",
+                    "configure_humidity": "Configure humidity control",
+                    "configure_openings": "Configure window/door sensors",
+                    "configure_presets": "Configure temperature presets",
+                    "configure_floor_heating": "Configure floor heating protection",
+                    "configure_advanced": "Configure advanced settings"
+                },
+                "data_description": {
+                    "configure_fan": "Enable configuration of fan settings. This allows you to set up a separate fan entity that can run independently for air circulation.",
+                    "configure_humidity": "Enable configuration of humidity monitoring and control. This allows you to set up humidity sensors and dry mode operation.",
+                    "configure_openings": "Enable configuration of window and door sensors so the thermostat can pause operation when openings are detected.",
+                    "configure_presets": "Enable configuration of temperature presets like Away, Comfort, and Eco for quick mode changes.",
+                    "configure_floor_heating": "Enable configuration of floor temperature protection. When enabled you can set a floor sensor and max/min limits to protect your flooring.",
+                    "configure_advanced": "Show advanced configuration options such as keep-alive intervals, temperature precision, and default modes for power users."
+                }
+            },
+            "cooling": {
+                "title": "Cooling Configuration",
+                "description": "Configure cooling settings for air conditioning mode.",
+                "data": {
+                    "cooler": "Air conditioning switch",
+                    "ac_mode": "Enable air conditioning mode",
+                    "cool_tolerance": "Cool tolerance",
+                    "min_cycle_duration_cooling": "Minimum cooling cycle duration"
+                },
+                "data_description": {
+                    "cooler": "Entity ID for switch used to turn on the air conditioning or cooling system. Can be the same as heater switch for heat pump systems.",
+                    "ac_mode": "Enable air conditioning mode. When enabled, switches heater to AC mode if it's the only configured switch. In AC mode, the heater switch acts as a cooling device.",
+                    "cool_tolerance": "Minimum temperature difference between sensor reading and target before turning on cooling. For example, if target is 25°C and tolerance is 0.5°C, cooling starts when sensor reaches 25.5°C or above (default: 0.3°C).",
+                    "min_cycle_duration_cooling": "Minimum time that the cooling switch must stay in its current state before being switched. Prevents rapid on/off cycling and protects cooling equipment."
+                }
+            },
+            "cooling_only": {
+                "title": "Air Conditioning Configuration",
+                "description": "Configure your air conditioning system, organized by category.",
+                "data": {
+                    "name": "Name",
+                    "heater": "Air conditioning switch",
+                    "target_sensor": "Temperature sensor"
+                },
+                "data_description": {
+                    "name": "[Basic Information] Name of the thermostat entity (default: Dual Smart).",
+                    "target_sensor": "[Sensors] Entity ID for temperature sensor that reflects the current temperature. The sensor state must be temperature.",
+                    "heater": "[Control Devices] Entity ID for air conditioning switch, must be a toggle device. Used for cooling when temperature rises above target."
+                },
+                "sections": {
+                    "advanced_settings": {
+                        "name": "Advanced Settings",
+                        "description": "Configure temperature tolerances and advanced options for cycle protection and device communication.",
+                        "data": {
+                            "cold_tolerance": "Cold tolerance",
+                            "hot_tolerance": "Hot tolerance",
+                            "min_cycle_duration": "Minimum cycle duration",
+                            "keep_alive": "Keep alive interval"
+                        },
+                        "data_description": {
+                            "cold_tolerance": "Minimum temperature difference between sensor reading and target before turning off cooling. For example, if target is 25°C and tolerance is 0.5°C, cooling stops when sensor reaches 24.5°C or below (default: 0.3°C).",
+                            "hot_tolerance": "Minimum temperature difference between sensor reading and target before turning on cooling. For example, if target is 25°C and tolerance is 0.5°C, cooling starts when sensor reaches 25.5°C or above (default: 0.3°C).",
+                            "min_cycle_duration": "Minimum time the cooling switch must stay in its current state before being switched. Prevents rapid on/off cycling and protects cooling equipment (default: 300 seconds).",
+                            "keep_alive": "Maximum time between updates for the target temperature sensor. Forces periodic switching to ensure the cooling device doesn't turn off unexpectedly (default: 300 seconds)."
+                        }
+                    }
+                }
+            },
+            "heater_cooler": {
+                "title": "Heater & Cooler Configuration",
+                "description": "Configure your heating and cooling system with separate switches, organized by category.",
+                "data": {
+                    "name": "Name",
+                    "heater": "Heater switch",
+                    "cooler": "Cooler switch",
+                    "target_sensor": "Temperature sensor",
+                    "heat_cool_mode": "Heat/Cool mode"
+                },
+                "data_description": {
+                    "name": "[Basic Information] Name of the thermostat entity (default: Dual Smart).",
+                    "target_sensor": "[Sensors] Entity ID for temperature sensor that reflects the current temperature. The sensor state must be temperature.",
+                    "heater": "[Control Devices] Entity ID for heater switch, must be a toggle device. Used for heating when temperature falls below target.",
+                    "cooler": "[Control Devices] Entity ID for cooler/AC switch, must be a toggle device. Used for cooling when temperature rises above target. Can be the same as heater for heat pump systems.",
+                    "heat_cool_mode": "[Control Settings] Enable heat/cool mode with dual temperature control. When enabled, allows automatic switching between heating and cooling to maintain a comfortable temperature range.",
+                    "cold_tolerance": "[Temperature Settings] Minimum temperature difference between sensor reading and target before turning on heating. Creates a buffer zone to prevent frequent switching.",
+                    "hot_tolerance": "[Temperature Settings] Minimum temperature difference between sensor reading and target before turning on cooling. Creates a buffer zone to prevent frequent switching.",
+                    "min_cycle_duration": "[Temperature Settings] Minimum time the switches must stay in their current state before being switched. Prevents rapid on/off cycling and protects equipment from damage."
+                },
+                "sections": {
+                    "advanced_settings": {
+                        "name": "Advanced Settings",
+                        "description": "Configure temperature tolerances and cycle protection settings for optimal system control.",
+                        "data": {
+                            "cold_tolerance": "Cold tolerance",
+                            "hot_tolerance": "Hot tolerance",
+                            "min_cycle_duration": "Minimum cycle duration"
+                        },
+                        "data_description": {
+                            "cold_tolerance": "Minimum temperature difference between sensor reading and target before activating heating or deactivating cooling. For example, if target is 25°C and tolerance is 0.5°C, changes occur when sensor reaches 24.5°C or below (default: 0.3°C).",
+                            "hot_tolerance": "Minimum temperature difference between sensor reading and target before activating cooling or deactivating heating. For example, if target is 25°C and tolerance is 0.5°C, changes occur when sensor reaches 25.5°C or above (default: 0.3°C).",
+                            "min_cycle_duration": "Minimum time the system switch must stay in its current state before being switched. Prevents rapid on/off cycling and protects equipment (default: 300 seconds)."
+                        }
+                    }
+                }
+            },
+            "heat_pump": {
+                "title": "Heat Pump Configuration",
+                "description": "Configure your heat pump system.",
+                "data": {
+                    "name": "Name",
+                    "heater": "Heat pump switch",
+                    "target_sensor": "Temperature sensor",
+                    "cold_tolerance": "Cold tolerance",
+                    "hot_tolerance": "Hot tolerance",
+                    "min_cycle_duration": "Minimum cycle duration"
+                },
+                "data_description": {
+                    "name": "Name of the thermostat entity (default: Dual Smart).",
+                    "heater": "Entity ID for heat pump switch. Controls the heat pump unit that can provide both heating and cooling depending on the thermostat mode and outdoor conditions.",
+                    "target_sensor": "Entity ID for temperature sensor that reflects the current temperature. The sensor state must be temperature.",
+                    "cold_tolerance": "Minimum temperature difference between sensor reading and target before switching heat pump to heating mode. For example, if target is 25°C and tolerance is 0.5°C, heating starts when sensor reaches 24.5°C or below.",
+                    "hot_tolerance": "Minimum temperature difference between sensor reading and target before switching heat pump to cooling mode. For example, if target is 25°C and tolerance is 0.5°C, cooling starts when sensor reaches 25.5°C or above.",
+                    "min_cycle_duration": "Minimum time the heat pump must stay in its current state before being switched. Critical for heat pump protection as frequent switching can damage the compressor."
+                }
+            },
+            "dual_stage": {
+                "title": "Dual Stage Heating Setup",
+                "description": "Configure the basic settings for your dual stage heating system.",
+                "data": {
+                    "name": "Name",
+                    "heater": "Primary heater switch",
+                    "target_sensor": "Temperature sensor",
+                    "cold_tolerance": "Cold tolerance",
+                    "hot_tolerance": "Hot tolerance",
+                    "min_cycle_duration": "Minimum cycle duration"
+                },
+                "data_description": {
+                    "name": "Name of the thermostat entity (default: Dual Smart).",
+                    "heater": "Entity ID for primary heater switch, must be a toggle device. This will be the first stage heater that operates most of the time.",
+                    "target_sensor": "Entity ID for temperature sensor that reflects the current temperature. The sensor state must be temperature.",
+                    "cold_tolerance": "Minimum temperature difference between sensor reading and target before turning on primary heating. For example, if target is 25°C and tolerance is 0.5°C, primary heater starts when sensor reaches 24.5°C or below (default: 0.3°C).",
+                    "hot_tolerance": "Minimum temperature difference between sensor reading and target before turning off heating. For example, if target is 25°C and tolerance is 0.5°C, heater stops when sensor reaches 25.5°C or above (default: 0.3°C).",
+                    "min_cycle_duration": "Minimum time the primary heater must stay in its current state before being switched. Prevents rapid on/off cycling and protects equipment."
+                }
+            },
+            "two_stage": {
+                "title": "Two-Stage Heating Configuration",
+                "description": "Configure two-stage heating system with primary and auxiliary heating.",
+                "data": {
+                    "heater_2": "Second stage heater switch",
+                    "heat_cool_mode": "Heat/Cool mode",
+                    "dual_mode_tolerance": "Dual mode tolerance"
+                },
+                "data_description": {
+                    "heater_2": "Entity ID for second stage heater switch. Used when additional heating capacity is needed. In dual mode, this is the heating switch while 'heater' becomes the cooling switch.",
+                    "heat_cool_mode": "Enable heat/cool mode. The first stage heater 'heater' becomes cooling and the second stage 'heater_2' becomes heating. Allows simultaneous heating and cooling control.",
+                    "dual_mode_tolerance": "Temperature tolerance for dual mode operation. Sets the buffer zone where neither heating nor cooling operates, preventing rapid switching between heating and cooling."
+                }
+            },
+            "dual_stage_config": {
+                "title": "Secondary Heater Configuration",
+                "description": "Configure your auxiliary/secondary heater settings.",
+                "data": {
+                    "secondary_heater": "Secondary heater switch",
+                    "secondary_heater_timeout": "Secondary heater timeout",
+                    "secondary_heater_dual_mode": "Dual mode operation"
+                },
+                "data_description": {
+                    "secondary_heater": "Entity ID for auxiliary/secondary heater switch. Activated when primary heater cannot maintain temperature, providing additional heating capacity for extremely cold conditions.",
+                    "secondary_heater_timeout": "Time to wait before activating secondary heater after primary heater starts. Prevents both heaters from starting simultaneously and allows primary heater time to reach target temperature.",
+                    "secondary_heater_dual_mode": "Enable both primary and secondary heaters to work simultaneously when needed. When disabled, secondary heater only activates when primary heater alone is insufficient."
+                }
+            },
+            "floor_heating": {
+                "title": "Floor Heating Configuration",
+                "description": "Configure floor temperature sensor and limits for floor heating systems.",
+                "data": {
+                    "floor_sensor": "Floor temperature sensor",
+                    "max_floor_temp": "Maximum floor temperature"
+                },
+                "data_description": {
+                    "floor_sensor": "Entity ID for floor temperature sensor. When configured, provides floor temperature protection and floor heating control independent of room temperature.",
+                    "max_floor_temp": "Maximum allowed floor temperature. The floor heating will automatically turn off when this temperature is exceeded, regardless of the room temperature target, to protect flooring materials and prevent overheating."
+                }
+            },
+            "floor_config": {
+                "title": "Floor Temperature Protection",
+                "description": "Configure floor temperature monitoring and limits.",
+                "data": {
+                    "floor_sensor": "Floor temperature sensor",
+                    "max_floor_temp": "Maximum floor temperature",
+                    "min_floor_temp": "Minimum floor temperature"
+                },
+                "data_description": {
+                    "floor_sensor": "Entity ID for floor temperature sensor. Monitors floor temperature to ensure safe operation and protect flooring materials from overheating or extreme cold.",
+                    "max_floor_temp": "Maximum allowed floor temperature for protection. Floor heating will turn off when this temperature is reached, regardless of room temperature, to prevent damage to flooring materials. (Default: 28°C)",
+                    "min_floor_temp": "Minimum floor temperature to maintain. Floor heating will activate when floor temperature drops below this value, providing freeze protection for the floor heating system. (Default: 5°C)"
+                }
+            },
+            "openings_toggle": {
+                "title": "Window/Door Sensor Configuration",
+                "description": "Enable automatic HVAC control based on window and door sensors.",
+                "data": {
+                    "enable_openings": "Enable openings detection"
+                },
+                "data_description": {
+                    "enable_openings": "Enable window and door sensor integration. When enabled, the thermostat will automatically turn off heating/cooling when windows or doors are opened, and resume operation when they are closed, saving energy and improving efficiency."
+                }
+            },
+            "openings_selection": {
+                "title": "Window/Door Sensor Selection",
+                "description": "Select window and door sensors and configure their operational scope.",
+                "data": {
+                    "selected_openings": "Window/Door sensors",
+                    "openings_scope": "HVAC modes affected by openings"
+                },
+                "data_description": {
+                    "selected_openings": "Select entities that detect when windows or doors are open. Can be binary sensors, sensors, switches, or input booleans. The entity should indicate 'open' state when the window/door is open and 'closed' state when closed.",
+                    "openings_scope": "Select which HVAC modes should be affected when windows/doors are open. If 'All HVAC modes' is selected or none selected, the entire system will turn off when any opening is detected. Select specific modes to only affect those operations (e.g., only heating or only cooling)."
+                }
+            },
+            "openings_config": {
+                "title": "Opening/Closing Timeout Settings",
+                "description": "Configure optional timeout delays for when windows/doors open and close. Leave empty for immediate response.\n\nSelected openings:\n{selected_entities}",
+                "data": {
+                    "openings_scope": "HVAC modes affected by openings",
+                    "opening_1_timeout_open": "Opening 1 - Opening timeout (seconds)",
+                    "opening_1_timeout_close": "Opening 1 - Closing timeout (seconds)",
+                    "opening_2_timeout_open": "Opening 2 - Opening timeout (seconds)",
+                    "opening_2_timeout_close": "Opening 2 - Closing timeout (seconds)",
+                    "opening_3_timeout_open": "Opening 3 - Opening timeout (seconds)",
+                    "opening_3_timeout_close": "Opening 3 - Closing timeout (seconds)",
+                    "opening_4_timeout_open": "Opening 4 - Opening timeout (seconds)",
+                    "opening_4_timeout_close": "Opening 4 - Closing timeout (seconds)",
+                    "opening_5_timeout_open": "Opening 5 - Opening timeout (seconds)",
+                    "opening_5_timeout_close": "Opening 5 - Closing timeout (seconds)",
+                    "opening_6_timeout_open": "Opening 6 - Opening timeout (seconds)",
+                    "opening_6_timeout_close": "Opening 6 - Closing timeout (seconds)",
+                    "opening_7_timeout_open": "Opening 7 - Opening timeout (seconds)",
+                    "opening_7_timeout_close": "Opening 7 - Closing timeout (seconds)",
+                    "opening_8_timeout_open": "Opening 8 - Opening timeout (seconds)",
+                    "opening_8_timeout_close": "Opening 8 - Closing timeout (seconds)",
+                    "opening_9_timeout_open": "Opening 9 - Opening timeout (seconds)",
+                    "opening_9_timeout_close": "Opening 9 - Closing timeout (seconds)",
+                    "opening_10_timeout_open": "Opening 10 - Opening timeout (seconds)",
+                    "opening_10_timeout_close": "Opening 10 - Closing timeout (seconds)"
+                },
+                "data_description": {
+                    "openings_scope": "Select which HVAC modes should be affected when windows/doors are open. When no scope is selected or 'All HVAC modes' is chosen, the entire system will be affected.",
+                    "opening_1_timeout_open": "Time to wait after this opening activates before turning off HVAC. Set to 0 for immediate response.",
+                    "opening_1_timeout_close": "Time to wait after this opening closes before turning HVAC back on. Set to 0 for immediate response.",
+                    "opening_2_timeout_open": "Time to wait after this opening activates before turning off HVAC. Set to 0 for immediate response.",
+                    "opening_2_timeout_close": "Time to wait after this opening closes before turning HVAC back on. Set to 0 for immediate response.",
+                    "opening_3_timeout_open": "Time to wait after this opening activates before turning off HVAC. Set to 0 for immediate response.",
+                    "opening_3_timeout_close": "Time to wait after this opening closes before turning HVAC back on. Set to 0 for immediate response.",
+                    "opening_4_timeout_open": "Time to wait after this opening activates before turning off HVAC. Set to 0 for immediate response.",
+                    "opening_4_timeout_close": "Time to wait after this opening closes before turning HVAC back on. Set to 0 for immediate response.",
+                    "opening_5_timeout_open": "Time to wait after this opening activates before turning off HVAC. Set to 0 for immediate response.",
+                    "opening_5_timeout_close": "Time to wait after this opening closes before turning HVAC back on. Set to 0 for immediate response.",
+                    "opening_6_timeout_open": "Time to wait after this opening activates before turning off HVAC. Set to 0 for immediate response.",
+                    "opening_6_timeout_close": "Time to wait after this opening closes before turning HVAC back on. Set to 0 for immediate response.",
+                    "opening_7_timeout_open": "Time to wait after this opening activates before turning off HVAC. Set to 0 for immediate response.",
+                    "opening_7_timeout_close": "Time to wait after this opening closes before turning HVAC back on. Set to 0 for immediate response.",
+                    "opening_8_timeout_open": "Time to wait after this opening activates before turning off HVAC. Set to 0 for immediate response.",
+                    "opening_8_timeout_close": "Time to wait after this opening closes before turning HVAC back on. Set to 0 for immediate response.",
+                    "opening_9_timeout_open": "Time to wait after this opening activates before turning off HVAC. Set to 0 for immediate response.",
+                    "opening_9_timeout_close": "Time to wait after this opening closes before turning HVAC back on. Set to 0 for immediate response.",
+                    "opening_10_timeout_open": "Time to wait after this opening activates before turning off HVAC. Set to 0 for immediate response.",
+                    "opening_10_timeout_close": "Time to wait after this opening closes before turning HVAC back on. Set to 0 for immediate response."
+                },
+                "selector": {
+                    "openings_scope": {
+                        "options": {
+                            "all": "All HVAC modes",
+                            "cool": "Cooling only",
+                            "heat": "Heating only",
+                            "fan_only": "Fan only",
+                            "heat_cool": "Heat/Cool mode",
+                            "dry": "Dry mode"
+                        }
+                    }
+                }
+            },
+            "heat_cool_mode": {
+                "title": "Heat/Cool Mode Configuration",
+                "description": "Configure automatic heat/cool mode switching.",
+                "data": {
+                    "heat_cool_mode": "Enable heat/cool mode",
+                    "target_temp_low": "Low temperature setpoint",
+                    "target_temp_high": "High temperature setpoint"
+                },
+                "data_description": {
+                    "heat_cool_mode": "Enable automatic switching between heating and cooling modes based on dual temperature setpoints. Creates a comfortable temperature range rather than a single target.",
+                    "target_temp_low": "Lower temperature threshold for heat/cool mode. Heating activates when temperature drops below this value.",
+                    "target_temp_high": "Upper temperature threshold for heat/cool mode. Cooling activates when temperature rises above this value. Must be higher than the low setpoint."
+                }
+            },
+            "fan": {
+                "title": "Fan Configuration",
+                "description": "Configure fan control and settings.",
+                "data": {
+                    "fan": "Fan switch",
+                    "fan_mode": "Fan mode",
+                    "fan_on_with_ac": "Fan with AC",
+                    "fan_hot_tolerance": "Fan hot tolerance",
+                    "fan_hot_tolerance_toggle": "Fan tolerance toggle",
+                    "fan_air_outside": "Fan air outside"
+                },
+                "data_description": {
+                    "fan": "Entity ID for fan switch. Used to control air circulation and improve temperature distribution throughout the space.",
+                    "fan_mode": "Enable fan as a separate HVAC mode. When enabled, FAN mode becomes available in addition to heat, cool, and auto modes, allowing fan-only operation.",
+                    "fan_on_with_ac": "Automatically turn on fan when cooling (AC) is active. Improves cooling efficiency and air circulation during cooling cycles.",
+                    "fan_hot_tolerance": "Temperature difference above target that triggers fan activation. For example, with target 25°C and tolerance 1°C, fan activates when temperature reaches 26°C.",
+                    "fan_hot_tolerance_toggle": "Entity ID for input boolean that can toggle fan hot tolerance on/off. Allows dynamic control of when fan should activate based on temperature.",
+                    "fan_air_outside": "Enable outside air circulation when outside temperature is more favorable than inside temperature. Requires outside temperature sensor to be configured for intelligent outside air usage."
+                }
+            },
+            "humidity": {
+                "title": "Humidity Control",
+                "description": "Configure humidity monitoring and control.",
+                "data": {
+                    "humidity_sensor": "Humidity sensor",
+                    "dryer": "Dryer/Dehumidifier switch",
+                    "target_humidity": "Target humidity",
+                    "min_humidity": "Minimum humidity",
+                    "max_humidity": "Maximum humidity",
+                    "dry_tolerance": "Dry tolerance",
+                    "moist_tolerance": "Moist tolerance"
+                },
+                "data_description": {
+                    "humidity_sensor": "Entity ID for humidity sensor. When configured, enables humidity control features and humidity-based presets. The sensor state must be humidity percentage.",
+                    "dryer": "Entity ID for dryer/dehumidifier switch. Used to control dehumidification when humidity levels exceed targets.",
+                    "target_humidity": "Target humidity level to maintain (percentage). Default humidity target when no preset is active.",
+                    "min_humidity": "Minimum allowed humidity level (percentage). Humidity will be increased if it drops below this value.",
+                    "max_humidity": "Maximum allowed humidity level (percentage). Humidity will be decreased if it rises above this value.",
+                    "dry_tolerance": "Minimum humidity difference below target before activating humidification or deactivating dehumidification.",
+                    "moist_tolerance": "Minimum humidity difference above target before activating dehumidification or deactivating humidification."
+                }
+            },
+            "additional_sensors": {
+                "title": "Additional Sensors",
+                "description": "Configure additional temperature sensors.",
+                "data": {
+                    "outside_sensor": "Outside temperature sensor"
+                },
+                "data_description": {
+                    "outside_sensor": "Entity ID for outside temperature sensor. Used for intelligent operations like free cooling, outside air usage with fan control, and weather-based heating/cooling decisions. Enables the system to optimize energy usage based on outdoor conditions."
+                }
+            },
+            "advanced": {
+                "title": "Advanced Settings",
+                "description": "Configure advanced thermostat settings.",
+                "data": {
+                    "advanced_system_type": "Advanced system type",
+                    "keep_alive": "Keep alive duration",
+                    "initial_hvac_mode": "Initial HVAC mode",
+                    "precision": "Temperature precision",
+                    "target_temp_step": "Temperature step",
+                    "min_temp": "Minimum temperature",
+                    "max_temp": "Maximum temperature",
+                    "target_temp": "Target temperature"
+                },
+                "data_description": {
+                    "advanced_system_type": "Select advanced system configuration. Choose standard for regular thermostat, dual stage for two-stage heating with auxiliary heater, or floor heating for temperature protection systems.",
+                    "keep_alive": "Keep alive duration for periodic switching. Set this if your switch needs a heartbeat to keep it 'alive'. For example, some switches turn off automatically after a period of time.",
+                    "initial_hvac_mode": "Initial HVAC mode when starting Home Assistant. Sets the default operation mode on startup (heat, cool, auto, off, etc.).",
+                    "precision": "Temperature precision for display and control. Determines the decimal precision for temperature values (0.1, 0.5, 1.0 degrees).",
+                    "target_temp_step": "Temperature step size for adjustments. Controls how much the target temperature changes with each adjustment (e.g., 0.5°C or 1°C steps).",
+                    "min_temp": "Minimum allowed temperature setting. Sets the lower bound for target temperature to prevent unsafe or inefficient operation.",
+                    "max_temp": "Maximum allowed temperature setting. Sets the upper bound for target temperature to prevent unsafe or inefficient operation.",
+                    "target_temp": "Initial target temperature when the thermostat is first configured. This becomes the default temperature when no preset is active."
+                }
+            },
+            "presets": {
+                "title": "Temperature Presets Configuration",
+                "description": "Configure temperature presets for different scenarios. Fields are organized by preset type - basic temperature, humidity settings, dual-temperature ranges, floor heating limits, and fan modes based on your configured features.",
+                "data": {
+                    "away": "▼ AWAY PRESET",
+                    "away_humidity": "Away humidity",
+                    "away_temp_low": "Away low temperature",
+                    "away_temp_high": "Away high temperature",
+                    "away_max_floor_temp": "Away max floor temperature",
+                    "away_min_floor_temp": "Away min floor temperature",
+                    "away_fan_mode": "Away fan mode",
+                    "comfort": "▼ COMFORT PRESET",
+                    "comfort_humidity": "Comfort humidity",
+                    "comfort_temp_low": "Comfort low temperature",
+                    "comfort_temp_high": "Comfort high temperature",
+                    "comfort_max_floor_temp": "Comfort max floor temperature",
+                    "comfort_min_floor_temp": "Comfort min floor temperature",
+                    "comfort_fan_mode": "Comfort fan mode",
+                    "eco": "▼ ECO PRESET",
+                    "eco_humidity": "Eco humidity",
+                    "eco_temp_low": "Eco low temperature",
+                    "eco_temp_high": "Eco high temperature",
+                    "eco_max_floor_temp": "Eco max floor temperature",
+                    "eco_min_floor_temp": "Eco min floor temperature",
+                    "eco_fan_mode": "Eco fan mode",
+                    "home": "▼ HOME PRESET",
+                    "home_humidity": "Home humidity",
+                    "home_temp_low": "Home low temperature",
+                    "home_temp_high": "Home high temperature",
+                    "home_max_floor_temp": "Home max floor temperature",
+                    "home_min_floor_temp": "Home min floor temperature",
+                    "home_fan_mode": "Home fan mode",
+                    "sleep": "▼ SLEEP PRESET",
+                    "sleep_humidity": "Sleep humidity",
+                    "sleep_temp_low": "Sleep low temperature",
+                    "sleep_temp_high": "Sleep high temperature",
+                    "sleep_max_floor_temp": "Sleep max floor temperature",
+                    "sleep_min_floor_temp": "Sleep min floor temperature",
+                    "sleep_fan_mode": "Sleep fan mode",
+                    "anti_freeze": "▼ ANTI-FREEZE PRESET",
+                    "anti_freeze_humidity": "Anti-freeze humidity",
+                    "anti_freeze_temp_low": "Anti-freeze low temperature",
+                    "anti_freeze_temp_high": "Anti-freeze high temperature",
+                    "anti_freeze_max_floor_temp": "Anti-freeze max floor temperature",
+                    "anti_freeze_min_floor_temp": "Anti-freeze min floor temperature",
+                    "anti_freeze_fan_mode": "Anti-freeze fan mode",
+                    "activity": "▼ ACTIVITY PRESET",
+                    "activity_humidity": "Activity humidity",
+                    "activity_temp_low": "Activity low temperature",
+                    "activity_temp_high": "Activity high temperature",
+                    "activity_max_floor_temp": "Activity max floor temperature",
+                    "activity_min_floor_temp": "Activity min floor temperature",
+                    "activity_fan_mode": "Activity fan mode",
+                    "boost": "▼ BOOST PRESET",
+                    "boost_humidity": "Boost humidity",
+                    "boost_temp_low": "Boost low temperature",
+                    "boost_temp_high": "Boost high temperature",
+                    "boost_max_floor_temp": "Boost max floor temperature",
+                    "boost_min_floor_temp": "Boost min floor temperature",
+                    "boost_fan_mode": "Boost fan mode"
+                },
+                "data_description": {
+                    "away": "Away preset - Target temperature when Away preset is selected. Typically set lower for energy savings when nobody is home.",
+                    "away_humidity": "Away preset - Target humidity when Away preset is selected. Used with humidity control to maintain optimal conditions.",
+                    "away_temp_low": "Away preset - Lower temperature bound for Away preset in dual-temperature mode.",
+                    "away_temp_high": "Away preset - Upper temperature bound for Away preset in dual-temperature mode.",
+                    "away_max_floor_temp": "Away preset - Maximum floor temperature when Away preset is selected for floor heating systems.",
+                    "away_min_floor_temp": "Away preset - Minimum floor temperature when Away preset is selected for floor heating systems.",
+                    "away_fan_mode": "Away preset - Fan mode setting when Away preset is selected.",
+                    "comfort": "Comfort preset - Target temperature when Comfort preset is selected. Maximum comfort setting.",
+                    "comfort_humidity": "Comfort preset - Target humidity when Comfort preset is selected.",
+                    "comfort_temp_low": "Comfort preset - Lower temperature bound for Comfort preset in dual-temperature mode.",
+                    "comfort_temp_high": "Comfort preset - Upper temperature bound for Comfort preset in dual-temperature mode.",
+                    "comfort_max_floor_temp": "Comfort preset - Maximum floor temperature when Comfort preset is selected for floor heating systems.",
+                    "comfort_min_floor_temp": "Comfort preset - Minimum floor temperature when Comfort preset is selected for floor heating systems.",
+                    "comfort_fan_mode": "Comfort preset - Fan mode setting when Comfort preset is selected.",
+                    "eco": "Eco preset - Target temperature when Eco preset is selected. Energy-saving temperature setting.",
+                    "eco_humidity": "Eco preset - Target humidity when Eco preset is selected. Energy-efficient humidity level.",
+                    "eco_temp_low": "Eco preset - Lower temperature bound for Eco preset in dual-temperature mode.",
+                    "eco_temp_high": "Eco preset - Upper temperature bound for Eco preset in dual-temperature mode.",
+                    "eco_max_floor_temp": "Eco preset - Maximum floor temperature when Eco preset is selected for floor heating systems.",
+                    "eco_min_floor_temp": "Eco preset - Minimum floor temperature when Eco preset is selected for floor heating systems.",
+                    "eco_fan_mode": "Eco preset - Fan mode setting when Eco preset is selected.",
+                    "home": "Home preset - Target temperature when Home preset is selected. Comfortable temperature for daily activities.",
+                    "home_humidity": "Home preset - Target humidity when Home preset is selected. Optimal humidity for comfort and health.",
+                    "home_temp_low": "Home preset - Lower temperature bound for Home preset in dual-temperature mode.",
+                    "home_temp_high": "Home preset - Upper temperature bound for Home preset in dual-temperature mode.",
+                    "home_max_floor_temp": "Home preset - Maximum floor temperature when Home preset is selected for floor heating systems.",
+                    "home_min_floor_temp": "Home preset - Minimum floor temperature when Home preset is selected for floor heating systems.",
+                    "home_fan_mode": "Home preset - Fan mode setting when Home preset is selected.",
+                    "sleep": "Sleep preset - Target temperature when Sleep preset is selected. Often set slightly cooler for better sleep quality.",
+                    "sleep_humidity": "Sleep preset - Target humidity when Sleep preset is selected. Optimal sleeping conditions humidity.",
+                    "sleep_temp_low": "Sleep preset - Lower temperature bound for Sleep preset in dual-temperature mode.",
+                    "sleep_temp_high": "Sleep preset - Upper temperature bound for Sleep preset in dual-temperature mode.",
+                    "sleep_max_floor_temp": "Sleep preset - Maximum floor temperature when Sleep preset is selected for floor heating systems.",
+                    "sleep_min_floor_temp": "Sleep preset - Minimum floor temperature when Sleep preset is selected for floor heating systems.",
+                    "sleep_fan_mode": "Sleep preset - Fan mode setting when Sleep preset is selected.",
+                    "anti_freeze": "Anti-freeze preset - Target temperature when Anti-freeze preset is selected. Minimum temperature to prevent freezing.",
+                    "anti_freeze_humidity": "Anti-freeze preset - Target humidity when Anti-freeze preset is selected.",
+                    "anti_freeze_temp_low": "Anti-freeze preset - Lower temperature bound for Anti-freeze preset in dual-temperature mode.",
+                    "anti_freeze_temp_high": "Anti-freeze preset - Upper temperature bound for Anti-freeze preset in dual-temperature mode.",
+                    "anti_freeze_max_floor_temp": "Anti-freeze preset - Maximum floor temperature when Anti-freeze preset is selected for floor heating systems.",
+                    "anti_freeze_min_floor_temp": "Anti-freeze preset - Minimum floor temperature when Anti-freeze preset is selected for floor heating systems.",
+                    "anti_freeze_fan_mode": "Anti-freeze preset - Fan mode setting when Anti-freeze preset is selected.",
+                    "activity": "Activity preset - Target temperature when Activity preset is selected. May be set higher for active periods.",
+                    "activity_humidity": "Activity preset - Target humidity when Activity preset is selected.",
+                    "activity_temp_low": "Activity preset - Lower temperature bound for Activity preset in dual-temperature mode.",
+                    "activity_temp_high": "Activity preset - Upper temperature bound for Activity preset in dual-temperature mode.",
+                    "activity_max_floor_temp": "Activity preset - Maximum floor temperature when Activity preset is selected for floor heating systems.",
+                    "activity_min_floor_temp": "Activity preset - Minimum floor temperature when Activity preset is selected for floor heating systems.",
+                    "activity_fan_mode": "Activity preset - Fan mode setting when Activity preset is selected.",
+                    "boost": "Boost preset - Target temperature when Boost preset is selected. Higher temperature for quick heating.",
+                    "boost_humidity": "Boost preset - Target humidity when Boost preset is selected.",
+                    "boost_temp_low": "Boost preset - Lower temperature bound for Boost preset in dual-temperature mode.",
+                    "boost_temp_high": "Boost preset - Upper temperature bound for Boost preset in dual-temperature mode.",
+                    "boost_max_floor_temp": "Boost preset - Maximum floor temperature when Boost preset is selected for floor heating systems.",
+                    "boost_min_floor_temp": "Boost preset - Minimum floor temperature when Boost preset is selected for floor heating systems.",
+                    "boost_fan_mode": "Boost preset - Fan mode setting when Boost preset is selected."
+                }
+            },
+            "system_features": {
+                "title": "System Features Configuration",
+                "description": "Choose which features to configure for your thermostat system. Select only the features you want to set up - unselected features will not be configured."
+            },
+            "ac_only_features": {
+                "title": "AC Features Configuration",
+                "description": "Choose which features to configure for your air conditioning system. Select only the features you want to set up - unselected features will not be configured.",
+                "data": {
+                    "heater": "Air conditioning switch",
+                    "keep_alive": "Keep-alive interval",
+                    "initial_hvac_mode": "Initial HVAC mode",
+                    "precision": "Temperature precision",
+                    "target_temp_step": "Temperature step size",
+                    "min_temp": "Minimum temperature",
+                    "max_temp": "Maximum temperature",
+                    "target_temp": "Initial target temperature"
+                },
+                "data_description": {
+                    "keep_alive": "Set a keep-alive interval for switches. Use with heaters and A/C units that shut off if they don't receive a signal from their remote for a while.",
+                    "initial_hvac_mode": "Set the initial HVAC mode when the thermostat starts. Choose the default mode that should be active when Home Assistant starts.",
+                    "precision": "Temperature precision for the thermostat. This determines the smallest temperature increment that can be displayed and set.",
+                    "target_temp_step": "Temperature step size for the thermostat controls. This determines how much the temperature changes when using the up/down buttons.",
+                    "min_temp": "Minimum temperature limit for the thermostat. Users will not be able to set the target temperature below this value.",
+                    "max_temp": "Maximum temperature limit for the thermostat. Users will not be able to set the target temperature above this value.",
+                    "target_temp": "Initial target temperature when the thermostat is first configured. This will be the default temperature setting."
+                }
+            }
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "title": "System Type Selection",
+                "description": "Choose the type of thermostat system you want to configure.",
+                "data": {
+                    "system_type": "System Type"
+                },
+                "data_description": {
+                    "system_type": "Select the system type that best matches your HVAC setup."
+                }
+            },
+            "features": {
+                "title": "Features Configuration",
+                "description": "Choose which features to configure for your system. This determines which configuration options will be available.",
+                "data": {
+                    "configure_fan": "Configure fan settings",
+                    "configure_humidity": "Configure humidity control",
+                    "configure_openings": "Configure window/door sensors",
+                    "configure_presets": "Configure temperature presets",
+                    "configure_floor_heating": "Configure floor heating protection",
+                    "configure_advanced": "Configure advanced settings"
+                },
+                "data_description": {
+                    "configure_fan": "Enable configuration of fan settings. This allows you to set up a separate fan entity that can run independently for air circulation.",
+                    "configure_humidity": "Enable configuration of humidity monitoring and control. This allows you to set up humidity sensors and dry mode operation.",
+                    "configure_openings": "Enable configuration of window and door sensors so the thermostat can pause operation when openings are detected.",
+                    "configure_presets": "Enable configuration of temperature presets like Away, Comfort, and Eco for quick mode changes.",
+                    "configure_floor_heating": "Enable configuration of floor temperature protection. When enabled you can set a floor sensor and max/min limits to protect your flooring.",
+                    "configure_advanced": "Show advanced configuration options such as keep-alive intervals, temperature precision, and default modes for power users."
+                }
+            },
+            "basic": {
+                "title": "Basic Configuration",
+                "description": "Modify basic thermostat settings including system entities and basic temperature control parameters.",
+                "data": {
+                    "heater": "Air conditioning switch",
+                    "sensor": "Temperature sensor",
+                    "target_sensor": "Temperature sensor",
+                    "cold_tolerance": "Cold tolerance",
+                    "hot_tolerance": "Hot tolerance",
+                    "heat_cool_mode": "Heat/Cool mode",
+                    "min_cycle_duration": "Minimum cycle duration"
+                },
+                "data_description": {
+                    "heater": "Entity ID for air conditioning switch, must be a toggle device. Used for cooling when temperature rises above target.",
+                    "sensor": "Entity ID for temperature sensor that reflects the current temperature. The sensor state must be temperature.",
+                    "target_sensor": "Entity ID for temperature sensor that reflects the current temperature. The sensor state must be temperature.",
+                    "cold_tolerance": "Minimum temperature difference between sensor reading and target before turning off cooling. For example, if target is 25°C and tolerance is 0.5°C, cooling stops when sensor reaches 24.5°C or below (default: 0.3°C).",
+                    "hot_tolerance": "Minimum temperature difference between sensor reading and target before turning on cooling. For example, if target is 25°C and tolerance is 0.5°C, cooling starts when sensor reaches 25.5°C or above (default: 0.3°C).",
+                    "heat_cool_mode": "Enable heat/cool mode. The first stage heater 'heater' becomes cooling and the second stage 'heater_2' becomes heating. Allows simultaneous heating and cooling control.",
+                    "min_cycle_duration": "Minimum time the cooling switch must stay in its current state before being switched. Prevents rapid on/off cycling and protects cooling equipment."
+                },
+                "sections": {
+                    "advanced_settings": {
+                        "name": "Advanced Settings",
+                        "description": "Configure temperature tolerances and cycle protection settings for optimal system control.",
+                        "data": {
+                            "cold_tolerance": "Cold tolerance",
+                            "hot_tolerance": "Hot tolerance",
+                            "min_cycle_duration": "Minimum cycle duration"
+                        },
+                        "data_description": {
+                            "cold_tolerance": "Minimum temperature difference between sensor reading and target before activating heating or deactivating cooling. For example, if target is 25°C and tolerance is 0.5°C, changes occur when sensor reaches 24.5°C or below (default: 0.3°C).",
+                            "hot_tolerance": "Minimum temperature difference between sensor reading and target before activating cooling or deactivating heating. For example, if target is 25°C and tolerance is 0.5°C, changes occur when sensor reaches 25.5°C or above (default: 0.3°C).",
+                            "min_cycle_duration": "Minimum time the system switch must stay in its current state before being switched. Prevents rapid on/off cycling and protects equipment (default: 300 seconds)."
+                        }
+                    }
+                }
+            },
+            "dual_stage_options": {
+                "title": "Dual Stage Options",
+                "description": "Modify dual stage heating settings.",
+                "data": {
+                    "secondary_heater": "Secondary heater switch",
+                    "secondary_heater_timeout": "Secondary heater timeout",
+                    "secondary_heater_dual_mode": "Dual mode operation"
+                },
+                "data_description": {
+                    "secondary_heater": "Entity ID for auxiliary/secondary heater switch. Provides additional heating capacity when needed.",
+                    "secondary_heater_timeout": "Time to wait before activating secondary heater after primary heater starts.",
+                    "secondary_heater_dual_mode": "Enable both primary and secondary heaters to work simultaneously when needed."
+                }
+            },
+            "floor_options": {
+                "title": "Floor Heating Options",
+                "description": "Modify floor heating settings.",
+                "data": {
+                    "floor_sensor": "Floor temperature sensor",
+                    "max_floor_temp": "Maximum floor temperature",
+                    "min_floor_temp": "Minimum floor temperature"
+                },
+                "data_description": {
+                    "floor_sensor": "Entity ID for floor temperature sensor. Monitors floor temperature for safety and control.",
+                    "max_floor_temp": "Maximum allowed floor temperature for protection. Prevents damage to flooring materials. (Default: 28°C)",
+                    "min_floor_temp": "Minimum floor temperature to maintain. Provides freeze protection for the floor heating system. (Default: 5°C)"
+                }
+            },
+            "fan_options": {
+                "title": "Fan Options",
+                "description": "Modify fan control settings.",
+                "data": {
+                    "fan": "Fan switch",
+                    "fan_mode": "Fan mode",
+                    "fan_on_with_ac": "Fan with AC",
+                    "fan_hot_tolerance": "Fan hot tolerance",
+                    "fan_hot_tolerance_toggle": "Fan tolerance toggle",
+                    "fan_air_outside": "Fan air outside"
+                },
+                "data_description": {
+                    "fan": "Entity ID for fan switch. Used to control air circulation and improve temperature distribution.",
+                    "fan_mode": "Enable fan as a separate HVAC mode. Allows fan-only operation.",
+                    "fan_on_with_ac": "Automatically turn on fan when cooling (AC) is active. Improves cooling efficiency.",
+                    "fan_hot_tolerance": "Temperature difference above target that triggers fan activation.",
+                    "fan_hot_tolerance_toggle": "Entity ID for input boolean that can toggle fan hot tolerance on/off.",
+                    "fan_air_outside": "Enable outside air circulation when outside temperature is more favorable than inside temperature."
+                }
+            },
+            "humidity_options": {
+                "title": "Humidity Options",
+                "description": "Modify humidity control settings.",
+                "data": {
+                    "humidity_sensor": "Humidity sensor",
+                    "dryer": "Dryer/Dehumidifier switch",
+                    "target_humidity": "Target humidity",
+                    "min_humidity": "Minimum humidity",
+                    "max_humidity": "Maximum humidity",
+                    "dry_tolerance": "Dry tolerance",
+                    "moist_tolerance": "Moist tolerance"
+                },
+                "data_description": {
+                    "humidity_sensor": "Entity ID for humidity sensor. Enables humidity control features and humidity-based presets.",
+                    "dryer": "Entity ID for dryer/dehumidifier switch. Used to control dehumidification when humidity levels exceed targets.",
+                    "target_humidity": "Target humidity level to maintain (percentage). Default humidity target when no preset is active.",
+                    "min_humidity": "Minimum allowed humidity level (percentage). Humidity will be increased if it drops below this value.",
+                    "max_humidity": "Maximum allowed humidity level (percentage). Humidity will be decreased if it rises above this value.",
+                    "dry_tolerance": "Minimum humidity difference below target before activating humidification or deactivating dehumidification.",
+                    "moist_tolerance": "Minimum humidity difference above target before activating dehumidification or deactivating humidification."
+                }
+            },
+            "openings_options": {
+                "title": "Openings Configuration",
+                "description": "Configure door and window sensors to automatically control the thermostat when openings are detected.",
+                "data": {
+                    "selected_openings": "Window/Door sensors"
+                },
+                "data_description": {
+                    "selected_openings": "Choose door/window sensors, switches, or other entities that indicate when openings are detected. When any selected entity is 'open', 'on', or 'true', the thermostat will be turned off automatically to save energy."
+                }
+            },
+            "openings_config": {
+                "title": "Opening/Closing Timeout Settings",
+                "description": "Configure optional timeout delays for when windows/doors open and close. Leave empty for immediate response.\n\nSelected openings:\n{selected_entities}",
+                "data": {
+                    "openings_scope": "HVAC modes affected by openings",
+                    "opening_1_label": "Opening 1",
+                    "opening_1_timeout_open": "Opening timeout (seconds)",
+                    "opening_1_timeout_close": "Closing timeout (seconds)",
+                    "opening_2_label": "Opening 2",
+                    "opening_2_timeout_open": "Opening timeout (seconds)",
+                    "opening_2_timeout_close": "Closing timeout (seconds)",
+                    "opening_3_label": "Opening 3",
+                    "opening_3_timeout_open": "Opening timeout (seconds)",
+                    "opening_3_timeout_close": "Closing timeout (seconds)",
+                    "opening_4_label": "Opening 4",
+                    "opening_4_timeout_open": "Opening timeout (seconds)",
+                    "opening_4_timeout_close": "Closing timeout (seconds)",
+                    "opening_5_label": "Opening 5",
+                    "opening_5_timeout_open": "Opening timeout (seconds)",
+                    "opening_5_timeout_close": "Closing timeout (seconds)",
+                    "opening_6_label": "Opening 6",
+                    "opening_6_timeout_open": "Opening timeout (seconds)",
+                    "opening_6_timeout_close": "Closing timeout (seconds)",
+                    "opening_7_label": "Opening 7",
+                    "opening_7_timeout_open": "Opening timeout (seconds)",
+                    "opening_7_timeout_close": "Closing timeout (seconds)",
+                    "opening_8_label": "Opening 8",
+                    "opening_8_timeout_open": "Opening timeout (seconds)",
+                    "opening_8_timeout_close": "Closing timeout (seconds)",
+                    "opening_9_label": "Opening 9",
+                    "opening_9_timeout_open": "Opening timeout (seconds)",
+                    "opening_9_timeout_close": "Closing timeout (seconds)",
+                    "opening_10_label": "Opening 10",
+                    "opening_10_timeout_open": "Opening timeout (seconds)",
+                    "opening_10_timeout_close": "Closing timeout (seconds)"
+                },
+                "data_description": {
+                    "openings_scope": "Select which HVAC modes should be affected when windows/doors are open. When no scope is selected or 'All HVAC modes' is chosen, the entire system will be affected.",
+                    "opening_1_timeout_open": "Time to wait after this opening activates before turning off HVAC. Set to 0 for immediate response.",
+                    "opening_1_timeout_close": "Time to wait after this opening closes before turning HVAC back on. Set to 0 for immediate response.",
+                    "opening_2_timeout_open": "Time to wait after this opening activates before turning off HVAC. Set to 0 for immediate response.",
+                    "opening_2_timeout_close": "Time to wait after this opening closes before turning HVAC back on. Set to 0 for immediate response.",
+                    "opening_3_timeout_open": "Time to wait after this opening activates before turning off HVAC. Set to 0 for immediate response.",
+                    "opening_3_timeout_close": "Time to wait after this opening closes before turning HVAC back on. Set to 0 for immediate response.",
+                    "opening_4_timeout_open": "Time to wait after this opening activates before turning off HVAC. Set to 0 for immediate response.",
+                    "opening_4_timeout_close": "Time to wait after this opening closes before turning HVAC back on. Set to 0 for immediate response.",
+                    "opening_5_timeout_open": "Time to wait after this opening activates before turning off HVAC. Set to 0 for immediate response.",
+                    "opening_5_timeout_close": "Time to wait after this opening closes before turning HVAC back on. Set to 0 for immediate response.",
+                    "opening_6_timeout_open": "Time to wait after this opening activates before turning off HVAC. Set to 0 for immediate response.",
+                    "opening_6_timeout_close": "Time to wait after this opening closes before turning HVAC back on. Set to 0 for immediate response.",
+                    "opening_7_timeout_open": "Time to wait after this opening activates before turning off HVAC. Set to 0 for immediate response.",
+                    "opening_7_timeout_close": "Time to wait after this opening closes before turning HVAC back on. Set to 0 for immediate response.",
+                    "opening_8_timeout_open": "Time to wait after this opening activates before turning off HVAC. Set to 0 for immediate response.",
+                    "opening_8_timeout_close": "Time to wait after this opening closes before turning HVAC back on. Set to 0 for immediate response.",
+                    "opening_9_timeout_open": "Time to wait after this opening activates before turning off HVAC. Set to 0 for immediate response.",
+                    "opening_9_timeout_close": "Time to wait after this opening closes before turning HVAC back on. Set to 0 for immediate response.",
+                    "opening_10_timeout_open": "Time to wait after this opening activates before turning off HVAC. Set to 0 for immediate response.",
+                    "opening_10_timeout_close": "Time to wait after this opening closes before turning HVAC back on. Set to 0 for immediate response."
+                },
+                "selector": {
+                    "openings_scope": {
+                        "options": {
+                            "all": "All HVAC modes",
+                            "cool": "Cooling only",
+                            "heat": "Heating only",
+                            "fan_only": "Fan only",
+                            "heat_cool": "Heat/Cool mode",
+                            "dry": "Dry mode"
+                        }
+                    }
+                }
+            },
+            "advanced_options": {
+                "title": "Advanced Options",
+                "description": "Modify advanced thermostat settings and fine-tune temperature control behavior.",
+                "data": {
+                    "min_temp": "Minimum temperature",
+                    "max_temp": "Maximum temperature",
+                    "target_temp": "Target temperature",
+                    "cold_tolerance": "Cold tolerance",
+                    "hot_tolerance": "Hot tolerance",
+                    "precision": "Temperature precision",
+                    "target_temp_step": "Temperature step",
+                    "min_cycle_duration": "Minimum cycle duration",
+                    "keep_alive": "Keep alive duration",
+                    "initial_hvac_mode": "Initial HVAC mode",
+                    "target_temp_high": "Target temperature (high)",
+                    "target_temp_low": "Target temperature (low)",
+                    "heat_cool_mode": "Heat/Cool mode threshold"
+                },
+                "data_description": {
+                    "min_temp": "Minimum allowed temperature setting. Sets the lower bound for target temperature adjustments.",
+                    "max_temp": "Maximum allowed temperature setting. Sets the upper bound for target temperature adjustments.",
+                    "target_temp": "Initial target temperature when the thermostat is first configured or reset.",
+                    "cold_tolerance": "Temperature difference below target before heating activates. Lower values make heating more responsive.",
+                    "hot_tolerance": "Temperature difference above target before cooling activates. Lower values make cooling more responsive.",
+                    "precision": "Temperature precision for display and control. Determines the decimal precision for temperature values.",
+                    "target_temp_step": "Temperature step size for adjustments. Controls how much the target temperature changes with each adjustment.",
+                    "min_cycle_duration": "Minimum time equipment must run before switching off. Helps prevent short cycling and equipment damage.",
+                    "keep_alive": "Keep alive duration for periodic switching. Set this if your switch needs a heartbeat to keep it 'alive'.",
+                    "initial_hvac_mode": "Initial HVAC mode when starting Home Assistant. Sets the default operation mode on startup.",
+                    "target_temp_high": "Upper target temperature for dual-stage heating/cooling systems.",
+                    "target_temp_low": "Lower target temperature for dual-stage heating/cooling systems.",
+                    "heat_cool_mode": "Temperature difference threshold for switching between heating and cooling in heat/cool mode."
+                }
+            },
+            "presets": {
+                "title": "Preset Configuration",
+                "description": "Configure temperature and system settings for each selected preset. These settings will be automatically applied when you activate the corresponding preset mode.",
+                "data": {
+                    "away_temp": "Away temperature",
+                    "comfort_temp": "Comfort temperature",
+                    "eco_temp": "Eco temperature",
+                    "home_temp": "Home temperature",
+                    "sleep_temp": "Sleep temperature",
+                    "anti_freeze_temp": "Anti-freeze temperature",
+                    "activity_temp": "Activity temperature",
+                    "boost_temp": "Boost temperature"
+                },
+                "data_description": {
+                    "away_temp": "Target temperature for Away preset. Typically lower in winter, higher in summer to save energy.",
+                    "comfort_temp": "Target temperature for Comfort preset. Set to your ideal comfort temperature.",
+                    "eco_temp": "Target temperature for Eco preset. Balanced between comfort and energy savings.",
+                    "home_temp": "Target temperature for Home preset. Standard temperature for when you're home.",
+                    "sleep_temp": "Target temperature for Sleep preset. Often slightly cooler for better sleep quality.",
+                    "anti_freeze_temp": "Target temperature for Anti-freeze preset. Minimum temperature to prevent freezing.",
+                    "activity_temp": "Target temperature for Activity preset. Higher temperature for increased comfort during activities.",
+                    "boost_temp": "Target temperature for Boost preset. Maximum comfort temperature setting."
+                }
+            }
+        }
+    },
     "selector": {
         "hac_action_reason": {
             "options": {

@@ -35,7 +35,7 @@ from homeassistant.core import DOMAIN as HASS_DOMAIN, HomeAssistant
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import entity_registry as er
 from homeassistant.setup import async_setup_component
-from homeassistant.util import dt, dt as dt_util
+from homeassistant.util import dt as dt_util
 from homeassistant.util.unit_system import METRIC_SYSTEM
 import pytest
 
@@ -684,7 +684,7 @@ async def test_temp_change_ac_dry_trigger_on_long_enough(
     setup_humidity_sensor(hass, 50 if sw_on else 71)
     await hass.async_block_till_done()
 
-    # no call, not enought time
+    # no call, not enough time
     assert len(calls) == 0
 
     # move back to no switch humidity
@@ -703,7 +703,7 @@ async def test_temp_change_ac_dry_trigger_on_long_enough(
     setup_humidity_sensor(hass, 50 if sw_on else 71)
     await hass.async_block_till_done()
 
-    # call triggered, time is enought and humidity reached
+    # call triggered, time is enough and humidity reached
     assert len(calls) == 1
     call = calls[0]
     assert call.domain == HASS_DOMAIN
@@ -733,7 +733,7 @@ async def test_time_change_ac_dry_trigger_on_long_enough(
     setup_humidity_sensor(hass, 50 if sw_on else 71)
     await hass.async_block_till_done()
 
-    # no call, not enought time
+    # no call, not enough time
     assert len(calls) == 0
 
     # go over cycle time
@@ -741,7 +741,7 @@ async def test_time_change_ac_dry_trigger_on_long_enough(
     common.async_fire_time_changed(hass)
     await hass.async_block_till_done()
 
-    # call triggered, time is enought and humidity reached
+    # call triggered, time is enough and humidity reached
     assert len(calls) == 1
     call = calls[0]
     assert call.domain == HASS_DOMAIN

@@ -10,10 +10,7 @@ from homeassistant.const import (
     SERVICE_OPEN_VALVE,
     SERVICE_TURN_OFF,
     SERVICE_TURN_ON,
-    STATE_CLOSED,
-    STATE_OFF,
     STATE_ON,
-    STATE_OPEN,
     STATE_UNAVAILABLE,
     STATE_UNKNOWN,
 )

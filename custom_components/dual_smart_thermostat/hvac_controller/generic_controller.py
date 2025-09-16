@@ -15,7 +15,6 @@ from ..hvac_controller.hvac_controller import HvacController, HvacEnvStrategy
 from ..managers.environment_manager import EnvironmentManager
 from ..managers.opening_manager import OpeningManager
 
-
 _LOGGER = logging.getLogger(__name__)
 
 
