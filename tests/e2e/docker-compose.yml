@@ -1,0 +1,25 @@
+services:
+  homeassistant:
+    image: homeassistant/home-assistant:latest
+    container_name: ha-dual-smart-thermostat-e2e
+    restart: unless-stopped
+    privileged: true
+    environment:
+      - TZ=UTC
+    volumes:
+      - ./ha_config:/config
+      - ../../custom_components:/config/custom_components
+    ports:
+      - "8123:8123"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8123/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - ha-network
+
+networks:
+  ha-network:
+    driver: bridge

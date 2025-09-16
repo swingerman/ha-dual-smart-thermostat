@@ -1,0 +1,146 @@
+default_config:
+
+# Enable API and frontend for E2E testing
+api:
+frontend:
+
+# Recorder for state persistence
+recorder:
+  db_url: sqlite:////config/home-assistant_v2.db
+
+# HTTP configuration for testing
+http:
+  use_x_forwarded_for: true
+  trusted_proxies:
+    - 172.16.0.0/12
+    - 192.168.0.0/16
+    - 127.0.0.1
+    - ::1
+
+# Logger configuration - reduce noise during E2E tests
+logger:
+  default: warning
+  logs:
+    custom_components.dual_smart_thermostat: info
+    homeassistant.components.http: warning
+
+# Minimal input entities for testing config flows
+input_boolean:
+  test_heater:
+    name: Test Heater
+    initial: false
+  test_cooler:
+    name: Test Cooler
+    initial: false
+  test_fan:
+    name: Test Fan
+    initial: false
+  test_opening:
+    name: Test Opening/Window
+    initial: false
+
+input_number:
+  test_temperature:
+    name: Test Temperature Sensor
+    initial: 20
+    min: -10
+    max: 50
+    step: 0.1
+    unit_of_measurement: "°C"
+    icon: mdi:thermometer
+  
+  test_humidity:
+    name: Test Humidity Sensor  
+    initial: 50
+    min: 0
+    max: 100
+    step: 1
+    unit_of_measurement: "%"
+    icon: mdi:water-percent
+  
+  test_floor_temp:
+    name: Test Floor Temperature
+    initial: 22
+    min: 5
+    max: 35
+    step: 0.1
+    unit_of_measurement: "°C"
+    icon: mdi:thermometer
+
+# Template sensors for the config flow testing
+sensor:
+  - platform: template
+    sensors:
+      test_temperature:
+        friendly_name: "Test Temperature"
+        value_template: "{{ states('input_number.test_temperature') | float | round(1) }}"
+        unit_of_measurement: "°C"
+        device_class: temperature
+      
+      test_humidity:
+        friendly_name: "Test Humidity"
+        value_template: "{{ states('input_number.test_humidity') | float | round(0) }}"
+        unit_of_measurement: "%"
+        device_class: humidity
+      
+      test_floor_temp:
+        friendly_name: "Test Floor Temperature"
+        value_template: "{{ states('input_number.test_floor_temp') | float | round(1) }}"
+        unit_of_measurement: "°C"
+        device_class: temperature
+
+# Template switches for heater/cooler/fan testing
+switch:
+  - platform: template
+    switches:
+      test_heater:
+        friendly_name: "Test Heater Switch"
+        value_template: "{{ is_state('input_boolean.test_heater', 'on') }}"
+        turn_on:
+          service: input_boolean.turn_on
+          target:
+            entity_id: input_boolean.test_heater
+        turn_off:
+          service: input_boolean.turn_off
+          target:
+            entity_id: input_boolean.test_heater
+      
+      test_cooler:
+        friendly_name: "Test Cooler Switch"
+        value_template: "{{ is_state('input_boolean.test_cooler', 'on') }}"
+        turn_on:
+          service: input_boolean.turn_on
+          target:
+            entity_id: input_boolean.test_cooler
+        turn_off:
+          service: input_boolean.turn_off
+          target:
+            entity_id: input_boolean.test_cooler
+      
+      test_fan:
+        friendly_name: "Test Fan Switch"
+        value_template: "{{ is_state('input_boolean.test_fan', 'on') }}"
+        turn_on:
+          service: input_boolean.turn_on
+          target:
+            entity_id: input_boolean.test_fan
+        turn_off:
+          service: input_boolean.turn_off
+          target:
+            entity_id: input_boolean.test_fan
+
+# Example dual smart thermostat configuration for testing
+# This will be used to verify the custom component loads correctly
+# climate:
+#   - platform: dual_smart_thermostat
+#     name: E2E Test Thermostat
+#     unique_id: e2e_test_thermostat
+#     heater: switch.test_heater
+#     cooler: switch.test_cooler
+#     target_sensor: sensor.test_temperature
+#     min_temp: 15
+#     max_temp: 30
+#     target_temp: 21
+#     cold_tolerance: 0.3
+#     hot_tolerance: 0.3
+#     precision: 0.1
