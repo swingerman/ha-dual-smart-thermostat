@@ -1,65 +1,6 @@
 {
     "title": "Dual Smart Thermostat",
-    "shared": {
-        "step": {
-            "preset_selection": {
-                "data": {
-                    "away": "Away preset",
-                    "comfort": "Comfort preset",
-                    "eco": "Eco preset",
-                    "home": "Home preset",
-                    "sleep": "Sleep preset",
-                    "anti_freeze": "Anti-freeze preset",
-                    "activity": "Activity preset",
-                    "boost": "Boost preset"
-                },
-                "data_description": {
-                    "away": "Energy-saving preset for when nobody is home. Typically set to lower temperatures to save energy.",
-                    "comfort": "Maximum comfort preset for optimal temperature control when comfort is the priority.",
-                    "eco": "Energy-efficient preset that balances comfort with energy savings.",
-                    "home": "Standard preset for daily activities when people are home and active.",
-                    "sleep": "Optimized for sleeping conditions, often set slightly cooler for better sleep quality.",
-                    "anti_freeze": "Minimum temperature preset to prevent freezing in unoccupied spaces or during extended absences.",
-                    "activity": "Higher temperature preset for periods of high activity or when extra warmth is needed.",
-                    "boost": "Quick heating preset for rapidly bringing temperature up to a higher level."
-                }
-            },
-            "features": {
-                "data": {
-                    "configure_fan": "Configure fan settings",
-                    "configure_humidity": "Configure humidity control",
-                    "configure_openings": "Configure window/door sensors",
-                    "configure_presets": "Configure temperature presets",
-                    "configure_floor_heating": "Configure floor heating protection",
-                    "configure_advanced": "Configure advanced settings"
-                },
-                "data_description": {
-                    "configure_fan": "Enable configuration of fan settings. This allows you to set up a separate fan entity that can run independently for air circulation.",
-                    "configure_humidity": "Enable configuration of humidity monitoring and control. This allows you to set up humidity sensors and dry mode operation.",
-                    "configure_openings": "Enable configuration of window and door sensors so the thermostat can pause operation when openings are detected.",
-                    "configure_presets": "Enable configuration of temperature presets like Away, Comfort, and Eco for quick mode changes.",
-                    "configure_floor_heating": "Enable configuration of floor temperature protection. When enabled you can set a floor sensor and max/min limits to protect your flooring.",
-                    "configure_advanced": "Show advanced configuration options such as keep-alive intervals, temperature precision, and default modes for power users."
-                }
-            },
-            "simple_heater_features": {
-                "title": "Heater Features Configuration",
-                "description": "Choose which features to configure for your simple heater system. Select only the features you want to set up - unselected features will not be configured.",
-                "data": {
-                    "configure_openings": "Configure window/door sensors",
-                    "configure_presets": "Configure temperature presets",
-                    "configure_floor_heating": "Configure floor heating protection",
-                    "configure_advanced": "Configure advanced settings"
-                },
-                "data_description": {
-                    "configure_openings": "Enable configuration of window and door sensors so the thermostat can pause heating when openings are detected.",
-                    "configure_presets": "Enable configuration of temperature presets like Away, Comfort, and Eco for quick mode changes.",
-                    "configure_floor_heating": "Enable configuration of floor temperature protection. When enabled you can set a floor sensor and max/min limits to protect your flooring.",
-                    "configure_advanced": "Show advanced configuration options such as keep-alive intervals, temperature precision, and default modes for power users."
-                }
-            }
-        }
-    },
+    
     "config": {
         "error": {
             "same_heater_sensor": "Heater and temperature sensor cannot be the same entity",
@@ -386,16 +327,14 @@
                     "opening_10_timeout_open": "Time to wait after this opening activates before turning off HVAC. Set to 0 for immediate response.",
                     "opening_10_timeout_close": "Time to wait after this opening closes before turning HVAC back on. Set to 0 for immediate response."
                 },
-                "selector": {
-                    "openings_scope": {
-                        "options": {
-                            "all": "All HVAC modes",
-                            "cool": "Cooling only",
-                            "heat": "Heating only",
-                            "fan_only": "Fan only",
-                            "heat_cool": "Heat/Cool mode",
-                            "dry": "Dry mode"
-                        }
+                "openings_scope": {
+                    "options": {
+                        "all": "All HVAC modes",
+                        "cool": "Cooling only",
+                        "heat": "Heating only",
+                        "fan_only": "Fan only",
+                        "heat_cool": "Heat/Cool mode",
+                        "dry": "Dry mode"
                     }
                 }
             },
@@ -609,6 +548,28 @@
                     "boost_fan_mode": "Boost preset - Fan mode setting when Boost preset is selected."
                 }
             },
+            "preset_selection": {
+                "data": {
+                    "away": "Away preset",
+                    "comfort": "Comfort preset",
+                    "eco": "Eco preset",
+                    "home": "Home preset",
+                    "sleep": "Sleep preset",
+                    "anti_freeze": "Anti-freeze preset",
+                    "activity": "Activity preset",
+                    "boost": "Boost preset"
+                },
+                "data_description": {
+                    "away": "Energy-saving preset for when nobody is home. Typically set to lower temperatures to save energy.",
+                    "comfort": "Maximum comfort preset for optimal temperature control when comfort is the priority.",
+                    "eco": "Energy-efficient preset that balances comfort with energy savings.",
+                    "home": "Standard preset for daily activities when people are home and active.",
+                    "sleep": "Optimized for sleeping conditions, often set slightly cooler for better sleep quality.",
+                    "anti_freeze": "Minimum temperature preset to prevent freezing in unoccupied spaces or during extended absences.",
+                    "activity": "Higher temperature preset for periods of high activity or when extra warmth is needed.",
+                    "boost": "Quick heating preset for rapidly bringing temperature up to a higher level."
+                }
+            },
             "system_features": {
                 "title": "System Features Configuration",
                 "description": "Choose which features to configure for your thermostat system. Select only the features you want to set up - unselected features will not be configured."
@@ -778,6 +739,28 @@
                     "moist_tolerance": "Minimum humidity difference above target before activating dehumidification or deactivating humidification."
                 }
             },
+            "preset_selection": {
+                "data": {
+                    "away": "Away preset",
+                    "comfort": "Comfort preset",
+                    "eco": "Eco preset",
+                    "home": "Home preset",
+                    "sleep": "Sleep preset",
+                    "anti_freeze": "Anti-freeze preset",
+                    "activity": "Activity preset",
+                    "boost": "Boost preset"
+                },
+                "data_description": {
+                    "away": "Energy-saving preset for when nobody is home. Typically set to lower temperatures to save energy.",
+                    "comfort": "Maximum comfort preset for optimal temperature control when comfort is the priority.",
+                    "eco": "Energy-efficient preset that balances comfort with energy savings.",
+                    "home": "Standard preset for daily activities when people are home and active.",
+                    "sleep": "Optimized for sleeping conditions, often set slightly cooler for better sleep quality.",
+                    "anti_freeze": "Minimum temperature preset to prevent freezing in unoccupied spaces or during extended absences.",
+                    "activity": "Higher temperature preset for periods of high activity or when extra warmth is needed.",
+                    "boost": "Quick heating preset for rapidly bringing temperature up to a higher level."
+                }
+            },
             "openings_options": {
                 "title": "Openings Configuration",
                 "description": "Configure door and window sensors to automatically control the thermostat when openings are detected.",
@@ -847,16 +830,14 @@
                     "opening_10_timeout_open": "Time to wait after this opening activates before turning off HVAC. Set to 0 for immediate response.",
                     "opening_10_timeout_close": "Time to wait after this opening closes before turning HVAC back on. Set to 0 for immediate response."
                 },
-                "selector": {
-                    "openings_scope": {
-                        "options": {
-                            "all": "All HVAC modes",
-                            "cool": "Cooling only",
-                            "heat": "Heating only",
-                            "fan_only": "Fan only",
-                            "heat_cool": "Heat/Cool mode",
-                            "dry": "Dry mode"
-                        }
+                "openings_scope": {
+                    "options": {
+                        "all": "All HVAC modes",
+                        "cool": "Cooling only",
+                        "heat": "Heating only",
+                        "fan_only": "Fan only",
+                        "heat_cool": "Heat/Cool mode",
+                        "dry": "Dry mode"
                     }
                 }
             },
