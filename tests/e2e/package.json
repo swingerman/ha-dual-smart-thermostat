@@ -1,0 +1,17 @@
+{
+  "name": "dual-smart-thermostat-e2e",
+  "version": "1.0.0",
+  "description": "E2E tests for Dual Smart Thermostat Home Assistant integration",
+  "private": true,
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:debug": "playwright test --debug",
+    "test:report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.47.0",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.5.0"
+  }
+}

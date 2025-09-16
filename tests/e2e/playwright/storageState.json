@@ -1,0 +1,14 @@
+{
+  "cookies": [],
+  "origins": [
+    {
+      "origin": "http://localhost:8123",
+      "localStorage": [
+        {
+          "name": "hassTokens",
+          "value": "{\"access_token\":\"mock_token\",\"token_type\":\"Bearer\",\"expires_in\":1800,\"refresh_token\":\"mock_refresh_token\"}"
+        }
+      ]
+    }
+  ]
+}

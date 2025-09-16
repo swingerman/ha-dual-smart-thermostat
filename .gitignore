@@ -16,3 +16,11 @@ coverage.xml
 # Home Assistant configuration
 config/*
 !config/configuration.yaml
+
+# E2E test artifacts
+tests/e2e/node_modules/
+tests/e2e/test-results/
+tests/e2e/playwright-report/
+tests/e2e/screenshots/
+tests/e2e/videos/
+tests/e2e/traces/
