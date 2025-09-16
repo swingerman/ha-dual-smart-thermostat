@@ -1,0 +1,132 @@
+# Home Assistant configuration for E2E testing
+# Minimal setup for testing dual smart thermostat config flows
+
+default_config:
+
+recorder:
+  db_url: sqlite:///config/home-assistant.db
+
+# Enable frontend for UI testing
+frontend:
+
+# Enable API for health checks
+api:
+
+# Authentication configuration for E2E testing
+# Allow access from Docker network without login prompt
+homeassistant:
+  auth_providers:
+    - type: trusted_networks
+      trusted_networks:
+        - 172.16.0.0/12  # Docker default network range
+        - 192.168.0.0/16 # Common private network range
+        - 127.0.0.1      # Localhost
+      allow_bypass_login: true
+    - type: homeassistant
+
+# Basic logging for debugging
+logger:
+  default: warning
+  logs:
+    custom_components.dual_smart_thermostat: debug
+    homeassistant.components.config: info
+
+# Input helpers for testing thermostat entities
+input_boolean:
+  heater_on:
+    name: Test Heater
+    initial: false
+  cooler_on:
+    name: Test Cooler
+    initial: false
+  window_open:
+    name: Test Window
+    initial: false
+
+input_number:
+  room_temp:
+    name: Room Temperature
+    initial: 20.0
+    min: 10.0
+    max: 35.0
+    step: 0.1
+    unit_of_measurement: "°C"
+    icon: mdi:thermometer
+
+# Template sensors for testing
+sensor:
+  - platform: template
+    sensors:
+      room_temp:
+        friendly_name: "Room Temperature"
+        value_template: "{{ states('input_number.room_temp') | float | round(1) }}"
+        unit_of_measurement: "°C"
+        device_class: temperature
+
+# Template switches for testing
+switch:
+  - platform: template
+    switches:
+      heater:
+        friendly_name: "Test Heater"
+        value_template: "{{ is_state('input_boolean.heater_on', 'on') }}"
+        turn_on:
+          service: input_boolean.turn_on
+          data:
+            entity_id: input_boolean.heater_on
+        turn_off:
+          service: input_boolean.turn_off
+          data:
+            entity_id: input_boolean.heater_on
+        icon_template: mdi:radiator
+
+      cooler:
+        friendly_name: "Test Cooler"
+        value_template: "{{ is_state('input_boolean.cooler_on', 'on') }}"
+        turn_on:
+          service: input_boolean.turn_on
+          data:
+            entity_id: input_boolean.cooler_on
+        turn_off:
+          service: input_boolean.turn_off
+          data:
+            entity_id: input_boolean.cooler_on
+        icon_template: mdi:air-conditioner
+
+# Binary sensor for opening detection
+binary_sensor:
+  - platform: template
+    sensors:
+      window:
+        friendly_name: "Test Window"
+        value_template: "{{ is_state('input_boolean.window_open', 'on') }}"
+        device_class: opening
+        icon_template: >
+          {% if is_state('input_boolean.window_open', 'on') %}
+            mdi:window-open
+          {% else %}
+            mdi:window-closed
+          {% endif %}
+
+# Example dual smart thermostat configuration for testing
+# This will be used to test the config flow
+climate:
+  - platform: dual_smart_thermostat
+    name: "E2E Test Thermostat"
+    unique_id: e2e_test_thermostat
+    heater: switch.heater
+    cooler: switch.cooler
+    target_sensor: sensor.room_temp
+    openings:
+      - input_boolean.window_open
+    min_temp: 15
+    max_temp: 30
+    target_temp: 22
+    target_temp_high: 24
+    target_temp_low: 20
+    cold_tolerance: 0.3
+    hot_tolerance: 0.3
+    heat_cool_mode: true
+    initial_hvac_mode: "off"
+    precision: 0.1
+    target_temp_step: 0.5
