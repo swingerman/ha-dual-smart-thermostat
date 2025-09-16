@@ -14,7 +14,6 @@
 # The minimal supported Home Assistant core dependency for this integration.
 homeassistant>=2024.6.0
 # Optional Python-level pcap bindings. These may require libpcap headers (libpcap-dev)
-# and/or build tools. Keep them in requirements so pip can install them when the
-# system packages are present.
-pypcap>=1.3.0
-pcapy>=0.11.4
+# Optional Python-level pcap bindings. These are development-only and may require
+# libpcap headers (`libpcap-dev`) and build tools. Move them to `requirements-dev.txt`
+# so CI jobs that don't have system deps installed won't attempt to build them.
