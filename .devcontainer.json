@@ -1,7 +1,7 @@
 {
 	"name": "Dual Smart THermostat Integration",
 	"image": "mcr.microsoft.com/devcontainers/python:dev-3.13-bookworm",
-	"postCreateCommand": "scripts/devcontainer_install_deps.sh || true && scripts/setup",
+	"postCreateCommand": "scripts/setup",
 	"forwardPorts": [
 		8123
 	],

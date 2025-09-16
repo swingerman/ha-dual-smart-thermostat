@@ -1079,7 +1079,7 @@ async def test_temp_change_fan_trigger_long_enough(
     setup_sensor(hass, 23 if sw_on else 30)
     await hass.async_block_till_done()
 
-    # no call, not enough time
+    # no call, not enought time
     assert len(calls) == 0
 
     # move back to no switch temp
@@ -1098,7 +1098,7 @@ async def test_temp_change_fan_trigger_long_enough(
     setup_sensor(hass, 23 if sw_on else 30)
     await hass.async_block_till_done()
 
-    # call triggered, time is enough and temp reached
+    # call triggered, time is enought and temp reached
     assert len(calls) == 1
     call = calls[0]
     assert call.domain == HASS_DOMAIN
@@ -1128,7 +1128,7 @@ async def test_time_change_fan_trigger_long_enough(
     setup_sensor(hass, 23 if sw_on else 30)
     await hass.async_block_till_done()
 
-    # no call, not enough time
+    # no call, not enought time
     assert len(calls) == 0
 
     # complete cycle time
@@ -1136,7 +1136,7 @@ async def test_time_change_fan_trigger_long_enough(
     common.async_fire_time_changed(hass)
     await hass.async_block_till_done()
 
-    # call triggered, time is enough and temp reached
+    # call triggered, time is enought and temp reached
     assert len(calls) == 1
     call = calls[0]
     assert call.domain == HASS_DOMAIN
@@ -1186,7 +1186,7 @@ async def test_temp_change_cooler_fan_ac_trigger_on_long_enough(
     setup_sensor(hass, 23 if sw_on else 30)
     await hass.async_block_till_done()
 
-    # no call, not enough time
+    # no call, not enought time
     assert len(calls) == 0
 
     # move back to no switch temp
@@ -1205,7 +1205,7 @@ async def test_temp_change_cooler_fan_ac_trigger_on_long_enough(
     setup_sensor(hass, 23 if sw_on else 30)
     await hass.async_block_till_done()
 
-    # call triggered, time is enough and temp reached
+    # call triggered, time is enought and temp reached
     assert len(calls) == 1
     call = calls[0]
     assert call.domain == HASS_DOMAIN
@@ -1236,7 +1236,7 @@ async def test_time_change_cooler_fan_ac_trigger_on_long_enough(
     setup_sensor(hass, 23 if sw_on else 30)
     await hass.async_block_till_done()
 
-    # no call, not enough time
+    # no call, not enought time
     assert len(calls) == 0
 
     # go over cycle time
@@ -1244,7 +1244,7 @@ async def test_time_change_cooler_fan_ac_trigger_on_long_enough(
     common.async_fire_time_changed(hass)
     await hass.async_block_till_done()
 
-    # call triggered, time is enough and temp reached
+    # call triggered, time is enought and temp reached
     assert len(calls) == 1
     call = calls[0]
     assert call.domain == HASS_DOMAIN
@@ -1275,7 +1275,7 @@ async def test_temp_change_cooler_fan_trigger_on_long_enough(
     setup_sensor(hass, 23 if sw_on else 30)
     await hass.async_block_till_done()
 
-    # no call, not enough time
+    # no call, not enought time
     assert len(calls) == 0
 
     # move back to no switch temp
@@ -1294,7 +1294,7 @@ async def test_temp_change_cooler_fan_trigger_on_long_enough(
     setup_sensor(hass, 23 if sw_on else 30)
     await hass.async_block_till_done()
 
-    # call triggered, time is enough and temp reached
+    # call triggered, time is enought and temp reached
     assert len(calls) == 1
     call = calls[0]
     assert call.domain == HASS_DOMAIN
@@ -1325,7 +1325,7 @@ async def test_time_change_cooler_fan_trigger_on_long_enough(
     setup_sensor(hass, 23 if sw_on else 30)
     await hass.async_block_till_done()
 
-    # no call, not enough time
+    # no call, not enought time
     assert len(calls) == 0
 
     # go over cycle time
@@ -1333,7 +1333,7 @@ async def test_time_change_cooler_fan_trigger_on_long_enough(
     common.async_fire_time_changed(hass)
     await hass.async_block_till_done()
 
-    # call triggered, time is enough and temp reached
+    # call triggered, time is enought and temp reached
     assert len(calls) == 1
     call = calls[0]
     assert call.domain == HASS_DOMAIN
@@ -1400,7 +1400,7 @@ async def test_time_change_fan_trigger_keep_alive(
     common.async_fire_time_changed(hass)
     await hass.async_block_till_done()
 
-    # no call, not enough time
+    # no call, not enought time
     assert len(calls) == 0
 
     # complete keep-alive time
@@ -1408,7 +1408,7 @@ async def test_time_change_fan_trigger_keep_alive(
     common.async_fire_time_changed(hass)
     await hass.async_block_till_done()
 
-    # keep-alive call triggered, time is enough
+    # keep-alive call triggered, time is enought
     assert len(calls) == 1
     call = calls[0]
     assert call.domain == HASS_DOMAIN
@@ -1435,7 +1435,7 @@ async def test_time_change_ac_trigger_keep_alive(
     common.async_fire_time_changed(hass)
     await hass.async_block_till_done()
 
-    # no call, not enough time
+    # no call, not enought time
     assert len(calls) == 0
 
     # complete keep-alive time
@@ -1443,7 +1443,7 @@ async def test_time_change_ac_trigger_keep_alive(
     common.async_fire_time_changed(hass)
     await hass.async_block_till_done()
 
-    # keep-alive call triggered, time is enough
+    # keep-alive call triggered, time is enought
     # on turn off we have 2 call, 1 per switch
     assert len(calls) == 1 if sw_on else 2
     call = calls[0]
@@ -1476,7 +1476,7 @@ async def test_time_change_ac_fan_trigger_keep_alive(
     common.async_fire_time_changed(hass)
     await hass.async_block_till_done()
 
-    # no call, not enough time
+    # no call, not enought time
     assert len(calls) == 0
 
     # complete keep-alive time
@@ -1484,7 +1484,7 @@ async def test_time_change_ac_fan_trigger_keep_alive(
     common.async_fire_time_changed(hass)
     await hass.async_block_till_done()
 
-    # keep-alive call triggered, time is enough
+    # keep-alive call triggered, time is enought
     # on turn off we have 2 call, 1 per switch
     assert len(calls) == 1 if sw_on else 2
     call = calls[0]

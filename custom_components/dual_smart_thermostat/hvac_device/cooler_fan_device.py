@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 import logging
-from typing import Callable
+from typing import Callable, Generic
 
 from homeassistant.components.climate import HVACMode
 from homeassistant.const import STATE_ON, STATE_UNAVAILABLE, STATE_UNKNOWN

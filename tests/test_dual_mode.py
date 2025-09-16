@@ -39,7 +39,7 @@ from homeassistant.core import DOMAIN as HASS_DOMAIN, CoreState, HomeAssistant, 
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import entity_registry as er
 from homeassistant.setup import async_setup_component
-from homeassistant.util import dt as dt_util
+from homeassistant.util import dt, dt as dt_util
 from homeassistant.util.unit_system import METRIC_SYSTEM
 import pytest
 import voluptuous as vol
