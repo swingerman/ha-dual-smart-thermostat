@@ -151,16 +151,24 @@ def test_openings_processing_logic():
     assert "openings_scope" not in processed
     print("✓ Multiple openings minimal config processing works")
 
-    return True
+    assert True
 
 
 if __name__ == "__main__":
     print("Testing openings configuration processing logic...")
-    test_openings_processing_logic()
-    print("\n🎉 All openings configuration tests passed!")
-    print("\nOpenings configuration features:")
-    print("- ✅ Toggle to enable/disable openings integration")
-    print("- ✅ Configuration for multiple door/window sensors")
-    print("- ✅ Optional timeout settings for opening and closing")
-    print("- ✅ Scope configuration for HVAC mode control")
-    print("- ✅ Proper data processing and cleanup")
+    try:
+        test_openings_processing_logic()
+        print("\n🎉 All openings configuration tests passed!")
+        print("\nOpenings configuration features:")
+        print("- ✅ Toggle to enable/disable openings integration")
+        print("- ✅ Configuration for multiple door/window sensors")
+        print("- ✅ Optional timeout settings for opening and closing")
+        print("- ✅ Scope configuration for HVAC mode control")
+        print("- ✅ Proper data processing and cleanup")
+        exit(0)
+    except AssertionError:
+        print("\n❌ Openings configuration test assertions failed")
+        exit(1)
+    except Exception as e:
+        print(f"\n❌ Openings configuration tests failed with exception: {e}")
+        exit(1)

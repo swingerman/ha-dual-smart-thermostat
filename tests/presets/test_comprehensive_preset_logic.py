@@ -57,7 +57,7 @@ async def test_comprehensive_preset_logic():
             print("   ✅ Flow finishes directly after preset selection")
         else:
             print(f"   ❌ Expected create_entry, got {result['type']}")
-            return False
+            assert False
 
         # Test 2: Config Flow - Some presets selected
         print("\n📋 Test 2: Config Flow - Some presets selected")
@@ -88,7 +88,7 @@ async def test_comprehensive_preset_logic():
             print(
                 f"   ❌ Expected presets form, got {result.get('type')} / {result.get('step_id')}"
             )
-            return False
+            assert False
 
         # Test 3: Options Flow - No presets selected
         print("\n📋 Test 3: Options Flow - No presets selected")
@@ -117,7 +117,7 @@ async def test_comprehensive_preset_logic():
             print("   ✅ Flow completes directly")
         else:
             print(f"   ❌ Expected form or create_entry, got {result.get('type')}")
-            return False
+            assert False
 
         # Test 4: Options Flow - Some presets selected
         print("\n📋 Test 4: Options Flow - Some presets selected")
@@ -133,7 +133,7 @@ async def test_comprehensive_preset_logic():
             print(
                 f"   ❌ Expected presets form, got {result.get('type')} / {result.get('step_id')}"
             )
-            return False
+            assert False
 
         print("\n🎯 Logic Validation:")
         print("   ✅ No presets → Skip preset configuration")
@@ -157,12 +157,18 @@ async def test_comprehensive_preset_logic():
             print("   ✅ Multi-select format correctly skips preset configuration")
         else:
             print(f"   ❌ Multi-select format failed: {result.get('type')}")
-            return False
+            assert False
 
         # Test 6: New Multi-Select Format - Some Presets
         print("\n📋 Test 6: New Multi-Select Format - Some Presets")
 
         options_handler.collected_config = {"presets_shown": True}
+
+        # Capture result for the old boolean format to verify backward compatibility
+        # (some_presets_input was defined earlier in Test 2)
+        result_old = await options_handler.async_step_preset_selection(
+            some_presets_input
+        )
 
         # Test new multi-select format with selected presets
         some_presets_multiselect = {"presets": ["away", "home", "comfort"]}
@@ -179,19 +185,19 @@ async def test_comprehensive_preset_logic():
             print(
                 f"   ❌ Multi-select format failed: {result.get('type')} / {result.get('step_id')}"
             )
-            return False
-
-        # Test 7: Backward Compatibility - Both Formats Work
-        print("\n📋 Test 7: Backward Compatibility - Both Formats")
-
-        # Test that both old boolean and new multi-select formats work
-        options_handler.collected_config = {"presets_shown": True}
-
-        # Old format with some presets
-        old_format = {"away": True, "home": True, "sleep": False, "comfort": False}
-        result_old = await options_handler.async_step_preset_selection(old_format)
-
-        options_handler.collected_config = {"presets_shown": True}
+            assert False
+        if (
+            result_old["type"] == "form"
+            and result_old["step_id"] == "presets"
+            and result["type"] == "form"
+            and result["step_id"] == "presets"
+        ):
+            print("   ✅ Both old boolean and new multi-select formats work correctly")
+        else:
+            print(
+                f"   ❌ Format compatibility failed: old={result_old.get('type')}/{result_old.get('step_id')}, new={result.get('type')}/{result.get('step_id')}"
+            )
+            assert False
 
         # New format with same presets
         new_format = {"presets": ["away", "home"]}
@@ -244,7 +250,7 @@ async def test_comprehensive_preset_logic():
             print(
                 f"   ❌ User issue still exists: {result.get('type')} / {result.get('step_id')}"
             )
-            return False
+            assert False
 
         print("\n🎯 Comprehensive Logic Validation:")
         print("   ✅ No presets → Skip preset configuration")
@@ -255,15 +261,14 @@ async def test_comprehensive_preset_logic():
         print("   ✅ New multi-select format → Fully supported")
         print("   ✅ Backward compatibility → Maintained")
         print("   ✅ User-reported issue → Resolved")
-
-        return True
+        assert True
 
     except Exception as e:
         print(f"❌ Test failed: {e}")
         import traceback
 
         traceback.print_exc()
-        return False
+        raise
 
 
 def run_test():
@@ -273,7 +278,8 @@ def run_test():
 
     try:
         success = loop.run_until_complete(test_comprehensive_preset_logic())
-        return success
+        # If the test used assertions and returned None, treat that as success
+        return True if success is None else success
     finally:
         loop.close()
 
