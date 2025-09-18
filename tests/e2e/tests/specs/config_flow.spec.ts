@@ -11,7 +11,7 @@ test.describe('Dual Smart Thermostat Config Flow', () => {
   test('simple_heater system type - complete config flow', async ({ page }) => {
     // Start the integration setup
     await haSetup.startAddingIntegration('Dual Smart Thermostat');
-    
+
     // Step 1: System type selection (user step)
     await expect(page.locator('h2')).toContainText('System Type Selection');
     await haSetup.selectOptionByLabel('System Type', 'simple_heater');
@@ -21,7 +21,7 @@ test.describe('Dual Smart Thermostat Config Flow', () => {
     // Step 2: Basic configuration
     await haSetup.waitForStep();
     await expect(page.locator('h2')).toContainText('Basic Configuration');
-    
+
     // Fill deterministic values for testing
     await haSetup.fillFieldByLabel('Name', 'Test Simple Heater');
     await haSetup.fillFieldByLabel('Temperature Sensor', 'sensor.test_temperature');
@@ -29,14 +29,14 @@ test.describe('Dual Smart Thermostat Config Flow', () => {
     await haSetup.fillFieldByLabel('Cold Tolerance', '0.5');
     await haSetup.fillFieldByLabel('Hot Tolerance', '0.5');
     await haSetup.fillFieldByLabel('Minimum Cycle Duration', '300');
-    
+
     await page.screenshot({ path: 'baselines/simple_heater/02-basic-config.png' });
     await haSetup.clickNext();
 
     // Step 3: Features selection
     await haSetup.waitForStep();
     await expect(page.locator('h2')).toContainText('Features');
-    
+
     // For simple heater, select minimal features
     await page.check('input[name="configure_presets"]');
     await page.screenshot({ path: 'baselines/simple_heater/03-features-selection.png' });
@@ -45,7 +45,7 @@ test.describe('Dual Smart Thermostat Config Flow', () => {
     // Step 4: Preset configuration (since we selected presets)
     await haSetup.waitForStep();
     await expect(page.locator('h2')).toContainText('Preset');
-    
+
     // Configure basic presets
     await haSetup.fillFieldByLabel('Away Temperature', '16');
     await haSetup.fillFieldByLabel('Sleep Temperature', '18');
@@ -84,7 +84,7 @@ test.describe('Dual Smart Thermostat Config Flow', () => {
 
   test('simple_heater system type - minimal config (no features)', async ({ page }) => {
     await haSetup.startAddingIntegration('Dual Smart Thermostat');
-    
+
     // System type selection
     await haSetup.selectOptionByLabel('System Type', 'simple_heater');
     await haSetup.clickNext();
@@ -118,7 +118,7 @@ test.describe('Dual Smart Thermostat Config Flow', () => {
 
   test('config flow - validation errors', async ({ page }) => {
     await haSetup.startAddingIntegration('Dual Smart Thermostat');
-    
+
     // System type selection
     await haSetup.selectOptionByLabel('System Type', 'simple_heater');
     await haSetup.clickNext();
@@ -129,28 +129,10 @@ test.describe('Dual Smart Thermostat Config Flow', () => {
     // Should show validation errors
     await expect(page.locator('.error, [role="alert"]')).toBeVisible();
     await expect(page.locator('text=required').first()).toBeVisible();
-    
+
     await page.screenshot({ path: 'baselines/simple_heater/validation-errors.png' });
   });
 
-  test('config flow - back navigation', async ({ page }) => {
-    await haSetup.startAddingIntegration('Dual Smart Thermostat');
-    
-    // System type selection
-    await haSetup.selectOptionByLabel('System Type', 'simple_heater');
-    await haSetup.clickNext();
-
-    // Basic config
-    await haSetup.fillFieldByLabel('Name', 'Back Navigation Test');
-    await haSetup.fillFieldByLabel('Temperature Sensor', 'sensor.test_temp');
-    await haSetup.fillFieldByLabel('Heater', 'switch.test_heater');
-    await haSetup.clickNext();
-
-    // Go to features, then back
-    await page.click('button:has-text("Back")');
-
-    // Should be back at basic config
-    await expect(page.locator('h2')).toContainText('Basic Configuration');
-    await expect(page.locator('input[name="name"]')).toHaveValue('Back Navigation Test');
-  });
+  // Back navigation is not supported by the HA config flow UI; the previous
+  // back-navigation test was removed.
 });
