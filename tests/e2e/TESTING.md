@@ -111,7 +111,7 @@ expect(configEntry.data).toMatchObject({
 expect(configEntry.options).toMatchObject({
   fan_entity?: string,
   humidity_sensor?: string,
-  door_sensors?: string,
+  openings?: string,
   away_temp?: number,
   sleep_temp?: number
 });

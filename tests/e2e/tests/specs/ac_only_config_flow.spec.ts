@@ -10,7 +10,7 @@ test.describe('AC-Only Config Flow', () => {
 
   test('ac_only system type - complete config flow with features', async ({ page }) => {
     await haSetup.startAddingIntegration('Dual Smart Thermostat');
-    
+
     // Step 1: System type selection
     await expect(page.locator('h2')).toContainText('System Type Selection');
     await haSetup.selectOptionByLabel('System Type', 'ac_only');
@@ -20,65 +20,65 @@ test.describe('AC-Only Config Flow', () => {
     // Step 2: Basic configuration
     await haSetup.waitForStep();
     await expect(page.locator('h2')).toContainText('Basic Configuration');
-    
+
     await haSetup.fillFieldByLabel('Name', 'Test AC Only');
     await haSetup.fillFieldByLabel('Temperature Sensor', 'sensor.test_temperature');
     await haSetup.fillFieldByLabel('Cooler', 'switch.test_ac');
     await haSetup.fillFieldByLabel('Cold Tolerance', '0.5');
     await haSetup.fillFieldByLabel('Hot Tolerance', '0.5');
-    
+
     await page.screenshot({ path: 'baselines/ac_only/02-basic-config.png' });
     await haSetup.clickNext();
 
     // Step 3: AC Features selection
     await haSetup.waitForStep();
     await expect(page.locator('h2')).toContainText('AC Features');
-    
+
     // Select multiple AC features
     await page.check('input[name="configure_fan"]');
     await page.check('input[name="configure_humidity"]');
     await page.check('input[name="configure_openings"]');
     await page.check('input[name="configure_presets"]');
-    
+
     await page.screenshot({ path: 'baselines/ac_only/03-ac-features-selection.png' });
     await haSetup.clickNext();
 
     // Step 4: Fan configuration
     await haSetup.waitForStep();
     await expect(page.locator('h2')).toContainText('Fan');
-    
+
     await haSetup.fillFieldByLabel('Fan Entity', 'fan.test_fan');
     await page.check('input[name="fan_on_with_ac"]');
-    
+
     await page.screenshot({ path: 'baselines/ac_only/04-fan-config.png' });
     await haSetup.clickNext();
 
     // Step 5: Humidity configuration
     await haSetup.waitForStep();
     await expect(page.locator('h2')).toContainText('Humidity');
-    
+
     await haSetup.fillFieldByLabel('Humidity Sensor', 'sensor.test_humidity');
     await haSetup.fillFieldByLabel('Target Humidity', '50');
-    
+
     await page.screenshot({ path: 'baselines/ac_only/05-humidity-config.png' });
     await haSetup.clickNext();
 
     // Step 6: Openings configuration
     await haSetup.waitForStep();
     await expect(page.locator('h2')).toContainText('Openings');
-    
+
     await haSetup.fillFieldByLabel('Door/Window Sensors', 'binary_sensor.test_door');
-    
+
     await page.screenshot({ path: 'baselines/ac_only/06-openings-config.png' });
     await haSetup.clickNext();
 
     // Step 7: Presets configuration
     await haSetup.waitForStep();
     await expect(page.locator('h2')).toContainText('Presets');
-    
+
     await haSetup.fillFieldByLabel('Away Temperature', '28');
     await haSetup.fillFieldByLabel('Sleep Temperature', '26');
-    
+
     await page.screenshot({ path: 'baselines/ac_only/07-presets-config.png' });
     await haSetup.clickNext();
 
@@ -102,7 +102,7 @@ test.describe('AC-Only Config Flow', () => {
       fan_on_with_ac: true,
       humidity_sensor: 'sensor.test_humidity',
       target_humidity: 50,
-      door_sensors: 'binary_sensor.test_door',
+      openings: 'binary_sensor.test_door',
       away_temp: 28,
       sleep_temp: 26
     });
@@ -110,7 +110,7 @@ test.describe('AC-Only Config Flow', () => {
 
   test('ac_only system type - minimal config', async ({ page }) => {
     await haSetup.startAddingIntegration('Dual Smart Thermostat');
-    
+
     // System type selection
     await haSetup.selectOptionByLabel('System Type', 'ac_only');
     await haSetup.clickNext();
