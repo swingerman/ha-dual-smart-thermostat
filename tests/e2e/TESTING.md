@@ -21,7 +21,6 @@ Our E2E tests cover the following scenarios:
 - ✅ **Minimal Setup**: Basic configuration without optional features  
 - ✅ **AC-Only System**: Full feature configuration for AC-only systems
 - ✅ **Validation**: Error handling for invalid inputs
-- ✅ **Navigation**: Forward navigation through configuration steps
 
 #### Options Flow Tests
 - ✅ **Modify Settings**: Update existing configuration options
