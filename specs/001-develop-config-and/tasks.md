@@ -7,13 +7,26 @@ Guidance for reviewers:
 - All code tasks follow TDD: create failing tests first, implement changes, then make tests pass.
 - Keep PRs small and focused; prefer single responsibility per PR.
 
-Summary: Priority order is E2E scaffold & tests (T001-T003), remove Advanced option (T004), complete heater_cooler/heat_pump (T005-T006), contract & parity tests plus models (T007-T009), test reorg (T010), schema consolidation investigation (T011), then polish & release (T012).
+Summary: ✅ E2E scaffold (T001) and tests (T002) COMPLETED. Current priority: E2E CI (T003), remove Advanced option (T004), complete heater_cooler/heat_pump (T005-T006), contract & parity tests plus models (T007-T009), test reorg (T010), schema consolidation investigation (T011), then polish & release (T012).
 
 ---
 
 Task IDs: T001..T012
 
-T001 — Add E2E Playwright scaffold (Phase 1A) [P] — [GitHub Issue #411](https://github.com/swingerman/ha-dual-smart-thermostat/issues/411)
+## Current Status (Updated)
+
+**Completed Tasks:**
+- ✅ T001 (E2E Playwright scaffold) — Closed as completed on 2025-09-16
+- ✅ T002 (Playwright tests for config & options flows) — Closed as completed on 2025-09-18
+
+**Active Tasks:**
+- 🚧 T003 (Add CI job to run E2E) — Issue #413 open
+- 🔄 T004-T012 (Remaining tasks) — Issues #414-422 open
+
+**Original Parent Issue:**
+- ✅ #157 "[feat] config flow" — Closed as completed on 2025-09-16
+
+T001 — Add E2E Playwright scaffold (Phase 1A) [P] — ✅ [COMPLETED] [GitHub Issue #411](https://github.com/swingerman/ha-dual-smart-thermostat/issues/411)
 - Files to create:
   - `tests/e2e/docker-compose.yml`
   - `tests/e2e/ha_config/configuration.yaml`
@@ -35,7 +48,7 @@ T001 — Add E2E Playwright scaffold (Phase 1A) [P] — [GitHub Issue #411](http
   - The `README.md` includes regeneration instructions and token handling notes.
 - Parallelization: [P] with T002 once HA is reachable.
 
-T002 — Add Playwright tests for config & options flows (Phase 1A) [P] — [GitHub Issue #412](https://github.com/swingerman/ha-dual-smart-thermostat/issues/412)
+T002 — Add Playwright tests for config & options flows (Phase 1A) [P] — ✅ [COMPLETED] [GitHub Issue #412](https://github.com/swingerman/ha-dual-smart-thermostat/issues/412)
 - Files to create:
   - `tests/e2e/specs/config_flow.spec.ts`
   - `tests/e2e/specs/options_flow.spec.ts`
@@ -199,8 +212,8 @@ T012 — Polish documentation & release prep — [GitHub Issue #422](https://git
 ---
 
 Task Ordering and dependency notes
-- E2E scaffold (T001) and Playwright tests (T002) are top priority and can be worked on in parallel.
-- Removal of Advanced option (T004) should be performed after initial E2E progress and before heavy schema edits (T005/T006) to avoid merge conflicts.
+- ✅ E2E scaffold (T001) and Playwright tests (T002) COMPLETED — top priority was finished successfully.
+- Current priority: E2E CI job (T003) and removal of Advanced option (T004) should be performed before heavy schema edits (T005/T006) to avoid merge conflicts.
 - Contract tests (T007) should be created early and used as failing tests (TDD) for T004-T009.
 - Test reorg (T010) is low-risk but coordinate with other test edits — do PoC first.
 - Schema consolidation (T011) should be done after T004 removal and initial E2E to minimize churn.
