@@ -1,0 +1,73 @@
+name: E2E Tests
+
+on:
+  push:
+    branches:
+      - master
+      - copilot/fix-157
+      - copilot/fix-413
+
+  pull_request:
+    branches: "*"
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: tests/e2e/package-lock.json
+
+      - name: Install Playwright dependencies
+        working-directory: tests/e2e
+        run: |
+          npm ci
+          npx playwright install --with-deps
+
+      - name: Start Home Assistant
+        working-directory: tests/e2e
+        run: |
+          docker compose up -d
+          echo "Waiting for Home Assistant to be ready..."
+          
+          # Wait for healthy status with timeout
+          timeout 120 bash -c 'until docker compose exec homeassistant curl -f http://localhost:8123/ >/dev/null 2>&1; do 
+            echo "  Waiting for HA to respond... ($(date))"
+            sleep 5
+          done'
+          
+          echo "Home Assistant is ready!"
+
+      - name: Run E2E Tests
+        working-directory: tests/e2e
+        run: |
+          npx playwright test --reporter=github
+        env:
+          # Ensure tests run in CI mode
+          CI: true
+
+      - name: Upload test artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-test-artifacts
+          path: |
+            tests/e2e/test-results/
+            tests/e2e/playwright-report/
+            tests/e2e/artifacts/
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Stop Home Assistant
+        if: always()
+        working-directory: tests/e2e
+        run: |
+          docker compose down -v
