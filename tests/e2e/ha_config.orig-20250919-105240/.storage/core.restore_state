@@ -1,0 +1,70 @@
+{
+  "version": 1,
+  "minor_version": 1,
+  "key": "core.restore_state",
+  "data": [
+    {
+      "state": {"entity_id":"conversation.home_assistant","state":"unknown","attributes":{"friendly_name":"Home Assistant","supported_features":1},"last_changed":"2025-09-19T07:40:31.443594+00:00","last_reported":"2025-09-19T07:40:31.443594+00:00","last_updated":"2025-09-19T07:40:31.443594+00:00","context":{"id":"01K5GENSTKAC1YDZJNR3W2Z0BP","parent_id":null,"user_id":null}},
+      "extra_data": null,
+      "last_seen": "2025-09-19T08:28:51.778287+00:00"
+    },
+    {
+      "state": {"entity_id":"event.backup_automatic_backup","state":"unknown","attributes":{"event_types":["completed","failed","in_progress"],"event_type":null,"friendly_name":"Backup Automatic backup"},"last_changed":"2025-09-19T07:40:31.506044+00:00","last_reported":"2025-09-19T07:40:31.506044+00:00","last_updated":"2025-09-19T07:40:31.506044+00:00","context":{"id":"01K5GENSWJ2H4619A1W5V1JWC5","parent_id":null,"user_id":null}},
+      "extra_data": {
+        "last_event_type": null,
+        "last_event_attributes": null
+      },
+      "last_seen": "2025-09-19T08:28:51.778287+00:00"
+    },
+    {
+      "state": {"entity_id":"switch.test_heater","state":"off","attributes":{"friendly_name":"Test Heater Switch"},"last_changed":"2025-09-19T07:40:34.737888+00:00","last_reported":"2025-09-19T07:40:34.737888+00:00","last_updated":"2025-09-19T07:40:34.737888+00:00","context":{"id":"01K5GENX1HCHRCTX9B6W8Q9EB5","parent_id":null,"user_id":null}},
+      "extra_data": null,
+      "last_seen": "2025-09-19T08:28:51.778287+00:00"
+    },
+    {
+      "state": {"entity_id":"switch.test_cooler","state":"off","attributes":{"friendly_name":"Test Cooler Switch"},"last_changed":"2025-09-19T07:40:34.738093+00:00","last_reported":"2025-09-19T07:40:34.738093+00:00","last_updated":"2025-09-19T07:40:34.738093+00:00","context":{"id":"01K5GENX1JMD03VBDSCSX40QEZ","parent_id":null,"user_id":null}},
+      "extra_data": null,
+      "last_seen": "2025-09-19T08:28:51.778287+00:00"
+    },
+    {
+      "state": {"entity_id":"switch.test_fan","state":"off","attributes":{"friendly_name":"Test Fan Switch"},"last_changed":"2025-09-19T07:40:34.738302+00:00","last_reported":"2025-09-19T07:40:34.738302+00:00","last_updated":"2025-09-19T07:40:34.738302+00:00","context":{"id":"01K5GENX1JJ98DDTB319VPA1X6","parent_id":null,"user_id":null}},
+      "extra_data": null,
+      "last_seen": "2025-09-19T08:28:51.778287+00:00"
+    },
+    {
+      "state": {"entity_id":"input_boolean.test_heater","state":"off","attributes":{"editable":false,"friendly_name":"Test Heater"},"last_changed":"2025-09-19T07:40:33.703070+00:00","last_reported":"2025-09-19T07:40:33.703070+00:00","last_updated":"2025-09-19T07:40:33.703070+00:00","context":{"id":"01K5GENW17T4QV15GMP43PSHEQ","parent_id":null,"user_id":null}},
+      "extra_data": null,
+      "last_seen": "2025-09-19T08:28:51.778287+00:00"
+    },
+    {
+      "state": {"entity_id":"input_boolean.test_cooler","state":"off","attributes":{"editable":false,"friendly_name":"Test Cooler"},"last_changed":"2025-09-19T07:40:33.703255+00:00","last_reported":"2025-09-19T07:40:33.703255+00:00","last_updated":"2025-09-19T07:40:33.703255+00:00","context":{"id":"01K5GENW17MJGJBQH2C0JGT8NR","parent_id":null,"user_id":null}},
+      "extra_data": null,
+      "last_seen": "2025-09-19T08:28:51.778287+00:00"
+    },
+    {
+      "state": {"entity_id":"input_boolean.test_fan","state":"off","attributes":{"editable":false,"friendly_name":"Test Fan"},"last_changed":"2025-09-19T07:40:33.703559+00:00","last_reported":"2025-09-19T07:40:33.703559+00:00","last_updated":"2025-09-19T07:40:33.703559+00:00","context":{"id":"01K5GENW17GCH98G1GEZR4VA67","parent_id":null,"user_id":null}},
+      "extra_data": null,
+      "last_seen": "2025-09-19T08:28:51.778287+00:00"
+    },
+    {
+      "state": {"entity_id":"input_boolean.test_opening","state":"off","attributes":{"editable":false,"friendly_name":"Test Opening/Window"},"last_changed":"2025-09-19T07:40:33.703720+00:00","last_reported":"2025-09-19T07:40:33.703720+00:00","last_updated":"2025-09-19T07:40:33.703720+00:00","context":{"id":"01K5GENW177S8GGW9JQM1D4D1X","parent_id":null,"user_id":null}},
+      "extra_data": null,
+      "last_seen": "2025-09-19T08:28:51.778287+00:00"
+    },
+    {
+      "state": {"entity_id":"input_number.test_temperature","state":"20.0","attributes":{"initial":20.0,"editable":false,"min":-10.0,"max":50.0,"step":0.1,"mode":"slider","unit_of_measurement":"°C","icon":"mdi:thermometer","friendly_name":"Test Temperature Sensor"},"last_changed":"2025-09-19T07:40:33.703891+00:00","last_reported":"2025-09-19T07:40:33.703891+00:00","last_updated":"2025-09-19T07:40:33.703891+00:00","context":{"id":"01K5GENW1795XQ93XD06ND279T","parent_id":null,"user_id":null}},
+      "extra_data": null,
+      "last_seen": "2025-09-19T08:28:51.778287+00:00"
+    },
+    {
+      "state": {"entity_id":"input_number.test_humidity","state":"50.0","attributes":{"initial":50.0,"editable":false,"min":0.0,"max":100.0,"step":1.0,"mode":"slider","unit_of_measurement":"%","icon":"mdi:water-percent","friendly_name":"Test Humidity Sensor"},"last_changed":"2025-09-19T07:40:33.703975+00:00","last_reported":"2025-09-19T07:40:33.703975+00:00","last_updated":"2025-09-19T07:40:33.703975+00:00","context":{"id":"01K5GENW177SGQW0PK5NCG7YJ7","parent_id":null,"user_id":null}},
+      "extra_data": null,
+      "last_seen": "2025-09-19T08:28:51.778287+00:00"
+    },
+    {
+      "state": {"entity_id":"input_number.test_floor_temp","state":"22.0","attributes":{"initial":22.0,"editable":false,"min":5.0,"max":35.0,"step":0.1,"mode":"slider","unit_of_measurement":"°C","icon":"mdi:thermometer","friendly_name":"Test Floor Temperature"},"last_changed":"2025-09-19T07:40:33.704056+00:00","last_reported":"2025-09-19T07:40:33.704056+00:00","last_updated":"2025-09-19T07:40:33.704056+00:00","context":{"id":"01K5GENW18X85E1VPQ758MPCXN","parent_id":null,"user_id":null}},
+      "extra_data": null,
+      "last_seen": "2025-09-19T08:28:51.778287+00:00"
+    }
+  ]
+}

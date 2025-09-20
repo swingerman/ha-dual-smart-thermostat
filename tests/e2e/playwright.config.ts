@@ -5,42 +5,51 @@ import { defineConfig, devices } from '@playwright/test';
  */
 export default defineConfig({
   testDir: './tests/specs',
-  
+
   /* Run tests in files in parallel */
   fullyParallel: true,
-  
+
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
-  
+
   /* Retry on CI only */
   retries: process.env.CI ? 2 : 0,
-  
+
   /* Opt out of parallel tests on CI. */
   workers: process.env.CI ? 1 : undefined,
-  
+
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: 'html',
-  
+
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: 'http://localhost:8123',
-    
+    baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:8123',
+
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
-    
+
     /* Take screenshot on failure */
     screenshot: 'only-on-failure',
-    
+
     /* Record video on failure */
     video: 'retain-on-failure',
+
+    /* Increase default timeout for actions */
+    actionTimeout: 10000,
+
+    /* Increase default timeout for navigation */
+    navigationTimeout: 15000,
   },
+
+  /* Global test timeout */
+  timeout: 60000,
 
   /* Configure projects for major browsers */
   projects: [
     {
       name: 'chromium',
-      use: { 
+      use: {
         ...devices['Desktop Chrome'],
         /* Use prepared auth state for Home Assistant */
         storageState: 'tests/auth/storageState.json'
@@ -70,15 +79,18 @@ export default defineConfig({
 
   /* Test output directories */
   outputDir: 'test-results/',
-  
-  /* Artifacts */
+
+  /* Artifacts and expect configuration */
   expect: {
+    /* Global expect timeout */
+    timeout: 10000,
+
     /* Update snapshots with --update-snapshots flag */
     toHaveScreenshot: {
       threshold: 0.2,
       maxDiffPixelRatio: 0.1,
     },
-    
+
     /* Visual comparison baseline directory */
     toMatchSnapshot: {
       threshold: 0.2,

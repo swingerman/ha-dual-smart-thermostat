@@ -2,13 +2,65 @@
 
 This directory contains End-to-End (E2E) tests using Playwright to test the Home Assistant integration config flows and options flows for the Dual Smart Thermostat custom component.
 
-## Prerequisites
+## Quick Start - Local Development
 
-- Docker and Docker Compose
-- Node.js (v18 or higher)
-- Playwright (will be installed via npm)
+### Prerequisites
 
-## Quick Start
+**Option 1: Docker (Recommended)**
+- Docker and Docker Compose installed
+- Node.js 18+ and npm
+
+**Option 2: Local Home Assistant**  
+- Home Assistant installed (`pip install homeassistant`)
+- Node.js 18+ and npm
+
+### Installation
+
+```bash
+# Navigate to E2E directory
+cd tests/e2e
+
+# Install dependencies
+npm ci
+
+# Install Playwright browsers
+npx playwright install --with-deps
+```
+
+### Running Tests Locally
+
+```bash
+# Run all tests (auto-detects Docker vs local HA)
+npm run test:all
+
+# Run with Docker explicitly
+./scripts/test-runner.sh --docker
+
+# Run with local Home Assistant
+./scripts/test-runner.sh --e2e
+
+# Setup environment only (for debugging)
+./scripts/test-runner.sh --setup
+
+# Clean up when done
+./scripts/test-runner.sh --cleanup
+```
+
+### Available npm Scripts
+
+```bash
+npm run test              # Run tests with current setup
+npm run test:all          # Run all tests (uses test-runner.sh)
+npm run test:local        # Run tests locally  
+npm run test:setup        # Start Home Assistant locally
+npm run test:setup-docker # Start with Docker
+npm run test:cleanup      # Stop Docker environment
+npm run test:headed       # Run tests with visible browser
+npm run test:ui           # Run tests with Playwright UI
+npm run test:debug        # Run tests in debug mode
+```
+
+## Original Setup (CI/Docker)
 
 ### 1. Start Home Assistant Test Environment
 
