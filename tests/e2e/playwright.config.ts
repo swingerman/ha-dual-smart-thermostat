@@ -51,8 +51,8 @@ export default defineConfig({
       name: 'chromium',
       use: {
         ...devices['Desktop Chrome'],
-        /* Use prepared auth state for Home Assistant */
-        storageState: 'tests/auth/storageState.json'
+        /* Use prepared auth state for Home Assistant - disabled for now */
+        // storageState: 'tests/auth/storageState.json'
       },
     },
 
@@ -74,8 +74,8 @@ export default defineConfig({
     // },
   ],
 
-  /* Global setup for authentication */
-  globalSetup: require.resolve('./tests/auth/global-setup.ts'),
+  /* Global setup for authentication - disabled for now */
+  // globalSetup: require.resolve('./tests/auth/global-setup.ts'),
 
   /* Test output directories */
   outputDir: 'test-results/',
