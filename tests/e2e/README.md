@@ -220,19 +220,53 @@ During development, you can access the test Home Assistant instance at:
 The E2E tests should cover:
 
 ### Config Flow Tests
-- [ ] System type selection (heating, cooling, dual, etc.)
-- [ ] Basic entity selection (heater, cooler, target_sensor)
-- [ ] Advanced options toggling
-- [ ] Feature-specific steps (fan, humidity, presets)
+- [x] **T003 Simple Heater Config Flow** - Complete 4-step flow (✅ WORKING)
+  - System type selection (radio buttons)
+  - Basic configuration (name, temperature sensor, heater switch)
+  - Features configuration (skipped for basic flow)
+  - Confirmation dialog
+- [ ] AC-Only system configuration with features
+- [ ] Dual-mode system configuration
 - [ ] Validation and error handling
 - [ ] Multi-step wizard navigation
 
 ### Options Flow Tests  
-- [ ] Reconfiguring existing thermostats
-- [ ] Adding/removing features
+- [ ] **T003 Simple Heater Options Flow** - Modify existing configuration
+- [ ] System type modification (uses select dropdown vs radio buttons)
+- [ ] Adding/removing features from existing configs
 - [ ] Updating entity selections
 - [ ] Preset management
 - [ ] Advanced settings modification
+
+## Key Implementation Insights
+
+### Home Assistant UI Patterns Discovered
+- **Config flows use modal dialogs** - URL never changes during flow
+- **Step detection** - Use dialog content + form elements, not URL
+- **Form elements**:
+  - `ha-picker-field` - Custom entity picker (click → type → Tab)
+  - Standard inputs - Use `fill()` method
+  - Radio buttons - Use text-based selection
+  - Always check `isVisible()` before interaction
+
+### Reliable Element Selectors
+```typescript
+// Discovered working selectors:
+'ha-dialog[open]'                                    // Config flow dialog
+'dialog-data-entry-flow button[part="base"]'        // Submit buttons  
+'ha-integration-list-item:has-text("...")'          // Integration cards
+'input[name="name"]'                                 // Name fields
+'ha-picker-field[aria-label="..."]'                 // Entity pickers
+```
+
+### Test Development Best Practices
+1. **Incremental approach** - Build step-by-step, validate each part
+2. **Comprehensive logging** - Essential for debugging complex flows
+3. **Screenshot debugging** - Take screenshots at key decision points
+4. **Environment isolation** - Fresh containers for reliable tests
+5. **Error resilience** - Handle timeouts and visibility issues gracefully
+
+For detailed implementation insights, see [LESSONS_LEARNED.md](LESSONS_LEARNED.md).
 
 ## Troubleshooting
 

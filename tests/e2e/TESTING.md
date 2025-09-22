@@ -106,17 +106,23 @@ Following the TDD approach mentioned in the issue:
 Our E2E tests cover the following scenarios:
 
 #### Config Flow Tests
-- ✅ **Happy Path**: Complete setup of simple_heater system type
-- ✅ **Minimal Setup**: Basic configuration without optional features  
-- ✅ **AC-Only System**: Full feature configuration for AC-only systems
-- ✅ **Validation**: Error handling for invalid inputs
+- ✅ **T003 Simple Heater Flow**: Complete 4-step config flow (✅ IMPLEMENTED & WORKING)
+  - System type selection (radio buttons)
+  - Basic configuration form filling (name, temperature sensor, heater switch)  
+  - Features configuration (skipped for basic flow)
+  - Confirmation dialog with final submit
+- ⏳ **AC-Only System**: Full feature configuration for AC-only systems
+- ⏳ **Validation**: Error handling for invalid inputs
+- ⏳ **Edge Cases**: Integration already configured, authentication issues
 
 #### Options Flow Tests
-- ✅ **Modify Settings**: Update existing configuration options
-- ✅ **Feature Toggle**: Enable/disable optional features in existing configs
-- ✅ **Validation**: Error handling in options modification flow
-- ✅ **Cancellation**: Cancel options flow without saving changes
-- ✅ **System Type Preservation**: Ensure system type cannot be changed
+- ⏳ **T003 Simple Heater Options**: Modify existing simple heater configuration
+  - System type modification (uses select dropdown vs radio buttons in config flow)
+  - Update entity selections and settings
+  - Validation and confirmation
+- ⏳ **Feature Toggle**: Enable/disable optional features in existing configs
+- ⏳ **Validation**: Error handling in options modification flow
+- ⏳ **Cancellation**: Cancel options flow without saving changes
 
 ### Key Test Pattern: API Contract Validation
 
