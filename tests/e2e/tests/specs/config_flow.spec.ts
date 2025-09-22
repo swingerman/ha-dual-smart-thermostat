@@ -261,19 +261,31 @@ test('Complete Config Flow: Full integration setup', async ({ page }) => {
     const dialogText = await page.locator('ha-dialog[open]').first().textContent();
     console.log(`Dialog content (step ${currentStep}):`, dialogText?.slice(0, 100) + '...');
 
-    // Detect what type of step we're on
-    const isBasicConfig = dialogText?.includes('Basic Configuration') ||
-      dialogText?.includes('Name') ||
-      await page.locator('input[type="text"]:not([type="radio"])').count() > 0;
+    // Debug: Show form elements for step detection
+    const hasNameField = await page.locator('input[name="name"]').count() > 0;
+    const hasPickerFields = await page.locator('ha-picker-field').count() > 0;
+    const hasCheckboxes = await page.locator('input[type="checkbox"]').count() > 0;
 
-    const isFeatureConfig = dialogText?.includes('Feature') ||
+    console.log(`🔍 Step ${currentStep} form elements: name=${hasNameField}, pickers=${hasPickerFields}, checkboxes=${hasCheckboxes}`);
+
+    const isBasicConfig = (dialogText?.includes('Basic Configuration') ||
+      dialogText?.includes('Name')) &&
+      (hasNameField || hasPickerFields);
+
+    const isFeatureConfig = (dialogText?.includes('Feature') ||
       dialogText?.includes('Additional') ||
-      await page.locator('input[type="checkbox"]').count() > 2;
+      dialogText?.includes('Optional') ||
+      dialogText?.includes('Select')) &&
+      hasCheckboxes &&
+      !isBasicConfig;
 
     const isConfirmation = dialogText?.includes('Success') ||
       dialogText?.includes('Complete') ||
       dialogText?.includes('Configuration created') ||
-      dialogText?.includes('will be added');
+      dialogText?.includes('will be added') ||
+      dialogText?.includes('successfully configured') ||
+      (!hasNameField && !hasPickerFields && !hasCheckboxes &&
+        dialogText && dialogText.length > 50);
 
     if (isBasicConfig) {
       console.log(`✅ Step ${currentStep}: Basic Configuration detected`);
@@ -368,13 +380,22 @@ test('Complete Config Flow: Full integration setup', async ({ page }) => {
       console.log('📸 Screenshot taken after filling basic config form');
 
     } else if (isFeatureConfig) {
-      console.log(`✅ Step ${currentStep}: Features Selection detected - skipping for basic flow`);
+      console.log(`✅ Step ${currentStep}: Features Configuration detected`);
+      console.log('📝 Skipping feature selection for basic flow (no features selected)');
+
+      // Take screenshot of features step for debugging
+      await page.screenshot({ path: 'debug-features-step.png' });
 
     } else if (isConfirmation) {
-      console.log(`✅ Step ${currentStep}: Confirmation dialog detected`);
+      console.log(`✅ Step ${currentStep}: Confirmation Dialog detected`);
+      console.log('🎉 Config flow reaching final confirmation step!');
+
+      // Take screenshot of confirmation dialog
+      await page.screenshot({ path: 'debug-confirmation-step.png' });
 
     } else {
       console.log(`⚠️ Step ${currentStep}: Unknown step type - will try to submit anyway`);
+      console.log('📝 Dialog content for debugging:', dialogText?.slice(0, 300));
     }
 
     // Submit current step
