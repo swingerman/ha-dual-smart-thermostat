@@ -5,12 +5,17 @@ test.describe('AC-Only Config Flow', () => {
   let haSetup: HomeAssistantSetup;
 
   test.beforeEach(async ({ page }) => {
+    // Navigate to Home Assistant and prepare for config flow
+    await page.goto('/', { timeout: 30000 });
+    await page.waitForTimeout(2000);
+
     haSetup = new HomeAssistantSetup(page);
+    // Prepare integration for config flow testing (will start config flow if not already configured)
+    await haSetup.ensureIntegrationReadyForConfigFlow('Dual Smart Thermostat', 'dual_smart_thermostat');
   });
 
   test('ac_only system type - complete config flow with features', async ({ page }) => {
-    await haSetup.startAddingIntegration('Dual Smart Thermostat');
-
+    // The beforeEach already started the config flow if needed
     // Step 1: System type selection
     await expect(page.locator('h2')).toContainText('System Type Selection');
     await haSetup.selectOptionByLabel('System Type', 'ac_only');
@@ -109,8 +114,7 @@ test.describe('AC-Only Config Flow', () => {
   });
 
   test('ac_only system type - minimal config', async ({ page }) => {
-    await haSetup.startAddingIntegration('Dual Smart Thermostat');
-
+    // The beforeEach already started the config flow if needed
     // System type selection
     await haSetup.selectOptionByLabel('System Type', 'ac_only');
     await haSetup.clickNext();

@@ -159,6 +159,31 @@ switch:
   return Promise.resolve();
 }
 
+// Recursively copy a directory (synchronous). Overwrites destination files.
+function copyRecursiveSync(src, dest) {
+  if (!fs.existsSync(src)) return;
+  const stat = fs.statSync(src);
+  if (stat.isDirectory()) {
+    if (!fs.existsSync(dest)) fs.mkdirSync(dest, { recursive: true });
+    const entries = fs.readdirSync(src);
+    entries.forEach((entry) => {
+      const srcPath = path.join(src, entry);
+      const destPath = path.join(dest, entry);
+      const entryStat = fs.statSync(srcPath);
+      if (entryStat.isDirectory()) {
+        copyRecursiveSync(srcPath, destPath);
+      } else if (entryStat.isFile()) {
+        fs.copyFileSync(srcPath, destPath);
+      }
+    });
+  } else if (stat.isFile()) {
+    // src is a single file
+    const parent = path.dirname(dest);
+    if (!fs.existsSync(parent)) fs.mkdirSync(parent, { recursive: true });
+    fs.copyFileSync(src, dest);
+  }
+}
+
 // Add test resources to existing configuration if not present
 function addTestResources() {
   const configFile = path.join(HA_CONFIG_DIR, 'configuration.yaml');
@@ -167,30 +192,61 @@ function addTestResources() {
     console.log('⚠️  Configuration file not found, skipping resource addition');
     return;
   }
+  // No-op: we now rely on ha_config/configuration.yaml containing the
+  // placeholder climate entry. This avoids runtime mutation of the test
+  // configuration and makes test runs deterministic.
+  console.log('ℹ️ addTestResources is a no-op; using existing ha_config/configuration.yaml');
+  // Ensure the custom component from the repository is available in the
+  // HA config directory so YAML platform entries are loaded at Home
+  // Assistant startup. We copy/overwrite files from the repo's
+  // `custom_components/dual_smart_thermostat` into the test HA config.
+  try {
+  // Resolve repo root reliably: tests/e2e/scripts -> repo root is three levels up
+  const repoRoot = path.join(__dirname, '..', '..', '..');
+  const repoCustomComponent = path.join(repoRoot, 'custom_components', 'dual_smart_thermostat');
+    const destCustomComponentsDir = path.join(HA_CONFIG_DIR, 'custom_components');
+    const destCustomComponent = path.join(destCustomComponentsDir, 'dual_smart_thermostat');
 
-  let config = fs.readFileSync(configFile, 'utf8');
+    if (fs.existsSync(repoCustomComponent)) {
+      console.log(`📦 Copying custom component into HA config: ${repoCustomComponent} -> ${destCustomComponent}`);
+      copyRecursiveSync(repoCustomComponent, destCustomComponent);
+      console.log('✅ Custom component copied into HA config');
+    } else {
+      console.log('⚠️ Repository custom_components/dual_smart_thermostat not found, skipping copy');
+    }
+  } catch (err) {
+    console.error('❌ Failed to copy custom component into HA config:', err.message);
+  }
+  // Apply TEST_HA_PORT override if provided so tests can start HA on an alternate port
+  try { applyTestPortOverride(); } catch (e) { /* ignore */ }
+}
 
-  // Check if dual smart thermostat is already configured
-  if (!config.includes('dual_smart_thermostat')) {
-    console.log('🔧 Adding dual smart thermostat test configuration...');
-
-    const testThermostat = `
-# Dual Smart Thermostat test configuration
-climate:
-  - platform: dual_smart_thermostat
-    name: Test Dual Smart Thermostat
-    heater: switch.test_heater
-    cooler: switch.test_cooler
-    target_sensor: sensor.test_temperature_sensor
-    min_temp: 7
-    max_temp: 35
-    target_temp: 21
-    precision: 0.1
-    initial_hvac_mode: "off"
-`;
-
-    fs.appendFileSync(configFile, testThermostat);
-    console.log('✅ Test thermostat configuration added');
+// If TEST_HA_PORT is specified, update configuration.yaml's http.server_port value
+function applyTestPortOverride() {
+  const configFile = path.join(HA_CONFIG_DIR, 'configuration.yaml');
+  const port = process.env.TEST_HA_PORT;
+  if (!port) return;
+  try {
+    if (!fs.existsSync(configFile)) return;
+    let content = fs.readFileSync(configFile, 'utf8');
+    // Simple regex to replace server_port under http: section.
+    // This handles the common pattern: http:\n  server_port: 8123
+    const replaced = content.replace(/(http:\s*[\r\n]+(?:[ \t].*\n)*?)(server_port:)[ \t]*\d+/m, (m, p1, p2) => {
+      return p1 + p2 + ' ' + port;
+    });
+    if (replaced !== content) {
+      fs.writeFileSync(configFile, replaced, 'utf8');
+      console.log(`🔧 Overrode Home Assistant http.server_port to ${port} in ${configFile}`);
+    } else {
+      // If pattern didn't match, try a simpler replacement
+      const simple = content.replace(/server_port:[ \t]*\d+/, `server_port: ${port}`);
+      if (simple !== content) {
+        fs.writeFileSync(configFile, simple, 'utf8');
+        console.log(`🔧 Set Home Assistant server_port to ${port} in ${configFile}`);
+      }
+    }
+  } catch (err) {
+    console.error('❌ Failed to apply TEST_HA_PORT override:', err.message);
   }
 }
 
@@ -205,8 +261,7 @@ async function startHomeAssistant() {
     // Start Home Assistant with hass command
     const haProcess = spawn('hass', [
       '--config', HA_CONFIG_DIR,
-      '--log-level', 'info',
-      '--verbose'
+      '--debug'
     ], {
       stdio: 'inherit',
       env: {
@@ -261,20 +316,35 @@ async function startHomeAssistant() {
 // If run directly, start HA
 if (require.main === module) {
   const command = process.argv[2];
-  
+
   if (command === '--help' || command === '-h') {
     console.log('Usage: node test-setup.js [command]');
     console.log('');
     console.log('Commands:');
-    console.log('  (none)      Start Home Assistant for testing');
-    console.log('  --help, -h  Show this help message');
+    console.log('  (none)           Start Home Assistant for testing');
+    console.log('  --provision-only Only append test resources to configuration.yaml and exit');
+    console.log('  --help, -h       Show this help message');
     console.log('');
     console.log('Environment:');
     console.log('  HA config:  tests/e2e/ha_config/');
     console.log('  HA URL:     http://localhost:8123');
     process.exit(0);
   }
-  
+
+  if (command === '--provision-only') {
+    ensureConfig()
+      .then(() => {
+        addTestResources();
+        console.log('✅ Provision-only mode completed. Exiting.');
+        process.exit(0);
+      })
+      .catch(err => {
+        console.error('❌ Provision-only failed:', err);
+        process.exit(1);
+      });
+    
+  }
+
   startHomeAssistant().catch(error => {
     console.error('❌ Startup failed:', error);
     process.exit(1);
