@@ -167,7 +167,6 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
     ) -> FlowResult:
         """Handle basic AC-only configuration with dedicated translations."""
         errors = {}
-        system_type = self.collected_config.get(CONF_SYSTEM_TYPE)
 
         if user_input is not None:
             # Extract advanced settings from section and flatten to top level
