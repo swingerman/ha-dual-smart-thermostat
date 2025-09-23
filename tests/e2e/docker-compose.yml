@@ -6,16 +6,21 @@ services:
     privileged: true
     environment:
       - TZ=UTC
+      # Enable debug logging for CI debugging
+      - HASS_LOG_LEVEL=DEBUG
+      # Disable analytics for testing
+      - DISABLE_ANALYTICS=true
     volumes:
       - ./ha_config:/config
       - ../../custom_components:/config/custom_components
     ports:
       - "8123:8123"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8123/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      test:
+        ["CMD-SHELL", "curl -sf http://localhost:8123/manifest.json >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
       start_period: 60s
     networks:
       - ha-network
