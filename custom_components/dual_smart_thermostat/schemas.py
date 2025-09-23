@@ -97,7 +97,7 @@ def get_base_schema():
     )
 
 
-def get_ac_only_schema(defaults=None, include_name=True):
+def get_basic_ac_schema(defaults=None, include_name=True):
     """Get AC-only configuration schema with advanced settings in collapsible section."""
     # Core AC configuration
     core_schema = {}

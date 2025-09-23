@@ -142,17 +142,18 @@ switch:
           target:
             entity_id: input_boolean.test_fan
 
-# Preloaded dual smart thermostat configuration for E2E testing
-climate:
-  - platform: dual_smart_thermostat
-    name: placeholder_climate
-    unique_id: e2e_placeholder_climate
-    heater: switch.test_heater
-    cooler: switch.test_cooler
-    target_sensor: sensor.test_temperature
-    min_temp: 7
-    max_temp: 35
-    target_temp: 21
-    cold_tolerance: 0.5
-    hot_tolerance: 0.5
-    precision: 0.1
+# YAML configuration commented out for E2E config flow testing
+# The integration should be configured via UI config flow instead
+# climate:
+#   - platform: dual_smart_thermostat
+#     name: placeholder_climate
+#     unique_id: e2e_placeholder_climate
+#     heater: switch.test_heater
+#     cooler: switch.test_cooler
+#     target_sensor: sensor.test_temperature
+#     min_temp: 7
+#     max_temp: 35
+#     target_temp: 21
+#     cold_tolerance: 0.5
+#     hot_tolerance: 0.5
+#     precision: 0.1

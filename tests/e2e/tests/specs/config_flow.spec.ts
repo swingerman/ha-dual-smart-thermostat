@@ -1,52 +1,90 @@
 import { test, expect } from '@playwright/test';
-import { HomeAssistantSetup } from '../../playwright/setup';
+import { isConfirmationStep, isBasicConfigurationStep, isFeatureConfigurationStep, isSystemTypeStep, HomeAssistantSetup, OPEN_DIALOG_SELECTOR, INTEGRATION_SEARCH_SELECTOR, INTEGRATION_CARD_SELECTOR, INTEGRATIONS_DASHBOARD_URL, SystemType } from '../../playwright/setup';
 
 // STEP 1: Just get the config flow to start reliably
 test('Step 1: Start config flow for Dual Smart Thermostat', async ({ page }) => {
   console.log('🚀 Step 1: Starting basic config flow test');
 
-  // Navigate to integrations page
-  await page.goto('/config/integrations');
+  // Create helper instance
+  const helper = new HomeAssistantSetup(page);
+
+  // Navigate to integrations page and start config flow
+  await page.goto(INTEGRATIONS_DASHBOARD_URL, { timeout: 30000 });
+  await page.waitForTimeout(2000);
   console.log('📍 Navigated to integrations page');
 
-  // Open "Add Integration" dialog
   const addButton = page.locator('button').filter({ hasText: 'ADD INTEGRATION' });
-  await expect(addButton).toBeVisible({ timeout: 10000 });
+  await expect(addButton).toBeVisible({ timeout: 15000 });
   await addButton.click();
-  console.log('✅ "Add Integration" dialog opened');
 
   // Search for our integration
-  const searchInput = page.locator('input[type="search"], input[placeholder*="Search"]').first();
+  const searchInput = page.locator(INTEGRATION_SEARCH_SELECTOR).first();
   await expect(searchInput).toBeVisible({ timeout: 5000 });
+
+  // Check how many integrations are available before search
+  const beforeSearchCount = await page.locator(INTEGRATION_CARD_SELECTOR).count();
+  console.log(`🔍 Found ${beforeSearchCount} integrations before search`);
 
   // Clear any existing text first
   await searchInput.fill('');
-  await page.waitForTimeout(500);
+  await page.waitForTimeout(1000);
 
   // Type the integration name with delay to trigger filtering
   await searchInput.type('Dual Smart Thermostat', { delay: 100 });
   console.log('🔍 Typed integration name in search');
 
   // Wait for search results
-  await page.waitForTimeout(2000);
+  await page.waitForTimeout(3000);
+
+  // Take screenshot to see what's actually there
+  await page.screenshot({ path: 'debug-after-search.png' });
+  console.log('📸 Screenshot taken after typing integration name');
 
   // Debug: Check what integrations are visible
-  const allIntegrations = await page.locator('ha-integration-list-item').count();
+  const allIntegrations = await page.locator(INTEGRATION_CARD_SELECTOR).count();
   console.log(`Found ${allIntegrations} integration items after search`);
 
-  if (allIntegrations === 0) {
-    console.log('❌ No integrations found after search - taking screenshot');
-    await page.screenshot({ path: 'debug-no-integrations.png' });
-    throw new Error('No integrations found after search');
+  // Debug: Check if there are any elements with "Dual Smart Thermostat" text
+  const elementsWithText = await page.locator('*:has-text("Dual Smart Thermostat")').count();
+  console.log(`Found ${elementsWithText} elements containing "Dual Smart Thermostat" text`);
+
+  // Debug: Check different possible selectors
+  const alternativeSelectors = [
+    'ha-integration-list-item',
+    '[data-domain*="dual"]',
+    '*:has-text("Dual Smart Thermostat")',
+    'mwc-list-item:has-text("Dual Smart Thermostat")',
+    '.integration-item:has-text("Dual Smart Thermostat")'
+  ];
+
+  for (const selector of alternativeSelectors) {
+    const count = await page.locator(selector).count();
+    console.log(`🔍 Selector "${selector}": ${count} elements found`);
   }
 
-  // Look for our integration
+  // Check if our integration is found after search
+  if (allIntegrations === 0) {
+    console.log('🔍 No integrations found with search, trying without search...');
+    await searchInput.fill('');
+    await page.waitForTimeout(2000);
+
+    const withoutSearchCount = await page.locator('ha-integration-list-item').count();
+    console.log(`Found ${withoutSearchCount} integrations without search`);
+
+    if (withoutSearchCount === 0) {
+      console.log('❌ No integrations found at all - taking screenshot');
+      await page.screenshot({ path: 'debug-no-integrations.png' });
+      throw new Error('No integrations found after search');
+    }
+  }
+
+  // Look for our integration in the Add Integration dialog
   const integrationCard = page.locator('ha-integration-list-item:has-text("Dual Smart Thermostat")').first();
 
   try {
     await expect(integrationCard).toBeVisible({ timeout: 10000 });
     console.log('✅ Integration card found');
-  } catch (e) {
+  } catch {
     console.log('❌ Integration card not found - debugging...');
 
     // Debug: List all visible integrations
@@ -56,10 +94,6 @@ test('Step 1: Start config flow for Dual Smart Thermostat', async ({ page }) => 
     await page.screenshot({ path: 'debug-integration-search.png' });
     throw new Error('Dual Smart Thermostat integration not found in search results');
   }
-
-  // Click the integration card
-  await integrationCard.click();
-  console.log('✅ Integration card clicked');
 
   // Take screenshot immediately after clicking
   await page.screenshot({ path: 'debug-after-click.png' });
@@ -71,51 +105,9 @@ test('Step 1: Start config flow for Dual Smart Thermostat', async ({ page }) => 
   // Look for config flow dialog - it should be a modal dialog with specific content
   console.log('🔍 Looking for config flow dialog...');
 
-  // Debug: Check all dialog-related elements on the page
-  const allDialogs = await page.locator('*[dialog], *[role="dialog"], ha-dialog, dialog, .mdc-dialog, dialog-data-entry-flow').count();
-  console.log(`📊 Total dialog-like elements found: ${allDialogs}`);
-
-  // Check for various dialog selectors
-  const dialogSelectors = [
-    'ha-dialog[open]',
-    'ha-dialog', // Check without [open] too
-    'dialog[open]',
-    'dialog', // Check without [open] too
-    '[role="dialog"]',
-    'dialog-data-entry-flow',
-    '.mdc-dialog--open',
-    '.mdc-dialog'
-  ];
-
-  let configFlowDialog = null;
-  let dialogFound = false;
-
-  for (const selector of dialogSelectors) {
-    const dialogCount = await page.locator(selector).count();
-    console.log(`🔍 Checking selector "${selector}": ${dialogCount} found`);
-    if (dialogCount > 0) {
-      console.log(`✅ Found dialog with selector: ${selector} (count: ${dialogCount})`);
-      configFlowDialog = page.locator(selector).first();
-      dialogFound = true;
-      break;
-    }
-  }
-
-  if (!dialogFound) {
-    console.log('❌ No dialog found with any selector - checking page state');
-    const currentUrl = page.url();
-    console.log('Current URL:', currentUrl);
-
-    // Check if integration is already configured
-    const existingIntegration = await page.locator('[data-domain="dual_smart_thermostat"]').count();
-    if (existingIntegration > 0) {
-      console.log('⚠️ Integration already configured - need to remove it first for testing');
-      throw new Error('Integration already configured - cannot test config flow');
-    }
-
-    await page.screenshot({ path: 'debug-no-config-flow.png' });
-    throw new Error('Config flow dialog not found after clicking integration');
-  }
+  // Wait for config flow dialog to appear
+  const configFlowDialog = page.locator(OPEN_DIALOG_SELECTOR);
+  await expect(configFlowDialog).toBeVisible({ timeout: 10000 });
 
   // Get dialog content to verify it's actually a config flow
   const dialogText = await configFlowDialog.textContent();
@@ -146,34 +138,7 @@ test('Step 1: Start config flow for Dual Smart Thermostat', async ({ page }) => 
   // Step 2: Select system type (Simple Heater Only)
   console.log('📝 Step 2: Selecting Simple Heater Only system type...');
 
-  // Look for the radio button or text for Simple Heater
-  const simpleHeaterOption = page.locator('text="Simple Heater Only"');
-
-  try {
-    await expect(simpleHeaterOption).toBeVisible({ timeout: 5000 });
-    await simpleHeaterOption.click();
-    console.log('✅ Simple Heater Only selected via text click');
-  } catch (e) {
-    console.log('❌ Could not find "Simple Heater Only" text, trying radio button approach...');
-
-    // Alternative: Look for radio buttons and their labels
-    const radioButtons = await page.locator('input[type="radio"]').all();
-    console.log(`Found ${radioButtons.length} radio buttons`);
-
-    for (let i = 0; i < radioButtons.length; i++) {
-      const radio = radioButtons[i];
-      const value = await radio.getAttribute('value');
-      const name = await radio.getAttribute('name');
-      console.log(`Radio ${i}: value="${value}", name="${name}"`);
-
-      // Look for simple_heater or similar
-      if (value === 'simple_heater' || value?.includes('simple')) {
-        await radio.click();
-        console.log(`✅ Selected radio button ${i} with value: ${value}`);
-        break;
-      }
-    }
-  }
+  await helper.selectSystemType(SystemType.SIMPLE_HEATER);
 
   // Submit the system type selection
   console.log('📝 Submitting system type selection...');
@@ -195,8 +160,11 @@ test('Step 1: Start config flow for Dual Smart Thermostat', async ({ page }) => 
 test('Complete Config Flow: Full integration setup', async ({ page }) => {
   console.log('🚀 Complete Config Flow: Starting full integration setup');
 
+  // Create helper instance
+  const helper = new HomeAssistantSetup(page);
+
   // Step 1: Navigate and start config flow
-  await page.goto('/config/integrations');
+  await page.goto(INTEGRATIONS_DASHBOARD_URL);
   console.log('📍 Navigated to integrations page');
 
   const addButton = page.locator('button').filter({ hasText: 'ADD INTEGRATION' });
@@ -217,10 +185,7 @@ test('Complete Config Flow: Full integration setup', async ({ page }) => {
 
   // Step 2: System Type Selection
   console.log('📝 Step 2: System Type Selection');
-  const simpleHeaterOption = page.locator('text="Simple Heater Only"');
-  await expect(simpleHeaterOption).toBeVisible({ timeout: 5000 });
-  await simpleHeaterOption.click();
-  console.log('✅ Simple Heater Only selected');
+  await helper.selectSystemType(SystemType.SIMPLE_HEATER);
 
   let submitButton = page.locator('dialog-data-entry-flow button[part="base"]').first();
   await submitButton.click();
@@ -228,7 +193,7 @@ test('Complete Config Flow: Full integration setup', async ({ page }) => {
   await page.waitForTimeout(3000);
 
   // Continue with the remaining steps until completion
-  let maxSteps = 5;
+  const maxSteps = 5;
   let currentStep = 2;
 
   while (currentStep <= maxSteps) {
@@ -237,24 +202,9 @@ test('Complete Config Flow: Full integration setup', async ({ page }) => {
     // Check if dialog is still open
     const dialogCount = await page.locator('ha-dialog[open]').count();
     if (dialogCount === 0) {
-      console.log('✅ Dialog closed - checking if redirected to integrations page');
-      const currentUrl = page.url();
-      if (currentUrl.includes('/config/integrations')) {
-        console.log('🎉 SUCCESS: Redirected to integrations page!');
-
-        // Check if integration appears in the list
-        await page.waitForTimeout(2000);
-        const configuredIntegration = await page.locator('[data-domain="dual_smart_thermostat"]').count();
-        if (configuredIntegration > 0) {
-          console.log('🎉 ULTIMATE SUCCESS: Integration is now visible in integrations list!');
-        } else {
-          console.log('⚠️ Integration not immediately visible, but config flow completed');
-        }
-        break;
-      } else {
-        console.log('⚠️ Dialog closed but not on integrations page');
-        break;
-      }
+      console.log('❌ FAILURE: Dialog closed without reaching confirmation step');
+      console.log('❌ Config flow incomplete - no confirmation dialog detected');
+      throw new Error('Config flow failed: Dialog closed prematurely without confirmation');
     }
 
     // Get current dialog content
@@ -265,29 +215,24 @@ test('Complete Config Flow: Full integration setup', async ({ page }) => {
     const hasNameField = await page.locator('input[name="name"]').count() > 0;
     const hasPickerFields = await page.locator('ha-picker-field').count() > 0;
     const hasCheckboxes = await page.locator('input[type="checkbox"]').count() > 0;
+    const hasRadioButtons = await page.locator('input[type="radio"]').count() > 0;
 
-    console.log(`🔍 Step ${currentStep} form elements: name=${hasNameField}, pickers=${hasPickerFields}, checkboxes=${hasCheckboxes}`);
+    console.log(`🔍 Step ${currentStep} form elements: name=${hasNameField}, pickers=${hasPickerFields}, checkboxes=${hasCheckboxes}, radio=${hasRadioButtons}`);
 
-    const isBasicConfig = (dialogText?.includes('Basic Configuration') ||
-      dialogText?.includes('Name')) &&
-      (hasNameField || hasPickerFields);
+    // Detect what type of step we're on using shared utility functions
+    const isSystemType = isSystemTypeStep(dialogText, hasRadioButtons);
+    const isBasicConfig = isBasicConfigurationStep(dialogText, hasNameField, hasPickerFields);
+    const isFeatureConfig = isFeatureConfigurationStep(dialogText);
+    const isConfirmation = isConfirmationStep(dialogText, hasNameField, hasPickerFields, hasCheckboxes);
 
-    const isFeatureConfig = (dialogText?.includes('Feature') ||
-      dialogText?.includes('Additional') ||
-      dialogText?.includes('Optional') ||
-      dialogText?.includes('Select')) &&
-      hasCheckboxes &&
-      !isBasicConfig;
+    // Handle specific step types
+    if (isSystemType) {
+      console.log(`✅ Step ${currentStep}: System Type Selection detected`);
+      console.log('📝 Selecting Simple Heater Only system type...');
 
-    const isConfirmation = dialogText?.includes('Success') ||
-      dialogText?.includes('Complete') ||
-      dialogText?.includes('Configuration created') ||
-      dialogText?.includes('will be added') ||
-      dialogText?.includes('successfully configured') ||
-      (!hasNameField && !hasPickerFields && !hasCheckboxes &&
-        dialogText && dialogText.length > 50);
+      await helper.selectSystemType(SystemType.SIMPLE_HEATER);
 
-    if (isBasicConfig) {
+    } else if (isBasicConfig) {
       console.log(`✅ Step ${currentStep}: Basic Configuration detected`);
 
       // Debug: Show all form elements
@@ -368,12 +313,53 @@ test('Complete Config Flow: Full integration setup', async ({ page }) => {
             console.log(`  ✅ Input field filled`);
           }
 
-        } catch (e) {
-          console.log(`  ❌ Error filling element ${i}: ${e.message}`);
+        } catch (error) {
+          console.log(`  ❌ Error filling element ${i}: ${(error as Error).message}`);
         }
       }
 
       console.log('📝 Basic configuration form filling completed');
+
+      // Wait for form validation to complete
+      await page.waitForTimeout(1000);
+
+      // Check if submit button is enabled
+      console.log('🔍 Looking for submit button...');
+
+      // Try different submit button selectors
+      const submitSelectors = [
+        'dialog-data-entry-flow button[part="base"]',
+        'ha-dialog[open] button[type="submit"]',
+        'ha-dialog[open] button:has-text("Submit")',
+        'ha-dialog[open] button:has-text("Next")',
+        'ha-dialog[open] mwc-button',
+        'ha-dialog[open] button'
+      ];
+
+      let submitButton = null;
+      for (const selector of submitSelectors) {
+        const buttonCount = await page.locator(selector).count();
+        console.log(`🔍 Selector "${selector}": ${buttonCount} buttons found`);
+        if (buttonCount > 0) {
+          submitButton = page.locator(selector).first();
+          break;
+        }
+      }
+
+      let isSubmitEnabled = false;
+      if (submitButton) {
+        isSubmitEnabled = await submitButton.isEnabled();
+        console.log(`🔍 Submit button enabled: ${isSubmitEnabled}`);
+      } else {
+        console.log('❌ No submit button found with any selector');
+      }
+
+      // If submit button is disabled, there might be validation errors
+      if (!isSubmitEnabled) {
+        console.log('⚠️ Submit button is disabled - checking for validation errors');
+        const errorElements = await page.locator('.error, [aria-invalid="true"], .invalid').all();
+        console.log(`🔍 Found ${errorElements.length} potential validation errors`);
+      }
 
       // Take screenshot after filling
       await page.screenshot({ path: 'debug-basic-config-filled.png' });
@@ -381,10 +367,14 @@ test('Complete Config Flow: Full integration setup', async ({ page }) => {
 
     } else if (isFeatureConfig) {
       console.log(`✅ Step ${currentStep}: Features Configuration detected`);
-      console.log('📝 Skipping feature selection for basic flow (no features selected)');
+      console.log('📝 Features step reached - submitting with default selections (no additional features)');
 
       // Take screenshot of features step for debugging
       await page.screenshot({ path: 'debug-features-step.png' });
+
+      // For basic flow, submit without selecting additional features
+      // The form should have toggles for: floor heating, openings, presets, advanced
+      console.log('📝 Submitting features step with default selections...');
 
     } else if (isConfirmation) {
       console.log(`✅ Step ${currentStep}: Confirmation Dialog detected`);
@@ -404,8 +394,8 @@ test('Complete Config Flow: Full integration setup', async ({ page }) => {
       await submitButton.click();
       console.log(`✅ Step ${currentStep} submitted`);
       await page.waitForTimeout(3000);
-    } catch (e) {
-      console.log(`❌ Step ${currentStep} submission failed:`, e.message);
+    } catch (error) {
+      console.log(`❌ Step ${currentStep} submission failed:`, (error as Error).message);
       break;
     }
 
@@ -423,8 +413,11 @@ test('Complete Config Flow: Full integration setup', async ({ page }) => {
 test('Step 2: Complete remaining config flow steps', async ({ page }) => {
   console.log('🚀 Step 2: Completing full config flow');
 
+  // Create helper instance
+  const helper = new HomeAssistantSetup(page);
+
   // Navigate to integrations and start config flow (same as Step 1)
-  await page.goto('/config/integrations');
+  await page.goto(INTEGRATIONS_DASHBOARD_URL);
   console.log('📍 Navigated to integrations page');
 
   // Open "Add Integration" dialog
@@ -445,10 +438,7 @@ test('Step 2: Complete remaining config flow steps', async ({ page }) => {
   await page.waitForTimeout(3000);
 
   // Select system type (same as Step 1)
-  const simpleHeaterOption = page.locator('text="Simple Heater Only"');
-  await expect(simpleHeaterOption).toBeVisible({ timeout: 5000 });
-  await simpleHeaterOption.click();
-  console.log('✅ System type selected');
+  await helper.selectSystemType(SystemType.SIMPLE_HEATER);
 
   // Submit system type
   let submitButton = page.locator('dialog-data-entry-flow button[part="base"]').first();
@@ -512,11 +502,12 @@ test('Step 2: Complete remaining config flow steps', async ({ page }) => {
   const confirmDialogText = await page.locator('ha-dialog[open]').first().textContent();
   console.log('Confirmation dialog content:', confirmDialogText?.slice(0, 100) + '...');
 
-  const isConfirmation = confirmDialogText?.includes('Success') ||
-    confirmDialogText?.includes('Complete') ||
-    confirmDialogText?.includes('Configuration created') ||
-    confirmDialogText?.includes('will be added') ||
-    confirmDialogText?.includes('Finish');
+  // Use shared confirmation detection logic
+  const hasNameField = await page.locator('input[name="name"]').count() > 0;
+  const hasPickerFields = await page.locator('ha-picker-field').count() > 0;
+  const hasCheckboxes = await page.locator('input[type="checkbox"]').count() > 0;
+
+  const isConfirmation = isConfirmationStep(confirmDialogText, hasNameField, hasPickerFields, hasCheckboxes);
 
   if (isConfirmation) {
     console.log('✅ Confirmation dialog detected - completing config flow!');

@@ -40,10 +40,10 @@ from .feature_steps import (
 )
 from .flow_utils import EntityValidator
 from .schemas import (
-    get_ac_only_schema,
     get_additional_sensors_schema,
     get_advanced_settings_schema,
     get_base_schema,
+    get_basic_ac_schema,
     get_dual_stage_schema,
     get_fan_schema,
     get_features_schema,
@@ -111,7 +111,7 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
         if system_type == SystemType.SIMPLE_HEATER:
             return await self.async_step_basic()
         elif system_type == SystemType.AC_ONLY:
-            return await self.async_step_cooling_only()
+            return await self.async_step_basic_ac_only()
         elif system_type == SystemType.HEATER_COOLER:
             return await self.async_step_heater_cooler()
         elif system_type == SystemType.HEAT_PUMP:
@@ -128,20 +128,30 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
     ) -> FlowResult:
         """Handle basic configuration."""
         errors = {}
+        system_type = self.collected_config.get(CONF_SYSTEM_TYPE)
 
         if user_input is not None:
+            # Extract advanced settings from section and flatten to top level
+            if "advanced_settings" in user_input:
+                advanced_settings = user_input.pop("advanced_settings")
+                if advanced_settings:
+                    user_input.update(advanced_settings)
+
             if not await self._validate_basic_config(user_input):
                 errors = EntityValidator.get_validation_errors(user_input)
             else:
+                # For AC-only systems, force AC mode to true
+                if system_type == SystemType.AC_ONLY:
+                    user_input[CONF_AC_MODE] = True
+
                 self.collected_config.update(user_input)
                 return await self._determine_next_step()
 
         # Use a shared core schema so config and options flows render the
         # same fields (options flow omits the name). Pass include_name=True
         # so the config flow shows the Name field.
-        system_type = self.collected_config.get(CONF_SYSTEM_TYPE)
 
-        # For simple heater systems, use the dedicated schema with advanced settings
+        # Use system-specific schemas with advanced settings
         if system_type == SystemType.SIMPLE_HEATER:
             schema = get_simple_heater_schema(defaults=None, include_name=True)
         else:
@@ -151,6 +161,35 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
             ).get_core_schema(system_type, defaults=None, include_name=True)
 
         return self.async_show_form(step_id="basic", data_schema=schema, errors=errors)
+
+    async def async_step_basic_ac_only(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle basic AC-only configuration with dedicated translations."""
+        errors = {}
+        system_type = self.collected_config.get(CONF_SYSTEM_TYPE)
+
+        if user_input is not None:
+            # Extract advanced settings from section and flatten to top level
+            if "advanced_settings" in user_input:
+                advanced_settings = user_input.pop("advanced_settings")
+                if advanced_settings:
+                    user_input.update(advanced_settings)
+
+            if not await self._validate_basic_config(user_input):
+                errors = EntityValidator.get_validation_errors(user_input)
+            else:
+                user_input[CONF_AC_MODE] = True
+
+                self.collected_config.update(user_input)
+                return await self._determine_next_step()
+
+        # Use AC-only specific schema with dedicated translations
+        schema = get_basic_ac_schema(defaults=None, include_name=True)
+
+        return self.async_show_form(
+            step_id="basic_ac_only", data_schema=schema, errors=errors
+        )
 
     async def async_step_features(
         self, user_input: dict[str, Any] | None = None
@@ -196,38 +235,6 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
             description_placeholders={
                 "subtitle": "Choose which features to configure for your system"
             },
-        )
-
-    async def async_step_cooling_only(
-        self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
-        """Handle AC-only configuration using heater field with AC-friendly labeling.
-
-        Uses heater field for backward compatibility but shows "Air conditioning switch" label in UI.
-        """
-        errors = {}
-
-        if user_input is not None:
-            # Extract advanced settings from section and flatten to top level
-            if "advanced_settings" in user_input:
-                advanced_settings = user_input.pop("advanced_settings")
-                if advanced_settings:
-                    user_input.update(advanced_settings)
-
-            if not await self._validate_basic_config(user_input):
-                errors = EntityValidator.get_validation_errors(user_input)
-            else:
-                # Force AC mode to true for AC-only systems
-                user_input[CONF_AC_MODE] = True
-                self.collected_config.update(user_input)
-                return await self._determine_next_step()
-
-        # Use heater field for backward compatibility but label it as "Air conditioning switch"
-        schema = get_ac_only_schema()
-        return self.async_show_form(
-            step_id="cooling_only",
-            data_schema=schema,
-            errors=errors,
         )
 
     async def async_step_heater_cooler(

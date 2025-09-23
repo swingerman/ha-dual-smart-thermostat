@@ -6,11 +6,51 @@ This guide documents the practical implementation patterns discovered during T00
 
 ## Reference Implementation
 
-**✅ Working Example**: `tests/e2e/tests/specs/config_flow.spec.ts`
-- Complete 4-step config flow implementation
-- Comprehensive form handling and step detection
-- Robust error handling and debugging
-- **Status**: Fully working and documented
+**✅ Working Examples**: 
+- `tests/e2e/tests/specs/basic_heater_config_flow.spec.ts` - **Clean implementation using reusable helpers**
+- `tests/e2e/tests/specs/config_flow.spec.ts` - Legacy implementation with detailed debugging
+- `tests/e2e/playwright/setup.ts` - **Reusable helper functions and step detection utilities**
+
+**Key Features**:
+- Complete 4-step config flow implementation (System Type → Basic Config → Features → Confirmation)
+- Reusable `HomeAssistantSetup` class for integration discovery and config flow initiation
+- Shared step detection functions (`isSystemTypeStep`, `isBasicConfigurationStep`, etc.)
+- Comprehensive form handling and error recovery
+- **Status**: Production-ready with clean, maintainable code
+
+## Reusable Helper Functions
+
+### 1. HomeAssistantSetup Class
+```typescript
+import { HomeAssistantSetup } from '../../playwright/setup';
+
+// Create helper instance
+const helper = new HomeAssistantSetup(page);
+
+// Start integration config flow (handles navigation, search, click)
+await helper.startIntegrationConfigFlow('Dual Smart Thermostat');
+
+// Continue with existing config flow dialog
+await helper.continueConfigFlow();
+```
+
+### 2. Step Detection Functions
+```typescript
+import { isSystemTypeStep, isBasicConfigurationStep, isFeatureConfigurationStep, isConfirmationStep } from '../../playwright/setup';
+
+// Analyze current dialog state
+const dialogText = await page.locator('.mdc-dialog.mdc-dialog--open').textContent();
+const hasRadioButtons = await page.locator('input[type="radio"]').count() > 0;
+const hasNameField = await page.locator('input[name="name"]').count() > 0;
+const hasPickerFields = await page.locator('ha-picker-field').count() > 0;
+const hasCheckboxes = await page.locator('input[type="checkbox"]').count() > 0;
+
+// Use reusable detection functions
+const isSystemType = isSystemTypeStep(dialogText, hasRadioButtons);
+const isBasicConfig = isBasicConfigurationStep(dialogText, hasNameField, hasPickerFields);
+const isFeatureConfig = isFeatureConfigurationStep(dialogText);
+const isConfirmation = isConfirmationStep(dialogText, hasNameField, hasPickerFields, hasCheckboxes);
+```
 
 ## Home Assistant UI Interaction Patterns
 
@@ -18,8 +58,8 @@ This guide documents the practical implementation patterns discovered during T00
 ```typescript
 // Config flows use modal dialogs - URL never changes
 // Step detection must use dialog content analysis
-const dialogText = await page.locator('ha-dialog[open]').first().textContent();
-const isBasicConfig = dialogText?.includes('Basic Configuration') && hasFormFields;
+const dialogText = await page.locator('.mdc-dialog.mdc-dialog--open').textContent();
+const isBasicConfig = isBasicConfigurationStep(dialogText, hasNameField, hasPickerFields);
 ```
 
 ### 2. Form Element Interactions
@@ -187,8 +227,9 @@ For any new E2E test implementation:
 4. **Error Handling Tests** - Use same interaction patterns for validation testing
 
 ### Documentation References
-- **Complete Implementation**: `tests/e2e/tests/specs/config_flow.spec.ts`
-- **Detailed Insights**: `tests/e2e/LESSONS_LEARNED.md`
+- **Recommended Implementation**: `tests/e2e/tests/specs/basic_heater_config_flow.spec.ts`
+- **Reusable Helper Functions**: `tests/e2e/playwright/setup.ts`
+- **Legacy Implementation**: `tests/e2e/tests/specs/config_flow.spec.ts`
 - **Setup Instructions**: `tests/e2e/README.md`
 - **Testing Guide**: `tests/e2e/TESTING.md`
 

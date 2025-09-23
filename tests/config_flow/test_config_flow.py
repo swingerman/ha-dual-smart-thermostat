@@ -64,7 +64,7 @@ async def test_ac_only_config_flow():
     result = await flow.async_step_user(user_input)
 
     assert result["type"] == "form"
-    assert result["step_id"] == "cooling_only"
+    assert result["step_id"] == "basic_ac"
 
     # Step 2: Cooling configuration
     cooling_input = {
@@ -78,7 +78,7 @@ async def test_ac_only_config_flow():
             CONF_KEEP_ALIVE: 300,
         },
     }
-    result = await flow.async_step_cooling_only(cooling_input)
+    result = await flow.async_step_basic_ac(cooling_input)
 
     assert result["type"] == "form"
     assert result["step_id"] == "features"
@@ -110,7 +110,7 @@ async def test_ac_only_config_flow_without_advanced_settings():
         CONF_HEATER: "switch.ac_unit",
         CONF_SENSOR: "sensor.temperature",
     }
-    result = await flow.async_step_cooling_only(cooling_input)
+    result = await flow.async_step_basic_ac(cooling_input)
 
     assert result["type"] == "form"
     assert result["step_id"] == "features"
@@ -144,7 +144,7 @@ async def test_ac_only_config_flow_with_custom_tolerances():
             CONF_KEEP_ALIVE: 180,
         },
     }
-    result = await flow.async_step_cooling_only(cooling_input)
+    result = await flow.async_step_basic_ac(cooling_input)
 
     assert result["type"] == "form"
     assert result["step_id"] == "features"

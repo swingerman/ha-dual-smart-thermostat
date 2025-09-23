@@ -181,7 +181,7 @@ For implementers and reviewers, here are exact files and symbols to inspect whil
 
 - Core system schema factories (used by `basic`/`core` steps):
    - `custom_components/dual_smart_thermostat/schemas.py::get_core_schema`
-   - Per-system helpers: `get_simple_heater_schema`, `get_ac_only_schema`, `get_heater_cooler_schema`, `get_grouped_schema`
+   - Per-system helpers: `get_simple_heater_schema`, `get_basic_ac_schema`, `get_heater_cooler_schema`, `get_grouped_schema`
 
 - Per-feature step handlers and typical call sites:
    - `custom_components/dual_smart_thermostat/feature_steps/humidity.py` — `HumiditySteps.async_step_toggle`, `async_step_config`, `async_step_options`
@@ -387,7 +387,7 @@ Priority rationale: Low-medium. Consolidation reduces future maintenance and dri
 **Schema contracts** (centralized in `schemas.py`):
 - `get_system_type_schema()` → returns selector with `simple_heater`, `ac_only`, `heater_cooler`, `heat_pump` (no "Advanced (Custom Setup)")
 - `get_simple_heater_schema()` → heater + sensor + tolerances + cycle duration (✅ stable)
-- `get_ac_only_schema()` → cooler + sensor + tolerances + cycle duration (ac_mode forced true) (✅ stable)
+- `get_basic_ac_schema()` → cooler + sensor + tolerances + cycle duration (ac_mode forced true) (✅ stable)
 - `get_heater_cooler_schema()` → heater + cooler + sensor + tolerances + cycle duration (🔄 complete implementation)
 - `get_grouped_schema()` with `show_heat_pump_cooling=True` → heater + sensor + heat_pump_cooling entity selector (🔄 complete implementation)
 - `get_features_schema()` → unified feature toggles (`configure_fan`, `configure_humidity`, etc.)

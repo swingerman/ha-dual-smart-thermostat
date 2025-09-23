@@ -130,7 +130,7 @@ Example persisted `core_settings` for `simple_heater`:
 
 Notes:
 - The AC-only implementation re-uses the `heater` key to keep backward compatibility (the code treats the heater field as the AC switch when `ac_mode` is enabled). `hvac_device_factory.py` therefore reads `config[CONF_HEATER]` for the switch even in AC-only systems.
-- The `ac_mode` flag should be forced to `true` and hidden in both the config and options flow for the `ac_only` system type: use the schema factory `get_ac_only_schema()` which omits the visible `ac_mode` selector and sets the selectors appropriately. Ensure the options flow pre-fills values and persists `ac_mode: true` for AC-only entries.
+- The `ac_mode` flag should be forced to `true` and hidden in both the config and options flow for the `ac_only` system type: use the schema factory `get_basic_ac_schema()` which omits the visible `ac_mode` selector and sets the selectors appropriately. Ensure the options flow pre-fills values and persists `ac_mode: true` for AC-only entries.
 
 Example persisted `core_settings` for `ac_only`:
 

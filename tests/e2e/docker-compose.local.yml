@@ -17,8 +17,8 @@ services:
     volumes:
       # Map configuration directory
       - ./ha_config:/config
-      # Map custom components for live development
-      - ../../custom_components:/config/custom_components
+      # Map only this component for live development (with macOS-friendly perf hint)
+      - ../../custom_components/dual_smart_thermostat:/config/custom_components/dual_smart_thermostat:delegated
       # Map logs directory for debugging (create if needed)
       - ./logs:/config/logs
     ports:
@@ -26,11 +26,12 @@ services:
       # Expose additional ports for debugging if needed
       - "8124:8124" # Alternative port for development
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8123/"]
+      test:
+        ["CMD-SHELL", "curl -sf http://localhost:8123/manifest.json >/dev/null"]
       interval: 10s # More frequent checks for development
       timeout: 5s
-      retries: 6 # More retries for slower local systems
-      start_period: 30s # Shorter start period for development
+      retries: 18 # Allow up to ~3 minutes total
+      start_period: 60s # Give HA more time to initialize
     networks:
       - ha-network
     # Add resource limits for local development

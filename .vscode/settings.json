@@ -9,5 +9,11 @@
     "[python]": {
         "editor.defaultFormatter": "ms-python.black-formatter",
         "editor.formatOnSave": true
-    }
+    },
+    "sonarlint.connectedMode.project": {
+        "connectionId": "swingerman",
+        "projectKey": "swingerman_ha-dual-smart-thermostat"
+    },
+    "cursorpyright.analysis.autoImportCompletions": true,
+    "cursorpyright.analysis.diagnosticSeverityOverrides": {}
 }

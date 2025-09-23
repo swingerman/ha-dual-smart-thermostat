@@ -50,9 +50,10 @@ T001 — Add E2E Playwright scaffold (Phase 1A) [P] — ✅ [COMPLETED] [GitHub 
 
 T002 — Add Playwright tests for config & options flows (Phase 1A) [P] — ✅ [COMPLETED] [GitHub Issue #412](https://github.com/swingerman/ha-dual-smart-thermostat/issues/412)
 - Files created:
-  - ✅ `tests/e2e/tests/specs/config_flow.spec.ts` — **COMPLETE 4-step config flow working**
+  - ✅ `tests/e2e/tests/specs/basic_heater_config_flow.spec.ts` — **RECOMMENDED: Clean implementation using reusable helpers**
+  - ✅ `tests/e2e/tests/specs/config_flow.spec.ts` — Legacy implementation with detailed debugging
   - ⏳ `tests/e2e/tests/specs/options_flow.spec.ts` — Ready for T003 implementation
-  - ✅ `tests/e2e/playwright/setup.ts` — Comprehensive HA interaction helpers
+  - ✅ `tests/e2e/playwright/setup.ts` — **Reusable HomeAssistantSetup class and step detection functions**
   - ✅ `tests/e2e/baselines/simple_heater/` — Screenshot baselines
 - **Implementation Status & Key Findings**:
   - ✅ **T003 Simple Heater Config Flow WORKING**: Complete 4-step flow implemented
@@ -94,11 +95,13 @@ T003 — Complete E2E implementation: Options Flow + CI — [GitHub Issue #413](
   - Apply same form interaction patterns: visibility checks, `ha-picker-field` handling
   - Use same step detection logic: dialog content + form elements analysis
   - Follow same 4-step pattern: system type → basic config → features → confirmation
-- **Reference Implementation**: Use `tests/e2e/tests/specs/config_flow.spec.ts` as pattern template
+- **Reference Implementation**: Use `tests/e2e/tests/specs/basic_heater_config_flow.spec.ts` as pattern template (clean implementation with reusable helpers)
 - How to run locally:
   ```bash
   cd tests/e2e
-  # Test config flow (working baseline)
+  # Test basic heater config flow (recommended implementation)
+  npx playwright test tests/specs/basic_heater_config_flow.spec.ts --headed
+  # Test legacy config flow (detailed debugging version)
   npx playwright test tests/specs/config_flow.spec.ts --headed
   # Test options flow (to be implemented)
   npx playwright test tests/specs/options_flow.spec.ts --headed
