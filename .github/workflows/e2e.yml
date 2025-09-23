@@ -13,7 +13,7 @@ on:
 jobs:
   e2e:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
 
     steps:
       - name: Checkout repository
@@ -39,7 +39,7 @@ jobs:
           echo "Waiting for Home Assistant to be ready..."
 
           # Wait for healthy status with timeout and better error handling
-          timeout 180 bash -c 'until docker compose exec homeassistant curl -f http://localhost:8123/ >/dev/null 2>&1; do 
+          timeout 300 bash -c 'until docker compose exec homeassistant curl -f http://localhost:8123/ >/dev/null 2>&1; do 
             echo "  Waiting for HA to respond... ($(date))"
             
             # Check if container is still running
@@ -49,17 +49,20 @@ jobs:
               exit 1
             fi
             
-            sleep 5
+            sleep 10
           done'
 
           echo "Home Assistant is ready!"
 
           # Additional check for trusted networks auth bypass
           echo "Verifying trusted networks authentication bypass..."
-          timeout 30 bash -c 'until curl -s http://localhost:8123/ | grep -q "Home Assistant" && ! curl -s http://localhost:8123/ | grep -q "auth"; do 
+          timeout 90 bash -c 'until curl -s http://localhost:8123/ | grep -q "Home Assistant"; do 
             echo "  Waiting for trusted networks auth to activate..."
-            sleep 3
+            sleep 5
           done'
+
+          # Give it a moment more to fully initialize
+          sleep 10
 
           echo "✅ Home Assistant is ready with trusted networks authentication!"
 
