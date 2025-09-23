@@ -63,14 +63,14 @@ jobs:
           # Additional verification using manifest.json endpoint (like local setup)
           echo "Verifying HA is fully ready..."
           sleep 15
-          
+
           # Check manifest endpoint (accepts both 200 and 401 like local wait script)
           if curl -f http://localhost:8123/manifest.json >/dev/null 2>&1; then
             echo "✅ Home Assistant manifest endpoint is responding"
           else
             echo "⚠️ Manifest endpoint not ready, but continuing..."
           fi
-          
+
           # Check API endpoint as additional verification
           echo "Checking Home Assistant API endpoint..."
           api_response=$(curl -s http://localhost:8123/api/ || echo "FAILED")
@@ -79,7 +79,7 @@ jobs:
           else
             echo "⚠️ API endpoint response: ${api_response:0:100}..."
           fi
-          
+
           # Wait for main page to be ready (web interface initialization takes time)
           echo "Waiting for Home Assistant web interface to initialize..."
           for i in {1..12}; do
