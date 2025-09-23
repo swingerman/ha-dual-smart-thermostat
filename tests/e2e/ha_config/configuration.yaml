@@ -28,6 +28,8 @@ homeassistant:
       allow_bypass_login: true
     - type: homeassistant
 
+# Skip onboarding for E2E testing by using trusted networks
+
 # Logger configuration - with auth debugging for E2E tests
 logger:
   default: warning

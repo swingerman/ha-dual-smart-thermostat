@@ -5,8 +5,6 @@ import { INTEGRATIONS_DASHBOARD_URL, CONFIG_FLOW_DIALOG_SELECTOR, INTEGRATION_SE
 export async function startIntegrationConfigFlow(page: Page) {
 
   await test.step('Start integration config flow', async () => {
-    // Use the passed page or fall back to internal page
-
     // Navigate to integrations page
     await page.goto(INTEGRATIONS_DASHBOARD_URL);
     await page.waitForLoadState('networkidle');

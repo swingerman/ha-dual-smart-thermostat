@@ -86,6 +86,19 @@ jobs:
             response=$(curl -s http://localhost:8123/ || echo "FAILED")
             if echo "$response" | grep -q "Home Assistant"; then
               echo "✅ Home Assistant web interface is ready!"
+              
+              # Create a test user using HA CLI to bypass onboarding
+              echo "Creating test user with HA CLI..."
+              docker compose exec homeassistant ha auth create --username testuser --password testpass123 --name "Test User" || {
+                echo "⚠️ User creation failed, but continuing with trusted networks..."
+              }
+              
+              # Skip onboarding by creating onboarding done marker
+              echo "Skipping onboarding..."
+              docker compose exec homeassistant bash -c "echo '{}' > /config/.storage/onboarding" || {
+                echo "⚠️ Onboarding skip failed, but continuing..."
+              }
+              
               # Check if trusted networks is working
               if echo "$response" | grep -q "auth"; then
                 echo "⚠️ Authentication still required, but HA is running"

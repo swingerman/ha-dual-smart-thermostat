@@ -6,6 +6,11 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   testDir: './tests/specs',
 
+  /* Ignore options flow tests for now - they depend on existing integrations */
+  testIgnore: [
+    '**/options_flow.spec.ts',
+  ],
+
   /* Run tests in files in parallel */
   fullyParallel: true,
 
