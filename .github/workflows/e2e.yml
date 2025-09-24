@@ -87,16 +87,16 @@ jobs:
             if echo "$response" | grep -q "Home Assistant"; then
               echo "✅ Home Assistant web interface is ready!"
               
-              # Create a test user using HA CLI to bypass onboarding
-              echo "Creating test user with HA CLI..."
-              docker compose exec homeassistant ha auth create --username testuser --password testpass123 --name "Test User" || {
-                echo "⚠️ User creation failed, but continuing with trusted networks..."
-              }
+              # Setup HA for testing using our working Python script approach
+              echo "Setting up Home Assistant for testing..."
               
-              # Skip onboarding by creating onboarding done marker
-              echo "Skipping onboarding..."
-              docker compose exec homeassistant bash -c "echo '{}' > /config/.storage/onboarding" || {
-                echo "⚠️ Onboarding skip failed, but continuing..."
+              # Copy our setup script into the container
+              docker compose exec homeassistant mkdir -p /config/scripts
+              docker compose cp scripts/setup-ha.py homeassistant:/config/scripts/setup-ha.py
+              
+              # Run the setup script to bypass onboarding
+              docker compose exec homeassistant python3 /config/scripts/setup-ha.py || {
+                echo "⚠️ Setup script failed, but continuing..."
               }
               
               # Check if trusted networks is working
