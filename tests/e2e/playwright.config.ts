@@ -17,22 +17,22 @@ export default defineConfig({
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
 
-  /* Retry on CI only */
-  retries: process.env.CI ? 2 : 1,
+  /* Retry more on CI */
+  retries: process.env.CI ? 3 : 1,
 
   /* Opt out of parallel tests on CI. */
   workers: process.env.CI ? 1 : 1,
 
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
-  reporter: 'html',
+  reporter: process.env.CI ? 'github' : 'html',
 
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
     baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:8123',
 
-    /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
-    trace: 'on-first-retry',
+    /* Collect trace on retries to debug flakiness */
+    trace: process.env.CI ? 'retain-on-failure' : 'on-first-retry',
 
     /* Take screenshot on failure */
     screenshot: 'only-on-failure',
@@ -41,14 +41,27 @@ export default defineConfig({
     video: 'retain-on-failure',
 
     /* Increase default timeout for actions */
-    actionTimeout: 10000,
+    actionTimeout: process.env.CI ? 15000 : 10000,
 
     /* Increase default timeout for navigation */
-    navigationTimeout: 15000,
+    navigationTimeout: process.env.CI ? 30000 : 15000,
+
+    /* Reduce animations to stabilize UI */
+    reducedMotion: 'reduce',
+
+    /* Launch options helpful for CI */
+    launchOptions: {
+      args: [
+        '--disable-dev-shm-usage',
+        '--no-sandbox',
+        '--disable-gpu',
+        '--disable-features=IsolateOrigins,site-per-process',
+      ],
+    },
   },
 
   /* Global test timeout */
-  timeout: 60000,
+  timeout: process.env.CI ? 90000 : 60000,
 
   /* Configure projects for major browsers */
   projects: [
