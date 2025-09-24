@@ -46,8 +46,7 @@ export default defineConfig({
     /* Increase default timeout for navigation */
     navigationTimeout: process.env.CI ? 30000 : 15000,
 
-    /* Reduce animations to stabilize UI */
-    reducedMotion: 'reduce',
+    /* Prefer no animations in CI via Chromium args; Playwright option not supported here */
 
     /* Launch options helpful for CI */
     launchOptions: {
@@ -58,6 +57,9 @@ export default defineConfig({
         '--disable-features=IsolateOrigins,site-per-process',
       ],
     },
+
+    /** Block service workers to avoid unexpected frontend auto-reloads in CI */
+    serviceWorkers: 'block',
   },
 
   /* Global test timeout */

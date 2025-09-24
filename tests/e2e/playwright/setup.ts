@@ -7,6 +7,7 @@ export const INTEGRATION_NAME = 'Dual Smart Thermostat';
 export const OPEN_DIALOG_SELECTOR = 'ha-dialog[open]';
 export const OPEN_DIALOG_TITLE_SELECTOR = 'ha-dialog[open] [slot="title"]';
 export const CONFIG_FLOW_DIALOG_SELECTOR = '.mdc-dialog.mdc-dialog--open';
+export const LOADING_DIALOG_SELECTOR = '.mdc-dialog.mdc-dialog--open';
 export const INTEGRATION_SEARCH_SELECTOR = `${OPEN_DIALOG_SELECTOR} ha-textfield input`;
 export const INTEGRATION_CARD_SELECTOR = 'ha-integration-list-item[brand]';
 export const INTEGRATIONS_DASHBOARD_URL = 'http://localhost:8123/config/integrations';
@@ -31,6 +32,17 @@ export const SYSTEM_TYPE_LABELS: Record<SystemType, string> = {
   [SystemType.DUAL_STAGE]: 'Dual Stage', // Placeholder - not in Python SYSTEM_TYPES
   [SystemType.FLOOR_HEATING]: 'Floor Heating', // Placeholder - not in Python SYSTEM_TYPES
 };
+
+// Export a reference array to mark enum members as used for linters
+// This avoids false positives where enum members are flagged per-member
+export const __SYSTEM_TYPE_ENUM_USED = [
+  SystemType.SIMPLE_HEATER,
+  SystemType.AC_ONLY,
+  SystemType.HEATER_COOLER,
+  SystemType.HEAT_PUMP,
+  SystemType.DUAL_STAGE,
+  SystemType.FLOOR_HEATING,
+].length;
 
 // Type for system type labels
 export type SystemTypeLabel = typeof SYSTEM_TYPE_LABELS[keyof typeof SYSTEM_TYPE_LABELS];
@@ -100,6 +112,34 @@ export class HomeAssistantSetup {
   }
 
   /**
+   * Wait for the config dialog to be in a stable, interactable state.
+   * Handles a transient loading dialog that may briefly appear between steps.
+   */
+  async waitForConfigDialogStable(context: string = 'generic') {
+    try {
+      // If transient loading dialog appears, wait for it to disappear
+      const loadingDialog = this._page.locator(LOADING_DIALOG_SELECTOR);
+      if (await loadingDialog.count()) {
+        console.log(`⏳ Waiting for transient loading dialog to disappear (${context})...`);
+        await loadingDialog.first().waitFor({ state: 'detached', timeout: 10000 });
+      }
+
+      // Ensure the HA config dialog is present and visible
+      const haDialog = this._page.locator(OPEN_DIALOG_SELECTOR);
+      await haDialog.waitFor({ state: 'visible', timeout: 10000 });
+
+      // Ensure step form is present inside the dialog
+      const stepForm = this._page.locator(`${OPEN_DIALOG_SELECTOR} step-flow-form, ${OPEN_DIALOG_SELECTOR} dialog-data-entry-flow`);
+      await stepForm.first().waitFor({ state: 'visible', timeout: 10000 });
+
+      await this._page.screenshot({ path: `config-dialog-stable-${Date.now()}-${context}.png` });
+      console.log(`✅ Config dialog stabilized (${context})`);
+    } catch (err) {
+      console.log(`⚠️ Could not fully stabilize dialog (${context}): ${(err as Error).message}`);
+    }
+  }
+
+  /**
    * Create Home Assistant API helper
    */
   createAPI() {
@@ -158,8 +198,9 @@ export class HomeAssistantSetup {
    */
   async goToIntegrations() {
     try {
-      await this._page.goto(INTEGRATIONS_DASHBOARD_URL);
-      await this._page.waitForLoadState('networkidle');
+      await this._page.goto(INTEGRATIONS_DASHBOARD_URL, { waitUntil: 'load' });
+      // Avoid networkidle which can be impacted by websockets/long-polling
+      await this._page.waitForSelector('body', { state: 'attached', timeout: 10000 });
     } catch {
       // best-effort navigation
     }
@@ -231,6 +272,9 @@ export class HomeAssistantSetup {
     await expect(systemTypeOption).toBeVisible({ timeout: 5000 });
     await systemTypeOption.click();
     console.log(`✅ ${systemTypeLabel} selected`);
+
+    // Stabilize in case HA shows a transient dialog before the next step
+    await this.waitForConfigDialogStable('after-select-system-type');
   }
 
   /**
@@ -316,6 +360,13 @@ export class HomeAssistantSetup {
       await this._page.waitForTimeout(500);
     }
 
+    // Guard against navigation/reload
+    this._page.on('framenavigated', (frame) => {
+      if (frame === this._page.mainFrame()) {
+        console.log(`⚠️ Unexpected navigation to: ${frame.url()}`);
+      }
+    });
+
     await submitButton.click();
     console.log(`✅ Step ${currentStep} submitted`);
 
@@ -323,12 +374,22 @@ export class HomeAssistantSetup {
     try {
       await expect(this._page.locator(OPEN_DIALOG_TITLE_SELECTOR)).not.toHaveText(lastStepName, { timeout: 7000 });
       console.log('✅ Step transition detected');
-    } catch (error) {
-      console.log('⚠️ Step transition timeout - continuing anyway');
+    } catch {
+      // If title didn't change, verify dialog is still present
+      const dialogStillOpen = await this._page.locator(OPEN_DIALOG_SELECTOR).count();
+      if (dialogStillOpen === 0) {
+        console.log('⚠️ Dialog disappeared after submit, waiting for it to re-open...');
+        await this.waitForConfigDialogStable(`reopen-after-submit-${currentStep}`);
+      } else {
+        console.log('⚠️ Step transition timeout but dialog still open - continuing');
+      }
     }
 
     // Take screenshot after transition
     await this._page.screenshot({ path: `config-flow-after-step-${currentStep}.png` });
+
+    // Stabilize dialog after submitting to handle transient loading overlay and re-open
+    await this.waitForConfigDialogStable(`after-submit-step-${currentStep}`);
     return true;
   }
 

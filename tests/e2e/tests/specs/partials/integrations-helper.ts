@@ -6,8 +6,9 @@ export async function startIntegrationConfigFlow(page: Page) {
 
   await test.step('Start integration config flow', async () => {
     // Navigate to integrations page
-    await page.goto(INTEGRATIONS_DASHBOARD_URL);
-    await page.waitForLoadState('networkidle');
+    await page.goto(INTEGRATIONS_DASHBOARD_URL, { waitUntil: 'load' });
+    // Avoid fragile networkidle waits which can be affected by websockets
+    await page.waitForSelector('body', { state: 'attached', timeout: 10000 });
     console.log('📍 Navigated to integrations page');
 
     // Find and click "Add Integration" button
@@ -16,11 +17,8 @@ export async function startIntegrationConfigFlow(page: Page) {
     await addButton.click();
     console.log('✅ "Add Integration" button clicked');
 
-    // Wait for dialog to open
-    await page.waitForSelector(CONFIG_FLOW_DIALOG_SELECTOR, {
-      state: 'visible',
-      timeout: 15000
-    });
+    // Wait for Add Integration modal (mdc-dialog) to open
+    await page.waitForSelector(CONFIG_FLOW_DIALOG_SELECTOR, { state: 'visible', timeout: 15000 });
     console.log('✅ Add Integration dialog opened');
 
     // Find search input and search for integration
