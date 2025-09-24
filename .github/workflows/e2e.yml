@@ -82,7 +82,7 @@ jobs:
 
           # Setup HA for testing using HA CLI and Python script (run regardless of web interface status)
           echo "Setting up Home Assistant for testing..."
-          
+
           # First, try to use HA CLI to create a user (this might work in newer HA versions)
           echo "Attempting to create user with HA CLI..."
           docker compose exec homeassistant ha auth create --username testuser --password testpass123 --name "Test User" || {
@@ -97,18 +97,18 @@ jobs:
               echo "⚠️ Setup script failed, but continuing..."
             }
           }
-          
+
           # Restart HA to ensure user and onboarding changes take effect
           echo "Restarting Home Assistant to apply user and onboarding changes..."
           docker compose restart homeassistant
-          
+
           # Wait for HA to be ready again after restart
           echo "Waiting for Home Assistant to be ready after restart..."
           timeout 120 bash -c 'until curl -f http://localhost:8123/manifest.json >/dev/null 2>&1; do 
             echo "  Waiting for HA after restart... ($(date))"
             sleep 5
           done'
-          
+
           # Wait for main page to be ready (web interface initialization takes time)
           echo "Waiting for Home Assistant web interface to initialize..."
           for i in {1..12}; do
@@ -131,6 +131,29 @@ jobs:
               sleep 5
             fi
           done
+
+          # Force and verify onboarding bypass before tests
+          echo "Verifying onboarding is bypassed..."
+          main_page=$(curl -s http://localhost:8123/ || echo "")
+          if echo "$main_page" | grep -qi "onboarding"; then
+            echo "❌ Onboarding detected. Forcing bypass now..."
+            docker compose exec homeassistant mkdir -p /config/scripts
+            docker compose cp scripts/setup-ha.py homeassistant:/config/scripts/setup-ha.py || true
+            docker compose exec homeassistant python3 /config/scripts/setup-ha.py || true
+            echo "Restarting Home Assistant after forced bypass..."
+            docker compose restart homeassistant
+            echo "Waiting for Home Assistant after forced bypass restart..."
+            timeout 120 bash -c 'until curl -f http://localhost:8123/manifest.json >/dev/null 2>&1; do 
+              echo "  Waiting (forced bypass)... ($(date))"
+              sleep 5
+            done'
+            post_page=$(curl -s http://localhost:8123/ || echo "")
+            if echo "$post_page" | grep -qi "onboarding"; then
+              echo "❌ Onboarding still present after forced bypass. Failing fast."
+              exit 1
+            fi
+          fi
+          echo "✅ Onboarding bypass verified."
 
       - name: Run E2E Tests
         working-directory: tests/e2e
