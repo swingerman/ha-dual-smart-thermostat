@@ -87,20 +87,38 @@ jobs:
             if echo "$response" | grep -q "Home Assistant"; then
               echo "✅ Home Assistant web interface is ready!"
               
-              # Setup HA for testing using our working Python script approach
+              # Setup HA for testing using HA CLI and Python script
               echo "Setting up Home Assistant for testing..."
               
-              # Copy our setup script into the container
-              docker compose exec homeassistant mkdir -p /config/scripts
-              docker compose cp scripts/setup-ha.py homeassistant:/config/scripts/setup-ha.py
-              
-              # Run the setup script to bypass onboarding
-              docker compose exec homeassistant python3 /config/scripts/setup-ha.py || {
-                echo "⚠️ Setup script failed, but continuing..."
+              # First, try to use HA CLI to create a user (this might work in newer HA versions)
+              echo "Attempting to create user with HA CLI..."
+              docker compose exec homeassistant ha auth create --username testuser --password testpass123 --name "Test User" || {
+                echo "⚠️ HA CLI user creation failed, trying alternative approach..."
+                
+                # Copy our enhanced setup script into the container
+                docker compose exec homeassistant mkdir -p /config/scripts
+                docker compose cp scripts/setup-ha.py homeassistant:/config/scripts/setup-ha.py
+                
+                # Run the setup script to create user and bypass onboarding
+                docker compose exec homeassistant python3 /config/scripts/setup-ha.py || {
+                  echo "⚠️ Setup script failed, but continuing..."
+                }
               }
               
+              # Restart HA to ensure user and onboarding changes take effect
+              echo "Restarting Home Assistant to apply user and onboarding changes..."
+              docker compose restart homeassistant
+              
+              # Wait for HA to be ready again after restart
+              echo "Waiting for Home Assistant to be ready after restart..."
+              timeout 120 bash -c 'until curl -f http://localhost:8123/manifest.json >/dev/null 2>&1; do 
+                echo "  Waiting for HA after restart... ($(date))"
+                sleep 5
+              done'
+              
               # Check if trusted networks is working
-              if echo "$response" | grep -q "auth"; then
+              final_response=$(curl -s http://localhost:8123/ || echo "FAILED")
+              if echo "$final_response" | grep -q "auth"; then
                 echo "⚠️ Authentication still required, but HA is running"
               else
                 echo "✅ Trusted networks authentication is working"
