@@ -6,10 +6,7 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   testDir: './tests/specs',
 
-  /* Ignore options flow tests for now - they depend on existing integrations */
-  testIgnore: [
-    '**/options_flow.spec.ts',
-  ],
+  /* No tests to ignore - all tests are ready to run */
 
   /* Run tests in files in parallel */
   fullyParallel: true,
@@ -18,7 +15,7 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
 
   /* Retry more on CI */
-  retries: process.env.CI ? 3 : 1,
+  retries: process.env.CI ? 3 : 0,
 
   /* Opt out of parallel tests on CI. */
   workers: process.env.CI ? 1 : 1,
