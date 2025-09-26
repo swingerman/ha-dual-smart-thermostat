@@ -2,13 +2,65 @@
 
 This directory contains End-to-End (E2E) tests using Playwright to test the Home Assistant integration config flows and options flows for the Dual Smart Thermostat custom component.
 
-## Prerequisites
+## Quick Start - Local Development
 
-- Docker and Docker Compose
-- Node.js (v18 or higher)
-- Playwright (will be installed via npm)
+### Prerequisites
 
-## Quick Start
+**Option 1: Docker (Recommended)**
+- Docker and Docker Compose installed
+- Node.js 18+ and npm
+
+**Option 2: Local Home Assistant**  
+- Home Assistant installed (`pip install homeassistant`)
+- Node.js 18+ and npm
+
+### Installation
+
+```bash
+# Navigate to E2E directory
+cd tests/e2e
+
+# Install dependencies
+npm ci
+
+# Install Playwright browsers
+npx playwright install --with-deps
+```
+
+### Running Tests Locally
+
+```bash
+# Run all tests (auto-detects Docker vs local HA)
+npm run test:all
+
+# Run with Docker explicitly
+./scripts/test-runner.sh --docker
+
+# Run with local Home Assistant
+./scripts/test-runner.sh --e2e
+
+# Setup environment only (for debugging)
+./scripts/test-runner.sh --setup
+
+# Clean up when done
+./scripts/test-runner.sh --cleanup
+```
+
+### Available npm Scripts
+
+```bash
+npm run test              # Run tests with current setup
+npm run test:all          # Run all tests (uses test-runner.sh)
+npm run test:local        # Run tests locally  
+npm run test:setup        # Start Home Assistant locally
+npm run test:setup-docker # Start with Docker
+npm run test:cleanup      # Stop Docker environment
+npm run test:headed       # Run tests with visible browser
+npm run test:ui           # Run tests with Playwright UI
+npm run test:debug        # Run tests in debug mode
+```
+
+## Original Setup (CI/Docker)
 
 ### 1. Start Home Assistant Test Environment
 
@@ -168,19 +220,53 @@ During development, you can access the test Home Assistant instance at:
 The E2E tests should cover:
 
 ### Config Flow Tests
-- [ ] System type selection (heating, cooling, dual, etc.)
-- [ ] Basic entity selection (heater, cooler, target_sensor)
-- [ ] Advanced options toggling
-- [ ] Feature-specific steps (fan, humidity, presets)
+- [x] **T003 Simple Heater Config Flow** - Complete 4-step flow (✅ WORKING)
+  - System type selection (radio buttons)
+  - Basic configuration (name, temperature sensor, heater switch)
+  - Features configuration (skipped for basic flow)
+  - Confirmation dialog
+- [ ] AC-Only system configuration with features
+- [ ] Dual-mode system configuration
 - [ ] Validation and error handling
 - [ ] Multi-step wizard navigation
 
 ### Options Flow Tests  
-- [ ] Reconfiguring existing thermostats
-- [ ] Adding/removing features
+- [ ] **T003 Simple Heater Options Flow** - Modify existing configuration
+- [ ] System type modification (uses select dropdown vs radio buttons)
+- [ ] Adding/removing features from existing configs
 - [ ] Updating entity selections
 - [ ] Preset management
 - [ ] Advanced settings modification
+
+## Key Implementation Insights
+
+### Home Assistant UI Patterns Discovered
+- **Config flows use modal dialogs** - URL never changes during flow
+- **Step detection** - Use dialog content + form elements, not URL
+- **Form elements**:
+  - `ha-picker-field` - Custom entity picker (click → type → Tab)
+  - Standard inputs - Use `fill()` method
+  - Radio buttons - Use text-based selection
+  - Always check `isVisible()` before interaction
+
+### Reliable Element Selectors
+```typescript
+// Discovered working selectors:
+'ha-dialog[open]'                                    // Config flow dialog
+'dialog-data-entry-flow button[part="base"]'        // Submit buttons  
+'ha-integration-list-item:has-text("...")'          // Integration cards
+'input[name="name"]'                                 // Name fields
+'ha-picker-field[aria-label="..."]'                 // Entity pickers
+```
+
+### Test Development Best Practices
+1. **Incremental approach** - Build step-by-step, validate each part
+2. **Comprehensive logging** - Essential for debugging complex flows
+3. **Screenshot debugging** - Take screenshots at key decision points
+4. **Environment isolation** - Fresh containers for reliable tests
+5. **Error resilience** - Handle timeouts and visibility issues gracefully
+
+For detailed implementation insights, see [LESSONS_LEARNED.md](LESSONS_LEARNED.md).
 
 ## Troubleshooting
 

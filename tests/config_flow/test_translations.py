@@ -24,8 +24,7 @@ def test_config_flow_translations():
     expected_steps = [
         "user",
         "basic",
-        "cooling",
-        "cooling_only",
+        "basic_ac_only",
         "heater_cooler",
         "heat_pump",
         "two_stage",

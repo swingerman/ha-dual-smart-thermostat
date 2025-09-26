@@ -21,9 +21,9 @@ class TestACOnlyAdvancedSettings:
 
     def test_config_flow_ac_only_has_advanced_section(self):
         """Test that config flow AC-only system has advanced settings section."""
-        from custom_components.dual_smart_thermostat.schemas import get_ac_only_schema
+        from custom_components.dual_smart_thermostat.schemas import get_basic_ac_schema
 
-        schema = get_ac_only_schema(defaults=None, include_name=True)
+        schema = get_basic_ac_schema(defaults=None, include_name=True)
         schema_dict = schema.schema
 
         # Check that advanced_settings section exists
@@ -39,7 +39,7 @@ class TestACOnlyAdvancedSettings:
 
     def test_options_flow_ac_only_has_advanced_section(self):
         """Test that options flow AC-only system has advanced settings section."""
-        from custom_components.dual_smart_thermostat.schemas import get_ac_only_schema
+        from custom_components.dual_smart_thermostat.schemas import get_basic_ac_schema
 
         mock_data = {
             CONF_SYSTEM_TYPE: SYSTEM_TYPE_AC_ONLY,
@@ -52,7 +52,7 @@ class TestACOnlyAdvancedSettings:
             CONF_KEEP_ALIVE: 300,
         }
 
-        schema = get_ac_only_schema(defaults=mock_data, include_name=False)
+        schema = get_basic_ac_schema(defaults=mock_data, include_name=False)
         schema_dict = schema.schema
 
         # Check that advanced_settings section exists

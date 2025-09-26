@@ -2,6 +2,95 @@
 
 This document describes the End-to-End testing approach for the Dual Smart Thermostat integration.
 
+## Quick Start - Local Development
+
+### Prerequisites
+
+**Option 1: Docker (Recommended)**
+- Docker and Docker Compose installed
+- Node.js 18+ and npm
+
+**Option 2: Local Home Assistant**  
+- Home Assistant installed (`pip install homeassistant`)
+- Node.js 18+ and npm
+
+### Running Tests Locally
+
+```bash
+# Clone and navigate to E2E directory
+cd tests/e2e
+
+# Install dependencies
+npm ci
+
+# Run all tests (auto-detects Docker vs local HA)
+npm run test:all
+
+# Run with Docker explicitly
+./scripts/test-runner.sh --docker
+
+# Run with local Home Assistant
+./scripts/test-runner.sh --e2e
+
+# Setup environment only (for debugging)
+./scripts/test-runner.sh --setup
+
+# Clean up when done
+./scripts/test-runner.sh --cleanup
+```
+
+### Available npm Scripts
+
+```bash
+npm run test              # Run tests with current setup
+npm run test:all          # Run all tests (uses test-runner.sh)
+npm run test:local        # Run tests locally  
+npm run test:setup        # Start Home Assistant locally
+npm run test:setup-docker # Start with Docker
+npm run test:cleanup      # Stop Docker environment
+npm run test:headed       # Run tests with visible browser
+npm run test:ui           # Run tests with Playwright UI
+npm run test:debug        # Run tests in debug mode
+```
+
+### Development Workflow
+
+1. **Start Development Environment**:
+   ```bash
+   npm run test:setup-docker  # or npm run test:setup for local HA
+   ```
+
+2. **Verify Home Assistant**: Open http://localhost:8123 (no login required)
+
+3. **Run Tests**:
+   ```bash
+   npm test                   # Run tests
+   npm run test:headed        # See browser interactions
+   npm run test:ui            # Interactive test debugging
+   ```
+
+4. **View Results**:
+   ```bash
+   npm run show-report        # Open test report
+   # Or check test-results/ and playwright-report/ directories
+   ```
+
+5. **Clean Up**:
+   ```bash
+   npm run test:cleanup
+   ```
+
+### Debugging Tests
+
+- **Headed Mode**: See browser interactions with `npm run test:headed`
+- **Step-by-Step**: Use `npm run test:ui` for interactive debugging
+- **Screenshots**: Automatically saved in `test-results/` on failures
+- **Videos**: Recorded for failed tests in `test-results/`
+- **Logs**: Home Assistant logs available in `logs/` directory
+- **Trace Files**: Generate with `npx playwright test --trace=on`
+
+## Test Architecture
+
 ## Test Design Philosophy
 
 ### TDD Approach (Test-Driven Development)
@@ -17,17 +106,23 @@ Following the TDD approach mentioned in the issue:
 Our E2E tests cover the following scenarios:
 
 #### Config Flow Tests
-- ✅ **Happy Path**: Complete setup of simple_heater system type
-- ✅ **Minimal Setup**: Basic configuration without optional features  
-- ✅ **AC-Only System**: Full feature configuration for AC-only systems
-- ✅ **Validation**: Error handling for invalid inputs
+- ✅ **T003 Simple Heater Flow**: Complete 4-step config flow (✅ IMPLEMENTED & WORKING)
+  - System type selection (radio buttons)
+  - Basic configuration form filling (name, temperature sensor, heater switch)  
+  - Features configuration (skipped for basic flow)
+  - Confirmation dialog with final submit
+- ⏳ **AC-Only System**: Full feature configuration for AC-only systems
+- ⏳ **Validation**: Error handling for invalid inputs
+- ⏳ **Edge Cases**: Integration already configured, authentication issues
 
 #### Options Flow Tests
-- ✅ **Modify Settings**: Update existing configuration options
-- ✅ **Feature Toggle**: Enable/disable optional features in existing configs
-- ✅ **Validation**: Error handling in options modification flow
-- ✅ **Cancellation**: Cancel options flow without saving changes
-- ✅ **System Type Preservation**: Ensure system type cannot be changed
+- ⏳ **T003 Simple Heater Options**: Modify existing simple heater configuration
+  - System type modification (uses select dropdown vs radio buttons in config flow)
+  - Update entity selections and settings
+  - Validation and confirmation
+- ⏳ **Feature Toggle**: Enable/disable optional features in existing configs
+- ⏳ **Validation**: Error handling in options modification flow
+- ⏳ **Cancellation**: Cancel options flow without saving changes
 
 ### Key Test Pattern: API Contract Validation
 

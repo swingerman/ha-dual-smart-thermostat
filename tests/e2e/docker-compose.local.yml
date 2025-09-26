@@ -1,0 +1,68 @@
+# Docker Compose configuration for local E2E testing
+# This file is specifically designed for local development and debugging
+# Based on the main docker-compose.yml with additional development features
+
+services:
+  homeassistant:
+    image: homeassistant/home-assistant:latest
+    container_name: ha-dual-smart-thermostat-local-e2e
+    restart: unless-stopped
+    privileged: true
+    environment:
+      - TZ=UTC
+      # Enable debug logging for local development
+      - HASS_LOG_LEVEL=DEBUG
+      # Disable analytics for testing
+      - DISABLE_ANALYTICS=true
+    volumes:
+      # Map configuration directory
+      - ./ha_config:/config
+      # Map only this component for live development (with macOS-friendly perf hint)
+      - ../../custom_components/dual_smart_thermostat:/config/custom_components/dual_smart_thermostat:delegated
+      # Map logs directory for debugging (create if needed)
+      - ./logs:/config/logs
+    ports:
+      - "8123:8123"
+      # Expose additional ports for debugging if needed
+      - "8124:8124" # Alternative port for development
+    healthcheck:
+      test:
+        ["CMD-SHELL", "curl -sf http://localhost:8123/manifest.json >/dev/null"]
+      interval: 10s # More frequent checks for development
+      timeout: 5s
+      retries: 18 # Allow up to ~3 minutes total
+      start_period: 60s # Give HA more time to initialize
+    networks:
+      - ha-network
+    # Add resource limits for local development
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+  # Optional: Add a development database for persistence during testing
+  homeassistant-db:
+    image: postgres:15
+    container_name: ha-dual-smart-thermostat-db-local
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: homeassistant
+      POSTGRES_USER: homeassistant
+      POSTGRES_PASSWORD: homeassistant
+    volumes:
+      - ha-db-data:/var/lib/postgresql/data
+    networks:
+      - ha-network
+    profiles:
+      - with-db # Use `docker compose --profile with-db up` to include database
+
+networks:
+  ha-network:
+    driver: bridge
+    name: ha-dual-smart-thermostat-local
+
+volumes:
+  ha-db-data:
+    name: ha-dual-smart-thermostat-db-local

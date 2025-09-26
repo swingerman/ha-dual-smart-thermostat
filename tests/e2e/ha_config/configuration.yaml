@@ -10,19 +10,34 @@ recorder:
 
 # HTTP configuration for testing
 http:
-  use_x_forwarded_for: true
-  trusted_proxies:
-    - 172.16.0.0/12
-    - 192.168.0.0/16
-    - 127.0.0.1
-    - ::1
+  server_host: 0.0.0.0
+  server_port: 8123
 
-# Logger configuration - reduce noise during E2E tests
+# Trusted Networks for E2E testing (ONLY FOR TESTING!)
+homeassistant:
+  auth_providers:
+    - type: trusted_networks
+      trusted_networks:
+        - 127.0.0.1
+        - ::1
+        - 172.16.0.0/12  
+        - 192.168.0.0/16
+        - 10.0.0.0/8
+        - 192.168.65.0/24  # Docker Desktop network
+        - 0.0.0.0/0  # Allow all IPs for E2E testing (DANGEROUS - testing only!)
+      allow_bypass_login: true
+    - type: homeassistant
+
+# Skip onboarding for E2E testing by using trusted networks
+
+# Logger configuration - with auth debugging for E2E tests
 logger:
   default: warning
   logs:
     custom_components.dual_smart_thermostat: info
-    homeassistant.components.http: warning
+    homeassistant.components.http: info
+    homeassistant.auth: debug
+    homeassistant.auth.providers.trusted_networks: debug
 
 # Minimal input entities for testing config flows
 input_boolean:
@@ -129,18 +144,18 @@ switch:
           target:
             entity_id: input_boolean.test_fan
 
-# Example dual smart thermostat configuration for testing
-# This will be used to verify the custom component loads correctly
+# YAML configuration commented out for E2E config flow testing
+# The integration should be configured via UI config flow instead
 # climate:
 #   - platform: dual_smart_thermostat
-#     name: E2E Test Thermostat
-#     unique_id: e2e_test_thermostat
+#     name: placeholder_climate
+#     unique_id: e2e_placeholder_climate
 #     heater: switch.test_heater
 #     cooler: switch.test_cooler
 #     target_sensor: sensor.test_temperature
-#     min_temp: 15
-#     max_temp: 30
+#     min_temp: 7
+#     max_temp: 35
 #     target_temp: 21
-#     cold_tolerance: 0.3
-#     hot_tolerance: 0.3
+#     cold_tolerance: 0.5
+#     hot_tolerance: 0.5
 #     precision: 0.1

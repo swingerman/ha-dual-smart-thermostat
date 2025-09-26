@@ -48,7 +48,7 @@ from .feature_steps import (
     PresetsSteps,
 )
 from .schemas import (
-    get_ac_only_schema,
+    get_basic_ac_schema,
     get_core_schema,
     get_fan_toggle_schema,
     get_features_schema,
@@ -195,7 +195,7 @@ class OptionsFlowHandler(OptionsFlow):
             )
         elif effective_system_type == SYSTEM_TYPE_AC_ONLY:
             # For AC-only systems, use the dedicated schema with advanced settings in collapsible section
-            schema = get_ac_only_schema(defaults=current_config, include_name=False)
+            schema = get_basic_ac_schema(defaults=current_config, include_name=False)
         elif effective_system_type == SYSTEM_TYPE_HEATER_COOLER:
             # For heater+cooler systems, use the dedicated schema with advanced settings in collapsible section
             schema = get_heater_cooler_schema(

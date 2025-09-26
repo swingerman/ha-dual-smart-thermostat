@@ -56,54 +56,24 @@
                     }
                 }
             },
-            "features": {
-                "title": "Features Configuration",
-                "description": "Choose which features to configure for your system. This determines which configuration options will be available.",
-                "data": {
-                    "configure_fan": "Configure fan settings",
-                    "configure_humidity": "Configure humidity control",
-                    "configure_openings": "Configure window/door sensors",
-                    "configure_presets": "Configure temperature presets",
-                    "configure_floor_heating": "Configure floor heating protection",
-                    "configure_advanced": "Configure advanced settings"
-                },
-                "data_description": {
-                    "configure_fan": "Enable configuration of fan settings. This allows you to set up a separate fan entity that can run independently for air circulation.",
-                    "configure_humidity": "Enable configuration of humidity monitoring and control. This allows you to set up humidity sensors and dry mode operation.",
-                    "configure_openings": "Enable configuration of window and door sensors so the thermostat can pause operation when openings are detected.",
-                    "configure_presets": "Enable configuration of temperature presets like Away, Comfort, and Eco for quick mode changes.",
-                    "configure_floor_heating": "Enable configuration of floor temperature protection. When enabled you can set a floor sensor and max/min limits to protect your flooring.",
-                    "configure_advanced": "Show advanced configuration options such as keep-alive intervals, temperature precision, and default modes for power users."
-                }
-            },
-            "cooling": {
-                "title": "Cooling Configuration",
-                "description": "Configure cooling settings for air conditioning mode.",
-                "data": {
-                    "cooler": "Air conditioning switch",
-                    "ac_mode": "Enable air conditioning mode",
-                    "cool_tolerance": "Cool tolerance",
-                    "min_cycle_duration_cooling": "Minimum cooling cycle duration"
-                },
-                "data_description": {
-                    "cooler": "Entity ID for switch used to turn on the air conditioning or cooling system. Can be the same as heater switch for heat pump systems.",
-                    "ac_mode": "Enable air conditioning mode. When enabled, switches heater to AC mode if it's the only configured switch. In AC mode, the heater switch acts as a cooling device.",
-                    "cool_tolerance": "Minimum temperature difference between sensor reading and target before turning on cooling. For example, if target is 25°C and tolerance is 0.5°C, cooling starts when sensor reaches 25.5°C or above (default: 0.3°C).",
-                    "min_cycle_duration_cooling": "Minimum time that the cooling switch must stay in its current state before being switched. Prevents rapid on/off cycling and protects cooling equipment."
-                }
-            },
-            "cooling_only": {
-                "title": "Air Conditioning Configuration",
+            "basic_ac_only": {
+                "title": "Basic Configuration",
                 "description": "Configure your air conditioning system, organized by category.",
                 "data": {
                     "name": "Name",
                     "heater": "Air conditioning switch",
-                    "target_sensor": "Temperature sensor"
+                    "target_sensor": "Temperature sensor",
+                    "cold_tolerance": "Cold tolerance",
+                    "hot_tolerance": "Hot tolerance",
+                    "min_cycle_duration": "Minimum cycle duration"
                 },
                 "data_description": {
                     "name": "[Basic Information] Name of the thermostat entity (default: Dual Smart).",
                     "target_sensor": "[Sensors] Entity ID for temperature sensor that reflects the current temperature. The sensor state must be temperature.",
-                    "heater": "[Control Devices] Entity ID for air conditioning switch, must be a toggle device. Used for cooling when temperature rises above target."
+                    "heater": "[Control Devices] Entity ID for air conditioning switch, must be a toggle device. Used for cooling when temperature rises above target.",
+                    "cold_tolerance": "[Temperature Settings] Minimum temperature difference between sensor reading and target before turning on heating. For example, if target is 25°C and tolerance is 0.5°C, heater starts when sensor reaches 24.5°C or below (default: 0.3°C).",
+                    "hot_tolerance": "[Temperature Settings] Minimum temperature difference between sensor reading and target before turning off heating or turning on cooling. For example, if target is 25°C and tolerance is 0.5°C, heater stops when sensor reaches 25.5°C or above (default: 0.3°C).",
+                    "min_cycle_duration": "[Temperature Settings] Minimum time the switch must stay in its current state before being switched. Prevents rapid on/off cycling and protects equipment."
                 },
                 "sections": {
                     "advanced_settings": {
@@ -124,8 +94,28 @@
                     }
                 }
             },
+            "features": {
+                "title": "Features Configuration",
+                "description": "Choose which features to configure for your system. This determines which configuration options will be available.",
+                "data": {
+                    "configure_fan": "Configure fan settings",
+                    "configure_humidity": "Configure humidity control",
+                    "configure_openings": "Configure window/door sensors",
+                    "configure_presets": "Configure temperature presets",
+                    "configure_floor_heating": "Configure floor heating protection",
+                    "configure_advanced": "Configure advanced settings"
+                },
+                "data_description": {
+                    "configure_fan": "Enable configuration of fan settings. This allows you to set up a separate fan entity that can run independently for air circulation.",
+                    "configure_humidity": "Enable configuration of humidity monitoring and control. This allows you to set up humidity sensors and dry mode operation.",
+                    "configure_openings": "Enable configuration of window and door sensors so the thermostat can pause operation when openings are detected.",
+                    "configure_presets": "Enable configuration of temperature presets like Away, Comfort, and Eco for quick mode changes.",
+                    "configure_floor_heating": "Enable configuration of floor temperature protection. When enabled you can set a floor sensor and max/min limits to protect your flooring.",
+                    "configure_advanced": "Show advanced configuration options such as keep-alive intervals, temperature precision, and default modes for power users."
+                }
+            },
             "heater_cooler": {
-                "title": "Heater & Cooler Configuration",
+                "title": "Basic Configuration",
                 "description": "Configure your heating and cooling system with separate switches, organized by category.",
                 "data": {
                     "name": "Name",
@@ -165,7 +155,7 @@
                 }
             },
             "heat_pump": {
-                "title": "Heat Pump Configuration",
+                "title": "Basic Configuration",
                 "description": "Configure your heat pump system.",
                 "data": {
                     "name": "Name",
@@ -185,7 +175,7 @@
                 }
             },
             "dual_stage": {
-                "title": "Dual Stage Heating Setup",
+                "title": "Basic Configuration",
                 "description": "Configure the basic settings for your dual stage heating system.",
                 "data": {
                     "name": "Name",

@@ -1,0 +1,186 @@
+name: E2E Tests
+
+on:
+  push:
+    branches:
+      - master
+      - copilot/fix-157
+      - copilot/fix-413
+
+  pull_request:
+    branches: "*"
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "npm"
+          cache-dependency-path: tests/e2e/package-lock.json
+
+      - name: Install Playwright dependencies
+        working-directory: tests/e2e
+        run: |
+          npm ci
+          npx playwright install --with-deps
+
+      - name: Start Home Assistant
+        working-directory: tests/e2e
+        run: |
+          docker compose up -d
+          echo "Waiting for Home Assistant to be ready..."
+
+          # Wait for healthy status using manifest.json endpoint (like local setup)
+          timeout 300 bash -c 'until curl -f http://localhost:8123/manifest.json >/dev/null 2>&1; do 
+            echo "  Waiting for HA manifest endpoint... ($(date))"
+            
+            # Check if container is still running
+            if ! docker compose ps homeassistant | grep -q "Up"; then
+              echo "❌ Home Assistant container is not running!"
+              docker compose logs homeassistant
+              exit 1
+            fi
+            
+            sleep 5
+          done'
+
+          echo "Home Assistant is ready!"
+
+          # Check container status and logs for debugging
+          echo "Checking container status..."
+          docker compose ps homeassistant
+          echo "Recent container logs..."
+          docker compose logs homeassistant --tail 10
+
+          # Additional verification using manifest.json endpoint (like local setup)
+          echo "Verifying HA is fully ready..."
+          sleep 15
+
+          # Check manifest endpoint (accepts both 200 and 401 like local wait script)
+          if curl -f http://localhost:8123/manifest.json >/dev/null 2>&1; then
+            echo "✅ Home Assistant manifest endpoint is responding"
+          else
+            echo "⚠️ Manifest endpoint not ready, but continuing..."
+          fi
+
+          # Check API endpoint as additional verification
+          echo "Checking Home Assistant API endpoint..."
+          api_response=$(curl -s http://localhost:8123/api/ || echo "FAILED")
+          if echo "$api_response" | grep -q "message.*not found\|API running"; then
+            echo "✅ Home Assistant API is responding"
+          else
+            echo "⚠️ API endpoint response: ${api_response:0:100}..."
+          fi
+
+          # Setup HA for testing using HA CLI and Python script (run regardless of web interface status)
+          echo "Setting up Home Assistant for testing..."
+
+          # First, try to use HA CLI to create a user (this might work in newer HA versions)
+          echo "Attempting to create user with HA CLI..."
+          docker compose exec homeassistant ha auth create --username testuser --password testpass123 --name "Test User" || {
+            echo "⚠️ HA CLI user creation failed, trying alternative approach..."
+            
+            # Copy our enhanced setup script into the container
+            docker compose exec homeassistant mkdir -p /config/scripts
+            docker compose cp scripts/setup-ha.py homeassistant:/config/scripts/setup-ha.py
+            
+            # Run the setup script to create user and bypass onboarding
+            docker compose exec homeassistant python3 /config/scripts/setup-ha.py || {
+              echo "⚠️ Setup script failed, but continuing..."
+            }
+          }
+
+          # Restart HA to ensure user and onboarding changes take effect
+          echo "Restarting Home Assistant to apply user and onboarding changes..."
+          docker compose restart homeassistant
+
+          # Wait for HA to be ready again after restart
+          echo "Waiting for Home Assistant to be ready after restart..."
+          timeout 120 bash -c 'until curl -f http://localhost:8123/manifest.json >/dev/null 2>&1; do 
+            echo "  Waiting for HA after restart... ($(date))"
+            sleep 5
+          done'
+
+          # Wait for main page to be ready (web interface initialization takes time)
+          echo "Waiting for Home Assistant web interface to initialize..."
+          for i in {1..12}; do
+            response=$(curl -s http://localhost:8123/ || echo "FAILED")
+            if echo "$response" | grep -q "Home Assistant"; then
+              echo "✅ Home Assistant web interface is ready!"
+              break
+            elif [ "$i" -eq 12 ]; then
+              echo "⚠️ Home Assistant web interface not ready after 60 seconds"
+              echo "Response length: ${#response}"
+              echo "Response preview: ${response:0:200}..."
+              echo "Checking container status..."
+              docker compose ps homeassistant
+              echo "Checking container logs..."
+              docker compose logs homeassistant --tail 20
+              echo "⚠️ Continuing with tests anyway since manifest endpoint is working..."
+              echo "This might indicate a web interface initialization issue but core HA is running"
+            else
+              echo "  Attempt $i/12: Web interface not ready yet, waiting..."
+              sleep 5
+            fi
+          done
+
+          # Force and verify onboarding bypass before tests
+          echo "Verifying onboarding is bypassed..."
+          main_page=$(curl -s http://localhost:8123/ || echo "")
+          if echo "$main_page" | grep -qi "onboarding"; then
+            echo "❌ Onboarding detected. Forcing bypass now..."
+            docker compose exec homeassistant mkdir -p /config/scripts
+            docker compose cp scripts/setup-ha.py homeassistant:/config/scripts/setup-ha.py || true
+            docker compose exec homeassistant python3 /config/scripts/setup-ha.py || true
+            echo "Restarting Home Assistant after forced bypass..."
+            docker compose restart homeassistant
+            echo "Waiting for Home Assistant after forced bypass restart..."
+            timeout 120 bash -c 'until curl -f http://localhost:8123/manifest.json >/dev/null 2>&1; do 
+              echo "  Waiting (forced bypass)... ($(date))"
+              sleep 5
+            done'
+            post_page=$(curl -s http://localhost:8123/ || echo "")
+            if echo "$post_page" | grep -qi "onboarding"; then
+              echo "❌ Onboarding still present after forced bypass. Failing fast."
+              exit 1
+            fi
+          fi
+          echo "✅ Onboarding bypass verified."
+
+      - name: Run E2E Tests
+        working-directory: tests/e2e
+        run: |
+          # Try to run tests even if trusted networks auth isn't perfect
+          echo "Starting E2E tests..."
+          npx playwright test --reporter=github
+        env:
+          # Ensure tests run in CI mode
+          CI: true
+          # Add timeout for individual tests
+          PLAYWRIGHT_TIMEOUT: 60000
+
+      - name: Upload test artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-test-artifacts
+          path: |
+            tests/e2e/test-results/
+            tests/e2e/playwright-report/
+            tests/e2e/artifacts/
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Stop Home Assistant
+        if: always()
+        working-directory: tests/e2e
+        run: |
+          docker compose down -v
