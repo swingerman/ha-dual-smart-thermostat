@@ -583,7 +583,7 @@ export class HomeAssistantSetup {
 
     // Wait for and confirm deletion in the confirmation dialog
     await this._page.getByRole('alertdialog', { name: 'Delete Test Config Entry' })
-    const confirmButton = this._page.getByRole('button', { name: 'Delete' });
+    const confirmButton = await this._page.getByRole('button', { name: 'Delete' });
     await expect(confirmButton).toBeVisible();
     await confirmButton.click();
     console.log('✅ Deletion confirmed');
