@@ -105,13 +105,10 @@ class OptionsFlowHandler(OptionsFlow):
                 "dual_stage_options_shown",
                 "floor_options_shown",
                 "features_shown",  # The unified features step flag
-                "advanced_shown",
-                "configure_advanced",  # Clear the advanced toggle state
                 "fan_options_shown",
                 "humidity_options_shown",
                 "openings_options_shown",
                 "presets_shown",
-                "advanced_options_shown",
             ]
             # Also clear any transient "configure_*" toggles that may have been
             # saved in the entry data from a previous run. These should not be
@@ -392,26 +389,9 @@ class OptionsFlowHandler(OptionsFlow):
         based on the system type.
         """
         if user_input is not None:
-            # Check if user wants to show advanced options
-            show_advanced = user_input.get("configure_advanced", False)
-
-            # If this is the first submission and advanced is enabled, show advanced form
-            if show_advanced and "advanced_shown" not in self.collected_config:
-                self.collected_config.update(user_input)
-                self.collected_config["advanced_shown"] = True
-                return await self.async_step_advanced_options()
-
-            # Otherwise, process the final submission and continue
+            # Process the submission and continue
             self.collected_config.update(user_input)
-            # Clear the advanced toggle flags to prevent re-showing
-            self.collected_config.pop("configure_advanced", None)
-            self.collected_config.pop("advanced_shown", None)
             return await self._determine_options_next_step()
-
-        # For initial display, always start with basic form
-        # Reset any advanced state to ensure clean start
-        self.collected_config.pop("configure_advanced", None)
-        self.collected_config.pop("advanced_shown", None)
 
         current_config = self._get_entry().data
         system_type = current_config.get(CONF_SYSTEM_TYPE)

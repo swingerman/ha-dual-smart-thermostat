@@ -6,7 +6,7 @@ import sys
 
 # Add the custom component to Python path before other imports
 sys.path.insert(
-    0, os.path.join(os.path.dirname(__file__), "custom_components")
+    0, os.path.join(os.path.dirname(__file__), "..", "..")
 )  # noqa: E402 - test helper path
 
 import voluptuous as vol  # noqa: E402 - import after test path insertion
@@ -28,7 +28,6 @@ def test_basic_schema():
         "configure_humidity",
         "configure_openings",
         "configure_presets",
-        "configure_advanced",
     ]
 
     schema_dict = schema.schema
@@ -51,7 +50,6 @@ def test_basic_schema():
             "configure_humidity": False,
             "configure_openings": False,
             "configure_presets": False,
-            "configure_advanced": False,
         }
 
         for field, expected_value in expected_defaults.items():
@@ -85,7 +83,6 @@ def test_advanced_schema():
         "configure_humidity",
         "configure_openings",
         "configure_presets",
-        "configure_advanced",
     ]
 
     schema_dict = schema.schema
@@ -104,8 +101,8 @@ def test_advanced_schema():
 
     # Verify that all configuration fields are present
     assert (
-        config_count == 5
-    ), "Should have exactly 5 configuration fields in AC features schema"
+        config_count == 4
+    ), "Should have exactly 4 configuration fields in AC features schema"
 
     return True
 

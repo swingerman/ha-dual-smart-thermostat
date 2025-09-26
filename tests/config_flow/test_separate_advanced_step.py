@@ -5,29 +5,34 @@ import os
 import sys
 
 # Add the custom component to Python path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "custom_components"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
 
 def test_separate_advanced_step():
-    """Test that advanced options appear as a separate step."""
-    print("🔄 TESTING SEPARATE ADVANCED OPTIONS STEP")
+    """Test that the advanced system type is no longer available."""
+    print("🔄 TESTING ADVANCED SYSTEM TYPE REMOVAL")
     print("=" * 60)
 
     print("📋 Updated Behavior:")
-    print("• AC features form shows only 5 basic toggle options")
-    print("• When user enables 'Configure advanced settings' toggle")
-    print("• System redirects to SEPARATE advanced options step")
-    print("• Advanced options are no longer inline with AC features")
+    print("• Advanced (Custom Setup) system type removed from SYSTEM_TYPES")
+    print("• Only 4 system types available: simple_heater, ac_only, heater_cooler, heat_pump")
+    print("• Advanced system type handling removed from config flows")
     print()
 
-    # Test the AC features schema (should always be basic)
-    from custom_components.dual_smart_thermostat.schemas import (
-        get_ac_only_features_schema,
-    )
-
-    ac_features_schema = get_ac_only_features_schema()
-    print(f"✅ AC Features form: {len(ac_features_schema.schema)} fields")
-    print("   This form NEVER includes advanced options inline")
+    # Test that advanced system type is not in SYSTEM_TYPES
+    from custom_components.dual_smart_thermostat.const import SYSTEM_TYPES
+    
+    print(f"✅ Available system types: {len(SYSTEM_TYPES)}")
+    for k, v in SYSTEM_TYPES.items():
+        print(f"   • {k}: {v}")
+    print()
+    
+    # Verify advanced is not present
+    assert "advanced" not in SYSTEM_TYPES, "Advanced system type should be removed"
+    assert len(SYSTEM_TYPES) == 4, "Should have exactly 4 system types"
+    
+    print("✅ Advanced (Custom Setup) system type successfully removed")
+    print("✅ System now exposes only the 4 core system types")
     print()
 
     # Check the fields in the AC features form
@@ -73,81 +78,10 @@ def test_separate_advanced_step():
         if redirect_found and inline_removed:
             print("\n🎯 SUCCESS: Advanced options now appear as separate step!")
             return True
-        else:
-            print("\n❌ ISSUE: Advanced options may still be inline")
-            return False
-
-    except Exception as e:
-        print(f"❌ Failed to analyze code: {e}")
-        return False
-
-
-def test_user_experience():
-    """Test the improved user experience."""
-    print("\n👤 IMPROVED USER EXPERIENCE TEST")
-    print("=" * 60)
-
-    print("🟢 NEW FLOW (After Fix):")
-    print("1. User clicks 'Configure' on AC thermostat")
-    print("2. 📋 AC Features Step: Shows 5 clean toggle options")
-    print("   • Configure fan options")
-    print("   • Configure humidity options")
-    print("   • Configure openings options")
-    print("   • Configure presets options")
-    print("   • Configure advanced settings ← User enables this")
-    print("3. User submits form")
-    print("4. 🔧 Advanced Options Step: Shows temperature limits, precision, etc.")
-    print("5. User configures advanced settings")
-    print("6. ✅ Configuration complete")
-    print()
-
-    print("🎯 KEY BENEFITS:")
-    print("• Clear separation between basic and advanced options")
-    print("• No more confusing inline advanced fields")
-    print("• Advanced step only appears when explicitly requested")
-    print("• Better user experience with logical flow progression")
-
-    return True
-
-
-def main():
-    """Run the separate step behavior tests."""
-    print("🔧 SEPARATE ADVANCED STEP VERIFICATION")
-    print("=" * 70)
-
-    tests = [test_separate_advanced_step, test_user_experience]
-
-    passed = 0
-    failed = 0
-
-    for test in tests:
-        try:
-            if test():
-                passed += 1
-            else:
-                failed += 1
-        except Exception as e:
-            print(f"❌ Test {test.__name__} failed: {e}")
-            failed += 1
-
-    print("\n" + "=" * 70)
-    print(f"🎯 Test Results: {passed} passed, {failed} failed")
-
-    if failed == 0:
-        print("\n🎉 SEPARATE ADVANCED STEP SUCCESSFULLY IMPLEMENTED!")
-        print()
-        print("📋 What changed:")
-        print("   • Advanced options no longer appear inline in AC features form")
-        print("   • When user enables 'Configure advanced settings' toggle")
-        print("   • System redirects to dedicated advanced options step")
-        print("   • Clean separation between basic and advanced configuration")
-
-        return True
-    else:
-        print("💥 Some tests failed. Please review the implementation.")
-        return False
-
-
 if __name__ == "__main__":
-    success = main()
-    sys.exit(0 if success else 1)
+    """Run the test."""
+    if test_separate_advanced_step():
+        print("🎉 Test passed!")
+    else:
+        print("❌ Test failed!")
+        sys.exit(1)
