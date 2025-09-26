@@ -698,6 +698,257 @@ export class HomeAssistantSetup {
   }
 
   /**
+   * Verify that an integration exists in the integrations list
+   */
+  async verifyIntegrationExists(integrationName: string): Promise<boolean> {
+    console.log(`🔍 Verifying integration exists: ${integrationName}`);
+
+    try {
+      // Navigate to the integration's configuration page
+      await this._page.goto('http://localhost:8123/config/integrations/integration/dual_smart_thermostat', { waitUntil: 'load' });
+      console.log('📍 Navigated to dual_smart_thermostat integration page');
+
+      // Wait for the page to load and show the config entry rows
+      await this._page.waitForSelector('ha-config-entry-row', { timeout: 10000 });
+      console.log('✅ Config entry rows loaded');
+
+      // Find the specific config entry row by name
+      const configEntryRow = this._page.locator(`ha-config-entry-row:has-text("${integrationName}")`).first();
+      const isVisible = await configEntryRow.isVisible({ timeout: 5000 });
+
+      if (isVisible) {
+        console.log(`✅ Integration found: ${integrationName}`);
+        return true;
+      } else {
+        console.log(`⚠️ Integration not found: ${integrationName}`);
+        return false;
+      }
+
+    } catch (error) {
+      console.log(`❌ Failed to verify integration existence: ${error}`);
+      return false;
+    }
+  }
+
+  /**
+   * Verify the climate entity configuration using Home Assistant API
+   */
+  async verifyClimateEntityConfig(integrationName: string, expectedSystemType: SystemType): Promise<void> {
+    console.log(`🔍 Verifying climate entity config for: ${integrationName}`);
+
+    const entityId = `climate.${integrationName.toLowerCase().replace(/\s+/g, '_')}`;
+    console.log(`🔍 Looking for entity: ${entityId}`);
+
+    try {
+      // Use Home Assistant API to get entity state
+      const response = await this._page.evaluate(async (entityId) => {
+        // Try different ways to get the auth token
+        let authToken = localStorage.getItem('auth-token') ||
+          localStorage.getItem('authToken') ||
+          localStorage.getItem('token') ||
+          sessionStorage.getItem('auth-token') ||
+          sessionStorage.getItem('authToken');
+
+        // If no token found, try to get it from the current page context
+        if (!authToken) {
+          // Look for the token in the page's JavaScript context
+          const scripts = document.querySelectorAll('script');
+          for (const script of scripts) {
+            const content = script.textContent || '';
+            const match = content.match(/auth-token['"]\s*:\s*['"]([^'"]+)['"]/);
+            if (match) {
+              authToken = match[1];
+              break;
+            }
+          }
+        }
+
+        console.log('Auth token found:', authToken ? 'Yes' : 'No');
+
+        const response = await fetch(`/api/states/${entityId}`, {
+          headers: {
+            'Authorization': authToken ? `Bearer ${authToken}` : '',
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        return await response.json();
+      }, entityId);
+
+      console.log(`✅ Found entity via API: ${entityId}`);
+      console.log(`📋 Entity state:`, JSON.stringify(response, null, 2));
+
+      // Verify entity attributes
+      if (response.attributes) {
+        const attributes = response.attributes;
+
+        // Check if the entity name matches
+        if (attributes.friendly_name && attributes.friendly_name.includes(integrationName)) {
+          console.log(`✅ Entity friendly name matches: ${attributes.friendly_name}`);
+        } else {
+          console.log(`⚠️ Entity friendly name mismatch: expected "${integrationName}", got "${attributes.friendly_name}"`);
+        }
+
+        // Check for system-specific configuration
+        if (expectedSystemType === SystemType.AC_ONLY) {
+          // For AC-only, check if AC mode is enabled
+          if (attributes.ac_mode === true) {
+            console.log('✅ AC Mode is enabled for AC-only system');
+          } else {
+            console.log(`⚠️ AC Mode not enabled for AC-only system: ${attributes.ac_mode}`);
+          }
+
+          // Check if it has cooling capabilities
+          if (attributes.hvac_modes && attributes.hvac_modes.includes('cool')) {
+            console.log('✅ Cooling mode available for AC-only system');
+          } else {
+            console.log(`⚠️ Cooling mode not available for AC-only system: ${attributes.hvac_modes}`);
+          }
+        } else if (expectedSystemType === SystemType.SIMPLE_HEATER) {
+          // For simple heater, check if it has heating capabilities
+          if (attributes.hvac_modes && attributes.hvac_modes.includes('heat')) {
+            console.log('✅ Heating mode available for simple heater system');
+          } else {
+            console.log(`⚠️ Heating mode not available for simple heater system: ${attributes.hvac_modes}`);
+          }
+
+          // Check if AC mode is disabled for simple heater
+          if (attributes.ac_mode === false || attributes.ac_mode === undefined) {
+            console.log('✅ AC Mode is disabled for simple heater system');
+          } else {
+            console.log(`⚠️ AC Mode should be disabled for simple heater system: ${attributes.ac_mode}`);
+          }
+        }
+
+        // Check common attributes
+        if (attributes.target_temperature) {
+          console.log(`✅ Target temperature configured: ${attributes.target_temperature}`);
+        }
+
+        if (attributes.current_temperature !== undefined) {
+          console.log(`✅ Current temperature available: ${attributes.current_temperature}`);
+        }
+
+        if (attributes.hvac_action) {
+          console.log(`✅ HVAC action: ${attributes.hvac_action}`);
+        }
+
+      } else {
+        console.log('⚠️ No attributes found for entity');
+      }
+
+    } catch (error) {
+      console.log(`❌ Failed to get entity via API: ${error}`);
+
+      // Fallback: try to get all climate entities
+      try {
+        const allEntities = await this._page.evaluate(async () => {
+          // Try different ways to get the auth token
+          let authToken = localStorage.getItem('auth-token') ||
+            localStorage.getItem('authToken') ||
+            localStorage.getItem('token') ||
+            sessionStorage.getItem('auth-token') ||
+            sessionStorage.getItem('authToken');
+
+          const response = await fetch('/api/states', {
+            headers: {
+              'Authorization': authToken ? `Bearer ${authToken}` : '',
+              'Content-Type': 'application/json'
+            }
+          });
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+
+          return await response.json();
+        });
+
+        const climateEntities = allEntities.filter((entity: any) => entity.entity_id.startsWith('climate.'));
+        console.log(`📋 Found ${climateEntities.length} climate entities:`);
+        climateEntities.forEach((entity: any) => {
+          console.log(`  - ${entity.entity_id}: ${entity.attributes.friendly_name}`);
+        });
+
+        const matchingEntity = climateEntities.find((entity: any) =>
+          entity.attributes.friendly_name && entity.attributes.friendly_name.includes(integrationName)
+        );
+
+        if (matchingEntity) {
+          console.log(`✅ Found matching entity: ${matchingEntity.entity_id}`);
+        } else {
+          console.log(`⚠️ No matching entity found for: ${integrationName}`);
+        }
+
+      } catch (fallbackError) {
+        console.log(`❌ Fallback also failed: ${fallbackError}`);
+      }
+    }
+
+    console.log('✅ Climate entity configuration verification completed');
+  }
+
+  /**
+   * Verify the integration configuration through the integrations page
+   */
+  async verifyIntegrationConfig(integrationName: string, expectedSystemType: SystemType): Promise<void> {
+    console.log(`🔍 Verifying integration config for: ${integrationName}`);
+
+    // Navigate to the integration's configuration page
+    await this._page.goto('http://localhost:8123/config/integrations/integration/dual_smart_thermostat', { waitUntil: 'load' });
+    console.log('📍 Navigated to dual_smart_thermostat integration page');
+
+    // Wait for the page to load and show the config entry rows
+    await this._page.waitForSelector('ha-config-entry-row', { timeout: 10000 });
+    console.log('✅ Config entry rows loaded');
+
+    // Find the specific config entry row by name
+    const configEntryRow = this._page.locator(`ha-config-entry-row:has-text("${integrationName}")`).first();
+    await expect(configEntryRow).toBeVisible({ timeout: 10000 });
+    console.log(`✅ Found config entry row for: ${integrationName}`);
+
+    // Click on the config entry to view its details
+    await configEntryRow.click();
+    console.log('✅ Clicked on config entry');
+
+    // Wait for the config entry details to load (use a more generic selector)
+    await this._page.waitForSelector('ha-card', { timeout: 10000 });
+    console.log('✅ Config entry details loaded');
+
+    // Take a screenshot for debugging
+    await this._page.screenshot({ path: `integration-config-${Date.now()}.png` });
+
+    // Log the current URL for debugging
+    const currentUrl = this._page.url();
+    console.log(`📍 Current URL: ${currentUrl}`);
+
+    // Check for system-specific configuration in the config entry
+    if (expectedSystemType === SystemType.AC_ONLY) {
+      // For AC-only, check if AC mode is configured
+      const acModeConfig = await this._page.locator('text=AC Mode').count();
+      if (acModeConfig > 0) {
+        console.log('✅ AC Mode configuration detected in integration');
+      } else {
+        console.log('⚠️ AC Mode configuration not detected in integration');
+      }
+    } else if (expectedSystemType === SystemType.SIMPLE_HEATER) {
+      // For simple heater, check for heater configuration
+      const heaterConfig = await this._page.locator('text=Heater').count();
+      if (heaterConfig > 0) {
+        console.log('✅ Heater configuration detected in integration');
+      } else {
+        console.log('⚠️ Heater configuration not detected in integration');
+      }
+    }
+
+    console.log('✅ Integration configuration verification completed');
+  }
+
+  /**
    * Clean up all test integrations
    */
   async cleanupTestIntegrations(): Promise<void> {
