@@ -29,11 +29,11 @@ jobs:
           pip install -r requirements-dev.txt
           pip install safety bandit semgrep
 
-      - name: Run Safety check
+      - name: Run Safety scan
         run: |
-          echo "Running Safety check for known security vulnerabilities..."
-          safety check --json --output safety-report.json || true
-          safety check
+          echo "Running Safety scan for known security vulnerabilities..."
+          safety scan --json --output safety-report.json || true
+          safety scan
 
       - name: Run Bandit security linter
         run: |

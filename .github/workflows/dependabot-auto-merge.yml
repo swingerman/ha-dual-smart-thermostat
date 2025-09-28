@@ -83,6 +83,21 @@ jobs:
           isort . --recursive --check-only --diff
           black --check .
 
+      - name: Run security scan
+        if: steps.safety-check.outputs.safe_to_merge == 'true'
+        id: security-scan
+        run: |
+          echo "Running security scan..."
+          pip install safety
+          if safety scan; then
+            echo "✅ Security scan passed"
+            echo "security_scan_passed=true" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Security vulnerabilities detected. Skipping auto-merge."
+            echo "security_scan_passed=false" >> $GITHUB_OUTPUT
+            echo "safe_to_merge=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Run tests
         if: steps.safety-check.outputs.safe_to_merge == 'true'
         run: |
@@ -90,7 +105,7 @@ jobs:
           pytest --cov-report xml:coverage.xml
 
       - name: Auto-merge PR
-        if: steps.safety-check.outputs.safe_to_merge == 'true' && success()
+        if: steps.safety-check.outputs.safe_to_merge == 'true' && steps.security-scan.outputs.security_scan_passed == 'true' && success()
         uses: fastify/github-action-merge-dependabot@v3
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -121,13 +136,15 @@ jobs:
             }
             
             const safeToMerge = '${{ steps.safety-check.outputs.safe_to_merge }}' === 'true';
+            const securityScanPassed = '${{ steps.security-scan.outputs.security_scan_passed }}' === 'true';
             const workflowSuccess = '${{ job.status }}' === 'success';
             
             let message = '## 🤖 Dependabot Auto-Merge Status\n\n';
             
-            if (safeToMerge && workflowSuccess) {
+            if (safeToMerge && securityScanPassed && workflowSuccess) {
               message += '✅ **Auto-merge approved!** This PR has been automatically merged.\n\n';
               message += '- ✅ Safety checks passed\n';
+              message += '- ✅ Security scan passed\n';
               message += '- ✅ Linting checks passed\n';
               message += '- ✅ Tests passed\n';
               message += '- ✅ PR merged successfully\n';
@@ -138,11 +155,19 @@ jobs:
                 message += '- ⚠️ Major version update or critical package detected\n';
                 message += '- ⚠️ Manual review required for safety\n';
               }
+            } else if (!securityScanPassed) {
+              message += '❌ **Auto-merge blocked** - Security vulnerabilities detected.\n\n';
+              message += '**Security Issues:**\n';
+              message += '- ❌ Security scan failed - vulnerabilities found\n';
+              message += '- 🔒 Manual review required to address security issues\n';
             } else {
               message += '❌ **Auto-merge failed** - Checks did not pass.\n\n';
               message += '**Issues:**\n';
               if ('${{ steps.safety-check.outputs.safe_to_merge }}' === 'false') {
                 message += '- ❌ Safety checks failed\n';
+              }
+              if ('${{ steps.security-scan.outputs.security_scan_passed }}' === 'false') {
+                message += '- ❌ Security scan failed\n';
               }
               if ('${{ job.status }}' !== 'success') {
                 message += '- ❌ Linting or tests failed\n';
