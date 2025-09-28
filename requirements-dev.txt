@@ -7,3 +7,11 @@ black
 codespell
 mypy
 colorlog
+# Security and quality tools
+safety
+bandit
+semgrep
+pip-audit
+radon
+xenon
+flake8

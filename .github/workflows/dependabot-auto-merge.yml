@@ -1,0 +1,159 @@
+name: Dependabot Auto-Merge
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  auto-merge:
+    # Only run on Dependabot PRs
+    if: github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          # Fetch all history for better analysis
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: 3.13
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements-dev.txt
+
+      - name: Check if PR is safe to auto-merge
+        id: safety-check
+        run: |
+          echo "Checking PR safety for auto-merge..."
+          
+          # Get PR details
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          PR_BODY="${{ github.event.pull_request.body }}"
+          PR_HEAD_REF="${{ github.event.pull_request.head.ref }}"
+          
+          echo "PR Title: $PR_TITLE"
+          echo "PR Head Ref: $PR_HEAD_REF"
+          
+          # Check if it's a patch or minor version update
+          if echo "$PR_TITLE" | grep -E "(Bump|Update).*from.*to.*" > /dev/null; then
+            echo "✅ PR appears to be a dependency update"
+            
+            # Extract version numbers to check if it's a major version update
+            if echo "$PR_TITLE" | grep -E "from [0-9]+\.[0-9]+\.[0-9]+ to [0-9]+\.[0-9]+\.[0-9]+" > /dev/null; then
+              FROM_VERSION=$(echo "$PR_TITLE" | grep -oE "from [0-9]+\.[0-9]+\.[0-9]+" | cut -d' ' -f2)
+              TO_VERSION=$(echo "$PR_TITLE" | grep -oE "to [0-9]+\.[0-9]+\.[0-9]+" | cut -d' ' -f2)
+              
+              FROM_MAJOR=$(echo "$FROM_VERSION" | cut -d'.' -f1)
+              TO_MAJOR=$(echo "$TO_VERSION" | cut -d'.' -f1)
+              
+              if [ "$FROM_MAJOR" != "$TO_MAJOR" ]; then
+                echo "❌ Major version update detected ($FROM_VERSION -> $TO_VERSION). Skipping auto-merge."
+                echo "safe_to_merge=false" >> $GITHUB_OUTPUT
+                exit 0
+              fi
+            fi
+            
+            # Check for specific packages that should not be auto-merged
+            DANGEROUS_PACKAGES=("homeassistant" "pytest" "black" "isort" "sonarcloud")
+            for package in "${DANGEROUS_PACKAGES[@]}"; do
+              if echo "$PR_TITLE" | grep -i "$package" > /dev/null; then
+                echo "❌ Update to critical package '$package' detected. Skipping auto-merge."
+                echo "safe_to_merge=false" >> $GITHUB_OUTPUT
+                exit 0
+              fi
+            done
+            
+            echo "✅ PR appears safe for auto-merge"
+            echo "safe_to_merge=true" >> $GITHUB_OUTPUT
+          else
+            echo "❌ PR title doesn't match expected pattern for dependency updates"
+            echo "safe_to_merge=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run linting checks
+        if: steps.safety-check.outputs.safe_to_merge == 'true'
+        run: |
+          echo "Running linting checks..."
+          isort . --recursive --check-only --diff
+          black --check .
+
+      - name: Run tests
+        if: steps.safety-check.outputs.safe_to_merge == 'true'
+        run: |
+          echo "Running tests..."
+          pytest --cov-report xml:coverage.xml
+
+      - name: Auto-merge PR
+        if: steps.safety-check.outputs.safe_to_merge == 'true' && success()
+        uses: fastify/github-action-merge-dependabot@v3
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          target: "squash"
+          merge-method: "squash"
+          merge-message: "chore: ${{ github.event.pull_request.title }}"
+          delete-branch: true
+
+      - name: Comment on PR
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            
+            const botComment = comments.find(comment => 
+              comment.user.type === 'Bot' && 
+              comment.body.includes('Dependabot Auto-Merge')
+            );
+            
+            if (botComment) {
+              console.log('Bot comment already exists, skipping...');
+              return;
+            }
+            
+            const safeToMerge = '${{ steps.safety-check.outputs.safe_to_merge }}' === 'true';
+            const workflowSuccess = '${{ job.status }}' === 'success';
+            
+            let message = '## 🤖 Dependabot Auto-Merge Status\n\n';
+            
+            if (safeToMerge && workflowSuccess) {
+              message += '✅ **Auto-merge approved!** This PR has been automatically merged.\n\n';
+              message += '- ✅ Safety checks passed\n';
+              message += '- ✅ Linting checks passed\n';
+              message += '- ✅ Tests passed\n';
+              message += '- ✅ PR merged successfully\n';
+            } else if (!safeToMerge) {
+              message += '❌ **Auto-merge skipped** - This update requires manual review.\n\n';
+              message += '**Reasons:**\n';
+              if ('${{ steps.safety-check.outputs.safe_to_merge }}' === 'false') {
+                message += '- ⚠️ Major version update or critical package detected\n';
+                message += '- ⚠️ Manual review required for safety\n';
+              }
+            } else {
+              message += '❌ **Auto-merge failed** - Checks did not pass.\n\n';
+              message += '**Issues:**\n';
+              if ('${{ steps.safety-check.outputs.safe_to_merge }}' === 'false') {
+                message += '- ❌ Safety checks failed\n';
+              }
+              if ('${{ job.status }}' !== 'success') {
+                message += '- ❌ Linting or tests failed\n';
+              }
+            }
+            
+            message += '\n---\n*This is an automated message from the Dependabot Auto-Merge workflow.*';
+            
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: message
+            });
