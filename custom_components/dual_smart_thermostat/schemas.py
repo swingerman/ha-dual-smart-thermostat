@@ -474,9 +474,7 @@ def get_features_schema(
     }
 
     # Get available features for this system type
-    available_features = system_features.get(
-        system_type, ["openings", "presets"]
-    )
+    available_features = system_features.get(system_type, ["openings", "presets"])
 
     # Define feature order for consistent UI
     feature_order = [

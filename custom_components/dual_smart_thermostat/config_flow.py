@@ -25,8 +25,6 @@ from .const import (
     CONF_SENSOR,
     CONF_SYSTEM_TYPE,
     DOMAIN,
-    SYSTEM_TYPE_DUAL_STAGE,
-    SYSTEM_TYPE_FLOOR_HEATING,
     SYSTEM_TYPE_HEAT_PUMP,
     SYSTEM_TYPE_SIMPLE_HEATER,
     SystemType,
@@ -627,7 +625,6 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
         has_ac_mode = bool(self.collected_config.get(CONF_AC_MODE))
 
         return has_heater and (has_cooler or has_heat_pump or has_ac_mode)
-
 
     @callback
     def async_config_entry_title(self, options: Mapping[str, Any]) -> str:
