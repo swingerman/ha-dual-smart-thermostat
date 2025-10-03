@@ -34,126 +34,36 @@ def test_user_experience_flow():
 
     print(f"📊 Total fields shown: {len(basic_fields)}")
 
-    # Step 2: User makes choices and enables advanced toggle
+    # Step 2: User makes choices
     print("\n👤 User makes selections:")
     user_choice_1 = {
         "configure_fan": True,
         "configure_humidity": False,
         "configure_openings": True,
         "configure_presets": True,
-        "configure_advanced": True,  # 🔥 User wants advanced options!
     }
 
     for choice, enabled in user_choice_1.items():
         status = "✅ ENABLED" if enabled else "❌ DISABLED"
         print(f"   • {choice}: {status}")
 
-    # Validate first submission
+    # Validate submission
     try:
         basic_schema(user_choice_1)
-        print("✅ First submission validates successfully")
+        print("✅ Submission validates successfully")
     except Exception as e:
-        print(f"❌ First submission failed: {e}")
+        print(f"❌ Submission failed: {e}")
         raise
 
-    # Step 3: System detects advanced toggle and shows expanded form
-    print("\n🏠 System detects 'configure_advanced' is enabled...")
-    print("🏠 System shows expanded form with advanced options:")
-
-    advanced_schema = get_ac_only_features_schema()
-    # Advanced settings are provided by a separate schema; include those fields when
-    # simulating the expanded form in the frontend.
-    from custom_components.dual_smart_thermostat.schemas import (
-        get_advanced_settings_schema,
-    )
-
-    advanced_settings_schema = get_advanced_settings_schema()
-
-    all_fields = []
-    basic_fields_count = 0
-    advanced_fields_count = 0
-
-    for key in advanced_schema.schema.keys():
-        if hasattr(key, "schema"):
-            field_name = key.schema
-            all_fields.append(field_name)
-
-            if field_name in [
-                "configure_fan",
-                "configure_humidity",
-                "configure_openings",
-                "configure_presets",
-                "configure_advanced",
-            ]:
-                basic_fields_count += 1
-                print(f"   • {field_name} (basic)")
-            else:
-                advanced_fields_count += 1
-                print(f"   • {field_name} (advanced)")
-
-    # Count advanced settings fields as part of the expanded form
-    adv_settings_count = len(getattr(advanced_settings_schema, "schema", {}))
-    print(
-        f"\n📊 Form now shows: {basic_fields_count} basic + {advanced_fields_count + adv_settings_count} advanced = {len(all_fields) + adv_settings_count} total fields"
-    )
-
-    # Step 4: User configures advanced options
-    print("\n👤 User configures advanced settings:")
-    user_choice_2 = {
-        "configure_fan": True,
-        "configure_humidity": False,
-        "configure_openings": True,
-        "configure_presets": True,
-        "configure_advanced": True,
-        # Advanced options
-        "precision": "0.1",
-        "target_temp": 22,
-        "min_temp": 18,
-        "max_temp": 30,
-        "initial_hvac_mode": "cool",
-    }
-
-    for choice, value in user_choice_2.items():
-        if choice.startswith("configure_"):
-            status = "✅ ENABLED" if value else "❌ DISABLED"
-            print(f"   • {choice}: {status}")
-        else:
-            print(f"   • {choice}: {value}")
-
-    # Validate final submission
-    # Instead of calling the voluptuous validator (which may insert defaults of
-    # unexpected types during testing), perform a lighter-weight validation:
-    allowed_keys = set(
-        k.schema if hasattr(k, "schema") else k
-        for k in getattr(advanced_settings_schema, "schema", {}).keys()
-    )
-    # Ensure the advanced fields we intend to simulate are present in the
-    # advanced settings schema (smoke-check rather than full validation).
-    for expected in ("precision", "target_temp", "min_temp", "max_temp"):
-        if expected in user_choice_2:
-            assert (
-                expected in allowed_keys
-            ), f"Expected advanced key '{expected}' in schema"
-
-    # initial_hvac_mode may be provided by options flow logic rather than the
-    # simplified advanced schema used here; warn but don't fail the smoke check.
-    if "initial_hvac_mode" in user_choice_2 and "initial_hvac_mode" not in allowed_keys:
-        print(
-            "⚠️ 'initial_hvac_mode' provided in test payload but not present in the simplified advanced schema; skipping strict check"
-        )
-
-    print("✅ Advanced settings keys are present in the advanced schema (smoke check)")
-
-    # Step 5: Demonstrate what happens if user doesn't want advanced options
+    # Step 3: Demonstrate simple configuration
     print("\n" + "─" * 50)
-    print("👤 Alternative: User doesn't want advanced options...")
+    print("👤 User with simple needs...")
 
     simple_choice = {
         "configure_fan": False,
         "configure_humidity": True,
         "configure_openings": False,
         "configure_presets": True,
-        "configure_advanced": False,  # 🔥 User stays with basic options
     }
 
     try:
@@ -210,11 +120,11 @@ def test_form_responsiveness():
 
 
 def test_feature_discoverability():
-    """Test how discoverable the advanced features are."""
-    print("\n🧪 Testing Feature Discoverability")
+    """Test that the advanced toggle has been removed."""
+    print("\n🧪 Testing Feature Discoverability (Advanced Removed)")
     print("=" * 50)
 
-    # Check if advanced toggle is present in basic form
+    # Verify that advanced toggle is no longer in the schema
     basic_schema = get_ac_only_features_schema()
 
     has_advanced_toggle = False
@@ -224,20 +134,11 @@ def test_feature_discoverability():
             break
 
     if has_advanced_toggle:
-        print("✅ Advanced toggle is discoverable in basic form")
-        print("💡 Users can easily find and enable advanced options")
-    else:
-        print("❌ Advanced toggle is not discoverable in basic form")
+        print("❌ Advanced toggle is still present - should have been removed")
         assert False
-
-    # Test that toggle defaults to False (not overwhelming)
-    test_defaults = basic_schema({})
-    if test_defaults.get("configure_advanced") is False:
-        print("✅ Advanced toggle defaults to OFF (not overwhelming)")
-        print("💡 Basic users see simple interface by default")
     else:
-        print("❌ Advanced toggle should default to OFF")
-        assert False
+        print("✅ Advanced toggle correctly removed from schema")
+        print("💡 Users now see only the 4 core features")
 
     assert True
 

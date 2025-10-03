@@ -311,41 +311,6 @@ async def test_preset_skip_logic():
     assert result["type"] == "create_entry"
 
 
-async def test_advanced_options_step():
-    """Test advanced options configuration step."""
-    flow = ConfigFlowHandler()
-    flow.hass = Mock()
-    flow.collected_config = {
-        "name": "Test Thermostat",
-        CONF_SYSTEM_TYPE: SYSTEM_TYPE_AC_ONLY,
-        "configure_advanced": True,
-    }
-
-    # Test advanced options form
-    result = await flow.async_step_advanced()
-    assert result["type"] == "form"
-    assert result["step_id"] == "advanced"
-
-    # Test advanced configuration
-    advanced_input = {
-        "precision": 0.1,
-        "target_temp": 22,
-        "min_temp": 15,
-        "max_temp": 30,
-        "initial_hvac_mode": "cool",
-        "target_temp_step": 1,
-    }
-
-    # Mock next step determination
-    with patch.object(flow, "_determine_next_step") as mock_next:
-        mock_next.return_value = {"type": "create_entry", "data": {}}
-        result = await flow.async_step_advanced(advanced_input)
-
-    # Advanced options should be stored in collected config
-    for key, value in advanced_input.items():
-        assert flow.collected_config[key] == value
-
-
 if __name__ == "__main__":
     """Run tests directly."""
     import asyncio
@@ -363,7 +328,6 @@ if __name__ == "__main__":
             ("Simple heater flow", test_simple_heater_config_flow()),
             ("Preset selection flow", test_preset_selection_flow()),
             ("Preset skip logic", test_preset_skip_logic()),
-            ("Advanced options step", test_advanced_options_step()),
         ]
 
         passed = 0

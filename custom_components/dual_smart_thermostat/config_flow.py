@@ -25,8 +25,6 @@ from .const import (
     CONF_SENSOR,
     CONF_SYSTEM_TYPE,
     DOMAIN,
-    SYSTEM_TYPE_DUAL_STAGE,
-    SYSTEM_TYPE_FLOOR_HEATING,
     SYSTEM_TYPE_HEAT_PUMP,
     SYSTEM_TYPE_SIMPLE_HEATER,
     SystemType,
@@ -41,7 +39,6 @@ from .feature_steps import (
 from .flow_utils import EntityValidator
 from .schemas import (
     get_additional_sensors_schema,
-    get_advanced_settings_schema,
     get_base_schema,
     get_basic_ac_schema,
     get_dual_stage_schema,
@@ -99,7 +96,6 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
                 "heat_pump": "Heat pump system with heating and cooling",
                 "dual_stage": "Two-stage heating with auxiliary heater",
                 "floor_heating": "Floor heating with temperature protection",
-                "advanced": "Configure all options manually",
             },
         )
 
@@ -203,21 +199,7 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
         system_type = self.collected_config.get(CONF_SYSTEM_TYPE)
 
         if user_input is not None:
-            # If user selects advanced, show the advanced form next
-            show_advanced = user_input.get("configure_advanced", False)
-
-            if show_advanced and "advanced_shown" not in self.collected_config:
-                self.collected_config.update(user_input)
-                self.collected_config["advanced_shown"] = True
-                return self.async_show_form(
-                    step_id="features",
-                    data_schema=get_advanced_settings_schema(),
-                    description_placeholders={
-                        "subtitle": "Configure advanced settings for your system"
-                    },
-                )
-
-            # Otherwise, store selections and proceed
+            # Store selections and proceed
             self.collected_config.update(user_input)
             # Clear toggles so they don't persist unexpectedly
             self.collected_config.pop("configure_advanced", None)
@@ -474,33 +456,6 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
             data_schema=get_additional_sensors_schema(),
         )
 
-    async def async_step_advanced(
-        self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
-        """Handle advanced settings."""
-        if user_input is not None:
-            self.collected_config.update(user_input)
-
-            # Handle advanced system type selection
-            advanced_system_type = user_input.get("advanced_system_type")
-            if advanced_system_type == SYSTEM_TYPE_DUAL_STAGE:
-                # Set system type and proceed to dual stage configuration
-                self.collected_config[CONF_SYSTEM_TYPE] = SYSTEM_TYPE_DUAL_STAGE
-                # Ensure dual stage configuration is shown
-                return await self.async_step_dual_stage()
-            elif advanced_system_type == SYSTEM_TYPE_FLOOR_HEATING:
-                # Set system type and proceed to floor heating configuration
-                self.collected_config[CONF_SYSTEM_TYPE] = SYSTEM_TYPE_FLOOR_HEATING
-                # Ensure floor heating configuration is shown
-                return await self.async_step_floor_heating()
-
-            return await self._determine_next_step()
-
-        return self.async_show_form(
-            step_id="advanced",
-            data_schema=get_advanced_settings_schema(),
-        )
-
     async def async_step_preset_selection(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
@@ -628,28 +583,6 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
         ):
             return await self.async_step_humidity()
 
-        # For advanced setup, show all feature configurations based on dependencies
-        if system_type == "advanced":
-            # Show fan config if not shown yet
-            if self._should_show_fan_config():
-                self.collected_config["fan_config_shown"] = True
-                return await self.async_step_fan()
-
-            # Show humidity config if not shown yet
-            if self._should_show_humidity_config():
-                self.collected_config["humidity_config_shown"] = True
-                return await self.async_step_humidity()
-
-            # Show additional sensors if not shown yet
-            if self._should_show_additional_sensors():
-                self.collected_config["additional_sensors_shown"] = True
-                return await self.async_step_additional_sensors()
-
-            # Show advanced config if not shown yet
-            if self._should_show_advanced_config():
-                self.collected_config["advanced_config_shown"] = True
-                return await self.async_step_advanced()
-
         # For specific system types, show relevant additional configs
         if (
             system_type == SystemType.DUAL_STAGE
@@ -692,34 +625,6 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
         has_ac_mode = bool(self.collected_config.get(CONF_AC_MODE))
 
         return has_heater and (has_cooler or has_heat_pump or has_ac_mode)
-
-    def _should_show_fan_config(self) -> bool:
-        """Check if fan configuration should be shown."""
-        return (
-            "fan_config_shown" not in self.collected_config
-            and self.collected_config.get("system_type") == "advanced"
-        )
-
-    def _should_show_humidity_config(self) -> bool:
-        """Check if humidity configuration should be shown."""
-        return (
-            "humidity_config_shown" not in self.collected_config
-            and self.collected_config.get("system_type") == "advanced"
-        )
-
-    def _should_show_additional_sensors(self) -> bool:
-        """Check if additional sensors configuration should be shown."""
-        return (
-            "additional_sensors_shown" not in self.collected_config
-            and self.collected_config.get(CONF_SYSTEM_TYPE) == "advanced"
-        )
-
-    def _should_show_advanced_config(self) -> bool:
-        """Check if advanced configuration should be shown."""
-        return (
-            "advanced_config_shown" not in self.collected_config
-            and self.collected_config.get(CONF_SYSTEM_TYPE) == "advanced"
-        )
 
     @callback
     def async_config_entry_title(self, options: Mapping[str, Any]) -> str:

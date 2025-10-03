@@ -7,16 +7,14 @@
           "configure_humidity": "Konfigurácia vlhkosti",
           "configure_openings": "Konfigurácia senzorov okien/dverí",
           "configure_presets": "Konfigurácia predvolieb teploty",
-          "configure_floor_heating": "Konfigurácia ochrany podlahového kúrenia",
-          "configure_advanced": "Konfigurácia pokročilých nastavení"
+          "configure_floor_heating": "Konfigurácia ochrany podlahového kúrenia"
         },
         "data_description": {
           "configure_fan": "Povoliť konfiguráciu nastavení ventilátora. Umožňuje nastaviť samostatnú entitu ventilátora pre cirkuláciu vzduchu.",
           "configure_humidity": "Povoliť konfiguráciu monitorovania a kontroly vlhkosti. Umožňuje nastaviť senzory vlhkosti a prevádzku sušiaceho režimu.",
           "configure_openings": "Povoliť konfiguráciu senzorov okien a dverí, aby termostat mohl pozastaviť prevádzku pri zistení otvorených otvorov.",
           "configure_presets": "Povoliť konfiguráciu predvolieb teploty ako Preč, Komfort a Eko pre rýchle zmeny režimu.",
-          "configure_floor_heating": "Povoliť konfiguráciu ochrany teploty podlahy. Po povolení môžete nastaviť podlahový senzor a min/max limity na ochranu podlahy.",
-          "configure_advanced": "Zobraziť pokročilé možnosti konfigurácie ako keep-alive intervaly, presnosť teploty a predvolené režimy pre pokročilých používateľov."
+          "configure_floor_heating": "Povoliť konfiguráciu ochrany teploty podlahy. Po povolení môžete nastaviť podlahový senzor a min/max limity na ochranu podlahy."
         }
       }
     }

@@ -454,15 +454,14 @@ def get_features_schema(
 
     # Define feature availability by system type
     system_features = {
-        SystemType.AC_ONLY: ["fan", "humidity", "openings", "presets", "advanced"],
-        SystemType.SIMPLE_HEATER: ["floor_heating", "openings", "presets", "advanced"],
+        SystemType.AC_ONLY: ["fan", "humidity", "openings", "presets"],
+        SystemType.SIMPLE_HEATER: ["floor_heating", "openings", "presets"],
         SystemType.HEATER_COOLER: [
             "floor_heating",
             "fan",
             "humidity",
             "openings",
             "presets",
-            "advanced",
         ],
         SystemType.HEAT_PUMP: [
             "floor_heating",
@@ -470,15 +469,12 @@ def get_features_schema(
             "humidity",
             "openings",
             "presets",
-            "advanced",
         ],
-        SystemType.DUAL_STAGE: ["floor_heating", "openings", "presets", "advanced"],
+        SystemType.DUAL_STAGE: ["floor_heating", "openings", "presets"],
     }
 
     # Get available features for this system type
-    available_features = system_features.get(
-        system_type, ["openings", "presets", "advanced"]
-    )
+    available_features = system_features.get(system_type, ["openings", "presets"])
 
     # Define feature order for consistent UI
     feature_order = [
@@ -487,7 +483,6 @@ def get_features_schema(
         "humidity",
         "openings",
         "presets",
-        "advanced",
     ]
 
     # Add features in defined order if they're available for this system
