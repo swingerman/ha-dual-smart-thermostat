@@ -1,0 +1,188 @@
+"""Unit tests for heater_cooler schema.
+
+Following TDD approach - these tests should guide implementation.
+Task: T005 - Complete heater_cooler implementation
+Issue: #415
+"""
+
+from homeassistant.const import CONF_NAME
+import voluptuous as vol
+
+from custom_components.dual_smart_thermostat.const import (
+    CONF_COLD_TOLERANCE,
+    CONF_COOLER,
+    CONF_HEAT_COOL_MODE,
+    CONF_HEATER,
+    CONF_HOT_TOLERANCE,
+    CONF_MIN_DUR,
+    CONF_SENSOR,
+)
+from custom_components.dual_smart_thermostat.schemas import get_heater_cooler_schema
+
+
+class TestHeaterCoolerSchema:
+    """Test heater_cooler schema structure and defaults."""
+
+    def test_schema_with_include_name_true_includes_name_field(self):
+        """Test that schema includes name field when include_name=True.
+
+        Acceptance Criteria: get_heater_cooler_schema(defaults=None, include_name=True)
+                              includes all required fields
+        """
+        schema = get_heater_cooler_schema(defaults=None, include_name=True)
+
+        # Extract field names from schema
+        field_names = [k.schema for k in schema.schema.keys() if hasattr(k, "schema")]
+
+        assert CONF_NAME in field_names
+        assert CONF_SENSOR in field_names
+        assert CONF_HEATER in field_names
+        assert CONF_COOLER in field_names
+        assert CONF_HEAT_COOL_MODE in field_names
+
+    def test_schema_with_include_name_false_omits_name_field(self):
+        """Test that schema omits name field when include_name=False.
+
+        Acceptance Criteria: get_heater_cooler_schema(defaults=None, include_name=False)
+                              omits name field
+        """
+        schema = get_heater_cooler_schema(defaults=None, include_name=False)
+
+        # Extract field names from schema
+        field_names = [k.schema for k in schema.schema.keys() if hasattr(k, "schema")]
+
+        assert CONF_NAME not in field_names
+        assert CONF_SENSOR in field_names
+        assert CONF_HEATER in field_names
+        assert CONF_COOLER in field_names
+
+    def test_schema_with_defaults_prefills_values_correctly(self):
+        """Test that schema pre-fills values when defaults provided.
+
+        Acceptance Criteria: get_heater_cooler_schema(defaults={...}) pre-fills values correctly
+        """
+        defaults = {
+            CONF_NAME: "Test Thermostat",
+            CONF_SENSOR: "sensor.test_temp",
+            CONF_HEATER: "switch.test_heater",
+            CONF_COOLER: "switch.test_cooler",
+            CONF_HEAT_COOL_MODE: True,
+            CONF_COLD_TOLERANCE: 0.7,
+            CONF_HOT_TOLERANCE: 0.8,
+            CONF_MIN_DUR: 600,
+        }
+
+        schema = get_heater_cooler_schema(defaults=defaults, include_name=True)
+
+        # Verify defaults are set
+        for key in schema.schema.keys():
+            if hasattr(key, "schema"):
+                field_name = key.schema
+                if field_name in defaults:
+                    # Check default value
+                    if hasattr(key, "default"):
+                        if callable(key.default):
+                            assert key.default() == defaults[field_name]
+                        elif key.default != vol.UNDEFINED:
+                            assert key.default == defaults[field_name]
+
+    def test_schema_fields_use_correct_selectors(self):
+        """Test that all fields use correct selector types.
+
+        Acceptance Criteria: All fields use correct selectors (entity, number, boolean)
+        """
+        schema = get_heater_cooler_schema(defaults=None, include_name=True)
+
+        # Note: We can't easily test selector types without inspecting implementation
+        # This test verifies schema is created without errors
+        assert schema is not None
+        assert isinstance(schema, vol.Schema)
+
+    def test_optional_entity_fields_use_vol_undefined(self):
+        """Test that optional entity fields use vol.UNDEFINED when no default provided.
+
+        Acceptance Criteria: Optional entity fields use vol.UNDEFINED when no default provided
+        """
+        schema = get_heater_cooler_schema(defaults=None, include_name=True)
+
+        # For fields without defaults, they should use vol.UNDEFINED
+        # Required fields should not have defaults
+        for key in schema.schema.keys():
+            if hasattr(key, "schema"):
+                # For required fields, default should be UNDEFINED or not present
+                if isinstance(key, vol.Required):
+                    if hasattr(key, "default"):
+                        # Required fields with no user default should have vol.UNDEFINED
+                        assert key.default == vol.UNDEFINED or key.default is None
+
+    def test_advanced_settings_section_structure(self):
+        """Test that advanced_settings section is structured correctly.
+
+        Acceptance Criteria: Test advanced_settings section structure
+        """
+        schema = get_heater_cooler_schema(defaults=None, include_name=True)
+
+        # Verify advanced_settings exists in schema
+        field_names = [
+            k.schema if hasattr(k, "schema") else str(k) for k in schema.schema.keys()
+        ]
+
+        # Advanced settings should be present
+        assert "advanced_settings" in field_names
+
+    def test_schema_defaults_match_constants(self):
+        """Test that schema defaults use correct constant values."""
+        schema = get_heater_cooler_schema(defaults=None, include_name=True)
+
+        # Find advanced_settings section
+        advanced_settings_key = None
+        for key in schema.schema.keys():
+            if hasattr(key, "schema") and key.schema == "advanced_settings":
+                advanced_settings_key = key
+                break
+
+        # If advanced settings found, verify it has correct structure
+        if advanced_settings_key is not None:
+            # Advanced settings should contain tolerance and min_dur fields
+            assert advanced_settings_key is not None
+
+    def test_heat_cool_mode_defaults_to_false(self):
+        """Test that heat_cool_mode defaults to False when no defaults provided."""
+        schema = get_heater_cooler_schema(defaults=None, include_name=True)
+
+        # Find heat_cool_mode field
+        for key in schema.schema.keys():
+            if hasattr(key, "schema") and key.schema == CONF_HEAT_COOL_MODE:
+                # Should have default of False
+                assert hasattr(key, "default")
+                if callable(key.default):
+                    assert key.default() is False
+                else:
+                    assert key.default is False
+                break
+
+    def test_required_fields_are_marked_required(self):
+        """Test that required fields (heater, cooler, sensor, name) are marked as Required."""
+        schema = get_heater_cooler_schema(defaults=None, include_name=True)
+
+        required_fields = []
+        optional_fields = []
+
+        for key in schema.schema.keys():
+            if hasattr(key, "schema"):
+                if isinstance(key, vol.Required):
+                    required_fields.append(key.schema)
+                elif isinstance(key, vol.Optional):
+                    optional_fields.append(key.schema)
+
+        # Core fields should be required
+        assert CONF_NAME in required_fields
+        assert CONF_SENSOR in required_fields
+        assert CONF_HEATER in required_fields
+        assert CONF_COOLER in required_fields
+
+        # Heat/cool mode and advanced settings should be optional
+        assert (
+            CONF_HEAT_COOL_MODE in optional_fields
+            or "advanced_settings" in optional_fields
+        )

@@ -27,6 +27,7 @@ from .const import (
     CONF_DRYER,
     CONF_FAN,
     CONF_FAN_AIR_OUTSIDE,
+    CONF_FAN_HOT_TOLERANCE,
     CONF_FAN_HOT_TOLERANCE_TOGGLE,
     CONF_FAN_MODE,
     CONF_FAN_ON_WITH_AC,
@@ -661,35 +662,85 @@ def get_openings_schema(selected_entities: list[str]):
     return vol.Schema(schema_dict)
 
 
-def get_fan_schema():
-    """Get fan configuration schema."""
+def get_fan_schema(defaults: dict[str, Any] | None = None):
+    """Get fan configuration schema.
+
+    Args:
+        defaults: Optional defaults dict to pre-populate selectors (used by options flow)
+
+    Returns:
+        Schema with fan configuration fields
+    """
+    defaults = defaults or {}
+
+    _LOGGER.debug(
+        "get_fan_schema called with defaults: fan=%s, fan_mode=%s, fan_on_with_ac=%s, fan_air_outside=%s",
+        defaults.get(CONF_FAN),
+        defaults.get(CONF_FAN_MODE),
+        defaults.get(CONF_FAN_ON_WITH_AC),
+        defaults.get(CONF_FAN_AIR_OUTSIDE),
+    )
+
     return vol.Schema(
         {
-            vol.Required(CONF_FAN): get_entity_selector(SWITCH_DOMAIN),
-            vol.Optional(CONF_FAN_ON_WITH_AC, default=True): get_boolean_selector(),
-            vol.Optional(CONF_FAN_AIR_OUTSIDE, default=False): get_boolean_selector(),
+            vol.Required(CONF_FAN, default=defaults.get(CONF_FAN)): get_entity_selector(
+                SWITCH_DOMAIN
+            ),
             vol.Optional(
-                CONF_FAN_HOT_TOLERANCE_TOGGLE, default=False
+                CONF_FAN_MODE, default=defaults.get(CONF_FAN_MODE, False)
             ): get_boolean_selector(),
+            vol.Optional(
+                CONF_FAN_ON_WITH_AC, default=defaults.get(CONF_FAN_ON_WITH_AC, True)
+            ): get_boolean_selector(),
+            vol.Optional(
+                CONF_FAN_AIR_OUTSIDE, default=defaults.get(CONF_FAN_AIR_OUTSIDE, False)
+            ): get_boolean_selector(),
+            vol.Optional(
+                CONF_FAN_HOT_TOLERANCE,
+                default=defaults.get(CONF_FAN_HOT_TOLERANCE, 0.5),
+            ): get_temperature_selector(min_value=0.0, max_value=10.0, step=0.1),
+            vol.Optional(
+                CONF_FAN_HOT_TOLERANCE_TOGGLE,
+                default=defaults.get(CONF_FAN_HOT_TOLERANCE_TOGGLE, vol.UNDEFINED),
+            ): get_entity_selector([INPUT_BOOLEAN_DOMAIN, BINARY_SENSOR_DOMAIN]),
         }
     )
 
 
-def get_humidity_schema():
-    """Get humidity configuration schema."""
+def get_humidity_schema(defaults: dict[str, Any] | None = None):
+    """Get humidity configuration schema.
+
+    Args:
+        defaults: Optional defaults dict to pre-populate selectors (used by options flow)
+
+    Returns:
+        Schema with humidity configuration fields
+    """
+    defaults = defaults or {}
+
     return vol.Schema(
         {
-            vol.Required(CONF_HUMIDITY_SENSOR): get_entity_selector(SENSOR_DOMAIN),
-            vol.Optional(CONF_DRYER): get_entity_selector(SWITCH_DOMAIN),
-            vol.Optional(CONF_TARGET_HUMIDITY, default=50): get_percentage_selector(),
-            vol.Optional(CONF_DRY_TOLERANCE, default=3): get_percentage_selector(
-                max_value=20
-            ),
-            vol.Optional(CONF_MOIST_TOLERANCE, default=3): get_percentage_selector(
-                max_value=20
-            ),
-            vol.Optional(CONF_MIN_HUMIDITY, default=30): get_percentage_selector(),
-            vol.Optional(CONF_MAX_HUMIDITY, default=99): get_percentage_selector(),
+            vol.Required(
+                CONF_HUMIDITY_SENSOR, default=defaults.get(CONF_HUMIDITY_SENSOR)
+            ): get_entity_selector(SENSOR_DOMAIN),
+            vol.Optional(
+                CONF_DRYER, default=defaults.get(CONF_DRYER)
+            ): get_entity_selector(SWITCH_DOMAIN),
+            vol.Optional(
+                CONF_TARGET_HUMIDITY, default=defaults.get(CONF_TARGET_HUMIDITY, 50)
+            ): get_percentage_selector(),
+            vol.Optional(
+                CONF_DRY_TOLERANCE, default=defaults.get(CONF_DRY_TOLERANCE, 3)
+            ): get_percentage_selector(max_value=20),
+            vol.Optional(
+                CONF_MOIST_TOLERANCE, default=defaults.get(CONF_MOIST_TOLERANCE, 3)
+            ): get_percentage_selector(max_value=20),
+            vol.Optional(
+                CONF_MIN_HUMIDITY, default=defaults.get(CONF_MIN_HUMIDITY, 30)
+            ): get_percentage_selector(),
+            vol.Optional(
+                CONF_MAX_HUMIDITY, default=defaults.get(CONF_MAX_HUMIDITY, 99)
+            ): get_percentage_selector(),
         }
     )
 

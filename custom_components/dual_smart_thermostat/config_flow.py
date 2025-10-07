@@ -78,6 +78,28 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
         self.presets_steps = PresetsSteps()
         self.floor_steps = FloorSteps()
 
+    def _clean_config_for_storage(self, config: dict[str, Any]) -> dict[str, Any]:
+        """Remove transient flow state flags before saving to config entry.
+
+        These flags control flow navigation and should not be persisted.
+        """
+        excluded_flags = {
+            "dual_stage_options_shown",
+            "floor_options_shown",
+            "features_shown",
+            "fan_options_shown",
+            "humidity_options_shown",
+            "openings_options_shown",
+            "presets_shown",
+            "configure_openings",
+            "configure_presets",
+            "configure_fan",
+            "configure_humidity",
+            "configure_floor_heating",
+            "system_type_changed",
+        }
+        return {k: v for k, v in config.items() if k not in excluded_flags}
+
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
@@ -245,7 +267,7 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
                 return await self._determine_next_step()
 
         # Use dedicated heater+cooler schema with advanced settings in collapsible section
-        schema = get_heater_cooler_schema()
+        schema = get_heater_cooler_schema(defaults=None, include_name=True)
 
         return self.async_show_form(
             step_id="heater_cooler",
@@ -487,7 +509,7 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
             # No presets enabled, skip configuration and finish
             return self.async_create_entry(
                 title=self.collected_config[CONF_NAME],
-                data=self.collected_config,
+                data=self._clean_config_for_storage(self.collected_config),
             )
 
         return self.async_show_form(
@@ -614,7 +636,7 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
             # Skip presets and finish configuration
             return self.async_create_entry(
                 title=self.async_config_entry_title(self.collected_config),
-                data=self.collected_config,
+                data=self._clean_config_for_storage(self.collected_config),
             )
 
     def _has_both_heating_and_cooling(self) -> bool:

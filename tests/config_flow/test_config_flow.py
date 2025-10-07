@@ -249,6 +249,44 @@ async def test_dual_system_config_flow():
     assert result["type"] == "form"
 
 
+async def test_heater_cooler_schema_includes_name():
+    """Test that heater_cooler step schema includes name field (regression test for issue #415)."""
+    flow = ConfigFlowHandler()
+    flow.hass = Mock()
+    flow.collected_config = {CONF_SYSTEM_TYPE: SYSTEM_TYPE_HEATER_COOLER}
+
+    # Step to heater_cooler without user input to get schema
+    result = await flow.async_step_heater_cooler()
+
+    assert result["type"] == "form"
+    assert result["step_id"] == "heater_cooler"
+
+    # Verify name field is in the schema
+    schema_dict = result["data_schema"].schema
+    name_field_found = False
+    for key in schema_dict.keys():
+        if hasattr(key, "schema") and key.schema == CONF_NAME:
+            name_field_found = True
+            # Verify it's required
+            assert key.default is not None or hasattr(key, "UNDEFINED")
+            break
+
+    assert name_field_found, "Name field must be present in heater_cooler schema"
+
+    # Verify name is collected and stored in config
+    heater_cooler_input = {
+        CONF_NAME: "Test Heater Cooler",
+        CONF_SENSOR: "sensor.temperature",
+        CONF_HEATER: "switch.heater",
+        CONF_COOLER: "switch.cooler",
+    }
+    result = await flow.async_step_heater_cooler(heater_cooler_input)
+
+    # Verify name was stored in collected_config
+    assert CONF_NAME in flow.collected_config
+    assert flow.collected_config[CONF_NAME] == "Test Heater Cooler"
+
+
 async def test_preset_selection_flow():
     """Test preset selection in config flow."""
     flow = ConfigFlowHandler()

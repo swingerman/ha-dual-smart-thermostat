@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from homeassistant.config_entries import OptionsFlow
@@ -18,6 +19,7 @@ from .const import (  # CONF_MIN_DUR and CONF_SENSOR are not used in this module
     CONF_COLD_TOLERANCE,
     CONF_COOLER,
     CONF_FAN,
+    CONF_FLOOR_SENSOR,
     CONF_HEAT_COOL_MODE,
     CONF_HEAT_PUMP_COOLING,
     CONF_HEATER,
@@ -58,6 +60,8 @@ from .schemas import (
     get_simple_heater_schema,
 )
 
+_LOGGER = logging.getLogger(__name__)
+
 
 class OptionsFlowHandler(OptionsFlow):
     """Handle options flow for Dual Smart Thermostat."""
@@ -81,11 +85,63 @@ class OptionsFlowHandler(OptionsFlow):
         self.presets_steps = PresetsSteps()
         self.floor_steps = FloorSteps()
 
+    @staticmethod
+    def _get_excluded_flags() -> set[str]:
+        """Get set of transient flags that should not be persisted.
+
+        These flags control flow navigation and should be excluded when
+        copying config between sessions.
+        """
+        return {
+            "dual_stage_options_shown",
+            "floor_options_shown",
+            "features_shown",
+            "fan_options_shown",
+            "humidity_options_shown",
+            "openings_options_shown",
+            "presets_shown",
+            "configure_openings",
+            "configure_presets",
+            "configure_fan",
+            "configure_humidity",
+            "configure_floor_heating",
+            "system_type_changed",
+        }
+
+    def _get_current_config(self) -> dict[str, Any]:
+        """Get current configuration merging data and options.
+
+        Home Assistant OptionsFlow saves to entry.options, not entry.data.
+        This method merges both, with options taking precedence.
+        """
+        entry = self._get_entry()
+        # entry.options might be empty dict or not exist (in tests)
+        options = getattr(entry, "options", {}) or {}
+        # entry.data is a mappingproxy in real HA, dict or Mock in tests
+        # Convert to dict for merging - check if it's dict-like first
+        try:
+            data = dict(entry.data) if entry.data else {}
+        except (TypeError, AttributeError):
+            data = entry.data if isinstance(entry.data, dict) else {}
+        try:
+            options = dict(options) if options else {}
+        except (TypeError, AttributeError):
+            options = options if isinstance(options, dict) else {}
+        return {**data, **options}
+
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         """First options step: allow changing (or keeping) the system type."""
-        current_config = self._get_entry().data
+        current_config = self._get_current_config()
+
+        _LOGGER.debug(
+            "Options flow INIT - Config entry data at start: fan=%s, fan_mode=%s, fan_on_with_ac=%s",
+            current_config.get("fan"),
+            current_config.get("fan_mode"),
+            current_config.get("fan_on_with_ac"),
+        )
+
         current_system_type = current_config.get(
             CONF_SYSTEM_TYPE, SYSTEM_TYPE_SIMPLE_HEATER
         )
@@ -93,7 +149,14 @@ class OptionsFlowHandler(OptionsFlow):
         if user_input is not None:
             # If user changed system type, store override in collected_config
             selected_type = user_input.get(CONF_SYSTEM_TYPE, current_system_type)
-            self.collected_config = dict(current_config)
+
+            # Copy current_config but exclude transient flow state flags
+            # These flags control flow navigation and should not be persisted
+            excluded_flags = self._get_excluded_flags()
+            self.collected_config = {
+                k: v for k, v in current_config.items() if k not in excluded_flags
+            }
+
             if selected_type != current_system_type:
                 self.collected_config[CONF_SYSTEM_TYPE] = selected_type
                 self.collected_config["system_type_changed"] = True
@@ -162,10 +225,22 @@ class OptionsFlowHandler(OptionsFlow):
                 if advanced_settings:
                     user_input.update(advanced_settings)
 
+            # Preserve unmodified fields: merge current config into collected_config first
+            # This ensures fields not in user_input are preserved
+            current_config = self._get_current_config()
+            # Define flags that should NOT be copied from current_config
+            # These are transient state flags that control flow navigation
+            excluded_flags = self._get_excluded_flags()
+            # Only add fields from current_config that aren't already in collected_config
+            # and aren't excluded flags
+            for key, value in current_config.items():
+                if key not in self.collected_config and key not in excluded_flags:
+                    self.collected_config[key] = value
+
             # Merge edits with any previously stored overrides
             effective_system_type = self.collected_config.get(
                 CONF_SYSTEM_TYPE,
-                self._get_entry().data.get(CONF_SYSTEM_TYPE, SYSTEM_TYPE_SIMPLE_HEATER),
+                current_config.get(CONF_SYSTEM_TYPE, SYSTEM_TYPE_SIMPLE_HEATER),
             )
             if effective_system_type == SYSTEM_TYPE_AC_ONLY:
                 # Enforce AC mode True and discard cooler/heat pump cooling in AC-only
@@ -175,11 +250,22 @@ class OptionsFlowHandler(OptionsFlow):
             self.collected_config.update(user_input)
             return await self._determine_options_next_step()
 
-        current_config = self._get_entry().data
+        current_config = self._get_current_config()
         # If system type was changed in first step use override for defaults logic if needed later
         effective_system_type = self.collected_config.get(
             CONF_SYSTEM_TYPE,
             current_config.get(CONF_SYSTEM_TYPE, SYSTEM_TYPE_SIMPLE_HEATER),
+        )
+
+        _LOGGER.debug(
+            "Options flow BASIC - collected_config system_type=%s, current_config system_type=%s, effective=%s",
+            self.collected_config.get(CONF_SYSTEM_TYPE),
+            current_config.get(CONF_SYSTEM_TYPE),
+            effective_system_type,
+        )
+        _LOGGER.debug(
+            "Options flow BASIC - collected_config keys: %s",
+            list(self.collected_config.keys()),
         )
 
         # Build a shared basic schema used by both config and options flows.
@@ -216,7 +302,7 @@ class OptionsFlowHandler(OptionsFlow):
         2. Presets steps must be the absolute final steps (depend on all other settings)
         3. Feature configuration must be ordered based on dependencies
         """
-        current_config = self._get_entry().data
+        current_config = self._get_current_config()
         # If user changed system type earlier, use override; else original persisted
         original_system_type = self.collected_config.get(
             CONF_SYSTEM_TYPE,
@@ -295,12 +381,54 @@ class OptionsFlowHandler(OptionsFlow):
         # Final step - update the config entry
         # Merge collected config with existing entry data to preserve all fields
         entry = self._get_entry()
-        updated_data = {**entry.data, **self.collected_config}
 
-        return self.async_create_entry(
+        # DEBUG: Log fan-related settings before and after merge
+        _LOGGER.debug(
+            "Options flow completion - entry.data fan settings: fan=%s, fan_mode=%s, fan_on_with_ac=%s",
+            entry.data.get("fan"),
+            entry.data.get("fan_mode"),
+            entry.data.get("fan_on_with_ac"),
+        )
+        _LOGGER.debug(
+            "Options flow completion - collected_config fan settings: fan=%s, fan_mode=%s, fan_on_with_ac=%s",
+            self.collected_config.get("fan"),
+            self.collected_config.get("fan_mode"),
+            self.collected_config.get("fan_on_with_ac"),
+        )
+
+        # Clean transient flags before saving
+        excluded_flags = self._get_excluded_flags()
+        cleaned_collected_config = {
+            k: v for k, v in self.collected_config.items() if k not in excluded_flags
+        }
+        updated_data = {**entry.data, **cleaned_collected_config}
+
+        _LOGGER.debug(
+            "Options flow completion - updated_data fan settings: fan=%s, fan_mode=%s, fan_on_with_ac=%s",
+            updated_data.get("fan"),
+            updated_data.get("fan_mode"),
+            updated_data.get("fan_on_with_ac"),
+        )
+
+        _LOGGER.debug(
+            "Options flow - Calling async_create_entry with %d keys in data",
+            len(updated_data),
+        )
+        _LOGGER.debug(
+            "Options flow - Sample of data being saved: fan=%s, fan_mode=%s, fan_on_with_ac=%s, name=%s",
+            updated_data.get("fan"),
+            updated_data.get("fan_mode"),
+            updated_data.get("fan_on_with_ac"),
+            updated_data.get("name"),
+        )
+
+        result = self.async_create_entry(
             title="",  # Empty title for options flow
             data=updated_data,
         )
+
+        _LOGGER.debug("Options flow - async_create_entry returned: %s", result)
+        return result
 
     async def async_step_dual_stage_options(
         self, user_input: dict[str, Any] | None = None
@@ -310,7 +438,7 @@ class OptionsFlowHandler(OptionsFlow):
             self.collected_config.update(user_input)
             return await self._determine_options_next_step()
 
-        current_config = self._get_entry().data
+        current_config = self._get_current_config()
         schema_dict: dict[Any, Any] = {}
 
         # Always show auxiliary heater option
@@ -345,12 +473,13 @@ class OptionsFlowHandler(OptionsFlow):
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         """Delegate floor heating options to shared FloorSteps handler."""
+        current_config = self._get_current_config()
         return await self.floor_steps.async_step_options(
             self,
             user_input,
             self.collected_config,
             self._determine_options_next_step,
-            self._get_entry().data,
+            current_config,
         )
 
     async def async_step_fan_toggle(
@@ -393,24 +522,41 @@ class OptionsFlowHandler(OptionsFlow):
             self.collected_config.update(user_input)
             return await self._determine_options_next_step()
 
-        current_config = self._get_entry().data
+        current_config = self._get_current_config()
         system_type = current_config.get(CONF_SYSTEM_TYPE)
+
+        # Determine which feature toggles should be pre-checked based on
+        # whether those features are already configured
+        feature_defaults = {}
+
+        # Fan: check if fan entity is configured
+        if current_config.get(CONF_FAN):
+            feature_defaults["configure_fan"] = True
+
+        # Humidity: check if humidity sensor is configured
+        if current_config.get(CONF_HUMIDITY_SENSOR):
+            feature_defaults["configure_humidity"] = True
+
+        # Floor heating: check if floor sensor is configured
+        if current_config.get(CONF_FLOOR_SENSOR):
+            feature_defaults["configure_floor_heating"] = True
+
+        # Openings: check if openings list exists and is not empty
+        if current_config.get("openings"):
+            feature_defaults["configure_openings"] = True
+
+        # Presets: check if any presets are configured
+        # Presets are stored with keys like "away", "home", etc.
+        preset_keys = ["away", "home", "sleep", "activity", "comfort", "eco", "boost"]
+        if any(current_config.get(preset_key) for preset_key in preset_keys):
+            feature_defaults["configure_presets"] = True
 
         return self.async_show_form(
             step_id="features",
             data_schema=get_features_schema(
                 system_type,
                 {
-                    # Prefer any explicit collected overrides, otherwise use
-                    # the persisted entry data to infer which feature toggles
-                    # should be pre-checked based on what the user had
-                    # previously enabled. For example, if the user had
-                    # configure_openings=True before, pre-check it again.
-                    **{
-                        k: bool(v)
-                        for k, v in current_config.items()
-                        if k.startswith("configure_")
-                    },
+                    **feature_defaults,
                     **self.collected_config,
                 },
             ),
@@ -423,24 +569,27 @@ class OptionsFlowHandler(OptionsFlow):
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         """Handle fan options."""
+        # Use merged config to get latest values (from both .data, .options, and current session)
+        current_config = {**self._get_current_config(), **self.collected_config}
         return await self.fan_steps.async_step_options(
             self,
             user_input,
             self.collected_config,
             self._determine_options_next_step,
-            self._get_entry().data,
+            current_config,
         )
 
     async def async_step_humidity_options(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         """Handle humidity options."""
+        current_config = self._get_current_config()
         return await self.humidity_steps.async_step_options(
             self,
             user_input,
             self.collected_config,
             self._determine_options_next_step,
-            self._get_entry().data,
+            current_config,
         )
 
     async def async_step_advanced_options(
@@ -450,7 +599,7 @@ class OptionsFlowHandler(OptionsFlow):
         if user_input is not None:
             self.collected_config.update(user_input)
             return await self._determine_options_next_step()
-        current_config = self._get_entry().data
+        current_config = self._get_current_config()
         effective_system_type = self.collected_config.get(
             CONF_SYSTEM_TYPE,
             current_config.get(CONF_SYSTEM_TYPE, SYSTEM_TYPE_SIMPLE_HEATER),
@@ -643,19 +792,19 @@ class OptionsFlowHandler(OptionsFlow):
     def _has_both_heating_and_cooling(self) -> bool:
         """Check if system has both heating and cooling capability in options flow."""
         # Prefer collected overrides, fall back to stored entry
-        entry = self._get_entry().data
+        current_config = self._get_current_config()
         has_heater = bool(
-            self.collected_config.get(CONF_HEATER) or entry.get(CONF_HEATER)
+            self.collected_config.get(CONF_HEATER) or current_config.get(CONF_HEATER)
         )
         has_cooler = bool(
-            self.collected_config.get(CONF_COOLER) or entry.get(CONF_COOLER)
+            self.collected_config.get(CONF_COOLER) or current_config.get(CONF_COOLER)
         )
         has_heat_pump = bool(
             self.collected_config.get(CONF_HEAT_PUMP_COOLING)
-            or entry.get(CONF_HEAT_PUMP_COOLING)
+            or current_config.get(CONF_HEAT_PUMP_COOLING)
         )
         has_ac_mode = bool(
-            self.collected_config.get(CONF_AC_MODE) or entry.get(CONF_AC_MODE)
+            self.collected_config.get(CONF_AC_MODE) or current_config.get(CONF_AC_MODE)
         )
 
         return has_heater and (has_cooler or has_heat_pump or has_ac_mode)

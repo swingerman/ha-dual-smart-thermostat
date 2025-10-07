@@ -585,8 +585,11 @@ climate:
   #   precision: 0.1
 
 logger:
-  default: error
+  default: info
   logs:
     custom_components.dual_smart_thermostat: debug
+    custom_components.dual_smart_thermostat.feature_steps.fan: debug
+    custom_components.dual_smart_thermostat.schemas: debug
+    custom_components.dual_smart_thermostat.options_flow: debug
 
 # debugpy:
