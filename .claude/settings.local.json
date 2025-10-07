@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git commit -m \"$(cat <<''EOF''\nFix critical options flow persistence bug and add E2E tests\n\n- Fix options flow not persisting changes (was only reading entry.data, not entry.options)\n- Add _get_current_config() to merge data+options with mappingproxy handling\n- Strip transient flags from storage with _clean_config_for_storage()\n- Fix feature toggles to check actual config state instead of transient flags\n- Add E2E persistence tests for heater_cooler, simple_heater, ac_only system types\n\nTests: 78 passing (4 new E2E tests)\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

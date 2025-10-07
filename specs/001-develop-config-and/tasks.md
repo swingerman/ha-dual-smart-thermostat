@@ -7,7 +7,88 @@ Guidance for reviewers:
 - All code tasks follow TDD: create failing tests first, implement changes, then make tests pass.
 - Keep PRs small and focused; prefer single responsibility per PR.
 
-Summary: ✅ E2E scaffold (T001), config flow tests (T002), and complete E2E implementation (T003) COMPLETED with comprehensive implementation insights documented. **T003 ACHIEVED BEYOND ORIGINAL SCOPE**: Full E2E coverage for both system types (config + options flows) with CI integration. Current priority: Remove Advanced option (T004), expand Python unit tests for climate entity validation (T007 - ELEVATED PRIORITY), complete heater_cooler/heat_pump with Python-first approach (T005-T006), then polish & release (T012).
+Summary: ✅ E2E scaffold (T001), config flow tests (T002), and complete E2E implementation (T003) COMPLETED with comprehensive implementation insights documented. **T003 ACHIEVED BEYOND ORIGINAL SCOPE**: Full E2E coverage for both system types (config + options flows) with CI integration. ❌ T007 REMOVED (duplicate of T005/T006). 🆕 **T007A ADDED** (feature interaction testing - CRITICAL). **Current priority**: Remove Advanced option (T004), complete heater_cooler/heat_pump with TDD approach (T005-T006), test feature interactions & HVAC modes (T007A - NEW CRITICAL TASK), normalize keys (T008), then polish & release (T009, T012).
+
+---
+
+## Universal Acceptance Criteria Template (All System Types)
+
+This template applies to **all system type implementations** (simple_heater, ac_only, heater_cooler, heat_pump).
+
+### Test-Driven Development (TDD)
+- ✅ All tests written BEFORE implementation (RED phase)
+- ✅ Tests fail initially with clear error messages
+- ✅ Implementation makes tests pass (GREEN phase)
+- ✅ No regressions in existing system type tests
+
+### Config Flow - Core Requirements
+1. ✅ **Flow completes without error** - All steps navigate successfully to completion
+2. ✅ **Valid configuration is created** - Config entry data matches `data-model.md` structure
+3. ✅ **Climate entity is created** - Verify entity appears in HA with correct entity_id
+
+### Config Flow - Data Structure Validation
+- ✅ All required fields from schema are present in saved config
+- ✅ Field types match expected types (entity_id strings, numeric values, booleans)
+- ✅ System-specific fields are correctly configured (varies by system type)
+- ✅ Advanced settings are flattened to top level (tolerances, min_cycle_duration)
+- ✅ `name` field is collected
+
+### Options Flow - Core Requirements
+1. ✅ **Flow completes without error** - All steps navigate successfully
+2. ✅ **Configuration is updated correctly** - Modified fields are persisted
+3. ✅ **Unmodified fields are preserved** - Fields not changed remain intact
+
+### Options Flow - Data Structure Validation
+- ✅ `name` field is omitted in options flow
+- ✅ Options flow pre-fills all fields from existing config
+- ✅ System type is displayed but non-editable
+- ✅ Updated config matches `data-model.md` structure after changes
+
+### E2E Persistence Tests (CRITICAL)
+**Each system type MUST have an E2E test** that validates the complete lifecycle:
+- ✅ **test_e2e_simple_heater_persistence.py** - Simple heater config → options → persistence
+- ✅ **test_e2e_ac_only_persistence.py** - AC only config → options → persistence
+- ✅ **test_e2e_heater_cooler_persistence.py** - Heater/cooler config → options → persistence
+- ⏳ **test_e2e_heat_pump_persistence.py** - TODO: Add when heat_pump is implemented (T006)
+- ⏳ **test_e2e_dual_stage_persistence.py** - TODO: Add if dual_stage needs testing
+- ⏳ **test_e2e_floor_heating_persistence.py** - TODO: Add if floor_heating needs testing
+
+**What E2E tests validate:**
+1. Complete config flow creates correct entry (no transient flags saved)
+2. Options flow shows pre-filled values from config entry
+3. Feature toggles show checked state when features are configured
+4. Changes made in options flow persist correctly (to entry.options)
+5. Original values preserved (in entry.data)
+6. Reopening options flow shows updated values (merged data + options)
+7. Unmodified fields are preserved during partial updates
+
+**Why these tests are critical:**
+- Would have caught the options flow persistence bug (mappingproxy handling)
+- Validate real Home Assistant behavior, not just Mocks
+- Test actual storage flow (data vs options)
+- Prevent regressions in persistence logic
+
+### Field-Specific Validation (Unit Tests)
+- ✅ Optional entity fields accept empty values (vol.UNDEFINED pattern)
+- ✅ Numeric fields have correct defaults when not provided
+- ✅ Required fields raise validation errors when missing
+- ✅ Entity field validation prevents duplicate entities where applicable
+
+### Feature Integration
+- ✅ Features step allows toggling features on/off
+- ✅ Enabled features show their configuration steps
+- ✅ Feature settings are saved under correct keys
+- ✅ Feature settings match schema definitions
+
+### Business Logic Validation
+- ✅ Device class works correctly with schema (HeaterDevice, CoolerDevice, etc.)
+- ✅ Config flow creates working climate entity
+- ✅ Climate entity has correct HVAC modes for system type
+- ✅ System-specific behavior works as expected
+
+### Scope Notes
+- ❌ **E2E tests**: Not required for new system types (covered by simple_heater/ac_only)
+- ✅ **Python tests**: Focus on unit/integration tests for data validation and business logic
 
 ---
 
@@ -143,76 +224,343 @@ T004 — Remove Advanced (Custom Setup) option (Phase 1B) — [GitHub Issue #414
   - `pytest -q` passes locally; schema shows only four types.
 - Parallelization: Not parallel; recommend doing after T001 and before T005/T006.
 
-T005 — Complete `heater_cooler` implementation (Phase 1C) 📉 [REDUCED SCOPE] — [GitHub Issue #415](https://github.com/swingerman/ha-dual-smart-thermostat/issues/415)
-- **SCOPE REDUCTION**: Focus on Python implementation and unit tests only; E2E tests removed from scope
-- Files to edit/create:
-  - `custom_components/dual_smart_thermostat/schemas.py` (add/complete `get_heater_cooler_schema`)
-  - `custom_components/dual_smart_thermostat/feature_steps/` (ensure all per-feature steps handle `heater_cooler` cases)
-  - Tests: `tests/features/heater_cooler/test_config_flow.py`, `tests/features/heater_cooler/test_options_flow.py`
-  - **NEW**: `tests/unit/test_heater_cooler_climate_entity.py` — Test climate entity generation for heater_cooler
-- **REMOVED FROM SCOPE**: E2E Playwright tests (too expensive to maintain)
-- TDD guidance:
-  1. Add contract tests under T007 to define expected keys for `heater_cooler`.
-  2. Implement schema and per-feature logic to satisfy tests.
-  3. Focus on Python unit tests for business logic validation.
-- Updated Acceptance criteria:
-  - ✅ Unit and contract tests for `heater_cooler` pass.
-  - ✅ Python tests validate climate entity structure and behavior.
-  - ✅ E2E tests for `simple_heater`/`ac_only` remain green.
-  - ❌ **REMOVED**: E2E test coverage requirement for `heater_cooler`.
-- Parallelization: Can be run in parallel with T006 and T007 if no shared files are edited simultaneously.
+T005 — Complete `heater_cooler` implementation (Phase 1C) 🔥 [TDD APPROACH] — [GitHub Issue #415](https://github.com/swingerman/ha-dual-smart-thermostat/issues/415)
+- **UPDATED APPROACH** (2025-01-06): Test-first implementation using bugs discovered today as foundation
+- **Strategy**: Write failing tests FIRST (RED), implement code (GREEN), validate no regressions (REFACTOR)
+
+**Phase 1: Write Failing Tests FIRST (RED)**
+- Files to create:
+  - `tests/config_flow/test_heater_cooler_config_flow.py`:
+    - ✅ Test name field is required and collected (bug fix 2025-01-06)
+    - ✅ Test fan_hot_tolerance field exists with default 0.5 (bug fix 2025-01-06)
+    - ✅ Test fan_hot_tolerance_toggle is optional (vol.UNDEFINED when empty) (bug fix 2025-01-06)
+    - ❌ Test heater field is required
+    - ❌ Test cooler field is required
+    - ❌ Test heat_cool_mode toggle exists and defaults correctly
+    - ❌ Test advanced_settings section extracts and flattens correctly
+    - ❌ Test validation: same heater/cooler entity error
+    - ❌ Test validation: same heater/sensor entity error
+    - ❌ Test successful submission proceeds to features step
+
+  - `tests/config_flow/test_heater_cooler_options_flow.py`:
+    - ❌ Test options flow omits name field
+    - ❌ Test options flow pre-fills all heater_cooler fields from existing config
+    - ❌ Test options flow preserves unmodified fields
+    - ❌ Test system type display (non-editable in options)
+
+  - `tests/unit/test_heater_cooler_schema.py`:
+    - ❌ Test get_heater_cooler_schema(defaults=None, include_name=True) includes all required fields
+    - ❌ Test get_heater_cooler_schema(defaults=None, include_name=False) omits name field
+    - ❌ Test get_heater_cooler_schema(defaults={...}) pre-fills values correctly
+    - ❌ Test all fields use correct selectors (entity, number, boolean)
+    - ❌ Test optional entity fields use vol.UNDEFINED when no default provided
+    - ❌ Test advanced_settings section structure
+
+**Phase 2: Implement Code to Pass Tests (GREEN)**
+- Files to edit:
+  - `custom_components/dual_smart_thermostat/schemas.py`:
+    - ✅ COMPLETED: get_heater_cooler_schema(defaults, include_name) with name field
+    - ✅ COMPLETED: fan_hot_tolerance numeric field with default 0.5
+    - ✅ COMPLETED: fan_hot_tolerance_toggle using vol.UNDEFINED
+    - ❌ TODO: Verify all other fields (heater, cooler, heat_cool_mode, tolerances)
+
+  - `custom_components/dual_smart_thermostat/config_flow.py`:
+    - ✅ COMPLETED: async_step_heater_cooler calls schema with defaults=None, include_name=True
+    - ❌ TODO: Verify validation logic for heater/cooler/sensor
+
+  - `custom_components/dual_smart_thermostat/options_flow.py`:
+    - ❌ TODO: Verify async_step_basic uses get_heater_cooler_schema with include_name=False
+
+**Phase 3: Feature Integration Tests (After Basic Works)**
+- Files to create (LATER):
+  - `tests/features/test_heater_cooler_with_fan.py`
+  - `tests/features/test_heater_cooler_with_humidity.py`
+  - `tests/features/test_heater_cooler_with_presets.py`
+  - `tests/unit/test_heater_cooler_climate_entity.py`
+
+**How to run (TDD RED-GREEN-REFACTOR cycle):**
+```bash
+# Phase 1: Write tests (should FAIL initially)
+pytest tests/config_flow/test_heater_cooler_config_flow.py -v
+pytest tests/unit/test_heater_cooler_schema.py -v
+
+# Phase 2: Implement code to make tests pass
+# ... make changes to schemas.py, config_flow.py ...
+
+# Phase 3: Verify tests now PASS
+pytest tests/config_flow/test_heater_cooler_config_flow.py -v
+pytest tests/unit/test_heater_cooler_schema.py -v
+
+# Phase 4: Ensure no regressions
+pytest tests/config_flow -v
+pytest tests/unit -v
+```
+
+**Bug Fixes Already Applied (2025-01-06):**
+- ✅ Missing name field in get_heater_cooler_schema() - line 248 config_flow.py
+- ✅ Missing fan_hot_tolerance numeric field in schema - line 690 schemas.py
+- ✅ fan_hot_tolerance_toggle validation error (None vs vol.UNDEFINED) - line 695 schemas.py
+- ✅ Unified fan/humidity schemas to remove duplication
+- ✅ Added translations for fan_hot_tolerance and fan_hot_tolerance_toggle
+- ✅ Updated README.md documentation for both fields
+
+**Acceptance Criteria (UPDATED TDD APPROACH + DATA VALIDATION):**
+
+**Test-Driven Development (TDD):**
+- ✅ All tests written BEFORE implementation (RED phase)
+- ✅ Tests fail initially with clear error messages
+- ✅ Implementation makes tests pass (GREEN phase)
+- ✅ No regressions in existing simple_heater/ac_only tests
+
+**Config Flow - Core Requirements:**
+1. ✅ Flow completes without error - All steps navigate successfully to completion
+2. ✅ Valid configuration is created - Config entry data matches `data-model.md` structure
+3. ✅ Climate entity is created - Verify entity appears in HA with correct entity_id
+
+**Config Flow - Data Structure Validation:**
+- ✅ All required fields from schema are present in saved config
+- ✅ Field types match expected types (entity_id strings, numeric values, booleans)
+- ✅ System-specific fields: `heater`, `cooler`, `target_sensor` are entity_ids
+- ✅ `heat_cool_mode` field exists with correct boolean default
+- ✅ Advanced settings are flattened to top level (tolerances, min_cycle_duration)
+- ✅ `name` field is collected (bug fix 2025-01-06 verified)
+
+**Options Flow - Core Requirements:**
+1. ✅ Flow completes without error - All steps navigate successfully
+2. ✅ Configuration is updated correctly - Modified fields are persisted
+3. ✅ Unmodified fields are preserved - Fields not changed remain intact
+
+**Options Flow - Data Structure Validation:**
+- ✅ `name` field is omitted in options flow
+- ✅ Options flow pre-fills all heater_cooler fields from existing config
+- ✅ System type is displayed but non-editable
+- ✅ Updated config matches `data-model.md` structure after changes
+
+**Field-Specific Validation (Unit Tests):**
+- ✅ Optional entity fields accept empty values (vol.UNDEFINED pattern)
+- ✅ Numeric fields have correct defaults when not provided
+- ✅ Required fields (heater, cooler, sensor) raise validation errors when missing
+- ✅ Validation: same heater/cooler entity produces error
+- ✅ Validation: same heater/sensor entity produces error
+
+**Feature Integration:**
+- ✅ Features step allows toggling features on/off
+- ✅ Enabled features show their configuration steps
+- ✅ Feature settings are saved under correct keys
+- ✅ Feature settings match schema definitions
+
+**Business Logic Validation:**
+- ✅ HeaterCoolerDevice class works correctly with schema
+- ✅ Config flow creates working climate entity
+- ✅ Climate entity has correct HVAC modes for heater_cooler system
+
+**Scope Notes:**
+- ❌ **REMOVED**: E2E test coverage (covered by simple_heater/ac_only E2E tests)
+- ✅ **FOCUS**: Python unit/integration tests for data validation and business logic
+
+**Parallelization**: Can be run in parallel with T006 and T007 if no shared files are edited simultaneously.
 
 T006 — Complete `heat_pump` implementation (Phase 1C) 📉 [REDUCED SCOPE] — [GitHub Issue #416](https://github.com/swingerman/ha-dual-smart-thermostat/issues/416)
 - **SCOPE REDUCTION**: Focus on Python implementation and unit tests only; E2E tests removed from scope
-- Files to edit/create:
-  - `custom_components/dual_smart_thermostat/schemas.py` (complete `get_heat_pump_schema` and `heat_pump_cooling` support)
-  - `custom_components/dual_smart_thermostat/feature_steps/` handlers
-  - Tests: `tests/features/heat_pump/test_config_flow.py`, `tests/features/heat_pump/test_options_flow.py`
-  - **NEW**: `tests/unit/test_heat_pump_climate_entity.py` — Test climate entity generation for heat_pump
-- **REMOVED FROM SCOPE**: E2E Playwright tests (too expensive to maintain)
-- Special notes:
-  - The `heat_pump_cooling` field may be an entity selector (preferred) or a boolean; ensure schema supports entity ids and the options flow offers a selector.
-- Updated Acceptance criteria:
-  - ✅ Contract tests for `heat_pump` pass; `pytest -q` passes locally.
-  - ✅ Python tests validate climate entity structure and behavior.
-  - ✅ `heat_pump_cooling` entity selector functionality works correctly.
-  - ❌ **REMOVED**: E2E test coverage requirement for `heat_pump`.
-- Parallelization: Can run with T005 (different system types), but coordinate on `schemas.py` edits.
+- **Strategy**: Write failing tests FIRST (RED), implement code (GREEN), validate no regressions (REFACTOR)
 
-T007 — Add Python Unit Tests for Climate Entity & Data Structure Validation 🔥 [HIGH PRIORITY] — [GitHub Issue #417](https://github.com/swingerman/ha-dual-smart-thermostat/issues/417)
-- **PRIORITY ELEVATION**: Elevated from medium to HIGH PRIORITY based on refined testing strategy
-- **New Focus**: Comprehensive Python unit tests for business logic and data structure validation
-- Files to create:
-  - `tests/unit/test_climate_entity_generation.py` — **NEW HIGH PRIORITY**: Test actual Home Assistant climate entity creation and configuration
-  - `tests/unit/test_config_entry_data_structure.py` — **NEW HIGH PRIORITY**: Test saved config entry data matches canonical `data-model.md`
-  - `tests/unit/test_system_type_configs.py` — **NEW HIGH PRIORITY**: Test system-specific configurations are applied correctly
-  - `tests/integration/test_integration_behavior.py` — **NEW HIGH PRIORITY**: Test Home Assistant integration behavior
-  - `tests/contracts/test_schemas.py` — tests that load each `get_<system>_schema()` and assert expected keys and types according to `data-model.md`.
-  - `tests/options/test_options_parity.py` — tests verifying the options flow pre-fills saved values and preserves unchanged fields.
-- **Rationale**: E2E tests handle UI journeys; Python tests should handle business logic, data structures, and HA integration behavior
-- Description:
-  - Write failing tests first for each missing contract, then implement the code to pass them (TDD).
-  - Focus on testing actual climate entity generation, not just UI behavior
-  - Validate that saved configuration data matches expected structure
-  - Test system-specific behavior (AC mode, heater mode, etc.)
-- How to run:
-  ```bash
-  # New high-priority tests
-  pytest tests/unit/test_climate_entity_generation.py -v
-  pytest tests/unit/test_config_entry_data_structure.py -v
-  pytest tests/unit/test_system_type_configs.py -v
-  pytest tests/integration/test_integration_behavior.py -v
-  # Existing contract tests
-  pytest tests/contracts -q
-  pytest tests/options -q
+**Files to create/edit:**
+- `custom_components/dual_smart_thermostat/schemas.py` (complete `get_heat_pump_schema` and `heat_pump_cooling` support)
+- `custom_components/dual_smart_thermostat/feature_steps/` handlers
+- Tests: `tests/config_flow/test_heat_pump_config_flow.py`, `tests/config_flow/test_heat_pump_options_flow.py`
+- **NEW**: `tests/unit/test_heat_pump_climate_entity.py` — Test climate entity generation for heat_pump
+- **NEW**: `tests/unit/test_heat_pump_schema.py` — Test schema structure and defaults
+
+**Special Implementation Notes:**
+- The `heat_pump_cooling` field may be an entity selector (preferred) or a boolean
+- Ensure schema supports entity ids and the options flow offers a selector
+- Single `heater` switch is used for both heating and cooling modes
+
+**Acceptance Criteria (TDD APPROACH + DATA VALIDATION):**
+
+**Test-Driven Development (TDD):**
+- ✅ All tests written BEFORE implementation (RED phase)
+- ✅ Tests fail initially with clear error messages
+- ✅ Implementation makes tests pass (GREEN phase)
+- ✅ No regressions in existing system type tests
+
+**Config Flow - Core Requirements:**
+1. ✅ Flow completes without error - All steps navigate successfully to completion
+2. ✅ Valid configuration is created - Config entry data matches `data-model.md` structure
+3. ✅ Climate entity is created - Verify entity appears in HA with correct entity_id
+
+**Config Flow - Data Structure Validation:**
+- ✅ All required fields from schema are present in saved config
+- ✅ Field types match expected types (entity_id strings, numeric values, booleans)
+- ✅ System-specific fields: `heater` (entity_id), `heat_pump_cooling` (entity_id or boolean)
+- ✅ `target_sensor` is entity_id
+- ✅ Advanced settings are flattened to top level (tolerances, min_cycle_duration)
+- ✅ `name` field is collected in config flow
+
+**Options Flow - Core Requirements:**
+1. ✅ Flow completes without error - All steps navigate successfully
+2. ✅ Configuration is updated correctly - Modified fields are persisted
+3. ✅ Unmodified fields are preserved - Fields not changed remain intact
+
+**Options Flow - Data Structure Validation:**
+- ✅ `name` field is omitted in options flow
+- ✅ Options flow pre-fills all heat_pump fields from existing config
+- ✅ System type is displayed but non-editable
+- ✅ Updated config matches `data-model.md` structure after changes
+
+**Field-Specific Validation (Unit Tests):**
+- ✅ `heat_pump_cooling` accepts entity_id (preferred) or boolean
+- ✅ `heat_pump_cooling` entity selector functionality works correctly
+- ✅ Optional entity fields accept empty values (vol.UNDEFINED pattern)
+- ✅ Numeric fields have correct defaults when not provided
+- ✅ Required fields (heater, sensor) raise validation errors when missing
+
+**Feature Integration:**
+- ✅ Features step allows toggling features on/off
+- ✅ Enabled features show their configuration steps
+- ✅ Feature settings are saved under correct keys
+- ✅ Feature settings match schema definitions
+
+**Business Logic Validation:**
+- ✅ HeatPumpDevice class works correctly with schema
+- ✅ Config flow creates working climate entity
+- ✅ Climate entity has correct HVAC modes based on heat_pump_cooling state
+- ✅ Dynamic heat_pump_cooling entity state changes update available HVAC modes
+
+**Scope Notes:**
+- ❌ **REMOVED**: E2E test coverage (covered by simple_heater/ac_only E2E tests)
+- ✅ **FOCUS**: Python unit/integration tests for data validation and business logic
+
+**Parallelization**: Can run with T005 (different system types), but coordinate on `schemas.py` edits.
+
+T007 — ~~Add Python Unit Tests for Climate Entity & Data Structure Validation~~ ❌ **REMOVED - DUPLICATE** — ~~[GitHub Issue #417](https://github.com/swingerman/ha-dual-smart-thermostat/issues/417)~~
+- **STATUS**: ❌ **TASK REMOVED** - Acceptance criteria merged into T005/T006
+- **RATIONALE**: T005 and T006 already include all required test coverage:
+  - Climate entity generation tests (covered in T005/T006 Business Logic Validation)
+  - Config entry data structure tests (covered in T005/T006 Data Structure Validation)
+  - System type configuration tests (covered in T005/T006 acceptance criteria)
+  - Contract tests and options parity tests (covered in T005/T006 Field-Specific Validation)
+- **ACTION**: Tests will be created as part of T005 (heater_cooler) and T006 (heat_pump) implementation
+- **GITHUB ISSUE**: Should be closed or updated to reference T005/T006
+
+T007A — Feature Interaction & HVAC Mode Testing 🔥 [NEW - CRITICAL FOR RELEASE] — [GitHub Issue #436](https://github.com/swingerman/ha-dual-smart-thermostat/issues/436)
+- **PRIORITY**: 🔥 **HIGH PRIORITY** - Critical for feature completeness
+- **DEPENDENCY**: Must complete AFTER T005/T006 (requires all system types working)
+- **RATIONALE**: Features affect HVAC modes, which affect other features. This creates a cascade:
   ```
-- Acceptance criteria:
-  - ✅ Climate entity structure tests validate actual HA entity attributes per system type
-  - ✅ Config entry data structure tests ensure saved data matches `data-model.md`
-  - ✅ System type configuration tests validate system-specific behavior
-  - ✅ Integration behavior tests validate HA core integration
-  - ✅ Contract tests fail initially (RED), then after implementation pass (GREEN)
-- Parallelization: [P] with T004 (different files)
+  System Type + Core Settings → Base HVAC modes
+      ↓
+  Fan Feature → Adds HVACMode.FAN_ONLY
+      ↓
+  Humidity Feature → Adds HVACMode.DRY
+      ↓
+  Openings Feature → Needs available HVAC modes for scope configuration
+      ↓
+  Presets Feature → Needs ALL enabled features to configure properly
+  ```
+
+**Why Ordering Matters:**
+- **Openings** need to know which HVAC modes exist (heat, cool, fan_only, dry, heat_cool)
+- **Presets** need to know:
+  - Which HVAC modes are available (from all previous features)
+  - Which openings exist (to reference them with validation)
+  - If humidity is enabled (to include humidity bounds)
+  - If floor_heating is enabled (to include floor temp bounds)
+  - If heat_cool_mode is true (to use temp_low/temp_high vs single temperature)
+
+**Implementation Strategy:**
+Break into sub-tasks by feature layer:
+
+**Phase 1: Single Feature + System Type (T007A-1)**
+- Test fan feature adds FAN_ONLY mode (heater_cooler + fan, heat_pump + fan)
+- Test humidity feature adds DRY mode (all system types + humidity)
+- Test floor_heating works with compatible system types (simple_heater, heater_cooler, heat_pump - NOT ac_only)
+- Verify feature availability per system type matches schemas.py:458-478
+
+**Phase 2: Openings + HVAC Modes (T007A-2)**
+- Test openings scope configuration with different HVAC mode combinations
+- Test openings work when fan adds FAN_ONLY mode
+- Test openings work when humidity adds DRY mode
+- Test openings_scope field accepts all available HVAC modes for the configuration
+
+**Phase 3: Presets + All Features (T007A-3)**
+- Test presets with heat_cool_mode=True uses temp_low/temp_high
+- Test presets with heat_cool_mode=False uses single temperature
+- Test presets with humidity enabled includes humidity bounds
+- Test presets with floor_heating enabled includes floor temp bounds (min_floor_temp, max_floor_temp)
+- Test presets with openings enabled validates opening_refs
+- Test preset validation error when referencing non-configured opening
+
+**Files to create/edit:**
+- `tests/features/test_feature_hvac_mode_interactions.py` — Test HVAC mode additions
+- `tests/features/test_openings_with_hvac_modes.py` — Test openings scope with various modes
+- `tests/features/test_presets_with_all_features.py` — Test presets respecting all feature combinations
+- `tests/integration/test_complete_feature_flows.py` — End-to-end feature combination tests
+
+**How to run:**
+```bash
+# Phase 1: Feature + System Type
+pytest tests/features/test_feature_hvac_mode_interactions.py -v
+
+# Phase 2: Openings interactions
+pytest tests/features/test_openings_with_hvac_modes.py -v
+
+# Phase 3: Presets interactions
+pytest tests/features/test_presets_with_all_features.py -v
+
+# Full suite
+pytest tests/features -v
+pytest tests/integration -v
+```
+
+**Acceptance Criteria (Following Universal Template):**
+
+**Test-Driven Development (TDD):**
+- ✅ All tests written BEFORE implementation (RED phase)
+- ✅ Tests fail initially with clear error messages
+- ✅ Implementation makes tests pass (GREEN phase)
+- ✅ No regressions in T005/T006 system type tests
+
+**Feature Interaction - Core Requirements:**
+1. ✅ **Fan feature adds FAN_ONLY mode** - Verified across all compatible system types
+2. ✅ **Humidity feature adds DRY mode** - Verified across all system types
+3. ✅ **Floor heating restriction** - Works with heater-based systems, blocked/hidden for ac_only
+4. ✅ **Feature availability per system type** - Matches schemas.py definitions
+
+**Openings + HVAC Modes:**
+- ✅ Openings scope accepts all available HVAC modes for current configuration
+- ✅ Openings configuration appears BEFORE presets in flow order
+- ✅ Openings work correctly when FAN_ONLY mode added by fan feature
+- ✅ Openings work correctly when DRY mode added by humidity feature
+
+**Presets + All Features (Most Complex):**
+- ✅ Presets appear LAST in feature configuration order (after all other features)
+- ✅ Presets use temp_low/temp_high when heat_cool_mode=True
+- ✅ Presets use single temperature when heat_cool_mode=False
+- ✅ Presets include humidity bounds ONLY when humidity feature enabled
+- ✅ Presets include floor temp bounds ONLY when floor_heating feature enabled
+- ✅ Presets validate opening_refs against configured openings
+- ✅ Preset validation fails when referencing non-existent opening
+- ✅ Presets configuration form adapts to all enabled features
+
+**Data Structure Validation:**
+- ✅ Feature settings saved under correct keys in data-model.md structure
+- ✅ HVAC modes correctly populated based on enabled features
+- ✅ Climate entity exposes correct HVAC modes based on feature combination
+
+**Business Logic Validation:**
+- ✅ Climate entity switches modes correctly with fan feature
+- ✅ Climate entity handles humidity/dry mode correctly
+- ✅ Openings behavior respects configured HVAC mode scope
+- ✅ Presets apply correct settings based on all enabled features
+
+**Quality Gates:**
+- ✅ All code must pass linting checks
+- ✅ All unit tests must pass
+- ✅ All integration tests must pass
+- ✅ No regressions in existing system type tests
+
+**Parallelization**: Cannot run in parallel with T005/T006 - requires them complete first
 
 T008 — Normalize collected_config keys and constants — [GitHub Issue #418](https://github.com/swingerman/ha-dual-smart-thermostat/issues/418)
 - Files to edit:
@@ -243,7 +591,8 @@ T009 — Add `models.py` dataclasses [P] — [GitHub Issue #419](https://github.
   - `tests/unit/test_models.py` covers serialization of at least one sample config per system type and passes.
 - Parallelization: [P]
 
-T010 — Perform test reorganization (REORG) [P] — [GitHub Issue #420](https://github.com/swingerman/ha-dual-smart-thermostat/issues/420)
+T010 — Perform test reorganization (REORG) [P] ⚪ **OPTIONAL** — [GitHub Issue #420](https://github.com/swingerman/ha-dual-smart-thermostat/issues/420)
+- **PRIORITY**: ⚪ **OPTIONAL** - Nice-to-have, not blocking release
 - Files to create:
   - `specs/001-develop-config-and/REORG.md`
 - Steps (PoC then single commit):
@@ -254,9 +603,11 @@ T010 — Perform test reorganization (REORG) [P] — [GitHub Issue #420](https:/
   5. Run `pytest -q` and fix regressions.
 - Acceptance criteria:
   - New `tests/` layout exists, test imports updated, full test-suite passes locally.
+- **Release Impact**: None - Can be done post-release for better maintainability
 - Parallelization: [P] but coordinate with any test-editing PRs.
 
-T011 — Investigate schema duplication (const vs schemas) (Phase 1C-1) — [GitHub Issue #421](https://github.com/swingerman/ha-dual-smart-thermostat/issues/421)
+T011 — Investigate schema duplication (const vs schemas) (Phase 1C-1) ⚪ **OPTIONAL** — [GitHub Issue #421](https://github.com/swingerman/ha-dual-smart-thermostat/issues/421)
+- **PRIORITY**: ⚪ **OPTIONAL** - Nice-to-have, not blocking release
 - Files to create/edit:
   - `specs/001-develop-config-and/schema-consolidation-proposal.md` (if not already present)
   - PoC: `custom_components/dual_smart_thermostat/metadata.py`
@@ -269,6 +620,7 @@ T011 — Investigate schema duplication (const vs schemas) (Phase 1C-1) — [Git
 - Acceptance criteria:
   - Proposal file present with recommended option and risk/effort estimates.
   - PoC passes contract tests and does not change persisted keys.
+- **Release Impact**: None - Only do if duplication becomes painful during T005/T006/T008
 - Parallelization: [P]
 
 T012 — Polish documentation & release prep — [GitHub Issue #422](https://github.com/swingerman/ha-dual-smart-thermostat/issues/422)
@@ -285,20 +637,48 @@ T012 — Polish documentation & release prep — [GitHub Issue #422](https://git
 
 ---
 
-Task Ordering and dependency notes (UPDATED)
+Task Ordering and dependency notes (UPDATED 2025-01-06)
 - ✅ E2E scaffold (T001), Playwright tests (T002), and complete E2E implementation (T003) COMPLETED — **EXCEEDED ORIGINAL SCOPE**.
-- **CURRENT HIGH PRIORITIES**: 
-  1. 🔥 **T004** (Remove Advanced option) — Clean up codebase before heavy development
-  2. 🔥 **T007** (Python unit tests) — **ELEVATED PRIORITY** for business logic validation
-- **MEDIUM PRIORITIES**: T008 (normalize keys) → T005/T006 (complete system types with Python-first approach) → T009 (models.py)
-- **LOW PRIORITIES**: T010 (test reorg), T011 (schema consolidation), T012 (documentation)
-- **SCOPE REDUCTIONS**: T005/T006 no longer require E2E tests; T010/T011 reduced to nice-to-have status
+- ❌ T007 REMOVED — Duplicate of T005/T006 acceptance criteria
+- 🆕 T007A ADDED — Feature interaction & HVAC mode testing (critical for release)
 
-Updated Parallel execution examples
-- **Immediate Parallel Group** 🔥: {T004, T007} — High priority, different files
-- **Medium-term Parallel Group**: {T005, T006, T008, T009} — Coordinate on `schemas.py` edits
-- **Final Parallel Group**: {T010, T011, T012} — Low priority polish tasks
-- **Recommended Sequential Path**: T004 → T007 → T008 → {T005, T006} → T009 → T012
+**CURRENT PRIORITIES** (Revised):
+1. 🔥 **T004** (Remove Advanced option) — Clean up codebase before heavy development
+2. 🔥 **T005** (Complete heater_cooler with TDD) — Includes all unit/integration tests
+3. 🔥 **T006** (Complete heat_pump with TDD) — Includes all unit/integration tests
+4. 🔥 **T007A** (Feature interaction testing) — **NEW: CRITICAL** - Test feature combinations & HVAC modes
+5. ✅ **T008** (Normalize keys) — Clean up after system type implementations
+6. ✅ **T009** (models.py) — Add type safety with dataclasses
+7. ✅ **T012** (Documentation & release prep) — Essential for release
+8. ⚪ **T010** (Test reorg) — **OPTIONAL** - Not blocking release
+9. ⚪ **T011** (Schema consolidation) — **OPTIONAL** - Not blocking release
+
+**Updated Parallel execution examples:**
+- **Phase 1** 🔥: T004 (Advanced option removal) — Do first, blocks nothing
+- **Phase 2** 🔥: {T005, T006} — Parallel implementation, coordinate on `schemas.py` edits
+- **Phase 3** 🔥: T007A (Feature interactions) — MUST complete after T005/T006
+- **Phase 4** ✅: T008 (Normalize keys after learning from T005/T006/T007A)
+- **Phase 5** ✅: {T009, T012} — Parallel, different files
+- **Phase 6** ⚪: {T010, T011} — **OPTIONAL** - Only if time permits
+
+**Recommended Sequential Path (Critical Path to Release):**
+```
+T004 → {T005, T006} → T007A → T008 → {T009, T012} → RELEASE
+       (parallel)      ↑               (parallel)
+                   [NEW: Critical
+                    for features]
+```
+
+**Why T007A is Critical:**
+- Features affect HVAC modes (fan→FAN_ONLY, humidity→DRY)
+- HVAC modes affect openings (scope configuration)
+- All features affect presets (temp fields, humidity, floor, opening refs)
+- Without T007A, feature combinations may break in production
+
+**Optional Post-Release:**
+```
+T010 (test reorg) and T011 (schema consolidation) can be done after release if needed
+```
 
 Appendix — Helpful Commands
 - Run focused tests:

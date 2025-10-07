@@ -455,18 +455,30 @@ The internal values can be set by the component only and the external values can
 
 ### fan_hot_tolerance
 
-  _(optional) (float)_ Set a maximum amount of difference between the temperature read by the sensor specified in the _target_sensor_ option and the target temperature and the _hot_tolerance_ that considered to be ok for the fan to be turned on. For example, if the target temperature is 25 and the hot_tolerance is 1 and the fan_hot_tolerance is 0.5 the fan will start when the sensor equals or goes above 25 but not above 25.5. In that case the AC will turn on.
+  _(optional) (float)_ Temperature range above `hot_tolerance` where the fan is used instead of the AC. This creates an intermediate zone where the fan attempts to cool before engaging the AC.
+
+  **Example:** With target temperature 25°C, `hot_tolerance` 1°C, and `fan_hot_tolerance` 0.5°C:
+  - At 26°C (target + hot_tolerance): Fan turns on
+  - At 26.5°C (target + hot_tolerance + fan_hot_tolerance): AC turns on (fan turns off)
+
+  This feature helps save energy by using the fan for minor temperature increases before engaging the more power-intensive AC.
+
+  _default: 0.5_
 
   _requires: `fan`_
 
 ### fan_hot_tolerance_toggle
 
-  _(optional) (string)_ `entity_id` for a switch that will toggle the `fan_hot_tolerance` feature on and off.
-  This is enabled by default.
+  _(optional) (string)_ `entity_id` for an `input_boolean` or `binary_sensor` that dynamically enables/disables the `fan_hot_tolerance` feature.
 
-  _default: True_
+  - When the toggle entity is `on` (or not configured): The fan_hot_tolerance feature is active
+  - When the toggle entity is `off`: The AC is used immediately when `hot_tolerance` is exceeded (bypasses fan zone)
 
-  _requires: `fan` , `fan_hot_tolerance`_
+  Useful for automations that disable fan-first behavior during extreme heat, high humidity, or other conditions where immediate AC is preferred.
+
+  _default: Feature enabled (behaves as if toggle is `on`)_
+
+  _requires: `fan`_
 
 ### fan_on_with_ac
 
