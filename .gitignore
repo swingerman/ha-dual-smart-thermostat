@@ -16,4 +16,3 @@ coverage.xml
 # Home Assistant configuration
 config/*
 !config/configuration.yaml
-tests/e2e/ha_config/custom_components/
