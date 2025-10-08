@@ -297,6 +297,90 @@ def get_heater_cooler_schema(defaults=None, include_name=True):
     return vol.Schema(core_schema)
 
 
+def get_heat_pump_schema(defaults=None, include_name=True):
+    """Get heat pump configuration schema with advanced settings in collapsible section.
+
+    Heat pump uses a single heater switch for both heating and cooling modes.
+    The heat_pump_cooling field is an entity_id of a sensor that indicates the cooling state.
+    The sensor's state should be 'on' (cooling mode) or 'off' (heating mode).
+    This allows the system to dynamically check if cooling is available.
+
+    Args:
+        defaults: Optional dict with default values to pre-fill the form
+        include_name: Whether to include the name field (True for config flow, False for options flow)
+
+    Returns:
+        vol.Schema with heat pump configuration fields
+    """
+    # Core heat pump configuration
+    core_schema = {}
+
+    if include_name:
+        # Basic Information
+        core_schema[
+            vol.Required(
+                CONF_NAME,
+                default=defaults.get(CONF_NAME) if defaults else vol.UNDEFINED,
+            )
+        ] = get_text_selector()
+
+    # Sensors
+    core_schema[
+        vol.Required(
+            CONF_SENSOR,
+            default=defaults.get(CONF_SENSOR) if defaults else vol.UNDEFINED,
+        )
+    ] = get_entity_selector(SENSOR_DOMAIN)
+
+    # Heat pump switch (used for both heating and cooling)
+    core_schema[
+        vol.Required(
+            CONF_HEATER,
+            default=defaults.get(CONF_HEATER) if defaults else vol.UNDEFINED,
+        )
+    ] = get_entity_selector(SWITCH_DOMAIN)
+
+    # Heat pump cooling mode sensor - entity_id of a sensor that indicates cooling state
+    # The sensor's state should be 'on' (cooling) or 'off' (heating)
+    # Can be a sensor, binary_sensor, or input_boolean
+    # This allows the system to dynamically check if cooling is available
+    core_schema[
+        vol.Optional(
+            CONF_HEAT_PUMP_COOLING,
+            default=defaults.get(CONF_HEAT_PUMP_COOLING) if defaults else vol.UNDEFINED,
+        )
+    ] = get_entity_selector([SENSOR_DOMAIN, BINARY_SENSOR_DOMAIN, INPUT_BOOLEAN_DOMAIN])
+
+    # Advanced settings in collapsible section
+    advanced_section_schema = vol.Schema(
+        {
+            vol.Optional(
+                CONF_COLD_TOLERANCE,
+                default=(
+                    defaults.get(CONF_COLD_TOLERANCE) if defaults else DEFAULT_TOLERANCE
+                ),
+            ): get_temperature_selector(min_value=0.1, max_value=10, step=0.1),
+            vol.Optional(
+                CONF_HOT_TOLERANCE,
+                default=(
+                    defaults.get(CONF_HOT_TOLERANCE) if defaults else DEFAULT_TOLERANCE
+                ),
+            ): get_temperature_selector(min_value=0.1, max_value=10, step=0.1),
+            vol.Optional(
+                CONF_MIN_DUR,
+                default=defaults.get(CONF_MIN_DUR) if defaults else 300,
+            ): get_time_selector(min_value=0, max_value=3600),
+        }
+    )
+
+    # Add advanced settings as a collapsible section
+    core_schema[vol.Optional("advanced_settings")] = section(
+        advanced_section_schema, {"collapsed": True}
+    )
+
+    return vol.Schema(core_schema)
+
+
 def get_grouped_schema(
     system_type: str,
     show_heater: bool = True,

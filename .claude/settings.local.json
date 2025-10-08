@@ -6,7 +6,13 @@
       "Bash(lsattr:*)",
       "Bash(find:*)",
       "Bash(sudo chattr:*)",
-      "Bash(strace rmdir:*)"
+      "Bash(strace rmdir:*)",
+      "Bash(pytest:*)",
+      "Bash(python3:*)",
+      "Bash(isort:*)",
+      "Bash(black:*)",
+      "Bash(flake8:*)",
+      "Bash(git rebase:*)"
     ],
     "deny": [],
     "ask": []
