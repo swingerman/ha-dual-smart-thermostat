@@ -7,7 +7,7 @@ Guidance for reviewers:
 - All code tasks follow TDD: create failing tests first, implement changes, then make tests pass.
 - Keep PRs small and focused; prefer single responsibility per PR.
 
-Summary: ✅ E2E scaffold (T001), config flow tests (T002), and complete E2E implementation (T003) COMPLETED with comprehensive implementation insights documented. **T003 ACHIEVED BEYOND ORIGINAL SCOPE**: Full E2E coverage for both system types (config + options flows) with CI integration. ❌ T007 REMOVED (duplicate of T005/T006). 🆕 **T007A ADDED** (feature interaction testing - CRITICAL). **Current priority**: Remove Advanced option (T004), complete heater_cooler/heat_pump with TDD approach (T005-T006), test feature interactions & HVAC modes (T007A - NEW CRITICAL TASK), normalize keys (T008), then polish & release (T009, T012).
+Summary: ✅ E2E scaffold (T001), config flow tests (T002), and complete E2E implementation (T003) COMPLETED with comprehensive implementation insights documented. **T003 ACHIEVED BEYOND ORIGINAL SCOPE**: Full E2E coverage for both system types (config + options flows) with CI integration. ✅ T004 (Remove Advanced option) COMPLETED. ✅ T005 (heater_cooler) and ✅ T006 (heat_pump) COMPLETED with comprehensive TDD implementation. ❌ T007 REMOVED (duplicate of T005/T006). 🆕 **T007A ADDED** (feature interaction testing - CRITICAL). **Current priority**: Test feature interactions & HVAC modes (T007A - NEW CRITICAL TASK), normalize keys (T008), then polish & release (T009, T012).
 
 ---
 
@@ -104,7 +104,8 @@ Task IDs: T001..T012
 **Active Tasks (Updated Priorities):**
 - 🔥 T004 (Remove Advanced Custom Setup option) — Issue #414 open — **HIGH PRIORITY**
 - 🔥 T007 (Add Python unit tests for climate entity validation) — Issue #417 open — **ELEVATED TO HIGH PRIORITY**
-- 🔄 T005-T006, T008-T012 (Remaining tasks) — Issues #415-416, #418-422 open
+- ✅ T005-T006 COMPLETED — Issues #415-416 closed
+- 🔄 T007A, T008-T012 (Remaining tasks) — Issues #418-422 open
 
 **Original Parent Issue:**
 - ✅ #157 "[feat] config flow" — Closed as completed on 2025-09-16
@@ -360,7 +361,7 @@ pytest tests/unit -v
 
 **Parallelization**: Can be run in parallel with T006 and T007 if no shared files are edited simultaneously.
 
-T006 — Complete `heat_pump` implementation (Phase 1C) 📉 [REDUCED SCOPE] — [GitHub Issue #416](https://github.com/swingerman/ha-dual-smart-thermostat/issues/416)
+T006 — Complete `heat_pump` implementation ✅ [COMPLETED] — [GitHub Issue #416](https://github.com/swingerman/ha-dual-smart-thermostat/issues/416)
 - **SCOPE REDUCTION**: Focus on Python implementation and unit tests only; E2E tests removed from scope
 - **Strategy**: Write failing tests FIRST (RED), implement code (GREEN), validate no regressions (REFACTOR)
 
@@ -655,8 +656,8 @@ Task Ordering and dependency notes (UPDATED 2025-01-06)
 
 **Updated Parallel execution examples:**
 - **Phase 1** 🔥: T004 (Advanced option removal) — Do first, blocks nothing
-- **Phase 2** 🔥: {T005, T006} — Parallel implementation, coordinate on `schemas.py` edits
-- **Phase 3** 🔥: T007A (Feature interactions) — MUST complete after T005/T006
+- **Phase 2** ✅: {T005, T006} — COMPLETED (Parallel implementation, coordinated on `schemas.py` edits)
+- **Phase 3** 🔥: T007A (Feature interactions) — CURRENT PRIORITY
 - **Phase 4** ✅: T008 (Normalize keys after learning from T005/T006/T007A)
 - **Phase 5** ✅: {T009, T012} — Parallel, different files
 - **Phase 6** ⚪: {T010, T011} — **OPTIONAL** - Only if time permits
@@ -664,6 +665,7 @@ Task Ordering and dependency notes (UPDATED 2025-01-06)
 **Recommended Sequential Path (Critical Path to Release):**
 ```
 T004 → {T005, T006} → T007A → T008 → {T009, T012} → RELEASE
+✅       ✅            🔥      ⏳      ⏳
        (parallel)      ↑               (parallel)
                    [NEW: Critical
                     for features]

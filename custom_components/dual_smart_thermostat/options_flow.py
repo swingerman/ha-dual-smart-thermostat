@@ -38,6 +38,7 @@ from .const import (  # CONF_MIN_DUR and CONF_SENSOR are not used in this module
     SYSTEM_TYPE_AC_ONLY,
     SYSTEM_TYPE_DUAL_STAGE,
     SYSTEM_TYPE_FLOOR_HEATING,
+    SYSTEM_TYPE_HEAT_PUMP,
     SYSTEM_TYPE_HEATER_COOLER,
     SYSTEM_TYPE_SIMPLE_HEATER,
     SYSTEM_TYPES,
@@ -55,6 +56,7 @@ from .schemas import (
     get_fan_toggle_schema,
     get_features_schema,
     get_heat_cool_mode_schema,
+    get_heat_pump_schema,
     get_heater_cooler_schema,
     get_humidity_toggle_schema,
     get_simple_heater_schema,
@@ -284,6 +286,9 @@ class OptionsFlowHandler(OptionsFlow):
             schema = get_heater_cooler_schema(
                 defaults=current_config, include_name=False
             )
+        elif effective_system_type == SYSTEM_TYPE_HEAT_PUMP:
+            # For heat pump systems, use the dedicated schema with advanced settings in collapsible section
+            schema = get_heat_pump_schema(defaults=current_config, include_name=False)
         else:
             schema = get_core_schema(
                 effective_system_type, defaults=current_config, include_name=False

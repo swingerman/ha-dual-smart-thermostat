@@ -153,23 +153,41 @@
                 }
             },
             "heat_pump": {
-                "title": "Basic Configuration",
-                "description": "Configure your heat pump system.",
+                "title": "Heat Pump Configuration",
+                "description": "Configure your heat pump system. A single switch controls both heating and cooling, with the mode determined by a cooling state sensor.",
                 "data": {
                     "name": "Name",
                     "heater": "Heat pump switch",
                     "target_sensor": "Temperature sensor",
+                    "heat_pump_cooling": "Cooling state sensor",
                     "cold_tolerance": "Cold tolerance",
                     "hot_tolerance": "Hot tolerance",
                     "min_cycle_duration": "Minimum cycle duration"
                 },
                 "data_description": {
-                    "name": "Name of the thermostat entity (default: Dual Smart).",
-                    "heater": "Entity ID for heat pump switch. Controls the heat pump unit that can provide both heating and cooling depending on the thermostat mode and outdoor conditions.",
-                    "target_sensor": "Entity ID for temperature sensor that reflects the current temperature. The sensor state must be temperature.",
-                    "cold_tolerance": "Minimum temperature difference between sensor reading and target before switching heat pump to heating mode. For example, if target is 25°C and tolerance is 0.5°C, heating starts when sensor reaches 24.5°C or below.",
-                    "hot_tolerance": "Minimum temperature difference between sensor reading and target before switching heat pump to cooling mode. For example, if target is 25°C and tolerance is 0.5°C, cooling starts when sensor reaches 25.5°C or above.",
-                    "min_cycle_duration": "Minimum time the heat pump must stay in its current state before being switched. Critical for heat pump protection as frequent switching can damage the compressor."
+                    "name": "[Basic Information] Name of the thermostat entity (default: Dual Smart).",
+                    "heater": "[Control Devices] Entity ID for heat pump switch. Controls the heat pump unit for both heating and cooling. The same switch is used regardless of mode.",
+                    "target_sensor": "[Sensors] Entity ID for temperature sensor that reflects the current temperature. The sensor state must be temperature.",
+                    "heat_pump_cooling": "[Control Devices] Entity ID for cooling state sensor (sensor, binary_sensor, or input_boolean). When 'on', the heat pump operates in cooling mode. When 'off', it operates in heating mode. This sensor determines which mode the heat pump uses. Can be a manual input_boolean for control or an entity provided by your heat pump system.",
+                    "cold_tolerance": "[Temperature Settings] Minimum temperature difference between sensor reading and target before switching heat pump to heating mode. For example, if target is 25°C and tolerance is 0.5°C, heating starts when sensor reaches 24.5°C or below (default: 0.3°C).",
+                    "hot_tolerance": "[Temperature Settings] Minimum temperature difference between sensor reading and target before switching heat pump to cooling mode. For example, if target is 25°C and tolerance is 0.5°C, cooling starts when sensor reaches 25.5°C or above (default: 0.3°C).",
+                    "min_cycle_duration": "[Temperature Settings] Minimum time the heat pump must stay in its current state before being switched. Critical for heat pump protection as frequent switching can damage the compressor (default: 300 seconds)."
+                },
+                "sections": {
+                    "advanced_settings": {
+                        "name": "Advanced Settings",
+                        "description": "Configure temperature tolerances and cycle protection settings for optimal heat pump operation.",
+                        "data": {
+                            "cold_tolerance": "Cold tolerance",
+                            "hot_tolerance": "Hot tolerance",
+                            "min_cycle_duration": "Minimum cycle duration"
+                        },
+                        "data_description": {
+                            "cold_tolerance": "Minimum temperature difference between sensor reading and target before switching heat pump to heating mode. For example, if target is 25°C and tolerance is 0.5°C, heating starts when sensor reaches 24.5°C or below (default: 0.3°C).",
+                            "hot_tolerance": "Minimum temperature difference between sensor reading and target before switching heat pump to cooling mode. For example, if target is 25°C and tolerance is 0.5°C, cooling starts when sensor reaches 25.5°C or above (default: 0.3°C).",
+                            "min_cycle_duration": "Minimum time the heat pump must stay in its current state before being switched. Critical for heat pump protection as frequent switching can damage the compressor (default: 300 seconds)."
+                        }
+                    }
                 }
             },
             "dual_stage": {

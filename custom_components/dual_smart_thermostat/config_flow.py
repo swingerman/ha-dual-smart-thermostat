@@ -25,7 +25,6 @@ from .const import (
     CONF_SENSOR,
     CONF_SYSTEM_TYPE,
     DOMAIN,
-    SYSTEM_TYPE_HEAT_PUMP,
     SYSTEM_TYPE_SIMPLE_HEATER,
     SystemType,
 )
@@ -46,6 +45,7 @@ from .schemas import (
     get_features_schema,
     get_grouped_schema,
     get_heat_cool_mode_schema,
+    get_heat_pump_schema,
     get_heater_cooler_schema,
     get_humidity_schema,
     get_preset_selection_schema,
@@ -282,6 +282,12 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
         errors = {}
 
         if user_input is not None:
+            # Extract advanced settings from section and flatten to top level
+            if "advanced_settings" in user_input:
+                advanced_settings = user_input.pop("advanced_settings")
+                if advanced_settings:
+                    user_input.update(advanced_settings)
+
             if not await self._validate_basic_config(user_input):
                 heater = user_input.get(CONF_HEATER)
                 sensor = user_input.get(CONF_SENSOR)
@@ -289,21 +295,11 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
                 if heater and sensor and heater == sensor:
                     errors["base"] = "same_heater_sensor"
             else:
-                # Enable heat pump cooling mode
-                user_input[CONF_HEAT_PUMP_COOLING] = True
                 self.collected_config.update(user_input)
                 return await self._determine_next_step()
 
-        # Use grouped schema merged with base schema for better UI organization
-        # For heat pump, expose the heat pump cooling toggle only for this
-        # system type.
-        grouped = get_grouped_schema(
-            SYSTEM_TYPE_HEAT_PUMP,
-            show_heater=True,
-            show_heat_pump_cooling=True,
-        )
-        base = get_base_schema()
-        schema = vol.Schema({**base.schema, **grouped.schema})
+        # Use dedicated heat pump schema with advanced settings in collapsible section
+        schema = get_heat_pump_schema(defaults=None, include_name=True)
 
         return self.async_show_form(
             step_id="heat_pump",

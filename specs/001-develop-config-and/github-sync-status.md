@@ -12,14 +12,14 @@
 - **T004** (#414) - Remove Advanced Custom Setup option - ✅ CLOSED (completed)
 - **T007** (#417) - Python Unit Tests - ✅ CLOSED (removed as duplicate of T005/T006)
 
-### 🔥 High Priority - Active Development
-- **T005** (#415) - Complete heater_cooler implementation
-  - Status: ✅ SYNCED with acceptance criteria (updated 2025-01-06)
+### ✅ Completed/Closed Tasks (System Types)
+- **T005** (#415) - Complete heater_cooler implementation - ✅ CLOSED (completed 2025-10-08)
   - Includes: TDD approach, comprehensive acceptance criteria, bug fixes documented
+  - All acceptance criteria met with comprehensive test coverage
 
-- **T006** (#416) - Complete heat_pump implementation
-  - Status: ✅ SYNCED with acceptance criteria (updated 2025-01-06)
+- **T006** (#416) - Complete heat_pump implementation - ✅ CLOSED (completed 2025-10-08)
   - Includes: TDD approach, comprehensive acceptance criteria, heat_pump_cooling specifics
+  - All acceptance criteria met with E2E and unit test coverage
 
 ### ✅ Medium Priority - Post Implementation
 - **T008** (#418) - Normalize collected_config keys and constants
@@ -43,17 +43,17 @@
 - **T012** (#422) - Polish documentation & release prep
   - Status: ✅ OPEN (no updates needed - original content still valid)
 
-## Critical Path to Release (Updated)
+## Critical Path to Release (Updated 2025-10-08)
 
 ```
-T004 → {T005, T006} → T008 → {T009, T012} → RELEASE
-✅      (parallel)      📋      (parallel)
+T004 → {T005, T006} → T007A → T008 → {T009, T012} → RELEASE
+✅       ✅            🔥      ⏳      ⏳
 ```
 
 **Legend:**
-- ✅ Completed
-- 🔥 High Priority (T005, T006)
-- ✅ Medium Priority (T008, T009, T012)
+- ✅ Completed (T001-T006)
+- 🔥 Current Priority (T007A - Feature interactions)
+- ⏳ Upcoming (T008, T009, T012)
 - ⚪ Optional (T010, T011)
 
 ## Key Changes Made (2025-01-06)
@@ -101,10 +101,11 @@ gh issue view 421 | grep -i "optional"
 gh issue view 417 --json state --jq '.state'
 ```
 
-## Next Steps
+## Next Steps (Updated 2025-10-08)
 
-1. ✅ Start T004 (Remove Advanced option) - if not already complete
-2. 🔥 Implement T005/T006 in parallel with TDD approach
-3. ✅ T008 normalization after learning from T005/T006
-4. ✅ T009/T012 in parallel for release prep
-5. ⚪ T010/T011 optional post-release improvements
+1. ✅ T004 (Remove Advanced option) - COMPLETED
+2. ✅ T005/T006 in parallel with TDD approach - COMPLETED
+3. 🔥 T007A (Feature interactions testing) - CURRENT PRIORITY
+4. ⏳ T008 normalization after learning from T005/T006
+5. ⏳ T009/T012 in parallel for release prep
+6. ⚪ T010/T011 optional post-release improvements
