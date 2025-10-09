@@ -115,6 +115,10 @@ class OpeningsSteps:
                 "async_step_config - collected_config before: %s", collected_config
             )
 
+            # Copy user_input fields to collected_config FIRST
+            # This ensures opening_scope and timeout fields are saved
+            collected_config.update(user_input)
+
             # Process the openings input and convert to the expected format
             selected_entities = collected_config.get("selected_openings", [])
             _LOGGER.debug(
@@ -131,7 +135,7 @@ class OpeningsSteps:
             if openings_list:
                 collected_config[CONF_OPENINGS] = openings_list
 
-            # Clean openings scope configuration
+            # Clean openings scope configuration (removes "all" scope)
             OpeningsProcessor.clean_openings_scope(collected_config)
 
             _LOGGER.debug(
