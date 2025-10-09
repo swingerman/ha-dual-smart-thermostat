@@ -49,9 +49,9 @@ This template applies to **all system type implementations** (simple_heater, ac_
 - ✅ **test_e2e_simple_heater_persistence.py** - Simple heater config → options → persistence
 - ✅ **test_e2e_ac_only_persistence.py** - AC only config → options → persistence
 - ✅ **test_e2e_heater_cooler_persistence.py** - Heater/cooler config → options → persistence
-- ⏳ **test_e2e_heat_pump_persistence.py** - TODO: Add when heat_pump is implemented (T006)
-- ⏳ **test_e2e_dual_stage_persistence.py** - TODO: Add if dual_stage needs testing
-- ⏳ **test_e2e_floor_heating_persistence.py** - TODO: Add if floor_heating needs testing
+- ✅ **test_e2e_heat_pump_persistence.py** - Heat pump config → options → persistence
+
+**Note**: `dual_stage` and `floor_heating` are not selectable system types in the UI (per `SYSTEM_TYPES` in `const.py`), so E2E persistence tests are not applicable. These represent feature configurations rather than distinct system types.
 
 **What E2E tests validate:**
 1. Complete config flow creates correct entry (no transient flags saved)
@@ -141,11 +141,11 @@ T002 — Add Playwright tests for config & options flows (Phase 1A) [P] — ✅ 
   - ✅ `tests/e2e/baselines/simple_heater/` — Screenshot baselines
 - **Implementation Status & Key Findings**:
   - ✅ **T003 Simple Heater Config Flow WORKING**: Complete 4-step flow implemented
-    1. System Type Selection (radio buttons) 
+    1. System Type Selection (radio buttons)
     2. Basic Configuration (name, temperature sensor, heater switch)
     3. Features Configuration (skipped for basic flow)
     4. Confirmation Dialog (final verification)
-  - ✅ **Home Assistant UI Patterns Discovered**: 
+  - ✅ **Home Assistant UI Patterns Discovered**:
     - Config flows use modal dialogs (URL never changes)
     - Step detection via dialog content + form elements analysis
     - `ha-picker-field` interaction: click → type → Tab (not Enter)
@@ -444,10 +444,11 @@ T007 — ~~Add Python Unit Tests for Climate Entity & Data Structure Validation~
 - **ACTION**: Tests will be created as part of T005 (heater_cooler) and T006 (heat_pump) implementation
 - **GITHUB ISSUE**: Should be closed or updated to reference T005/T006
 
-T007A — Feature Interaction & HVAC Mode Testing 🔥 [NEW - CRITICAL FOR RELEASE] — [GitHub Issue #436](https://github.com/swingerman/ha-dual-smart-thermostat/issues/436)
-- **PRIORITY**: 🔥 **HIGH PRIORITY** - Critical for feature completeness
+T007A — Comprehensive Feature Testing: Availability, Ordering & Interactions 🔥 [CRITICAL FOR RELEASE] — [GitHub Issue #440](https://github.com/swingerman/ha-dual-smart-thermostat/issues/440)
+- **PRIORITY**: 🔥 **HIGHEST PRIORITY** - Critical for feature completeness and release stability
 - **DEPENDENCY**: Must complete AFTER T005/T006 (requires all system types working)
-- **RATIONALE**: Features affect HVAC modes, which affect other features. This creates a cascade:
+- **COMPREHENSIVE SCOPE**: This task now covers complete feature testing (availability, ordering, interactions) using the TDD plan in `FEATURE_TESTING_PLAN.md`
+- **RATIONALE**: Features have strict availability rules per system type, ordering dependencies, and cross-feature interactions. This creates a cascade:
   ```
   System Type + Core Settings → Base HVAC modes
       ↓
@@ -469,99 +470,132 @@ T007A — Feature Interaction & HVAC Mode Testing 🔥 [NEW - CRITICAL FOR RELEA
   - If floor_heating is enabled (to include floor temp bounds)
   - If heat_cool_mode is true (to use temp_low/temp_high vs single temperature)
 
-**Implementation Strategy:**
-Break into sub-tasks by feature layer:
+**Implementation Strategy (TDD Approach - See `FEATURE_TESTING_PLAN.md` for Full Details):**
 
-**Phase 1: Single Feature + System Type (T007A-1)**
-- Test fan feature adds FAN_ONLY mode (heater_cooler + fan, heat_pump + fan)
-- Test humidity feature adds DRY mode (all system types + humidity)
-- Test floor_heating works with compatible system types (simple_heater, heater_cooler, heat_pump - NOT ac_only)
-- Verify feature availability per system type matches schemas.py:458-478
+**Phase 1: Contract Tests (Foundation) - T007A-1** 🔥 **HIGHEST PRIORITY**
+- **Layer 1: Foundation** - Define feature availability, ordering, and schema contracts
+- **Duration**: 2-3 days
+- **Files to create**:
+  - `tests/contracts/test_feature_availability_contracts.py`
+    - Test feature availability matrix (which features per system type)
+    - Test blocked features cannot be enabled for incompatible system types
+  - `tests/contracts/test_feature_ordering_contracts.py`
+    - Test features selection comes after core settings
+    - Test openings comes before presets
+    - Test presets is final configuration step
+    - Test complete step ordering per system type
+  - `tests/contracts/test_feature_schema_contracts.py`
+    - Test each feature schema produces expected keys
+    - Test floor_heating, fan, humidity, openings, presets schemas
+- **Acceptance**: All contract tests written (RED), failures documented
 
-**Phase 2: Openings + HVAC Modes (T007A-2)**
-- Test openings scope configuration with different HVAC mode combinations
-- Test openings work when fan adds FAN_ONLY mode
-- Test openings work when humidity adds DRY mode
-- Test openings_scope field accepts all available HVAC modes for the configuration
+**Phase 2: Integration Tests (Per System Type) - T007A-2** 🔥 **HIGH PRIORITY**
+- **Layer 2: Flow Execution** - Validate end-to-end feature configuration flows
+- **Duration**: 3-4 days
+- **Files to create**:
+  - `tests/config_flow/test_simple_heater_features_integration.py`
+  - `tests/config_flow/test_ac_only_features_integration.py`
+  - `tests/config_flow/test_heater_cooler_features_integration.py`
+  - `tests/config_flow/test_heat_pump_features_integration.py`
+- **Coverage**:
+  - Test each system type with all available feature combinations
+  - Test blocked features are hidden/disabled per system type
+  - Test config flow and options flow for feature enable/disable
+  - Test feature settings persistence matches `data-model.md`
+- **Acceptance**: Each system type has complete feature integration test coverage
 
-**Phase 3: Presets + All Features (T007A-3)**
-- Test presets with heat_cool_mode=True uses temp_low/temp_high
-- Test presets with heat_cool_mode=False uses single temperature
-- Test presets with humidity enabled includes humidity bounds
-- Test presets with floor_heating enabled includes floor temp bounds (min_floor_temp, max_floor_temp)
-- Test presets with openings enabled validates opening_refs
-- Test preset validation error when referencing non-configured opening
+**Phase 3: Feature Interaction Tests (Cross-Feature) - T007A-3** ✅ **MEDIUM PRIORITY**
+- **Layer 3: Interactions** - Validate features affecting other features
+- **Duration**: 2-3 days
+- **Files to create**:
+  - `tests/features/test_feature_hvac_mode_interactions.py`
+    - Test fan feature adds FAN_ONLY mode (heater_cooler, heat_pump)
+    - Test humidity feature adds DRY mode (all cooling-capable systems)
+    - Test floor_heating blocked for ac_only
+  - `tests/features/test_openings_with_hvac_modes.py`
+    - Test openings scope options depend on available HVAC modes
+    - Test openings_scope with fan adds FAN_ONLY option
+    - Test openings_scope with humidity adds DRY option
+  - `tests/features/test_presets_with_all_features.py`
+    - Test presets with heat_cool_mode=True uses temp_low/temp_high
+    - Test presets with heat_cool_mode=False uses single temperature
+    - Test presets with humidity enabled includes humidity bounds
+    - Test presets with floor_heating enabled includes floor temp bounds
+    - Test presets with openings enabled validates opening_refs
+    - Test preset validation error when referencing non-configured opening
+- **Acceptance**: All feature interaction scenarios tested and passing
 
-**Files to create/edit:**
-- `tests/features/test_feature_hvac_mode_interactions.py` — Test HVAC mode additions
-- `tests/features/test_openings_with_hvac_modes.py` — Test openings scope with various modes
-- `tests/features/test_presets_with_all_features.py` — Test presets respecting all feature combinations
-- `tests/integration/test_complete_feature_flows.py` — End-to-end feature combination tests
-
-**How to run:**
+**How to run (TDD RED-GREEN-REFACTOR cycle):**
 ```bash
-# Phase 1: Feature + System Type
+# Phase 1: Contract Tests (write FIRST - should FAIL initially)
+pytest tests/contracts/test_feature_availability_contracts.py -v
+pytest tests/contracts/test_feature_ordering_contracts.py -v
+pytest tests/contracts/test_feature_schema_contracts.py -v
+
+# Phase 2: Integration Tests (per system type)
+pytest tests/config_flow/test_simple_heater_features_integration.py -v
+pytest tests/config_flow/test_ac_only_features_integration.py -v
+pytest tests/config_flow/test_heater_cooler_features_integration.py -v
+pytest tests/config_flow/test_heat_pump_features_integration.py -v
+
+# Phase 3: Interaction Tests (cross-feature)
 pytest tests/features/test_feature_hvac_mode_interactions.py -v
-
-# Phase 2: Openings interactions
 pytest tests/features/test_openings_with_hvac_modes.py -v
-
-# Phase 3: Presets interactions
 pytest tests/features/test_presets_with_all_features.py -v
 
-# Full suite
+# Full feature test suite
+pytest tests/contracts -v
+pytest tests/config_flow/*features* -v
 pytest tests/features -v
-pytest tests/integration -v
 ```
 
-**Acceptance Criteria (Following Universal Template):**
+**Acceptance Criteria (Comprehensive - See `FEATURE_TESTING_PLAN.md` for Details):**
 
-**Test-Driven Development (TDD):**
-- ✅ All tests written BEFORE implementation (RED phase)
-- ✅ Tests fail initially with clear error messages
+**Phase 1 (Contract Tests) - Foundation:**
+- ✅ All contract tests written BEFORE implementation (RED phase)
+- ✅ Feature availability matrix validated for all system types
+- ✅ Feature ordering rules enforced in both config and options flows
+- ✅ Feature schemas produce expected keys and types
+- ✅ Tests fail initially with clear error messages documenting gaps
+
+**Phase 2 (Integration Tests) - Per System Type:**
+- ✅ Each system type's feature combinations work end-to-end
+- ✅ Features can be enabled/disabled via config and options flows
+- ✅ Feature settings persist correctly (match `data-model.md`)
+- ✅ Unavailable features are hidden/disabled per system type
 - ✅ Implementation makes tests pass (GREEN phase)
-- ✅ No regressions in T005/T006 system type tests
 
-**Feature Interaction - Core Requirements:**
-1. ✅ **Fan feature adds FAN_ONLY mode** - Verified across all compatible system types
-2. ✅ **Humidity feature adds DRY mode** - Verified across all system types
-3. ✅ **Floor heating restriction** - Works with heater-based systems, blocked/hidden for ac_only
-4. ✅ **Feature availability per system type** - Matches schemas.py definitions
-
-**Openings + HVAC Modes:**
-- ✅ Openings scope accepts all available HVAC modes for current configuration
-- ✅ Openings configuration appears BEFORE presets in flow order
-- ✅ Openings work correctly when FAN_ONLY mode added by fan feature
-- ✅ Openings work correctly when DRY mode added by humidity feature
-
-**Presets + All Features (Most Complex):**
-- ✅ Presets appear LAST in feature configuration order (after all other features)
-- ✅ Presets use temp_low/temp_high when heat_cool_mode=True
-- ✅ Presets use single temperature when heat_cool_mode=False
-- ✅ Presets include humidity bounds ONLY when humidity feature enabled
-- ✅ Presets include floor temp bounds ONLY when floor_heating feature enabled
-- ✅ Presets validate opening_refs against configured openings
-- ✅ Preset validation fails when referencing non-existent opening
-- ✅ Presets configuration form adapts to all enabled features
+**Phase 3 (Interaction Tests) - Cross-Feature:**
+- ✅ **Fan feature adds FAN_ONLY mode** - Verified across compatible system types
+- ✅ **Humidity feature adds DRY mode** - Verified across cooling-capable systems
+- ✅ **Floor heating restriction** - Works with heater-based systems, blocked for ac_only
+- ✅ **Openings scope depends on HVAC modes** - Options adapt to enabled features
+- ✅ **Presets adapt to all features** - Includes humidity, floor, opening refs when configured
+- ✅ **Preset validation** - Enforces dependencies (e.g., opening_refs validation)
 
 **Data Structure Validation:**
 - ✅ Feature settings saved under correct keys in data-model.md structure
 - ✅ HVAC modes correctly populated based on enabled features
 - ✅ Climate entity exposes correct HVAC modes based on feature combination
 
-**Business Logic Validation:**
-- ✅ Climate entity switches modes correctly with fan feature
-- ✅ Climate entity handles humidity/dry mode correctly
-- ✅ Openings behavior respects configured HVAC mode scope
-- ✅ Presets apply correct settings based on all enabled features
-
 **Quality Gates:**
-- ✅ All code must pass linting checks
-- ✅ All unit tests must pass
-- ✅ All integration tests must pass
-- ✅ No regressions in existing system type tests
+- ✅ All tests pass locally (`pytest -q`)
+- ✅ All tests pass in CI
+- ✅ No regressions in existing tests (T005/T006 system type tests)
+- ✅ Code coverage > 90% for feature-related code
+- ✅ All code passes linting checks
+
+**Test Organization:**
+```
+tests/
+├── contracts/                  # Phase 1: Foundation
+├── config_flow/               # Phase 2: Integration (per system type)
+└── features/                  # Phase 3: Interactions (cross-feature)
+```
 
 **Parallelization**: Cannot run in parallel with T005/T006 - requires them complete first
+
+**Documentation**: Full test plan in `specs/001-develop-config-and/FEATURE_TESTING_PLAN.md`
 
 T008 — Normalize collected_config keys and constants — [GitHub Issue #418](https://github.com/swingerman/ha-dual-smart-thermostat/issues/418)
 - Files to edit:
