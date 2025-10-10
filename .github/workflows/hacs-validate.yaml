@@ -13,7 +13,7 @@ on:
 
 jobs:
   validate_hacs:
-    name: Valiate With HACS
+    name: Validate With HACS
     runs-on: "ubuntu-latest"
     steps:
       - uses: actions/checkout@v5
