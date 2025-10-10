@@ -11,6 +11,7 @@ from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import selector
 import voluptuous as vol
 
+from .config_validation import validate_config_with_models
 from .const import (  # CONF_MIN_DUR and CONF_SENSOR are not used in this module; removed to satisfy linter
     CONF_AC_MODE,
     CONF_AUX_HEATER,
@@ -426,6 +427,14 @@ class OptionsFlowHandler(OptionsFlow):
             updated_data.get("fan_on_with_ac"),
             updated_data.get("name"),
         )
+
+        # Validate configuration using models for type safety
+        if not validate_config_with_models(updated_data):
+            _LOGGER.warning(
+                "Configuration validation failed for %s. "
+                "Please check your configuration.",
+                updated_data.get("name", "thermostat"),
+            )
 
         result = self.async_create_entry(
             title="",  # Empty title for options flow

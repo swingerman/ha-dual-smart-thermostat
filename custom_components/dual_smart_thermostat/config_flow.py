@@ -11,6 +11,7 @@ from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
 import voluptuous as vol
 
+from .config_validation import validate_config_with_models
 from .const import (
     CONF_AC_MODE,
     CONF_AUX_HEATER,
@@ -503,9 +504,19 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
                 # At least one preset is enabled, proceed to configuration
                 return await self.async_step_presets()
             # No presets enabled, skip configuration and finish
+            cleaned_config = self._clean_config_for_storage(self.collected_config)
+
+            # Validate configuration using models for type safety
+            if not validate_config_with_models(cleaned_config):
+                _LOGGER.warning(
+                    "Configuration validation failed for %s. "
+                    "Please check your configuration.",
+                    cleaned_config.get(CONF_NAME, "thermostat"),
+                )
+
             return self.async_create_entry(
                 title=self.collected_config[CONF_NAME],
-                data=self._clean_config_for_storage(self.collected_config),
+                data=cleaned_config,
             )
 
         return self.async_show_form(
@@ -630,9 +641,19 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
             return await self.async_step_preset_selection()
         else:
             # Skip presets and finish configuration
+            cleaned_config = self._clean_config_for_storage(self.collected_config)
+
+            # Validate configuration using models for type safety
+            if not validate_config_with_models(cleaned_config):
+                _LOGGER.warning(
+                    "Configuration validation failed for %s. "
+                    "Please check your configuration.",
+                    cleaned_config.get(CONF_NAME, "thermostat"),
+                )
+
             return self.async_create_entry(
                 title=self.async_config_entry_title(self.collected_config),
-                data=self._clean_config_for_storage(self.collected_config),
+                data=cleaned_config,
             )
 
     def _has_both_heating_and_cooling(self) -> bool:
@@ -659,6 +680,14 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
 
     async def async_step_import(self, import_config: dict[str, Any]) -> FlowResult:
         """Import a config entry from configuration.yaml."""
+        # Validate configuration using models for type safety
+        if not validate_config_with_models(import_config):
+            _LOGGER.warning(
+                "Configuration validation failed for imported config %s. "
+                "Please check your configuration.yaml.",
+                import_config.get(CONF_NAME, "thermostat"),
+            )
+
         return self.async_create_entry(
             title=import_config.get(CONF_NAME, "Dual Smart Thermostat"),
             data=import_config,
