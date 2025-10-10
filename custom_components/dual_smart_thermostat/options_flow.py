@@ -551,9 +551,21 @@ class OptionsFlowHandler(OptionsFlow):
             feature_defaults["configure_openings"] = True
 
         # Presets: check if any presets are configured
-        # Presets are stored with keys like "away", "home", etc.
-        preset_keys = ["away", "home", "sleep", "activity", "comfort", "eco", "boost"]
-        if any(current_config.get(preset_key) for preset_key in preset_keys):
+        # Presets can be stored in two formats:
+        # 1. "presets" list: ["away", "home", "sleep"]
+        # 2. Preset config keys: "away_temp", "home_temp", etc.
+        has_presets_list = bool(current_config.get("presets"))
+        preset_temp_keys = [
+            "away_temp",
+            "home_temp",
+            "sleep_temp",
+            "activity_temp",
+            "comfort_temp",
+            "eco_temp",
+            "boost_temp",
+        ]
+        has_preset_config = any(current_config.get(key) for key in preset_temp_keys)
+        if has_presets_list or has_preset_config:
             feature_defaults["configure_presets"] = True
 
         return self.async_show_form(

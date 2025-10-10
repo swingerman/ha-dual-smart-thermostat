@@ -173,17 +173,24 @@ class OpeningsProcessor:
         """Clean openings scope configuration.
 
         Remove openings_scope if it's "all" or not set (default behavior).
+        Also handles the singular "opening_scope" form field name.
 
         Args:
             collected_config: Configuration dictionary to modify
         """
-        openings_scope = collected_config.get(CONF_OPENINGS_SCOPE)
+        # Check both the constant name and the form field name
+        openings_scope = collected_config.get(
+            CONF_OPENINGS_SCOPE
+        ) or collected_config.get("opening_scope")
+
         if openings_scope and openings_scope != "all" and "all" not in openings_scope:
             # Keep the scope setting only if it's not "all"
             pass
         else:
             # Remove openings_scope if it's "all" or not set (default behavior)
+            # Remove both possible key names
             collected_config.pop(CONF_OPENINGS_SCOPE, None)
+            collected_config.pop("opening_scope", None)
 
 
 class FlowStepTracker:
