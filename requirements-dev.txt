@@ -7,3 +7,15 @@ black
 codespell
 mypy
 colorlog
+# Security and quality tools
+safety
+bandit
+semgrep
+pip-audit
+radon
+xenon
+flake8
+# Fix security vulnerabilities
+urllib3>=2.5.0
+requests>=2.32.4
+aiohttp>=3.12.14

@@ -5,11 +5,36 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "dependabot[bot]"
+    assignees:
+      - "dependabot[bot]"
+    commit-message:
+      prefix: "chore"
+      prefix-development: "chore"
+      include: "scope"
 
   - package-ecosystem: "pip"
     directory: "/"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "dependabot[bot]"
+    assignees:
+      - "dependabot[bot]"
+    commit-message:
+      prefix: "chore"
+      prefix-development: "chore"
+      include: "scope"
     ignore:
       # Dependabot should not update Home Assistant as that should match the homeassistant key in hacs.json
       - dependency-name: "homeassistant"
+      # Ignore major version updates for critical dependencies
+      - dependency-name: "pytest"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "black"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "isort"
+        update-types: ["version-update:semver-major"]
