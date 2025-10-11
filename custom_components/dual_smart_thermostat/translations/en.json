@@ -102,16 +102,14 @@
                     "configure_humidity": "Configure humidity control",
                     "configure_openings": "Configure window/door sensors",
                     "configure_presets": "Configure temperature presets",
-                    "configure_floor_heating": "Configure floor heating protection",
-                    "configure_advanced": "Configure advanced settings"
+                    "configure_floor_heating": "Configure floor heating protection"
                 },
                 "data_description": {
                     "configure_fan": "Enable configuration of fan settings. This allows you to set up a separate fan entity that can run independently for air circulation.",
                     "configure_humidity": "Enable configuration of humidity monitoring and control. This allows you to set up humidity sensors and dry mode operation.",
                     "configure_openings": "Enable configuration of window and door sensors so the thermostat can pause operation when openings are detected.",
                     "configure_presets": "Enable configuration of temperature presets like Away, Comfort, and Eco for quick mode changes.",
-                    "configure_floor_heating": "Enable configuration of floor temperature protection. When enabled you can set a floor sensor and max/min limits to protect your flooring.",
-                    "configure_advanced": "Show advanced configuration options such as keep-alive intervals, temperature precision, and default modes for power users."
+                    "configure_floor_heating": "Enable configuration of floor temperature protection. When enabled you can set a floor sensor and max/min limits to protect your flooring."
                 }
             },
             "heater_cooler": {
@@ -155,23 +153,41 @@
                 }
             },
             "heat_pump": {
-                "title": "Basic Configuration",
-                "description": "Configure your heat pump system.",
+                "title": "Heat Pump Configuration",
+                "description": "Configure your heat pump system. A single switch controls both heating and cooling, with the mode determined by a cooling state sensor.",
                 "data": {
                     "name": "Name",
                     "heater": "Heat pump switch",
                     "target_sensor": "Temperature sensor",
+                    "heat_pump_cooling": "Cooling state sensor",
                     "cold_tolerance": "Cold tolerance",
                     "hot_tolerance": "Hot tolerance",
                     "min_cycle_duration": "Minimum cycle duration"
                 },
                 "data_description": {
-                    "name": "Name of the thermostat entity (default: Dual Smart).",
-                    "heater": "Entity ID for heat pump switch. Controls the heat pump unit that can provide both heating and cooling depending on the thermostat mode and outdoor conditions.",
-                    "target_sensor": "Entity ID for temperature sensor that reflects the current temperature. The sensor state must be temperature.",
-                    "cold_tolerance": "Minimum temperature difference between sensor reading and target before switching heat pump to heating mode. For example, if target is 25°C and tolerance is 0.5°C, heating starts when sensor reaches 24.5°C or below.",
-                    "hot_tolerance": "Minimum temperature difference between sensor reading and target before switching heat pump to cooling mode. For example, if target is 25°C and tolerance is 0.5°C, cooling starts when sensor reaches 25.5°C or above.",
-                    "min_cycle_duration": "Minimum time the heat pump must stay in its current state before being switched. Critical for heat pump protection as frequent switching can damage the compressor."
+                    "name": "[Basic Information] Name of the thermostat entity (default: Dual Smart).",
+                    "heater": "[Control Devices] Entity ID for heat pump switch. Controls the heat pump unit for both heating and cooling. The same switch is used regardless of mode.",
+                    "target_sensor": "[Sensors] Entity ID for temperature sensor that reflects the current temperature. The sensor state must be temperature.",
+                    "heat_pump_cooling": "[Control Devices] Entity ID for cooling state sensor (sensor, binary_sensor, or input_boolean). When 'on', the heat pump operates in cooling mode. When 'off', it operates in heating mode. This sensor determines which mode the heat pump uses. Can be a manual input_boolean for control or an entity provided by your heat pump system.",
+                    "cold_tolerance": "[Temperature Settings] Minimum temperature difference between sensor reading and target before switching heat pump to heating mode. For example, if target is 25°C and tolerance is 0.5°C, heating starts when sensor reaches 24.5°C or below (default: 0.3°C).",
+                    "hot_tolerance": "[Temperature Settings] Minimum temperature difference between sensor reading and target before switching heat pump to cooling mode. For example, if target is 25°C and tolerance is 0.5°C, cooling starts when sensor reaches 25.5°C or above (default: 0.3°C).",
+                    "min_cycle_duration": "[Temperature Settings] Minimum time the heat pump must stay in its current state before being switched. Critical for heat pump protection as frequent switching can damage the compressor (default: 300 seconds)."
+                },
+                "sections": {
+                    "advanced_settings": {
+                        "name": "Advanced Settings",
+                        "description": "Configure temperature tolerances and cycle protection settings for optimal heat pump operation.",
+                        "data": {
+                            "cold_tolerance": "Cold tolerance",
+                            "hot_tolerance": "Hot tolerance",
+                            "min_cycle_duration": "Minimum cycle duration"
+                        },
+                        "data_description": {
+                            "cold_tolerance": "Minimum temperature difference between sensor reading and target before switching heat pump to heating mode. For example, if target is 25°C and tolerance is 0.5°C, heating starts when sensor reaches 24.5°C or below (default: 0.3°C).",
+                            "hot_tolerance": "Minimum temperature difference between sensor reading and target before switching heat pump to cooling mode. For example, if target is 25°C and tolerance is 0.5°C, cooling starts when sensor reaches 25.5°C or above (default: 0.3°C).",
+                            "min_cycle_duration": "Minimum time the heat pump must stay in its current state before being switched. Critical for heat pump protection as frequent switching can damage the compressor (default: 300 seconds)."
+                        }
+                    }
                 }
             },
             "dual_stage": {
@@ -341,17 +357,17 @@
                     "fan": "Fan switch",
                     "fan_mode": "Fan mode",
                     "fan_on_with_ac": "Fan with AC",
+                    "fan_air_outside": "Fan air outside",
                     "fan_hot_tolerance": "Fan hot tolerance",
-                    "fan_hot_tolerance_toggle": "Fan tolerance toggle",
-                    "fan_air_outside": "Fan air outside"
+                    "fan_hot_tolerance_toggle": "Fan tolerance toggle"
                 },
                 "data_description": {
                     "fan": "Entity ID for fan switch. Used to control air circulation and improve temperature distribution throughout the space.",
                     "fan_mode": "Enable fan as a separate HVAC mode. When enabled, FAN mode becomes available in addition to heat, cool, and auto modes, allowing fan-only operation.",
                     "fan_on_with_ac": "Automatically turn on fan when cooling (AC) is active. Improves cooling efficiency and air circulation during cooling cycles.",
-                    "fan_hot_tolerance": "Temperature difference above target that triggers fan activation. For example, with target 25°C and tolerance 1°C, fan activates when temperature reaches 26°C.",
-                    "fan_hot_tolerance_toggle": "Entity ID for input boolean that can toggle fan hot tolerance on/off. Allows dynamic control of when fan should activate based on temperature.",
-                    "fan_air_outside": "Enable outside air circulation when outside temperature is more favorable than inside temperature. Requires outside temperature sensor to be configured for intelligent outside air usage."
+                    "fan_air_outside": "Enable outside air circulation when outside temperature is more favorable than inside temperature. Requires outside temperature sensor to be configured for intelligent outside air usage.",
+                    "fan_hot_tolerance": "Temperature range above target where fan is used instead of AC. For example, with target 25°C, hot_tolerance 1°C, and fan_hot_tolerance 0.5°C: fan activates at 26°C (target + hot_tolerance), AC activates at 26.5°C (target + hot_tolerance + fan_hot_tolerance). Default: 0.5°C.",
+                    "fan_hot_tolerance_toggle": "Optional entity ID for input_boolean to dynamically enable/disable the fan_hot_tolerance feature. When off, AC is used immediately instead of trying fan first. When not configured, the fan_hot_tolerance feature is always enabled."
                 }
             },
             "humidity": {
@@ -601,16 +617,14 @@
                     "configure_humidity": "Configure humidity control",
                     "configure_openings": "Configure window/door sensors",
                     "configure_presets": "Configure temperature presets",
-                    "configure_floor_heating": "Configure floor heating protection",
-                    "configure_advanced": "Configure advanced settings"
+                    "configure_floor_heating": "Configure floor heating protection"
                 },
                 "data_description": {
                     "configure_fan": "Enable configuration of fan settings. This allows you to set up a separate fan entity that can run independently for air circulation.",
                     "configure_humidity": "Enable configuration of humidity monitoring and control. This allows you to set up humidity sensors and dry mode operation.",
                     "configure_openings": "Enable configuration of window and door sensors so the thermostat can pause operation when openings are detected.",
                     "configure_presets": "Enable configuration of temperature presets like Away, Comfort, and Eco for quick mode changes.",
-                    "configure_floor_heating": "Enable configuration of floor temperature protection. When enabled you can set a floor sensor and max/min limits to protect your flooring.",
-                    "configure_advanced": "Show advanced configuration options such as keep-alive intervals, temperature precision, and default modes for power users."
+                    "configure_floor_heating": "Enable configuration of floor temperature protection. When enabled you can set a floor sensor and max/min limits to protect your flooring."
                 }
             },
             "basic": {
@@ -686,17 +700,17 @@
                     "fan": "Fan switch",
                     "fan_mode": "Fan mode",
                     "fan_on_with_ac": "Fan with AC",
+                    "fan_air_outside": "Fan air outside",
                     "fan_hot_tolerance": "Fan hot tolerance",
-                    "fan_hot_tolerance_toggle": "Fan tolerance toggle",
-                    "fan_air_outside": "Fan air outside"
+                    "fan_hot_tolerance_toggle": "Fan tolerance toggle"
                 },
                 "data_description": {
                     "fan": "Entity ID for fan switch. Used to control air circulation and improve temperature distribution.",
                     "fan_mode": "Enable fan as a separate HVAC mode. Allows fan-only operation.",
                     "fan_on_with_ac": "Automatically turn on fan when cooling (AC) is active. Improves cooling efficiency.",
-                    "fan_hot_tolerance": "Temperature difference above target that triggers fan activation.",
-                    "fan_hot_tolerance_toggle": "Entity ID for input boolean that can toggle fan hot tolerance on/off.",
-                    "fan_air_outside": "Enable outside air circulation when outside temperature is more favorable than inside temperature."
+                    "fan_air_outside": "Enable outside air circulation when outside temperature is more favorable than inside temperature.",
+                    "fan_hot_tolerance": "Temperature range above target where fan is used instead of AC. Default: 0.5°C.",
+                    "fan_hot_tolerance_toggle": "Optional entity ID for input_boolean to toggle the fan_hot_tolerance feature on/off."
                 }
             },
             "humidity_options": {

@@ -143,32 +143,13 @@ async def test_ac_only_features_step(mock_hass, ac_only_config_entry):
         "configure_humidity",
         "configure_openings",
         "configure_presets",
-        "configure_advanced",
     ]
 
     for field in expected_fields:
         assert any(field in name for name in field_names), f"Missing field: {field}"
 
 
-async def test_advanced_options_separate_step(mock_hass, ac_only_config_entry):
-    """Test that advanced options appear as separate step when requested."""
-    handler = OptionsFlowHandler(ac_only_config_entry)
-    handler.hass = mock_hass
-
-    # User enables advanced configuration
-    user_input = {
-        "configure_fan": False,
-        "configure_humidity": False,
-        "configure_openings": False,
-        "configure_presets": False,
-        "configure_advanced": True,
-    }
-
-    result = await handler.async_step_features(user_input)
-
-    # Should redirect to advanced options step
-    assert result["type"] == "form"
-    assert result["step_id"] == "advanced_options"
+# Removed test_advanced_options_separate_step as advanced options are no longer supported
 
 
 async def test_options_flow_step_progression(mock_hass, ac_only_config_entry):
@@ -344,7 +325,6 @@ async def test_system_features_fields_and_floor_redirect(
     expected_fields = [
         "configure_presets",
         "configure_openings",
-        "configure_advanced",
         "configure_fan",
         "configure_humidity",
         "configure_floor_heating",
@@ -599,10 +579,6 @@ if __name__ == "__main__":
                 test_ac_only_options_flow_progression(mock_hass, ac_config),
             ),
             ("AC-only features step", test_ac_only_features_step(mock_hass, ac_config)),
-            (
-                "Advanced options separate step",
-                test_advanced_options_separate_step(mock_hass, ac_config),
-            ),
         ]
 
         passed = 0

@@ -27,6 +27,7 @@ from .const import (
     CONF_DRYER,
     CONF_FAN,
     CONF_FAN_AIR_OUTSIDE,
+    CONF_FAN_HOT_TOLERANCE,
     CONF_FAN_HOT_TOLERANCE_TOGGLE,
     CONF_FAN_MODE,
     CONF_FAN_ON_WITH_AC,
@@ -296,6 +297,90 @@ def get_heater_cooler_schema(defaults=None, include_name=True):
     return vol.Schema(core_schema)
 
 
+def get_heat_pump_schema(defaults=None, include_name=True):
+    """Get heat pump configuration schema with advanced settings in collapsible section.
+
+    Heat pump uses a single heater switch for both heating and cooling modes.
+    The heat_pump_cooling field is an entity_id of a sensor that indicates the cooling state.
+    The sensor's state should be 'on' (cooling mode) or 'off' (heating mode).
+    This allows the system to dynamically check if cooling is available.
+
+    Args:
+        defaults: Optional dict with default values to pre-fill the form
+        include_name: Whether to include the name field (True for config flow, False for options flow)
+
+    Returns:
+        vol.Schema with heat pump configuration fields
+    """
+    # Core heat pump configuration
+    core_schema = {}
+
+    if include_name:
+        # Basic Information
+        core_schema[
+            vol.Required(
+                CONF_NAME,
+                default=defaults.get(CONF_NAME) if defaults else vol.UNDEFINED,
+            )
+        ] = get_text_selector()
+
+    # Sensors
+    core_schema[
+        vol.Required(
+            CONF_SENSOR,
+            default=defaults.get(CONF_SENSOR) if defaults else vol.UNDEFINED,
+        )
+    ] = get_entity_selector(SENSOR_DOMAIN)
+
+    # Heat pump switch (used for both heating and cooling)
+    core_schema[
+        vol.Required(
+            CONF_HEATER,
+            default=defaults.get(CONF_HEATER) if defaults else vol.UNDEFINED,
+        )
+    ] = get_entity_selector(SWITCH_DOMAIN)
+
+    # Heat pump cooling mode sensor - entity_id of a sensor that indicates cooling state
+    # The sensor's state should be 'on' (cooling) or 'off' (heating)
+    # Can be a sensor, binary_sensor, or input_boolean
+    # This allows the system to dynamically check if cooling is available
+    core_schema[
+        vol.Optional(
+            CONF_HEAT_PUMP_COOLING,
+            default=defaults.get(CONF_HEAT_PUMP_COOLING) if defaults else vol.UNDEFINED,
+        )
+    ] = get_entity_selector([SENSOR_DOMAIN, BINARY_SENSOR_DOMAIN, INPUT_BOOLEAN_DOMAIN])
+
+    # Advanced settings in collapsible section
+    advanced_section_schema = vol.Schema(
+        {
+            vol.Optional(
+                CONF_COLD_TOLERANCE,
+                default=(
+                    defaults.get(CONF_COLD_TOLERANCE) if defaults else DEFAULT_TOLERANCE
+                ),
+            ): get_temperature_selector(min_value=0.1, max_value=10, step=0.1),
+            vol.Optional(
+                CONF_HOT_TOLERANCE,
+                default=(
+                    defaults.get(CONF_HOT_TOLERANCE) if defaults else DEFAULT_TOLERANCE
+                ),
+            ): get_temperature_selector(min_value=0.1, max_value=10, step=0.1),
+            vol.Optional(
+                CONF_MIN_DUR,
+                default=defaults.get(CONF_MIN_DUR) if defaults else 300,
+            ): get_time_selector(min_value=0, max_value=3600),
+        }
+    )
+
+    # Add advanced settings as a collapsible section
+    core_schema[vol.Optional("advanced_settings")] = section(
+        advanced_section_schema, {"collapsed": True}
+    )
+
+    return vol.Schema(core_schema)
+
+
 def get_grouped_schema(
     system_type: str,
     show_heater: bool = True,
@@ -454,15 +539,14 @@ def get_features_schema(
 
     # Define feature availability by system type
     system_features = {
-        SystemType.AC_ONLY: ["fan", "humidity", "openings", "presets", "advanced"],
-        SystemType.SIMPLE_HEATER: ["floor_heating", "openings", "presets", "advanced"],
+        SystemType.AC_ONLY: ["fan", "humidity", "openings", "presets"],
+        SystemType.SIMPLE_HEATER: ["floor_heating", "openings", "presets"],
         SystemType.HEATER_COOLER: [
             "floor_heating",
             "fan",
             "humidity",
             "openings",
             "presets",
-            "advanced",
         ],
         SystemType.HEAT_PUMP: [
             "floor_heating",
@@ -470,15 +554,12 @@ def get_features_schema(
             "humidity",
             "openings",
             "presets",
-            "advanced",
         ],
-        SystemType.DUAL_STAGE: ["floor_heating", "openings", "presets", "advanced"],
+        SystemType.DUAL_STAGE: ["floor_heating", "openings", "presets"],
     }
 
     # Get available features for this system type
-    available_features = system_features.get(
-        system_type, ["openings", "presets", "advanced"]
-    )
+    available_features = system_features.get(system_type, ["openings", "presets"])
 
     # Define feature order for consistent UI
     feature_order = [
@@ -487,7 +568,6 @@ def get_features_schema(
         "humidity",
         "openings",
         "presets",
-        "advanced",
     ]
 
     # Add features in defined order if they're available for this system
@@ -666,35 +746,85 @@ def get_openings_schema(selected_entities: list[str]):
     return vol.Schema(schema_dict)
 
 
-def get_fan_schema():
-    """Get fan configuration schema."""
+def get_fan_schema(defaults: dict[str, Any] | None = None):
+    """Get fan configuration schema.
+
+    Args:
+        defaults: Optional defaults dict to pre-populate selectors (used by options flow)
+
+    Returns:
+        Schema with fan configuration fields
+    """
+    defaults = defaults or {}
+
+    _LOGGER.debug(
+        "get_fan_schema called with defaults: fan=%s, fan_mode=%s, fan_on_with_ac=%s, fan_air_outside=%s",
+        defaults.get(CONF_FAN),
+        defaults.get(CONF_FAN_MODE),
+        defaults.get(CONF_FAN_ON_WITH_AC),
+        defaults.get(CONF_FAN_AIR_OUTSIDE),
+    )
+
     return vol.Schema(
         {
-            vol.Required(CONF_FAN): get_entity_selector(SWITCH_DOMAIN),
-            vol.Optional(CONF_FAN_ON_WITH_AC, default=True): get_boolean_selector(),
-            vol.Optional(CONF_FAN_AIR_OUTSIDE, default=False): get_boolean_selector(),
+            vol.Required(CONF_FAN, default=defaults.get(CONF_FAN)): get_entity_selector(
+                SWITCH_DOMAIN
+            ),
             vol.Optional(
-                CONF_FAN_HOT_TOLERANCE_TOGGLE, default=False
+                CONF_FAN_MODE, default=defaults.get(CONF_FAN_MODE, False)
             ): get_boolean_selector(),
+            vol.Optional(
+                CONF_FAN_ON_WITH_AC, default=defaults.get(CONF_FAN_ON_WITH_AC, True)
+            ): get_boolean_selector(),
+            vol.Optional(
+                CONF_FAN_AIR_OUTSIDE, default=defaults.get(CONF_FAN_AIR_OUTSIDE, False)
+            ): get_boolean_selector(),
+            vol.Optional(
+                CONF_FAN_HOT_TOLERANCE,
+                default=defaults.get(CONF_FAN_HOT_TOLERANCE, 0.5),
+            ): get_temperature_selector(min_value=0.0, max_value=10.0, step=0.1),
+            vol.Optional(
+                CONF_FAN_HOT_TOLERANCE_TOGGLE,
+                default=defaults.get(CONF_FAN_HOT_TOLERANCE_TOGGLE, vol.UNDEFINED),
+            ): get_entity_selector([INPUT_BOOLEAN_DOMAIN, BINARY_SENSOR_DOMAIN]),
         }
     )
 
 
-def get_humidity_schema():
-    """Get humidity configuration schema."""
+def get_humidity_schema(defaults: dict[str, Any] | None = None):
+    """Get humidity configuration schema.
+
+    Args:
+        defaults: Optional defaults dict to pre-populate selectors (used by options flow)
+
+    Returns:
+        Schema with humidity configuration fields
+    """
+    defaults = defaults or {}
+
     return vol.Schema(
         {
-            vol.Required(CONF_HUMIDITY_SENSOR): get_entity_selector(SENSOR_DOMAIN),
-            vol.Optional(CONF_DRYER): get_entity_selector(SWITCH_DOMAIN),
-            vol.Optional(CONF_TARGET_HUMIDITY, default=50): get_percentage_selector(),
-            vol.Optional(CONF_DRY_TOLERANCE, default=3): get_percentage_selector(
-                max_value=20
-            ),
-            vol.Optional(CONF_MOIST_TOLERANCE, default=3): get_percentage_selector(
-                max_value=20
-            ),
-            vol.Optional(CONF_MIN_HUMIDITY, default=30): get_percentage_selector(),
-            vol.Optional(CONF_MAX_HUMIDITY, default=99): get_percentage_selector(),
+            vol.Required(
+                CONF_HUMIDITY_SENSOR, default=defaults.get(CONF_HUMIDITY_SENSOR)
+            ): get_entity_selector(SENSOR_DOMAIN),
+            vol.Optional(
+                CONF_DRYER, default=defaults.get(CONF_DRYER)
+            ): get_entity_selector(SWITCH_DOMAIN),
+            vol.Optional(
+                CONF_TARGET_HUMIDITY, default=defaults.get(CONF_TARGET_HUMIDITY, 50)
+            ): get_percentage_selector(),
+            vol.Optional(
+                CONF_DRY_TOLERANCE, default=defaults.get(CONF_DRY_TOLERANCE, 3)
+            ): get_percentage_selector(max_value=20),
+            vol.Optional(
+                CONF_MOIST_TOLERANCE, default=defaults.get(CONF_MOIST_TOLERANCE, 3)
+            ): get_percentage_selector(max_value=20),
+            vol.Optional(
+                CONF_MIN_HUMIDITY, default=defaults.get(CONF_MIN_HUMIDITY, 30)
+            ): get_percentage_selector(),
+            vol.Optional(
+                CONF_MAX_HUMIDITY, default=defaults.get(CONF_MAX_HUMIDITY, 99)
+            ): get_percentage_selector(),
         }
     )
 

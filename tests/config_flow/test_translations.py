@@ -37,7 +37,6 @@ def test_config_flow_translations():
         "humidity",
         "additional_sensors",
         "power_management",
-        "advanced",
         "presets",
     ]
 

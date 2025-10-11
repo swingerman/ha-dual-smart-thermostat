@@ -58,6 +58,7 @@ from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 import voluptuous as vol
 
 from . import DOMAIN, PLATFORMS
+from .config_validation import validate_config_with_models
 from .const import (
     ATTR_CLOSING_TIMEOUT,
     ATTR_HVAC_ACTION_REASON,
@@ -293,6 +294,14 @@ async def _async_setup_config(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the smart dual thermostat platform."""
+
+    # Validate configuration using data models for type safety
+    if not validate_config_with_models(config):
+        _LOGGER.warning(
+            "Configuration validation failed for %s. "
+            "Proceeding with setup but some features may not work correctly.",
+            config.get(CONF_NAME, "thermostat"),
+        )
 
     name = config[CONF_NAME]
     sensor_entity_id = config[CONF_SENSOR]

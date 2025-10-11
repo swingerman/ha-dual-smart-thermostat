@@ -52,7 +52,6 @@ SYSTEM_TYPES = {
     SystemType.AC_ONLY: "Air Conditioning Only",
     SystemType.HEATER_COOLER: "Heater with Cooler",
     SystemType.HEAT_PUMP: "Heat Pump",
-    "advanced": "Advanced (Custom Setup)",
 }
 
 CONF_HEATER = "heater"

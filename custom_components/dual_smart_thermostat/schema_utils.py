@@ -58,8 +58,15 @@ def get_time_selector(
     )
 
 
-def get_entity_selector(domain: str) -> selector.EntitySelector:
-    """Get a standardized entity selector for a specific domain."""
+def get_entity_selector(domain: str | list[str]) -> selector.EntitySelector:
+    """Get a standardized entity selector for a specific domain or list of domains.
+
+    Args:
+        domain: A single domain string or list of domain strings
+
+    Returns:
+        EntitySelector configured for the specified domain(s)
+    """
     return selector.EntitySelector(selector.EntitySelectorConfig(domain=domain))
 
 

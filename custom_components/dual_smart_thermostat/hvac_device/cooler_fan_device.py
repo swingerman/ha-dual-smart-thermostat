@@ -49,14 +49,25 @@ class CoolerFanDevice(MultiHvacDevice):
 
     def _set_fan_hot_tolerance_on_state(self):
         if self._features.fan_hot_tolerance_on_entity is not None:
-            _LOGGER.debug(
-                "Setting fan_hot_tolerance_on state: %s",
-                self.hass.states.get(self._features.fan_hot_tolerance_on_entity).state,
-            )
-            self._fan_hot_tolerance_on = (
-                self.hass.states.get(self._features.fan_hot_tolerance_on_entity).state
-                == STATE_ON
-            )
+            # Handle backward compatibility: if it's a boolean (old config), use it directly
+            if isinstance(self._features.fan_hot_tolerance_on_entity, bool):
+                _LOGGER.warning(
+                    "fan_hot_tolerance_toggle is configured as a boolean. "
+                    "Please reconfigure to use an input_boolean entity instead."
+                )
+                self._fan_hot_tolerance_on = self._features.fan_hot_tolerance_on_entity
+            else:
+                # New behavior: it's an entity_id, get its state
+                state = self.hass.states.get(self._features.fan_hot_tolerance_on_entity)
+                if state is None:
+                    _LOGGER.warning(
+                        "fan_hot_tolerance_toggle entity %s not found, defaulting to True",
+                        self._features.fan_hot_tolerance_on_entity,
+                    )
+                    self._fan_hot_tolerance_on = True
+                else:
+                    _LOGGER.debug("Setting fan_hot_tolerance_on state: %s", state.state)
+                    self._fan_hot_tolerance_on = state.state == STATE_ON
         else:
             self._fan_hot_tolerance_on = True
 
@@ -74,7 +85,10 @@ class CoolerFanDevice(MultiHvacDevice):
     async def async_on_startup(self, async_write_ha_state_cb: Callable = None) -> None:
         await super().async_on_startup(async_write_ha_state_cb)
 
-        if self._features.fan_hot_tolerance_on_entity is not None:
+        # Only track state changes if it's an entity_id (string), not a boolean
+        if self._features.fan_hot_tolerance_on_entity is not None and isinstance(
+            self._features.fan_hot_tolerance_on_entity, str
+        ):
             self.async_on_remove(
                 async_track_state_change_event(
                     self.hass,
