@@ -964,6 +964,9 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             self.environment.set_temperature_target(temperature)
             self._target_temp = self.environment.target_temp
 
+        # Check for auto-preset selection after setting temperature
+        await self._check_auto_preset_selection()
+
         await self._async_control_climate(force=True)
         self.async_write_ha_state()
 
@@ -973,6 +976,9 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
         self.environment.target_humidity = humidity
         self._target_humidity = self.environment.target_humidity
+
+        # Check for auto-preset selection after setting humidity
+        await self._check_auto_preset_selection()
 
         await self._async_control_climate(force=True)
         self.async_write_ha_state()
@@ -1395,6 +1401,19 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self._hvac_action_reason = reason
 
         self.schedule_update_ha_state(True)
+
+    async def _check_auto_preset_selection(self) -> None:
+        """Check if current values match any preset and auto-select it."""
+        if not self.presets.has_presets:
+            return
+
+        matching_preset = self.presets.find_matching_preset()
+        if matching_preset:
+            _LOGGER.info(
+                "Auto-selecting preset '%s' due to matching values", matching_preset
+            )
+            self.presets.set_preset_mode(matching_preset)
+            self._attr_preset_mode = self.presets.preset_mode
 
     async def async_turn_on(self) -> None:
         """Turn on the device."""
