@@ -285,7 +285,7 @@ When all system types are implemented and tests pass:
 2. **Run linting**: `isort . && black . && flake8 . && codespell`
 3. **Update documentation**: Review and update README, CHANGELOG
 4. **Open PR**: From `001-develop-config-and` to appropriate target branch
-5. **E2E Testing**: Run E2E tests if infrastructure is available (see `tests/e2e/README.md`)
+5. **E2E Testing**: Verify Python e2e persistence tests pass (see files with `_e2e_` in `tests/config_flow/`)
 
 ## Release Checklist
 
@@ -304,7 +304,7 @@ When preparing for a release, follow this comprehensive checklist to ensure qual
 - [ ] All integration tests pass: `pytest tests/integration/ -v`
 - [ ] All config flow tests pass: `pytest tests/config_flow/ -v`
 - [ ] All feature tests pass: `pytest tests/features/ -v`
-- [ ] E2E tests pass (when infrastructure available): `npx playwright test`
+- [ ] Python e2e persistence tests pass: `pytest tests/config_flow/test_e2e_* -v`
 - [ ] Contract tests pass: `pytest tests/contracts/ -v`
 - [ ] Test coverage meets minimum threshold (check `pytest --cov`)
 
@@ -531,6 +531,6 @@ Install via HACS or manually by downloading the latest release.
 
 - **Data Model**: See `specs/001-develop-config-and/data-model.md` for canonical data structures
 - **Architecture**: See `docs/config_flow/architecture.md` for design decisions
-- **E2E Testing**: See `tests/e2e/README.md` for end-to-end testing guide
+- **E2E Testing**: Python-based e2e persistence tests in `tests/config_flow/test_e2e_*.py` validate complete config/options flows
 - **Project Plan**: See `specs/001-develop-config-and/plan.md` for full implementation plan
 - **Task List**: See `specs/001-develop-config-and/tasks.md` for implementation tasks

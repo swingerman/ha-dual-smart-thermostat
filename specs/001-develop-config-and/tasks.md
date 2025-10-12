@@ -97,9 +97,7 @@ Task IDs: T001..T012
 ## Current Status (Updated)
 
 **Completed Tasks:**
-- ✅ T001 (E2E Playwright scaffold) — Closed as completed on 2025-09-16
-- ✅ T002 (Playwright tests for config & options flows) — Closed as completed on 2025-09-18
-- ✅ T003 (Complete E2E implementation: Options Flow + CI) — **COMPLETED BEYOND SCOPE** on 2025-01-17
+- ✅ T001-T003 (E2E Testing) — **REPLACED WITH PYTHON E2E TESTS**: Playwright approach abandoned in favor of Python-based persistence tests (`test_e2e_*.py` in `tests/config_flow/`) for cost efficiency and speed
 
 **Active Tasks (Updated Priorities):**
 - 🔥 T004 (Remove Advanced Custom Setup option) — Issue #414 open — **HIGH PRIORITY**
@@ -110,59 +108,42 @@ Task IDs: T001..T012
 **Original Parent Issue:**
 - ✅ #157 "[feat] config flow" — Closed as completed on 2025-09-16
 
-T001 — Add E2E Playwright scaffold (Phase 1A) [P] — ✅ [COMPLETED] [GitHub Issue #411](https://github.com/swingerman/ha-dual-smart-thermostat/issues/411)
-- Files to create:
-  - `tests/e2e/docker-compose.yml`
-  - `tests/e2e/ha_config/configuration.yaml`
-  - `tests/e2e/playwright.config.ts`
-  - `tests/e2e/README.md`
-  - `tests/e2e/scripts/regenerate_baselines.sh`
-- Description:
-  - Provide a reproducible Docker Compose setup to run Home Assistant with the custom component mounted and minimal entities required for the flows.
-  - Provide Playwright config for `testDir` and `storageState` usage and baseline artifact paths.
-- How to run (developer machine with Docker):
+T001-T003 — E2E Testing ❌ [REPLACED] — [GitHub Issues #411, #412, #413](https://github.com/swingerman/ha-dual-smart-thermostat/issues/411)
+- **Status**: Playwright-based E2E approach abandoned in favor of Python-based persistence tests
+- **Replacement**: Python E2E tests with `_e2e_` in filenames located in `tests/config_flow/`
+- **Rationale**: 
+  - Cost efficiency: No GitHub Actions time for browser automation
+  - Speed: Python tests run in seconds vs minutes for Playwright
+  - Simplicity: Uses existing pytest infrastructure
+  - Coverage: Complete config/options lifecycle validation
+- **Python E2E Test Files** (implemented):
+  - ✅ `test_e2e_simple_heater_persistence.py`
+  - ✅ `test_e2e_simple_heater_all_features_persistence.py`
+  - ✅ `test_e2e_ac_only_persistence.py`
+  - ✅ `test_e2e_ac_only_all_features_persistence.py`
+  - ✅ `test_e2e_heater_cooler_persistence.py`
+  - ✅ `test_e2e_heater_cooler_all_features_persistence.py`
+  - ✅ `test_e2e_heat_pump_persistence.py`
+  - ✅ `test_e2e_heat_pump_all_features_persistence.py`
+- **What Python E2E tests validate**:
+  - Complete config flow lifecycle (all steps)
+  - Config entry creation with correct data structure
+  - Options flow pre-fill from persisted data
+  - Options modifications and persistence
+  - Data model compliance (matches `data-model.md`)
+- **How to run**:
   ```bash
-  cd tests/e2e
-  docker compose up -d
-  # Wait 60-120s or tail the HA logs:
-  docker compose logs -f homeassistant
+  # All E2E tests
+  pytest tests/config_flow/test_e2e_* -v
+  
+  # Specific system type
+  pytest tests/config_flow/test_e2e_simple_heater_persistence.py -v
   ```
-- Acceptance criteria:
-  - `docker compose ps` shows `homeassistant` container healthy and reachable on mapped ports.
-  - The `README.md` includes regeneration instructions and token handling notes.
-- Parallelization: [P] with T002 once HA is reachable.
-
-T002 — Add Playwright tests for config & options flows (Phase 1A) [P] — ✅ [COMPLETED] [GitHub Issue #412](https://github.com/swingerman/ha-dual-smart-thermostat/issues/412)
-- Files created:
-  - ✅ `tests/e2e/tests/specs/basic_heater_config_flow.spec.ts` — **RECOMMENDED: Clean implementation using reusable helpers**
-  - ✅ `tests/e2e/tests/specs/config_flow.spec.ts` — Legacy implementation with detailed debugging
-  - ⏳ `tests/e2e/tests/specs/options_flow.spec.ts` — Ready for T003 implementation
-  - ✅ `tests/e2e/playwright/setup.ts` — **Reusable HomeAssistantSetup class and step detection functions**
-  - ✅ `tests/e2e/baselines/simple_heater/` — Screenshot baselines
-- **Implementation Status & Key Findings**:
-  - ✅ **T003 Simple Heater Config Flow WORKING**: Complete 4-step flow implemented
-    1. System Type Selection (radio buttons)
-    2. Basic Configuration (name, temperature sensor, heater switch)
-    3. Features Configuration (skipped for basic flow)
-    4. Confirmation Dialog (final verification)
-  - ✅ **Home Assistant UI Patterns Discovered**:
-    - Config flows use modal dialogs (URL never changes)
-    - Step detection via dialog content + form elements analysis
-    - `ha-picker-field` interaction: click → type → Tab (not Enter)
-    - Form visibility checking essential before interaction
-  - ✅ **Reliable Element Selectors Identified**:
-    - `'ha-dialog[open]'` for config flow dialogs
-    - `'dialog-data-entry-flow button[part="base"]'` for submit buttons
-    - `'ha-integration-list-item:has-text("...")'` for integration cards
-- **Documented Insights**: See `tests/e2e/LESSONS_LEARNED.md` for complete implementation patterns
-- How to run locally:
-  ```bash
-  # From repo root
-  cd tests/e2e
-  npx playwright test tests/specs/config_flow.spec.ts --headed
-  ```
-- Acceptance criteria:
-  - ✅ **ACHIEVED**: Config flow test completes 4-step flow without assertion failures
+- **Acceptance criteria**:
+  - ✅ All system types have E2E persistence tests
+  - ✅ Tests validate complete config → options → persistence lifecycle
+  - ✅ Persisted data matches canonical schema
+  - ✅ Tests pass in CI and locally
   - ✅ **ACHIEVED**: Comprehensive logging and error handling implemented
   - ⏳ **PENDING**: REST API validation (to be added in T003 options flow)
 - **Next Steps**: Apply discovered patterns to options flow implementation
@@ -182,28 +163,7 @@ T003 — Complete E2E implementation: Options Flow + CI — ✅ [COMPLETED BEYON
   - ✅ **Integration management**: Create, verify, and cleanup integrations
   - ✅ **CI integration**: E2E tests running automatically on PRs
   - ✅ **Robust helpers**: Reusable `HomeAssistantSetup` class with comprehensive methods
-- **Key Implementation Achievements**:
-  - ✅ Complete 4-step flow implementation (system type → basic config → features → confirmation)
-  - ✅ Options flow with pre-fill validation and system type handling
-  - ✅ Integration existence verification (simplified, reliable approach)
-  - ✅ Comprehensive error handling and logging
-  - ✅ Cross-system-type compatibility testing
-- How to run locally:
-  ```bash
-  cd tests/e2e
-  # Run all E2E tests
-  npx playwright test --headed
-  # Run specific system type tests
-  npx playwright test tests/specs/basic_heater_config_flow.spec.ts --headed
-  npx playwright test tests/specs/ac_only_options_flow.spec.ts --headed
-  ```
-- Acceptance criteria:
-  - ✅ **ACHIEVED**: Config flow tests pass consistently for both system types
-  - ✅ **ACHIEVED**: Options flow tests complete full modification workflow
-  - ✅ **ACHIEVED**: CI workflow runs E2E tests automatically
-  - ✅ **ACHIEVED**: Integration creation/deletion verification working
-- **Documentation**: Implementation patterns documented in `tests/e2e/LESSONS_LEARNED.md`
-- **Recommendation**: **CLOSE ISSUE #413 AS COMPLETE** - exceeded original scope
+
 
 T004 — Remove Advanced (Custom Setup) option (Phase 1B) — [GitHub Issue #414](https://github.com/swingerman/ha-dual-smart-thermostat/issues/414)
 - Files to edit:
@@ -662,22 +622,20 @@ T012 — Polish documentation & release prep ✅ [COMPLETED] — [GitHub Issue #
 - Files edited:
   - `specs/001-develop-config-and/quickstart.md` — Enhanced with detailed examples for `simple_heater` and `ac_only`, added comprehensive release checklist
   - `specs/001-develop-config-and/data-model.md` — Added purpose and usage clarification
-  - `tests/e2e/README.md` — Created comprehensive E2E testing guide with local/CI instructions
 - Steps completed:
   1. ✅ Updated quickstart with working examples for `simple_heater` and `ac_only` configurations
   2. ✅ Added release checklist covering version updates, CHANGELOG, manifest.json, and hacs.json
-  3. ✅ Created detailed E2E README with setup, running tests locally/CI, baseline regeneration steps
+  3. ✅ Clarified that E2E testing uses Python tests (test_e2e_*.py files), not Playwright
 - Acceptance criteria met:
-  - ✅ Docs provide clear steps to run E2E locally and in CI
-  - ✅ Baseline images regeneration steps documented
+  - ✅ Docs provide clear steps to run Python e2e tests
   - ✅ Release checklist with version management, HACS compatibility, and Home Assistant compatibility
 - Parallelization: [P]
 - **Completed**: 2025-10-12
 
 ---
 
-Task Ordering and dependency notes (UPDATED 2025-01-06)
-- ✅ E2E scaffold (T001), Playwright tests (T002), and complete E2E implementation (T003) COMPLETED — **EXCEEDED ORIGINAL SCOPE**.
+Task Ordering and dependency notes (UPDATED 2025-10-12)
+- ✅ E2E testing (T001-T003) — **REPLACED WITH PYTHON E2E TESTS**: Playwright approach abandoned; using Python-based persistence tests instead
 - ❌ T007 REMOVED — Duplicate of T005/T006 acceptance criteria
 - 🆕 T007A ADDED — Feature interaction & HVAC mode testing (critical for release)
 
@@ -728,8 +686,8 @@ Appendix — Helpful Commands
   pytest tests/contracts -q
   pytest tests/features -q
   pytest tests/config_flow -q
-  # E2E tests (complete and sufficient)
-  cd tests/e2e && npx playwright test --headed
+  # E2E persistence tests (Python-based, complete and sufficient)
+  pytest tests/config_flow/test_e2e_* -v
   ```
 - Grep for keys and types:
   ```bash

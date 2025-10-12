@@ -9,7 +9,7 @@
 1. Load feature spec from Input path
    → If not found: ERROR "No feature spec at {path}"
 2. Fill Technical Context (scan for NEEDS CLARI**Current approach**: Direct implementation of remaining tasks from the todo list, prioritizing:
-1. **Highest Priority (Phase 1A)**: E2E Playwright scaffold and comprehensive UI testing to harden stable system types
+1. **Highest Priority (Phase 1A)**: Python-based E2E persistence tests to harden stable system types
 2. **Immediate (Phase 1B)**: Remove "Advanced (Custom Setup)" option and clean up related logic
 3. **Medium-term (Phase 1C)**: Complete `heater_cooler` and `heat_pump` system type implementations
 4. **Ongoing (Phase 1D)**: Contract tests, models.py, and options-parity validation
@@ -215,66 +215,66 @@ When implementing tasks, open these files first to understand the current routin
 
 **Output**: research.md with all NEEDS CLARIFICATION resolved
 
-## Phase 1 (authoritative): E2E Playwright + Dockerized Home Assistant
+## Phase 1 (authoritative): Python-based E2E Persistence Tests
 
-This section replaces the generic E2E notes with a concrete, implementable plan aligned to the canonical artifacts in this spec set: `data-model.md`, `contracts/step-handlers.md`, and `quickstart.md`.
+This section describes the E2E testing approach using Python-based tests aligned to the canonical artifacts in this spec set: `data-model.md`, `contracts/step-handlers.md`, and `quickstart.md`.
+
+**Note**: The project uses Python-based E2E tests instead of browser automation (Playwright) for cost efficiency and speed. These tests exercise the config and options flows programmatically using Home Assistant's test infrastructure.
 
 Objective
-- Provide reproducible E2E tests that exercise the integration's config and options flows end-to-end for the first two system types (`simple_heater`, `ac_only`), cover every feature and per-feature form, capture step screenshots, and assert the final persisted config entry matches the canonical data-model.
+- Provide reproducible E2E tests that exercise the integration's config and options flows end-to-end for all system types (`simple_heater`, `ac_only`, `heater_cooler`, `heat_pump`), cover feature combinations, and assert the final persisted config entry matches the canonical data-model.
 
 Concrete deliverables for Phase 1
-- tests/e2e/ (directory) containing:
-  - `docker-compose.yml` — Home Assistant container with mounts for `tests/e2e/ha_config` and `custom_components/dual_smart_thermostat`.
-  - `ha_config/configuration.yaml` — deterministic configuration enabling `http`, `frontend`, `template` entities used by flows, and `logger` configured to `info` for debugging.
-  - `ha_init/` — scripts and (optional) committed `storageState.json` for Playwright automatic login. Document steps to rotate/regenerate storage state in README.
-  - `playwright.config.ts` — Playwright project configuration (Chromium headless by default) and output directories for artifacts and traces.
-  - `playwright/setup.ts` — helper utilities to wait for HA readiness, create initial template entities via REST API, and optionally seed the integrations UI state.
-  - `playwright/config_flow.spec.ts` — end-to-end test for `simple_heater` config flow (canonical happy path). Will be duplicated for `ac_only` once stable.
-  - `playwright/options_flow.spec.ts` — test that opens the created config entry and validates options pre-fill and persistence.
-  - `baselines/` — baseline images for the happy path UI steps (committed after approval) and `artifacts/` produced per-run.
-  - `README.md` — how to run locally, how to regenerate baselines, CI notes, and security considerations.
+- Python E2E persistence tests in `tests/config_flow/` with `_e2e_` in filenames:
+  - `test_e2e_simple_heater_persistence.py` — Complete lifecycle test for simple_heater
+  - `test_e2e_simple_heater_all_features_persistence.py` — All features enabled
+  - `test_e2e_ac_only_persistence.py` — Complete lifecycle test for ac_only
+  - `test_e2e_ac_only_all_features_persistence.py` — All features enabled
+  - `test_e2e_heater_cooler_persistence.py` — Complete lifecycle test for heater_cooler
+  - `test_e2e_heater_cooler_all_features_persistence.py` — All features enabled
+  - `test_e2e_heat_pump_persistence.py` — Complete lifecycle test for heat_pump
+  - `test_e2e_heat_pump_all_features_persistence.py` — All features enabled
 
-Exact test scenarios (happy-path, deterministic)
-- Config flow `simple_heater` (playwright/config_flow.spec.ts)
-  1. Wait for HA to be ready and load UI using Playwright `storageState.json` for automatic login.
-  2. Open Integrations → Add integration → search and select `Dual Smart Thermostat`.
-  3. Select `system_type: simple_heater` and proceed.
-  4. Fill core settings using deterministic entities provided by `ha_config` (e.g., `input_number.test_heater`, `sensor.test_temperature`) and set `min_cycle_duration` to a known value. Capture a screenshot.
-  5. In the `features` step, toggle each `configure_<feature>` flag on and: for each feature, open its configuration step and fill all fields with known values (use sensors and entities from `ha_config`). Capture screenshots per feature.
-  6. Add two presets using the UI (fill temperature/humidity/floor ranges where applicable). Capture screenshot.
-  7. Finish flow, poll HA REST API for the created config entry, and assert the persisted data matches the canonical `data-model.md` (key names and types exactly as `custom_components/dual_smart_thermostat/const.py` and `schemas.py` produce).
+Test structure (Python-based)
+Each E2E test validates the complete lifecycle:
+1. **Config Flow**: Simulate user input through all config flow steps
+2. **Config Entry Creation**: Assert config entry is created with correct data
+3. **Options Flow**: Load options flow and verify pre-filled values
+4. **Options Modification**: Change values and save
+5. **Persistence Validation**: Assert updated values are persisted correctly
+6. **Data Model Compliance**: Verify persisted data matches `data-model.md` schema
 
-- Options flow `simple_heater` (playwright/options_flow.spec.ts)
-  1. From Integrations list, open created `Dual Smart Thermostat` entry and click Options.
-  2. Assert the options form is pre-filled with the values saved during config flow for a subset of fields (core settings + one per-feature set).
-  3. Change one feature value and save. Validate the changed value via HA REST API on the updated config entry.
+Implementation approach
+- Use Home Assistant's `pytest` fixtures (`hass`, `hass_client`, etc.)
+- Leverage `ConfigFlowHandler` and `OptionsFlowHandler` directly
+- Mock entities using Home Assistant's test helpers
+- Assert data structure matches canonical schema in `data-model.md`
+- Validate keys and types match `schemas.py` definitions
 
-Baseline images and diffs
-- Store canonical baseline screenshots under `tests/e2e/baselines/{simple_heater,ac_only}`. Playwright test will capture per-step screenshots to `tests/e2e/artifacts/{run-id}` and run pixel-diff against the baseline. A helper script `scripts/e2e/regenerate_baselines.sh` will be provided to update baselines when UI changes are intentional.
+Running E2E tests
+```bash
+# Run all E2E persistence tests
+pytest tests/config_flow/test_e2e_* -v
 
-Implementation notes aligned to repo artifacts
-- Use selectors and field names matching the schema factories in `custom_components/dual_smart_thermostat/schemas.py`. When validating the persisted entry, assert presence and types of keys listed in `specs/001-develop-config-and/data-model.md`.
-- Ensure `playwright/setup.ts` uses HA REST API authentication via stored Playwright `storageState.json` to create any runtime entities or adjust states as needed.
+# Run specific system type
+pytest tests/config_flow/test_e2e_simple_heater_persistence.py -v
 
-CI integration (GitHub Actions - outline)
-- Job steps:
-  1. Start services: `docker-compose -f tests/e2e/docker-compose.yml up -d`.
-  2. Wait for HA readiness (curl HTTP 200 on port 8123).
-  3. Run `npx playwright test --config=tests/e2e/playwright.config.ts --project=chromium`.
-  4. Upload `tests/e2e/artifacts` and Playwright traces on failure.
+# Run with debug output
+pytest tests/config_flow/test_e2e_* -vv --log-cli-level=DEBUG
+```
 
-Security & maintenance
-- Do NOT commit HA long-lived tokens; prefer committing `storageState.json` only for ephemeral CI runs with rotation instructions in README. Document the regeneration procedure.
-- Keep baseline images under `baselines/` small and only for essential screens to reduce repository size.
+CI integration
+- E2E tests run as part of the standard pytest suite in CI
+- No additional infrastructure required (no Docker, no browser automation)
+- Fast execution (seconds vs minutes for browser tests)
+- Cost-effective (standard GitHub Actions runner time)
 
 Acceptance criteria
-- Directory `tests/e2e` exists with the files listed in "Concrete deliverables".
-- A test run locally (developer machine with Docker) or in CI can execute `playwright test` and complete the `simple_heater` config flow test and validate the persisted config entry.
-- Documentation in `tests/e2e/README.md` explains how to run tests, regenerate baselines, and secure tokens.
-
-Next steps after Phase 1
-- Duplicate `playwright/config_flow.spec.ts` and adapt for `ac_only` once `simple_heater` tests are stable.
-- Add `tests/e2e` GitHub Actions workflow to runs on PRs that modify integration code or tests.
+- All system types have corresponding `test_e2e_*.py` files
+- Tests validate complete config → options → persistence lifecycle
+- Persisted data matches canonical `data-model.md` schema
+- Tests pass in CI and locally
+- Documentation references Python e2e tests, not Playwright
 
 
 
@@ -332,10 +332,11 @@ Next steps after Phase 1
 ### Implementation Roadmap to Feature-Complete
 
 **Phase 1A: E2E Test Coverage (highest priority — hardening stable system types)**
-1. Complete Playwright E2E scaffold with Docker HA setup (`tests/e2e/docker-compose.yml`, `ha_config/configuration.yaml`)
-2. Implement end-to-end config flow tests for `simple_heater` and `ac_only` (screenshot capture, REST API validation)
+1. Complete Python-based E2E persistence tests for all system types (`test_e2e_*.py` in `tests/config_flow/`)
+2. Implement end-to-end config flow tests for `simple_heater`, `ac_only`, `heater_cooler`, and `heat_pump`
 3. Implement options flow tests validating pre-fill and update behavior
-4. Add CI pipeline running E2E tests on PR changes to prevent regressions
+4. Validate persisted data matches canonical `data-model.md` schema
+5. CI pipeline runs E2E tests as part of standard pytest suite
 
 **Phase 1B: Advanced Custom Setup Removal (immediate)**
 1. Remove `"advanced": "Advanced (Custom Setup)"` from `SYSTEM_TYPES` in `const.py`
@@ -406,8 +407,8 @@ Priority rationale: Low-medium. Consolidation reduces future maintenance and dri
 **Test coverage contracts**:
 - Contract tests: schema factories produce expected keys and handle defaults
 - Options-parity tests: options flow pre-fills and persists correctly
-- Integration tests: full config and options flows for both system types
-- E2E tests: UI behavior and REST API validation using Playwright
+- Integration tests: full config and options flows for all system types
+- E2E tests: Python-based persistence tests validating complete config/options lifecycle (`test_e2e_*.py`)
 
 ### Test preservation policy
 
@@ -509,8 +510,8 @@ Enforcement policy (formalized):
 **Current approach**: Direct implementation of remaining tasks from the todo list, focusing on:
 1. **Immediate (Phase 1A)**: Advanced system type removal and core polishing
 2. **Near-term (Phase 1B)**: Contract tests, models.py, and options-parity validation
-3. **Medium-term (Phase 1C)**: E2E Playwright scaffold and comprehensive UI testing
-4. **Final (Phase 1D)**: Documentation updates and releSase preparation
+3. **Medium-term (Phase 1C)**: Python-based E2E persistence tests for all system types
+4. **Final (Phase 1D)**: Documentation updates and release preparation
 
 **Ordering principles**:
 - Test-first approach: Contract tests before implementation changes
@@ -543,11 +544,11 @@ Enforcement policy (formalized):
 - [x] Phase 0: Research complete (canonical data models, implementation audit)
 - [x] Phase 1: Design complete (feature-complete plan, E2E strategy, advanced system type removal plan)
 - [x] Phase 2: Implementation approach defined (todo-driven execution, test-first approach)
-- [ ] Phase 1A: E2E Playwright scaffold (highest priority — harden stable system types)
-- [ ] Phase 1B: Advanced custom setup removal (immediate priority)
-- [ ] Phase 1C: Complete remaining system types (medium-term priority)
-- [ ] Phase 1D: Contract tests and models.py (ongoing priority)
-- [ ] Phase 1E: Documentation and release prep (final priority)
+- [x] Phase 1A: Python E2E persistence tests complete (all system types covered)
+- [x] Phase 1B: Advanced custom setup removal (complete)
+- [x] Phase 1C: Complete remaining system types (heater_cooler and heat_pump complete)
+- [x] Phase 1D: Contract tests and models.py (complete)
+- [x] Phase 1E: Documentation and release prep (complete)
 
 **Gate Status**:
 - [x] Initial Constitution Check: PASS (single integration, HA framework, centralized schemas)
