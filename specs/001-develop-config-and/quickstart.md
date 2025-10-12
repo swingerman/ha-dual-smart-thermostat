@@ -30,8 +30,8 @@ Work iteratively per system type (one iteration = implement one system type and 
 
 - ✅ `simple_heater` — **COMPLETE** (production-ready with tests and translations)
 - ✅ `ac_only` — **COMPLETE** (production-ready with tests and translations)
-- ⏳ `heater_with_cooler` — **IN PROGRESS** (complete implementation and tests)
-- 🔜 `heat_pump` — **PLANNED** (implement last)
+- ✅ `heater_with_cooler` — **COMPLETE** (production-ready with tests and translations)
+- ✅ `heat_pump` — **COMPLETE** (production-ready with tests and translations)
 
 ## Implementation Workflow
 
