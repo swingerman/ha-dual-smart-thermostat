@@ -658,17 +658,21 @@ T011 — Investigate schema duplication (const vs schemas) (Phase 1C-1) ⚪ **OP
 - **Release Impact**: None - Only do if duplication becomes painful during T005/T006/T008
 - Parallelization: [P]
 
-T012 — Polish documentation & release prep — [GitHub Issue #422](https://github.com/swingerman/ha-dual-smart-thermostat/issues/422)
-- Files to edit:
-  - `specs/001-develop-config-and/quickstart.md`
-  - `specs/001-develop-config-and/data-model.md` (if minor clarifications needed)
-  - `tests/e2e/README.md`
-- Steps:
-  1. Update quickstart with examples for `simple_heater` and `ac_only`.
-  2. Add release checklist: update changelog, bump version in `manifest.json` if needed, and ensure `hacs.json` metadata is accurate.
-- Acceptance criteria:
-  - Docs provide clear steps to run E2E locally and in CI, and list baseline images regeneration steps.
+T012 — Polish documentation & release prep ✅ [COMPLETED] — [GitHub Issue #422](https://github.com/swingerman/ha-dual-smart-thermostat/issues/422)
+- Files edited:
+  - `specs/001-develop-config-and/quickstart.md` — Enhanced with detailed examples for `simple_heater` and `ac_only`, added comprehensive release checklist
+  - `specs/001-develop-config-and/data-model.md` — Added purpose and usage clarification
+  - `tests/e2e/README.md` — Created comprehensive E2E testing guide with local/CI instructions
+- Steps completed:
+  1. ✅ Updated quickstart with working examples for `simple_heater` and `ac_only` configurations
+  2. ✅ Added release checklist covering version updates, CHANGELOG, manifest.json, and hacs.json
+  3. ✅ Created detailed E2E README with setup, running tests locally/CI, baseline regeneration steps
+- Acceptance criteria met:
+  - ✅ Docs provide clear steps to run E2E locally and in CI
+  - ✅ Baseline images regeneration steps documented
+  - ✅ Release checklist with version management, HACS compatibility, and Home Assistant compatibility
 - Parallelization: [P]
+- **Completed**: 2025-10-12
 
 ---
 
@@ -683,9 +687,9 @@ Task Ordering and dependency notes (UPDATED 2025-01-06)
 3. ✅ **T006** (Complete heat_pump with TDD) — Completed 2025-10-08
 4. ✅ **T007A** (Feature interaction testing) — Completed 2025-10-10
 5. ✅ **T008** (Normalize keys) — Completed 2025-10-10
+6. ✅ **T012** (Documentation & release prep) — Completed 2025-10-12
 
 **CURRENT PRIORITIES** (Release Sprint):
-6. 🔥 **T012** (Documentation & release prep) — **NEXT: CRITICAL** - Essential for release
 7. 📊 **T009** (models.py) — **IN PROGRESS** - Add type safety with dataclasses
 8. ⚪ **T010** (Test reorg) — **OPTIONAL** - Defer to post-release
 9. ⚪ **T011** (Schema consolidation) — **OPTIONAL** - Skip for this release
@@ -695,14 +699,14 @@ Task Ordering and dependency notes (UPDATED 2025-01-06)
 - **Phase 2** ✅: {T005, T006} — Completed (Parallel implementation, coordinated on `schemas.py` edits)
 - **Phase 3** ✅: T007A (Feature interactions) — Completed 2025-10-10
 - **Phase 4** ✅: T008 (Normalize keys) — Completed 2025-10-10
-- **Phase 5** 🔥: {T009, T012} — **CURRENT** (Parallel, different files)
+- **Phase 5** 🔥: {T009, T012} — **CURRENT** - T012 ✅ Complete, T009 in progress
 - **Phase 6** ⚪: {T010, T011} — **OPTIONAL** - Deferred/Skipped
 
-**Critical Path to Release (UPDATED 2025-10-10):**
+**Critical Path to Release (UPDATED 2025-10-12):**
 ```
 T004 → {T005, T006} → T007A → T008 → {T009, T012} → RELEASE
-✅       ✅            ✅      ✅      🔥 NOW
-       (parallel)                    (parallel)
+✅       ✅            ✅      ✅      📊  ✅           ⏭️
+       (parallel)                    (T009 in progress)
 ```
 
 **Why T007A is Critical:**
