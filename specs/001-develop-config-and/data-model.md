@@ -1,5 +1,19 @@
 # Data Model: Config & Options Flow (dual_smart_thermostat)
 
+## Purpose
+
+This document defines the canonical data structures used throughout the Dual Smart Thermostat integration. It serves as the **contract** between:
+- Configuration/Options flows (what gets persisted)
+- Schema factories (what gets validated)
+- Climate entity (what gets consumed)
+- Test suites (what gets verified)
+
+**When to use this document:**
+- Implementing new system types or features
+- Writing tests that verify persisted data structures
+- Debugging configuration issues
+- Ensuring consistency across config and options flows
+
 ## High-level entities
 
 - `ThermostatConfigEntry`
