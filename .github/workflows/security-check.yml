@@ -1,0 +1,161 @@
+name: Security and Quality Check
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches: "*"
+  schedule:
+    - cron: "0 2 * * 1"  # Weekly on Monday at 2 AM
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: 3.13
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements-dev.txt
+          pip install safety bandit semgrep
+
+      - name: Run Safety scan
+        run: |
+          echo "Running Safety scan for known security vulnerabilities..."
+          # Safety v3 requires authentication, making it informational only
+          safety scan --json --output safety-report.json || echo "⚠️ Safety scan skipped (requires auth)"
+          safety scan || echo "⚠️ Safety scan completed with findings or auth required"
+        continue-on-error: true
+
+      - name: Run Bandit security linter
+        run: |
+          echo "Running Bandit security analysis..."
+          # Exclude tests directory from security scan
+          bandit -r . -x ./tests -f json -o bandit-report.json || true
+          bandit -r . -x ./tests -f txt || echo "⚠️ Bandit found security issues (informational only)"
+        continue-on-error: true
+
+      - name: Run Semgrep security scan
+        run: |
+          echo "Running Semgrep security scan..."
+          semgrep --config=auto --json --output=semgrep-report.json . || true
+          semgrep --config=auto .
+
+      - name: Check for secrets
+        run: |
+          echo "Checking for potential secrets..."
+          # Check for common secret patterns
+          if grep -r -E "(password|secret|key|token|api_key)" --include="*.py" --include="*.yaml" --include="*.yml" . | grep -v -E "(test_|example_|demo_)" | grep -v "__pycache__" | grep -v ".git"; then
+            echo "⚠️ Potential secrets found in code. Please review."
+          else
+            echo "✅ No obvious secrets found in code."
+          fi
+
+      - name: Upload security reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-reports
+          path: |
+            safety-report.json
+            bandit-report.json
+            semgrep-report.json
+          retention-days: 30
+          if-no-files-found: ignore
+
+  dependency-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: 3.13
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements-dev.txt
+          pip install pip-audit
+
+      - name: Run pip-audit
+        run: |
+          echo "Running pip-audit for dependency vulnerabilities..."
+          pip-audit --desc --format=json --output=pip-audit-report.json || true
+          # Some vulnerabilities are in packages required by Home Assistant at specific versions
+          # Making this informational only to avoid blocking CI
+          pip-audit --desc || echo "⚠️ Some dependencies have known vulnerabilities but are required by Home Assistant"
+        continue-on-error: true
+
+      - name: Upload audit reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-reports
+          path: pip-audit-report.json
+          retention-days: 30
+          if-no-files-found: ignore
+
+  code-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: 3.13
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements-dev.txt
+          pip install radon xenon
+
+      - name: Run code complexity analysis
+        run: |
+          echo "Running code complexity analysis with Radon..."
+          radon cc . --json --output radon-complexity.json || true
+          radon cc . --show-complexity
+          
+          echo "Running maintainability index..."
+          radon mi . --json --output radon-maintainability.json || true
+          radon mi . --show
+
+      - name: Run code quality metrics
+        run: |
+          echo "Running Xenon complexity analysis..."
+          xenon . --max-absolute B --max-modules A --max-average A || true
+
+      - name: Check for TODO/FIXME comments
+        run: |
+          echo "Checking for TODO/FIXME comments..."
+          if grep -r -i "todo\|fixme" --include="*.py" . | grep -v ".git" | grep -v "__pycache__"; then
+            echo "⚠️ Found TODO/FIXME comments that should be addressed:"
+            grep -r -i "todo\|fixme" --include="*.py" . | grep -v ".git" | grep -v "__pycache__"
+          else
+            echo "✅ No TODO/FIXME comments found."
+          fi
+
+      - name: Upload quality reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-reports
+          path: |
+            radon-complexity.json
+            radon-maintainability.json
+          retention-days: 30
+          if-no-files-found: ignore
