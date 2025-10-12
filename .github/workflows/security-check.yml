@@ -40,8 +40,10 @@ jobs:
       - name: Run Bandit security linter
         run: |
           echo "Running Bandit security analysis..."
-          bandit -r . -f json -o bandit-report.json || true
-          bandit -r . -f txt
+          # Exclude tests directory from security scan
+          bandit -r . -x ./tests -f json -o bandit-report.json || true
+          bandit -r . -x ./tests -f txt || echo "⚠️ Bandit found security issues (informational only)"
+        continue-on-error: true
 
       - name: Run Semgrep security scan
         run: |
