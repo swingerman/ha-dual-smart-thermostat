@@ -141,11 +141,11 @@ class TestAutoPresetSelection:
 
         Scenario: User manually sets temperature to 18°C, should auto-select 'eco' preset.
         """
-        # Arrange: Start with no preset
+        # Given: Thermostat is in none preset mode
         state = hass.states.get("climate.test_thermostat")
         assert state.attributes.get(ATTR_PRESET_MODE) == PRESET_NONE
 
-        # Act: Set temperature to match eco preset
+        # When: User sets temperature to 18.0 (matches eco preset)
         await hass.services.async_call(
             "climate",
             SERVICE_SET_TEMPERATURE,
@@ -154,7 +154,7 @@ class TestAutoPresetSelection:
         )
         await hass.async_block_till_done()
 
-        # Assert: Should auto-select eco preset
+        # Then: Thermostat should auto-select eco preset
         state = hass.states.get("climate.test_thermostat")
         assert state.attributes.get(ATTR_PRESET_MODE) == PRESET_ECO
         assert state.attributes.get(ATTR_TEMPERATURE) == 18.0
@@ -166,11 +166,11 @@ class TestAutoPresetSelection:
 
         Scenario: User sets temperature range 18-22°C, should auto-select matching preset.
         """
-        # Arrange: Start with no preset
+        # Given: Thermostat is in none preset mode
         state = hass.states.get("climate.test_thermostat_range")
         assert state.attributes.get(ATTR_PRESET_MODE) == PRESET_NONE
 
-        # Act: Set temperature range to match home preset
+        # When: User sets temperature range to 18-22°C (matches home preset)
         await hass.services.async_call(
             "climate",
             SERVICE_SET_TEMPERATURE,
@@ -183,7 +183,7 @@ class TestAutoPresetSelection:
         )
         await hass.async_block_till_done()
 
-        # Assert: Should auto-select home preset
+        # Then: Thermostat should auto-select home preset
         state = hass.states.get("climate.test_thermostat_range")
         assert state.attributes.get(ATTR_PRESET_MODE) == PRESET_HOME
         assert state.attributes.get(ATTR_TARGET_TEMP_LOW) == 18.0
@@ -198,11 +198,11 @@ class TestAutoPresetSelection:
         Note: Floor limits are not set by temperature service, only by preset application.
         This test focuses on temperature matching only.
         """
-        # Arrange: Start with no preset
+        # Given: Thermostat is in none preset mode
         state = hass.states.get("climate.test_thermostat_floor")
         assert state.attributes.get(ATTR_PRESET_MODE) == PRESET_NONE
 
-        # Act: Set temperature to match home preset
+        # When: User sets temperature to 21.0°C (matches home preset)
         await hass.services.async_call(
             "climate",
             SERVICE_SET_TEMPERATURE,
@@ -211,7 +211,7 @@ class TestAutoPresetSelection:
         )
         await hass.async_block_till_done()
 
-        # Assert: Should auto-select home preset (temperature matches)
+        # Then: Thermostat should auto-select home preset
         # Note: Floor limits are not checked since they're not set by temperature service
         state = hass.states.get("climate.test_thermostat_floor")
         assert state.attributes.get(ATTR_PRESET_MODE) == PRESET_HOME
@@ -224,11 +224,11 @@ class TestAutoPresetSelection:
 
         Scenario: User sets humidity to 45%, should auto-select matching preset.
         """
-        # Arrange: Start with no preset
+        # Given: Thermostat is in none preset mode
         state = hass.states.get("climate.test_thermostat_humidity")
         assert state.attributes.get(ATTR_PRESET_MODE) == PRESET_NONE
 
-        # Act: Set temperature and humidity to match home preset
+        # When: User sets temperature and humidity to match home preset
         await hass.services.async_call(
             "climate",
             SERVICE_SET_TEMPERATURE,
@@ -243,7 +243,7 @@ class TestAutoPresetSelection:
         )
         await hass.async_block_till_done()
 
-        # Assert: Should auto-select home preset
+        # Then: Thermostat should auto-select home preset
         state = hass.states.get("climate.test_thermostat_humidity")
         assert state.attributes.get(ATTR_PRESET_MODE) == PRESET_HOME
         assert state.attributes.get(ATTR_TEMPERATURE) == 21.0
@@ -256,7 +256,7 @@ class TestAutoPresetSelection:
 
         Scenario: User sets temperature to 18°C but humidity doesn't match eco preset.
         """
-        # Arrange: Set humidity to different value than eco preset
+        # Given: Humidity is set to different value than eco preset
         await hass.services.async_call(
             "climate",
             SERVICE_SET_HUMIDITY,
@@ -265,7 +265,7 @@ class TestAutoPresetSelection:
         )
         await hass.async_block_till_done()
 
-        # Act: Set temperature to match eco but humidity doesn't match
+        # When: User sets temperature to match eco but humidity doesn't match
         await hass.services.async_call(
             "climate",
             SERVICE_SET_TEMPERATURE,
@@ -274,7 +274,7 @@ class TestAutoPresetSelection:
         )
         await hass.async_block_till_done()
 
-        # Assert: Should NOT auto-select eco preset due to humidity mismatch
+        # Then: Should NOT auto-select eco preset due to humidity mismatch
         state = hass.states.get("climate.test_thermostat_humidity")
         assert state.attributes.get(ATTR_PRESET_MODE) == PRESET_NONE
 
@@ -307,7 +307,7 @@ class TestAutoPresetSelection:
         )
         await hass.async_block_till_done()
 
-        # Assert: Should remain in no preset mode (or no preset_mode attribute if no presets)
+        # Then: Should remain in no preset mode (or no preset_mode attribute if no presets)
         state = hass.states.get("climate.test_thermostat_no_presets")
         preset_mode = state.attributes.get(ATTR_PRESET_MODE)
         # If no presets are configured, preset_mode might be None or not present
@@ -320,7 +320,7 @@ class TestAutoPresetSelection:
 
         Scenario: User is already in eco preset and sets temperature to eco value.
         """
-        # Arrange: Set eco preset
+        # Given: Thermostat is set to eco preset
         await hass.services.async_call(
             "climate",
             "set_preset_mode",
@@ -329,7 +329,7 @@ class TestAutoPresetSelection:
         )
         await hass.async_block_till_done()
 
-        # Act: Set temperature to same eco value
+        # When: User sets temperature to same eco value
         await hass.services.async_call(
             "climate",
             SERVICE_SET_TEMPERATURE,
@@ -338,7 +338,7 @@ class TestAutoPresetSelection:
         )
         await hass.async_block_till_done()
 
-        # Assert: Should remain in eco preset
+        # Then: Should remain in eco preset
         state = hass.states.get("climate.test_thermostat")
         assert state.attributes.get(ATTR_PRESET_MODE) == PRESET_ECO
 
@@ -349,13 +349,12 @@ class TestAutoPresetSelection:
 
         Scenario: Multiple presets have same temperature, should select first one.
         """
-        # Arrange: Configure multiple presets with same temperature
-        # This would require modifying the preset configuration, which is complex
-        # For now, test with existing presets that have different temperatures
+        # Given: Thermostat is in none preset mode
+        # Note: This test uses existing presets with different temperatures
         state = hass.states.get("climate.test_thermostat")
         assert state.attributes.get(ATTR_PRESET_MODE) == PRESET_NONE
 
-        # Act: Set temperature to match away preset (16.0)
+        # When: User sets temperature to match away preset (16.0)
         await hass.services.async_call(
             "climate",
             SERVICE_SET_TEMPERATURE,
@@ -364,7 +363,7 @@ class TestAutoPresetSelection:
         )
         await hass.async_block_till_done()
 
-        # Assert: Should select away preset (first in order)
+        # Then: Should select away preset (first in order)
         state = hass.states.get("climate.test_thermostat")
         assert state.attributes.get(ATTR_PRESET_MODE) == PRESET_AWAY
 
@@ -375,11 +374,11 @@ class TestAutoPresetSelection:
 
         Scenario: Temperature 18.0001 should match preset with 18.0.
         """
-        # Arrange: Start with no preset
+        # Given: Thermostat is in none preset mode
         state = hass.states.get("climate.test_thermostat")
         assert state.attributes.get(ATTR_PRESET_MODE) == PRESET_NONE
 
-        # Act: Set temperature with small floating point difference
+        # When: User sets temperature with small floating point difference
         await hass.services.async_call(
             "climate",
             SERVICE_SET_TEMPERATURE,
@@ -388,7 +387,7 @@ class TestAutoPresetSelection:
         )
         await hass.async_block_till_done()
 
-        # Assert: Should auto-select eco preset despite small difference
+        # Then: Should auto-select eco preset despite small difference
         state = hass.states.get("climate.test_thermostat")
         assert state.attributes.get(ATTR_PRESET_MODE) == PRESET_ECO
 
@@ -399,7 +398,7 @@ class TestAutoPresetSelection:
 
         Scenario: User is in comfort preset, sets temperature that doesn't match any preset.
         """
-        # Arrange: Set comfort preset
+        # Given: Thermostat is set to comfort preset
         await hass.services.async_call(
             "climate",
             "set_preset_mode",
@@ -408,7 +407,7 @@ class TestAutoPresetSelection:
         )
         await hass.async_block_till_done()
 
-        # Act: Set temperature that doesn't match any preset
+        # When: User sets temperature that doesn't match any preset
         await hass.services.async_call(
             "climate",
             SERVICE_SET_TEMPERATURE,
@@ -417,6 +416,6 @@ class TestAutoPresetSelection:
         )
         await hass.async_block_till_done()
 
-        # Assert: Should remain in comfort preset
+        # Then: Should remain in comfort preset
         state = hass.states.get("climate.test_thermostat")
         assert state.attributes.get(ATTR_PRESET_MODE) == PRESET_COMFORT
