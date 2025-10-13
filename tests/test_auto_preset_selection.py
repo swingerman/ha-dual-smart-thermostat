@@ -95,7 +95,7 @@ async def setup_thermostat_with_floor_heating_presets(hass: HomeAssistant) -> No
                 PRESET_HOME: {
                     "temperature": 21.0,
                     "min_floor_temp": 5.0,
-                    "max_floor_temp": 28.0,
+                    "max_floor_temp": 30.0,
                 },
                 PRESET_ECO: {
                     "temperature": 18.0,
