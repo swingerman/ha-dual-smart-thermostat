@@ -300,39 +300,87 @@ class PresetManager(StateManager):
         Returns True if all non-None values in the preset match the current values.
         Only checks values that are actually set in the current environment.
         """
-        # Check temperature (single mode)
-        if preset_env.temperature is not None:
-            if current_temp is None or not self._values_equal(
-                preset_env.temperature, current_temp
-            ):
-                return False
+        # Check temperature values
+        if not self._check_temperature_match(preset_env, current_temp):
+            return False
 
-        # Check temperature range (dual mode)
+        if not self._check_temperature_range_match(
+            preset_env, current_temp_low, current_temp_high
+        ):
+            return False
+
+        if not self._check_humidity_match(preset_env, current_humidity):
+            return False
+
+        if not self._check_floor_temp_limits_match(
+            preset_env, current_min_floor_temp, current_max_floor_temp
+        ):
+            return False
+
+        return True
+
+    def _check_temperature_match(self, preset_env, current_temp: float | None) -> bool:
+        """Check if single temperature matches preset."""
+        if preset_env.temperature is None:
+            return True
+
+        if current_temp is None:
+            return False
+
+        return self._values_equal(preset_env.temperature, current_temp)
+
+    def _check_temperature_range_match(
+        self,
+        preset_env,
+        current_temp_low: float | None,
+        current_temp_high: float | None,
+    ) -> bool:
+        """Check if temperature range matches preset."""
+        # Check low temperature
         if preset_env.target_temp_low is not None:
             if current_temp_low is None or not self._values_equal(
                 preset_env.target_temp_low, current_temp_low
             ):
                 return False
+
+        # Check high temperature
         if preset_env.target_temp_high is not None:
             if current_temp_high is None or not self._values_equal(
                 preset_env.target_temp_high, current_temp_high
             ):
                 return False
 
-        # Check humidity
-        if preset_env.humidity is not None:
-            if current_humidity is None or not self._values_equal(
-                preset_env.humidity, current_humidity
-            ):
-                return False
+        return True
 
-        # Check floor temperature limits only if they are set in the current environment
-        # Floor limits are only set when a preset is applied, not when temperature is set
+    def _check_humidity_match(self, preset_env, current_humidity: float | None) -> bool:
+        """Check if humidity matches preset."""
+        if preset_env.humidity is None:
+            return True
+
+        if current_humidity is None:
+            return False
+
+        return self._values_equal(preset_env.humidity, current_humidity)
+
+    def _check_floor_temp_limits_match(
+        self,
+        preset_env,
+        current_min_floor_temp: float | None,
+        current_max_floor_temp: float | None,
+    ) -> bool:
+        """Check if floor temperature limits match preset.
+
+        Floor limits are only checked if they are set in the current environment.
+        This is because floor limits are only set when a preset is applied, not when temperature is set.
+        """
+        # Check min floor temperature
         if preset_env.min_floor_temp is not None and current_min_floor_temp is not None:
             if not self._values_equal(
                 preset_env.min_floor_temp, current_min_floor_temp
             ):
                 return False
+
+        # Check max floor temperature
         if preset_env.max_floor_temp is not None and current_max_floor_temp is not None:
             if not self._values_equal(
                 preset_env.max_floor_temp, current_max_floor_temp
