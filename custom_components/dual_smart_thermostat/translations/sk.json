@@ -1,6 +1,16 @@
 {
   "shared": {
     "step": {
+      "reconfigure_confirm": {
+        "title": "Prekonfigurovať {name}",
+        "description": "Chystáte sa prekonfigurovať **{name}**.\n\nAktuálny typ systému: **{current_system}**\n\nMôžete ponechať aktuálny typ systému alebo zmeniť na iný. Poznámka: Zmena typu systému vymaže vašu aktuálnu konfiguráciu a začne odznova.\n\nIntegrácia bude po prekonfigurovaní znovu načítaná.",
+        "data": {
+          "system_type": "Typ systému"
+        },
+        "data_description": {
+          "system_type": "Vyberte typ systému. Ponechajte aktuálny typ pre úpravu nastavení, alebo vyberte iný typ pre začatie s novou konfiguráciou."
+        }
+      },
       "features": {
         "data": {
           "configure_fan": "Konfigurácia ventilátora",

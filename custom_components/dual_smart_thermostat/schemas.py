@@ -74,11 +74,21 @@ from .schema_utils import (
 _LOGGER = logging.getLogger(__name__)
 
 
-def get_system_type_schema():
-    """Get system type selection schema."""
+def get_system_type_schema(default: str | None = None):
+    """Get system type selection schema.
+
+    Args:
+        default: Optional default system type to pre-select (used in reconfigure flow)
+
+    Returns:
+        vol.Schema with system type selection
+    """
     return vol.Schema(
         {
-            vol.Required(CONF_SYSTEM_TYPE): get_select_selector(
+            vol.Required(
+                CONF_SYSTEM_TYPE,
+                default=default if default is not None else vol.UNDEFINED,
+            ): get_select_selector(
                 options=[{"value": k, "label": v} for k, v in SYSTEM_TYPES.items()],
                 mode=selector.SelectSelectorMode.LIST,
             ),

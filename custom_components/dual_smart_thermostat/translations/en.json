@@ -18,6 +18,16 @@
                     "system_type": "Select the system type that best matches your HVAC setup."
                 }
             },
+            "reconfigure_confirm": {
+                "title": "Reconfigure {name}",
+                "description": "You are about to reconfigure **{name}**.\n\nCurrent system type: **{current_system}**\n\nYou can keep the current system type or change to a different one. Note: Changing the system type will clear your current configuration and start fresh.\n\nThe integration will be reloaded after reconfiguration.",
+                "data": {
+                    "system_type": "System Type"
+                },
+                "data_description": {
+                    "system_type": "Select the system type. Keep the current type to modify settings, or choose a different type to start with a fresh configuration."
+                }
+            },
             "basic": {
                 "title": "Basic Configuration",
                 "description": "Configure your thermostat settings organized by category: basic info, sensors, control devices, and temperature settings.",

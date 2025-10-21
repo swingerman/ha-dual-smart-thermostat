@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Mapping, cast
 
-from homeassistant.config_entries import ConfigFlow
+from homeassistant.config_entries import SOURCE_RECONFIGURE, ConfigFlow
 from homeassistant.const import CONF_NAME
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
@@ -122,6 +122,97 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
             },
         )
 
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle reconfiguration of the integration.
+
+        This entry point is triggered when the user clicks "Reconfigure"
+        in the Home Assistant UI. It allows changing structural configuration
+        like system type, entities, and enabled features.
+
+        The reconfigure flow reuses all existing step methods from the config
+        flow but initializes with current configuration values and updates
+        the existing entry instead of creating a new one.
+        """
+        # Get the existing config entry being reconfigured
+        entry = self._get_reconfigure_entry()
+
+        # Initialize collected_config with current data
+        # This ensures all existing settings are preserved unless changed
+        self.collected_config = dict(entry.data)
+
+        # IMPORTANT: Clear flow control flags so user goes through all steps again
+        # These flags are set during the flow to control navigation and should
+        # not persist between reconfigurations
+        flow_control_flags = {
+            "features_shown",
+            "dual_stage_options_shown",
+            "floor_options_shown",
+            "fan_options_shown",
+            "humidity_options_shown",
+            "openings_options_shown",
+            "presets_shown",
+        }
+        for flag in flow_control_flags:
+            self.collected_config.pop(flag, None)
+
+        # Start the reconfigure flow with system type confirmation
+        # This mirrors the initial config flow but with current values as defaults
+        return await self.async_step_reconfigure_confirm(user_input)
+
+    async def async_step_reconfigure_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Confirm reconfiguration and show system type selection.
+
+        This step informs users that reconfiguring will reload the integration
+        and allows them to confirm or change the system type.
+        """
+        if user_input is not None:
+            # Get the original system type before updating
+            original_system_type = self.collected_config.get(CONF_SYSTEM_TYPE)
+            new_system_type = user_input.get(CONF_SYSTEM_TYPE)
+
+            # CRITICAL: Detect system type change
+            # If the user changes the system type, we need to clear all previously
+            # saved configuration (except name) to prevent incompatible config
+            # from causing problems. For example, a heat pump's heat_pump_cooling
+            # sensor makes no sense for a simple heater system.
+            if new_system_type != original_system_type:
+                _LOGGER.info(
+                    "System type changed from %s to %s - clearing previous configuration",
+                    original_system_type,
+                    new_system_type,
+                )
+                # Preserve only the name and new system type
+                name = self.collected_config.get(CONF_NAME)
+                self.collected_config = {
+                    CONF_NAME: name,
+                    CONF_SYSTEM_TYPE: new_system_type,
+                }
+                # Set a flag to track system type change (for testing/debugging)
+                self.collected_config["system_type_changed"] = True
+            else:
+                # Same system type - preserve existing config and let user modify
+                self.collected_config.update(user_input)
+
+            # Proceed to the standard system config flow
+            return await self._async_step_system_config()
+
+        # Show system type selection with current type as default
+        current_system_type = self.collected_config.get(CONF_SYSTEM_TYPE)
+        current_name = self.collected_config.get(CONF_NAME, "Dual Smart Thermostat")
+
+        return self.async_show_form(
+            step_id="reconfigure_confirm",
+            data_schema=get_system_type_schema(default=current_system_type),
+            description_placeholders={
+                "name": current_name,
+                "current_system": current_system_type,
+            },
+        )
+
     async def _async_step_system_config(self) -> FlowResult:
         """Handle system-specific configuration."""
         # Determine selected system type from collected config
@@ -171,13 +262,18 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
         # so the config flow shows the Name field.
 
         # Use system-specific schemas with advanced settings
+        # Pass collected_config as defaults to prepopulate form with current values
         if system_type == SystemType.SIMPLE_HEATER:
-            schema = get_simple_heater_schema(defaults=None, include_name=True)
+            schema = get_simple_heater_schema(
+                defaults=self.collected_config, include_name=True
+            )
         else:
             schema = __import__(
                 "custom_components.dual_smart_thermostat.schemas",
                 fromlist=["get_core_schema"],
-            ).get_core_schema(system_type, defaults=None, include_name=True)
+            ).get_core_schema(
+                system_type, defaults=self.collected_config, include_name=True
+            )
 
         return self.async_show_form(step_id="basic", data_schema=schema, errors=errors)
 
@@ -203,7 +299,8 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
                 return await self._determine_next_step()
 
         # Use AC-only specific schema with dedicated translations
-        schema = get_basic_ac_schema(defaults=None, include_name=True)
+        # Pass collected_config as defaults to prepopulate form with current values
+        schema = get_basic_ac_schema(defaults=self.collected_config, include_name=True)
 
         return self.async_show_form(
             step_id="basic_ac_only", data_schema=schema, errors=errors
@@ -222,6 +319,10 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
         system_type = self.collected_config.get(CONF_SYSTEM_TYPE)
 
         if user_input is not None:
+            # CRITICAL: Detect when features are unchecked and clear related config
+            # This prevents stale configuration from persisting when features are disabled
+            self._clear_unchecked_features(user_input)
+
             # Store selections and proceed
             self.collected_config.update(user_input)
             # Clear toggles so they don't persist unexpectedly
@@ -233,9 +334,13 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
         self.collected_config.pop("configure_advanced", None)
         self.collected_config.pop("advanced_shown", None)
 
+        # Detect currently configured features and set defaults for checkboxes
+        # This ensures the UI shows which features are currently enabled
+        feature_defaults = self._detect_configured_features()
+
         return self.async_show_form(
             step_id="features",
-            data_schema=get_features_schema(system_type),
+            data_schema=get_features_schema(system_type, defaults=feature_defaults),
             description_placeholders={
                 "subtitle": "Choose which features to configure for your system"
             },
@@ -268,7 +373,10 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
                 return await self._determine_next_step()
 
         # Use dedicated heater+cooler schema with advanced settings in collapsible section
-        schema = get_heater_cooler_schema(defaults=None, include_name=True)
+        # Pass collected_config as defaults to prepopulate form with current values
+        schema = get_heater_cooler_schema(
+            defaults=self.collected_config, include_name=True
+        )
 
         return self.async_show_form(
             step_id="heater_cooler",
@@ -300,7 +408,8 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
                 return await self._determine_next_step()
 
         # Use dedicated heat pump schema with advanced settings in collapsible section
-        schema = get_heat_pump_schema(defaults=None, include_name=True)
+        # Pass collected_config as defaults to prepopulate form with current values
+        schema = get_heat_pump_schema(defaults=self.collected_config, include_name=True)
 
         return self.async_show_form(
             step_id="heat_pump",
@@ -504,20 +613,7 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
                 # At least one preset is enabled, proceed to configuration
                 return await self.async_step_presets()
             # No presets enabled, skip configuration and finish
-            cleaned_config = self._clean_config_for_storage(self.collected_config)
-
-            # Validate configuration using models for type safety
-            if not validate_config_with_models(cleaned_config):
-                _LOGGER.warning(
-                    "Configuration validation failed for %s. "
-                    "Please check your configuration.",
-                    cleaned_config.get(CONF_NAME, "thermostat"),
-                )
-
-            return self.async_create_entry(
-                title=self.collected_config[CONF_NAME],
-                data=cleaned_config,
-            )
+            return await self._async_finish_flow()
 
         return self.async_show_form(
             step_id="preset_selection",
@@ -641,20 +737,132 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
             return await self.async_step_preset_selection()
         else:
             # Skip presets and finish configuration
-            cleaned_config = self._clean_config_for_storage(self.collected_config)
+            return await self._async_finish_flow()
 
-            # Validate configuration using models for type safety
-            if not validate_config_with_models(cleaned_config):
-                _LOGGER.warning(
-                    "Configuration validation failed for %s. "
-                    "Please check your configuration.",
-                    cleaned_config.get(CONF_NAME, "thermostat"),
-                )
+    async def _async_finish_flow(self) -> FlowResult:
+        """Finish the configuration or reconfigure flow.
 
+        This method handles completion for both initial configuration and
+        reconfiguration flows. It determines which type of flow is active
+        and calls the appropriate completion method.
+        """
+        # Clean config for storage (remove transient flags)
+        cleaned_config = self._clean_config_for_storage(self.collected_config)
+
+        # Validate configuration using models for type safety
+        if not validate_config_with_models(cleaned_config):
+            _LOGGER.warning(
+                "Configuration validation failed for %s. "
+                "Please check your configuration.",
+                cleaned_config.get(CONF_NAME, "thermostat"),
+            )
+
+        # Check if this is a reconfigure flow
+        if self.source == SOURCE_RECONFIGURE:
+            # Reconfigure flow: update existing entry and reload
+            _LOGGER.info(
+                "Reconfiguring %s - integration will be reloaded",
+                cleaned_config.get(CONF_NAME, "thermostat"),
+            )
+            return self.async_update_reload_and_abort(
+                self._get_reconfigure_entry(),
+                data_updates=cleaned_config,
+            )
+        else:
+            # Config flow: create new entry
+            _LOGGER.info(
+                "Creating new config entry for %s",
+                cleaned_config.get(CONF_NAME, "thermostat"),
+            )
             return self.async_create_entry(
                 title=self.async_config_entry_title(self.collected_config),
                 data=cleaned_config,
             )
+
+    def _detect_configured_features(self) -> dict[str, Any]:
+        """Detect which features are currently configured based on config keys.
+
+        Returns a dict suitable for passing as defaults to get_features_schema().
+        This ensures checkboxes in the features step show the current state.
+        """
+        feature_defaults = {}
+
+        # Floor heating: detected by presence of floor_sensor
+        if CONF_FLOOR_SENSOR in self.collected_config:
+            feature_defaults["configure_floor_heating"] = True
+
+        # Fan: detected by presence of fan entity
+        if CONF_FAN in self.collected_config:
+            feature_defaults["configure_fan"] = True
+
+        # Humidity: detected by presence of humidity_sensor
+        if CONF_HUMIDITY_SENSOR in self.collected_config:
+            feature_defaults["configure_humidity"] = True
+
+        # Openings: detected by presence of openings list or selected_openings
+        if self.collected_config.get("openings") or self.collected_config.get(
+            "selected_openings"
+        ):
+            feature_defaults["configure_openings"] = True
+
+        # Presets: detected by presence of any preset configuration
+        # Check for preset-related keys in config
+        preset_keys = [v for v in CONF_PRESETS.values()]
+        has_presets = any(key in self.collected_config for key in preset_keys)
+        if has_presets or "presets" in self.collected_config:
+            feature_defaults["configure_presets"] = True
+
+        return feature_defaults
+
+    def _clear_unchecked_features(self, user_input: dict[str, Any]) -> None:
+        """Clear configuration for features that were unchecked.
+
+        When a user unchecks a previously configured feature, we need to remove
+        all related configuration to prevent stale settings from persisting.
+
+        Args:
+            user_input: The feature selection input from the user
+        """
+        # Floor heating unchecked - clear floor sensor and limits
+        if not user_input.get("configure_floor_heating", False):
+            self.collected_config.pop(CONF_FLOOR_SENSOR, None)
+            self.collected_config.pop("max_floor_temp", None)
+            self.collected_config.pop("min_floor_temp", None)
+            _LOGGER.debug("Floor heating unchecked - clearing floor sensor config")
+
+        # Fan unchecked - clear fan entity and related settings
+        if not user_input.get("configure_fan", False):
+            self.collected_config.pop(CONF_FAN, None)
+            self.collected_config.pop("fan_mode", None)
+            self.collected_config.pop("fan_hot_tolerance", None)
+            self.collected_config.pop("fan_on_with_ac", None)
+            _LOGGER.debug("Fan unchecked - clearing fan config")
+
+        # Humidity unchecked - clear humidity sensor and related settings
+        if not user_input.get("configure_humidity", False):
+            self.collected_config.pop(CONF_HUMIDITY_SENSOR, None)
+            self.collected_config.pop("target_humidity", None)
+            self.collected_config.pop("dry_tolerance", None)
+            self.collected_config.pop("moist_tolerance", None)
+            self.collected_config.pop("min_humidity", None)
+            self.collected_config.pop("max_humidity", None)
+            _LOGGER.debug("Humidity unchecked - clearing humidity config")
+
+        # Openings unchecked - clear openings list and related settings
+        if not user_input.get("configure_openings", False):
+            self.collected_config.pop("openings", None)
+            self.collected_config.pop("selected_openings", None)
+            self.collected_config.pop("openings_scope", None)
+            _LOGGER.debug("Openings unchecked - clearing openings config")
+
+        # Presets unchecked - clear all preset-related configuration
+        if not user_input.get("configure_presets", False):
+            # Clear preset temperature values
+            for preset_key in CONF_PRESETS.values():
+                self.collected_config.pop(preset_key, None)
+            # Clear preset list
+            self.collected_config.pop("presets", None)
+            _LOGGER.debug("Presets unchecked - clearing presets config")
 
     def _has_both_heating_and_cooling(self) -> bool:
         """Check if system has both heating and cooling capability."""
