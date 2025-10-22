@@ -7,7 +7,7 @@ from typing import Any
 
 from homeassistant.config_entries import OptionsFlow
 from homeassistant.const import DEGREE
-from homeassistant.data_entry_flow import FlowResult
+from homeassistant.data_entry_flow import FlowResult, section
 from homeassistant.helpers import selector
 import voluptuous as vol
 
@@ -279,8 +279,8 @@ class OptionsFlowHandler(OptionsFlow):
 
         # Add advanced settings section if there are any fields
         if advanced_dict:
-            schema_dict[vol.Optional("advanced_settings")] = selector.ObjectSelector(
-                selector.ObjectSelectorConfig(advanced_dict)
+            schema_dict[vol.Optional("advanced_settings")] = section(
+                vol.Schema(advanced_dict), {"collapsed": True}
             )
 
         return vol.Schema(schema_dict)
@@ -413,12 +413,16 @@ class OptionsFlowHandler(OptionsFlow):
         # Final step - update the config entry
         entry = self._get_entry()
 
-        # Clean transient flags before saving
+        # Clean transient flags before saving - from BOTH entry.data and collected_config
+        # This is critical because transient flags might be in storage (entry.data)
         excluded_flags = self._get_excluded_flags()
+        cleaned_entry_data = {
+            k: v for k, v in dict(entry.data).items() if k not in excluded_flags
+        }
         cleaned_collected_config = {
             k: v for k, v in self.collected_config.items() if k not in excluded_flags
         }
-        updated_data = {**entry.data, **cleaned_collected_config}
+        updated_data = {**cleaned_entry_data, **cleaned_collected_config}
 
         # Validate configuration using models for type safety
         if not validate_config_with_models(updated_data):

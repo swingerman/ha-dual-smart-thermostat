@@ -174,37 +174,21 @@ async def test_ac_only_all_features_full_persistence(hass):
     options_flow = OptionsFlowHandler(config_entry)
     options_flow.hass = hass
 
+    # Simplified options flow shows runtime tuning parameters in init step
     result = await options_flow.async_step_init()
-    result = await options_flow.async_step_init({CONF_SYSTEM_TYPE: SYSTEM_TYPE_AC_ONLY})
-
     assert result["type"] == "form"
-    # Note: Options flow uses "basic" not "basic_ac_only"
-    assert result["step_id"] == "basic"
+    assert result["step_id"] == "init"
 
     # ===== STEP 5: Make changes - simplified to test persistence =====
-    # Change tolerances in basic step
-    updated_basic = {
-        CONF_SENSOR: "sensor.room_temp",
-        CONF_COOLER: "switch.ac",
-        CONF_COLD_TOLERANCE: 0.8,  # CHANGED
-        CONF_HOT_TOLERANCE: 0.6,  # CHANGED
-    }
-    # Note: Options flow uses async_step_basic not async_step_basic_ac_only
-    result = await options_flow.async_step_basic(updated_basic)
-
-    assert result["step_id"] == "features"
-
-    # Disable configuring NEW features, but existing features will still show their options
-    result = await options_flow.async_step_features(
+    # Submit runtime parameter changes in init step
+    result = await options_flow.async_step_init(
         {
-            "configure_fan": False,
-            "configure_humidity": False,
-            "configure_openings": False,
-            "configure_presets": False,
+            CONF_COLD_TOLERANCE: 0.8,  # CHANGED
+            CONF_HOT_TOLERANCE: 0.6,  # CHANGED
         }
     )
 
-    # Even though we disabled features, fan is already configured so fan_options will show
+    # Since fan is configured, flow proceeds to fan_options
     assert result["type"] == "form"
     assert result["step_id"] == "fan_options"
 
@@ -217,6 +201,29 @@ async def test_ac_only_all_features_full_persistence(hass):
 
     # Accept humidity defaults (no changes)
     result = await options_flow.async_step_humidity_options({})
+
+    # Openings are also configured, so openings_options will show
+    assert result["type"] == "form"
+    assert result["step_id"] == "openings_options"
+
+    # Accept openings defaults (no changes)
+    result = await options_flow.async_step_openings_options({})
+
+    # Presets are also configured, so preset_selection will show
+    assert result["type"] == "form"
+    assert result["step_id"] == "preset_selection"
+
+    # Accept preset selection (keeping existing presets)
+    result = await options_flow.async_step_preset_selection(
+        {"presets": ["away", "home"]}
+    )
+
+    # Now at preset configuration
+    assert result["type"] == "form"
+    assert result["step_id"] == "presets"
+
+    # Accept preset defaults (no changes)
+    result = await options_flow.async_step_presets({})
 
     # Flow should now complete
     assert result["type"] == "create_entry"
@@ -255,14 +262,12 @@ async def test_ac_only_all_features_full_persistence(hass):
     options_flow2 = OptionsFlowHandler(config_entry_updated)
     options_flow2.hass = hass
 
+    # Simplified options flow shows runtime params with merged/updated values
     result = await options_flow2.async_step_init()
-    result = await options_flow2.async_step_init(
-        {CONF_SYSTEM_TYPE: SYSTEM_TYPE_AC_ONLY}
-    )
 
     # Verify options flow opens successfully with merged values
     assert result["type"] == "form"
-    assert result["step_id"] == "basic"
+    assert result["step_id"] == "init"
 
 
 @pytest.mark.asyncio

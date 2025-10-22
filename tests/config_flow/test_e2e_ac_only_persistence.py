@@ -99,68 +99,41 @@ async def test_ac_only_full_config_then_options_flow_persistence(hass):
     options_flow = OptionsFlowHandler(config_entry)
     options_flow.hass = hass
 
-    # Navigate to basic step
+    # Simplified options flow shows runtime tuning directly in init
     result = await options_flow.async_step_init()
-    result = await options_flow.async_step_init({CONF_SYSTEM_TYPE: SYSTEM_TYPE_AC_ONLY})
 
-    # Should show basic form with hot tolerance pre-filled
+    # Should show init form with runtime tuning parameters
     assert result["type"] == "form"
-    assert result["step_id"] == "basic"
+    assert result["step_id"] == "init"
 
-    # ===== STEP 5: Change hot tolerance =====
-    # Note: Tolerances are in advanced_settings, so we focus on core flow
-    updated_basic_config = {
-        CONF_SENSOR: "sensor.room_temp",
-        CONF_COOLER: "switch.ac",
-        CONF_HOT_TOLERANCE: 0.8,  # CHANGE: was 0.5
-    }
-    result = await options_flow.async_step_basic(updated_basic_config)
-
-    # Should go to features
-    assert result["type"] == "form"
-    assert result["step_id"] == "features"
-
-    # Check fan toggle is pre-checked
-    features_schema = result["data_schema"].schema
-    configure_fan_default = None
-    for key in features_schema:
-        if str(key) == "configure_fan":
-            configure_fan_default = (
-                key.default() if callable(key.default) else key.default
-            )
+    # Verify hot tolerance is pre-filled
+    init_schema = result["data_schema"].schema
+    hot_tolerance_default = None
+    for key in init_schema:
+        if hasattr(key, "schema") and key.schema == CONF_HOT_TOLERANCE:
+            if hasattr(key, "default"):
+                hot_tolerance_default = (
+                    key.default() if callable(key.default) else key.default
+                )
             break
 
-    assert configure_fan_default is True, "Fan toggle should be pre-checked!"
+    assert hot_tolerance_default == 0.5, "Hot tolerance should be pre-filled!"
 
-    # Enable fan to modify its settings
-    result = await options_flow.async_step_features({"configure_fan": True})
+    # ===== STEP 5: Change hot tolerance =====
+    # Simplified options flow: only runtime tuning parameters
+    updated_config = {
+        CONF_HOT_TOLERANCE: 0.8,  # CHANGE: was 0.5
+    }
+    result = await options_flow.async_step_init(updated_config)
 
-    # Should show fan options
+    # Since CONF_FAN is configured, proceeds to fan_options
     assert result["type"] == "form"
     assert result["step_id"] == "fan_options"
 
-    # Verify fan settings are pre-filled
-    fan_schema = result["data_schema"].schema
-    fan_defaults = {}
-    for key in fan_schema:
-        key_str = str(key)
-        if hasattr(key, "default"):
-            default_val = key.default() if callable(key.default) else key.default
-            fan_defaults[key_str] = default_val
+    # Complete fan options with existing values
+    result = await options_flow.async_step_fan_options({})
 
-    assert fan_defaults.get(CONF_FAN_MODE) is False
-    assert fan_defaults.get(CONF_FAN_ON_WITH_AC) is True
-
-    # Change fan settings
-    result = await options_flow.async_step_fan_options(
-        {
-            CONF_FAN: "switch.fan",
-            CONF_FAN_MODE: True,  # CHANGE: was False
-            CONF_FAN_ON_WITH_AC: False,  # CHANGE: was True
-        }
-    )
-
-    # Should complete
+    # Now should complete
     assert result["type"] == "create_entry"
 
     # ===== STEP 6: Verify persistence =====
@@ -170,15 +143,15 @@ async def test_ac_only_full_config_then_options_flow_persistence(hass):
     assert "configure_fan" not in updated_data
     assert "features_shown" not in updated_data
 
-    # Check changed values
+    # Check changed value
     assert updated_data[CONF_HOT_TOLERANCE] == 0.8
-    assert updated_data[CONF_FAN_MODE] is True
-    assert updated_data[CONF_FAN_ON_WITH_AC] is False
 
-    # Check preserved values
+    # Check preserved values (feature config unchanged, only runtime tuning)
     assert updated_data[CONF_NAME] == "AC Only Test"
     assert updated_data[CONF_COOLER] == "switch.ac"
     assert updated_data[CONF_FAN] == "switch.fan"
+    assert updated_data[CONF_FAN_MODE] is False  # Unchanged from original
+    assert updated_data[CONF_FAN_ON_WITH_AC] is True  # Unchanged from original
 
     # ===== STEP 7: Reopen and verify updated values shown =====
     config_entry_after = MockConfigEntry(
@@ -186,8 +159,6 @@ async def test_ac_only_full_config_then_options_flow_persistence(hass):
         data=created_data,  # Original unchanged
         options={
             CONF_HOT_TOLERANCE: 0.8,
-            CONF_FAN_MODE: True,
-            CONF_FAN_ON_WITH_AC: False,
         },
         title="AC Only Test",
     )
@@ -197,23 +168,18 @@ async def test_ac_only_full_config_then_options_flow_persistence(hass):
     options_flow2.hass = hass
 
     result = await options_flow2.async_step_init()
-    result = await options_flow2.async_step_init(
-        {CONF_SYSTEM_TYPE: SYSTEM_TYPE_AC_ONLY}
-    )
 
-    # Navigate to fan to verify updated values
-    result = await options_flow2.async_step_basic({})
-    result = await options_flow2.async_step_features({"configure_fan": True})
+    # Verify updated hot tolerance is shown in init step
+    init_schema2 = result["data_schema"].schema
+    hot_tolerance_default2 = None
+    for key in init_schema2:
+        if hasattr(key, "schema") and key.schema == CONF_HOT_TOLERANCE:
+            if hasattr(key, "default"):
+                hot_tolerance_default2 = (
+                    key.default() if callable(key.default) else key.default
+                )
+            break
 
-    fan_schema2 = result["data_schema"].schema
-    fan_defaults2 = {}
-    for key in fan_schema2:
-        key_str = str(key)
-        if hasattr(key, "default"):
-            default_val = key.default() if callable(key.default) else key.default
-            fan_defaults2[key_str] = default_val
-
-    assert fan_defaults2.get(CONF_FAN_MODE) is True, "Updated fan_mode should be shown!"
     assert (
-        fan_defaults2.get(CONF_FAN_ON_WITH_AC) is False
-    ), "Updated fan_on_with_ac should be shown!"
+        hot_tolerance_default2 == 0.8
+    ), "Updated hot_tolerance should be shown in reopened flow!"

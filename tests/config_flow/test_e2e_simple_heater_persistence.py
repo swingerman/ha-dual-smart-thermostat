@@ -101,60 +101,48 @@ async def test_simple_heater_full_config_then_options_flow_persistence(hass):
     options_flow = OptionsFlowHandler(config_entry)
     options_flow.hass = hass
 
-    # Navigate to basic step
+    # Simplified options flow shows runtime tuning directly in init
     result = await options_flow.async_step_init()
-    result = await options_flow.async_step_init(
-        {CONF_SYSTEM_TYPE: SYSTEM_TYPE_SIMPLE_HEATER}
-    )
 
-    # Should show basic form with tolerances pre-filled
+    # Should show init form with runtime tuning parameters
     assert result["type"] == "form"
-    assert result["step_id"] == "basic"
+    assert result["step_id"] == "init"
+
+    # Verify tolerances are pre-filled
+    init_schema = result["data_schema"].schema
+    cold_tolerance_default = None
+    hot_tolerance_default = None
+    for key in init_schema:
+        if hasattr(key, "schema") and key.schema == CONF_COLD_TOLERANCE:
+            if hasattr(key, "default"):
+                cold_tolerance_default = (
+                    key.default() if callable(key.default) else key.default
+                )
+        if hasattr(key, "schema") and key.schema == CONF_HOT_TOLERANCE:
+            if hasattr(key, "default"):
+                hot_tolerance_default = (
+                    key.default() if callable(key.default) else key.default
+                )
+
+    assert cold_tolerance_default == 0.5, "Cold tolerance should be pre-filled!"
+    assert hot_tolerance_default == 0.3, "Hot tolerance should be pre-filled!"
 
     # ===== STEP 5: Change tolerance settings =====
-    # Note: Tolerances are in advanced_settings, so we just test the core flow
-    updated_basic_config = {
-        CONF_SENSOR: "sensor.room_temp",
-        CONF_HEATER: "switch.heater",
+    # Simplified options flow: only runtime tuning parameters
+    updated_config = {
         CONF_COLD_TOLERANCE: 0.8,  # CHANGE: was 0.5
         CONF_HOT_TOLERANCE: 0.6,  # CHANGE: was 0.3
     }
-    result = await options_flow.async_step_basic(updated_basic_config)
+    result = await options_flow.async_step_init(updated_config)
 
-    # Should go to features
-    assert result["type"] == "form"
-    assert result["step_id"] == "features"
-
-    # Check fan toggle is pre-checked (if it exists in schema)
-    # Note: Simple heater might not show fan toggle in some schema variations
-    # The important thing is we can continue to fan configuration
-
-    # Enable fan to verify its settings
-    result = await options_flow.async_step_features({"configure_fan": True})
-
-    # Verify fan settings are pre-filled
+    # Since CONF_FAN is configured, proceeds to fan_options
     assert result["type"] == "form"
     assert result["step_id"] == "fan_options"
 
-    fan_schema = result["data_schema"].schema
-    fan_defaults = {}
-    for key in fan_schema:
-        key_str = str(key)
-        if hasattr(key, "default"):
-            default_val = key.default() if callable(key.default) else key.default
-            fan_defaults[key_str] = default_val
+    # Complete fan options with existing values
+    result = await options_flow.async_step_fan_options({})
 
-    assert fan_defaults.get(CONF_FAN_MODE) is False, "Original fan_mode should be shown"
-
-    # Change fan mode
-    result = await options_flow.async_step_fan_options(
-        {
-            CONF_FAN: "switch.fan",
-            CONF_FAN_MODE: True,  # CHANGE: was False
-        }
-    )
-
-    # Should complete
+    # Now should complete
     assert result["type"] == "create_entry"
 
     # ===== STEP 6: Verify persistence =====
@@ -164,15 +152,15 @@ async def test_simple_heater_full_config_then_options_flow_persistence(hass):
     assert "configure_fan" not in updated_data
     assert "features_shown" not in updated_data
 
-    # Check changed values
+    # Check changed runtime tuning values
     assert updated_data[CONF_COLD_TOLERANCE] == 0.8
     assert updated_data[CONF_HOT_TOLERANCE] == 0.6
-    assert updated_data[CONF_FAN_MODE] is True
 
-    # Check preserved values
+    # Check preserved values (feature config unchanged, only runtime tuning)
     assert updated_data[CONF_NAME] == "Simple Heater Test"
     assert updated_data[CONF_HEATER] == "switch.heater"
     assert updated_data[CONF_FAN] == "switch.fan"
+    assert updated_data[CONF_FAN_MODE] is False  # Unchanged from original
 
     # ===== STEP 7: Reopen and verify updated values shown =====
     config_entry_after = MockConfigEntry(
@@ -181,7 +169,6 @@ async def test_simple_heater_full_config_then_options_flow_persistence(hass):
         options={
             CONF_COLD_TOLERANCE: 0.8,
             CONF_HOT_TOLERANCE: 0.6,
-            CONF_FAN_MODE: True,
         },
         title="Simple Heater Test",
     )
@@ -191,9 +178,26 @@ async def test_simple_heater_full_config_then_options_flow_persistence(hass):
     options_flow2.hass = hass
 
     result = await options_flow2.async_step_init()
-    result = await options_flow2.async_step_init(
-        {CONF_SYSTEM_TYPE: SYSTEM_TYPE_SIMPLE_HEATER}
-    )
 
-    # The key point is that reopening works - detailed field validation
-    # is covered by other tests. This E2E test focuses on persistence flow.
+    # Verify updated tolerances are shown in init step
+    init_schema2 = result["data_schema"].schema
+    cold_tolerance_default2 = None
+    hot_tolerance_default2 = None
+    for key in init_schema2:
+        if hasattr(key, "schema") and key.schema == CONF_COLD_TOLERANCE:
+            if hasattr(key, "default"):
+                cold_tolerance_default2 = (
+                    key.default() if callable(key.default) else key.default
+                )
+        if hasattr(key, "schema") and key.schema == CONF_HOT_TOLERANCE:
+            if hasattr(key, "default"):
+                hot_tolerance_default2 = (
+                    key.default() if callable(key.default) else key.default
+                )
+
+    assert (
+        cold_tolerance_default2 == 0.8
+    ), "Updated cold_tolerance should be shown in reopened flow!"
+    assert (
+        hot_tolerance_default2 == 0.6
+    ), "Updated hot_tolerance should be shown in reopened flow!"

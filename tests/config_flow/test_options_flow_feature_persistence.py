@@ -5,6 +5,9 @@ pre-filled when reopening the options flow after initial configuration.
 
 Bug: When configuring fan settings in config flow, then opening options flow,
      the fan settings are not pre-filled with existing values.
+
+Note: After simplification, options flow only shows feature steps for features
+already configured in entry.data. This tests that those steps are prefilled correctly.
 """
 
 from unittest.mock import Mock
@@ -56,6 +59,11 @@ class TestFanSettingsPersistence:
         4. Fan settings should be pre-filled with previous values
 
         Acceptance: Fan configuration step shows existing values as defaults
+
+        With simplified options flow:
+        - Fan feature already configured in entry.data
+        - Init step shows runtime tuning
+        - Flow proceeds automatically to fan_options step
         """
         # Simulate existing config entry with fan configured
         config_entry = Mock()
@@ -70,30 +78,20 @@ class TestFanSettingsPersistence:
             CONF_FAN_HOT_TOLERANCE: 0.7,
             CONF_FAN_HOT_TOLERANCE_TOGGLE: "switch.fan_toggle",
         }
+        config_entry.options = {}
 
         flow = OptionsFlowHandler(config_entry)
         flow.hass = mock_hass
 
-        # Initialize options flow
+        # Initialize options flow - shows runtime tuning parameters
         result = await flow.async_step_init()
         assert result["type"] == FlowResultType.FORM
+        assert result["step_id"] == "init"
 
-        # Proceed through basic step
-        result = await flow.async_step_init(
-            {CONF_SYSTEM_TYPE: SYSTEM_TYPE_HEATER_COOLER}
-        )
+        # Submit runtime parameters (empty dict uses defaults)
+        result = await flow.async_step_init({})
 
-        # Submit basic configuration (will proceed to features automatically)
-        result = await flow.async_step_basic({})
-
-        # Should show features step
-        assert result["type"] == FlowResultType.FORM
-        assert result["step_id"] == "features"
-
-        # Enable fan to get to fan configuration
-        result = await flow.async_step_features({"configure_fan": True})
-
-        # Should show fan_options configuration step
+        # Flow should proceed to fan_options step since fan is already configured
         assert result["type"] == FlowResultType.FORM
         assert result["step_id"] == "fan_options"
 
@@ -146,18 +144,16 @@ class TestFanSettingsPersistence:
             CONF_FAN: "switch.fan",
             CONF_FAN_HOT_TOLERANCE: 0.5,
         }
+        config_entry.options = {}
 
         flow = OptionsFlowHandler(config_entry)
         flow.hass = mock_hass
 
-        # Navigate to fan configuration
+        # Navigate through simplified options flow
         await flow.async_step_init()
-        result = await flow.async_step_init(
-            {CONF_SYSTEM_TYPE: SYSTEM_TYPE_SIMPLE_HEATER}
-        )
-        result = await flow.async_step_basic({})
-        result = await flow.async_step_features({"configure_fan": True})
+        result = await flow.async_step_init({})
 
+        # Should proceed to fan_options since fan is already configured
         assert result["step_id"] == "fan_options"
 
         # Check defaults
@@ -188,15 +184,15 @@ class TestFanSettingsPersistence:
             CONF_FAN_HOT_TOLERANCE: 0.3,
             CONF_FAN_HOT_TOLERANCE_TOGGLE: "switch.ac_fan_toggle",
         }
+        config_entry.options = {}
 
         flow = OptionsFlowHandler(config_entry)
         flow.hass = mock_hass
 
         await flow.async_step_init()
-        result = await flow.async_step_init({CONF_SYSTEM_TYPE: SYSTEM_TYPE_AC_ONLY})
-        result = await flow.async_step_basic({})
-        result = await flow.async_step_features({"configure_fan": True})
+        result = await flow.async_step_init({})
 
+        # Should proceed to fan_options since fan is already configured
         assert result["step_id"] == "fan_options"
 
         schema = result["data_schema"].schema
@@ -233,17 +229,15 @@ class TestHumiditySettingsPersistence:
             CONF_HUMIDITY_SENSOR: "sensor.humidity",
             CONF_TARGET_HUMIDITY: 55.0,
         }
+        config_entry.options = {}
 
         flow = OptionsFlowHandler(config_entry)
         flow.hass = mock_hass
 
         await flow.async_step_init()
-        result = await flow.async_step_init(
-            {CONF_SYSTEM_TYPE: SYSTEM_TYPE_HEATER_COOLER}
-        )
-        result = await flow.async_step_basic({})
-        result = await flow.async_step_features({"configure_humidity": True})
+        result = await flow.async_step_init({})
 
+        # Should proceed to humidity_options since humidity is already configured
         assert result["step_id"] == "humidity_options"
 
         schema = result["data_schema"].schema
@@ -273,17 +267,15 @@ class TestHumiditySettingsPersistence:
             CONF_HUMIDITY_SENSOR: "sensor.humidity",
             CONF_TARGET_HUMIDITY: 45.0,
         }
+        config_entry.options = {}
 
         flow = OptionsFlowHandler(config_entry)
         flow.hass = mock_hass
 
         await flow.async_step_init()
-        result = await flow.async_step_init(
-            {CONF_SYSTEM_TYPE: SYSTEM_TYPE_SIMPLE_HEATER}
-        )
-        result = await flow.async_step_basic({})
-        result = await flow.async_step_features({"configure_humidity": True})
+        result = await flow.async_step_init({})
 
+        # Should proceed to humidity_options since humidity is already configured
         assert result["step_id"] == "humidity_options"
 
         schema = result["data_schema"].schema
@@ -305,8 +297,13 @@ class TestHumiditySettingsPersistence:
 class TestFeaturePersistenceEdgeCases:
     """Test edge cases for feature persistence."""
 
-    async def test_fan_settings_not_configured_uses_defaults(self, mock_hass):
-        """Test that when fan was never configured, schema uses normal defaults."""
+    async def test_fan_not_configured_skips_fan_step(self, mock_hass):
+        """Test that when fan was never configured, options flow skips fan step.
+
+        With simplified options flow, feature steps only appear for features
+        already configured in entry.data. If fan is not configured, the flow
+        should complete without showing the fan_options step.
+        """
         config_entry = Mock()
         config_entry.data = {
             CONF_NAME: "Test",
@@ -316,32 +313,18 @@ class TestFeaturePersistenceEdgeCases:
             CONF_COOLER: "switch.cooler",
             # No fan configuration
         }
+        config_entry.options = {}
 
         flow = OptionsFlowHandler(config_entry)
         flow.hass = mock_hass
 
         await flow.async_step_init()
-        result = await flow.async_step_init(
-            {CONF_SYSTEM_TYPE: SYSTEM_TYPE_HEATER_COOLER}
-        )
-        result = await flow.async_step_basic({})
-        result = await flow.async_step_features({"configure_fan": True})
+        result = await flow.async_step_init({})
 
-        assert result["step_id"] == "fan_options"
-
-        # Should use default value (0.5) not existing config
-        schema = result["data_schema"].schema
-        fan_hot_tolerance_default = None
-
-        for key in schema.keys():
-            if hasattr(key, "schema") and key.schema == CONF_FAN_HOT_TOLERANCE:
-                if hasattr(key, "default"):
-                    fan_hot_tolerance_default = (
-                        key.default() if callable(key.default) else key.default
-                    )
-                    break
-
-        # Should be default 0.5, not None or some other value
-        assert (
-            fan_hot_tolerance_default == 0.5
-        ), "Should use default when not previously configured"
+        # Should complete successfully without showing fan_options
+        # Result can be either CREATE_ENTRY or another step, but NOT fan_options
+        if result["type"] == FlowResultType.FORM:
+            assert result.get("step_id") != "fan_options"
+        else:
+            # Flow completed - this is expected when no features configured
+            assert result["type"] == FlowResultType.CREATE_ENTRY
