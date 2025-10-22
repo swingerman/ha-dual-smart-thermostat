@@ -149,40 +149,36 @@ async def test_simple_heater_all_features_full_persistence(hass):
     options_flow = OptionsFlowHandler(config_entry)
     options_flow.hass = hass
 
+    # Simplified options flow: init shows runtime tuning directly
     result = await options_flow.async_step_init()
-    result = await options_flow.async_step_init(
-        {CONF_SYSTEM_TYPE: SYSTEM_TYPE_SIMPLE_HEATER}
-    )
-
     assert result["type"] == "form"
-    assert result["step_id"] == "basic"
+    assert result["step_id"] == "init"
 
-    # ===== STEP 5: Make changes - simplified to test persistence, not all step flows =====
-    # The detailed step flow testing is covered by other test files
-    # This E2E test focuses on verifying data persistence
-
-    # Change tolerances in basic step
-    updated_basic = {
-        CONF_SENSOR: "sensor.room_temp",
-        CONF_HEATER: "switch.heater",
-        CONF_COLD_TOLERANCE: 0.8,  # CHANGED
-        CONF_HOT_TOLERANCE: 0.6,  # CHANGED
-    }
-    result = await options_flow.async_step_basic(updated_basic)
-
-    assert result["step_id"] == "features"
-
-    # Disable all features to simplify options flow completion
-    # Full feature option flow testing is covered by dedicated tests
-    result = await options_flow.async_step_features(
+    # ===== STEP 5: Make changes - simplified to test persistence =====
+    # Change tolerances (runtime parameters) in init step
+    result = await options_flow.async_step_init(
         {
-            "configure_floor_heating": False,
-            "configure_openings": False,
-            "configure_presets": False,
+            CONF_COLD_TOLERANCE: 0.8,  # CHANGED from 0.5
+            CONF_HOT_TOLERANCE: 0.6,  # CHANGED from 0.3
         }
     )
 
-    # Flow should complete
+    # Navigate through configured features in order (simplified options flow)
+    # Each feature step automatically proceeds to the next when submitted with {}
+
+    # Floor heating options
+    assert result["step_id"] == "floor_options"
+    result = await options_flow.async_step_floor_options({})
+
+    # Openings options (single-step in options flow)
+    assert result["step_id"] == "openings_options"
+    result = await options_flow.async_step_openings_options({})
+
+    # Presets selection - when submitted with {}, completes directly in options flow
+    assert result["step_id"] == "preset_selection"
+    result = await options_flow.async_step_preset_selection({})
+
+    # In options flow, preset_selection with {} completes the flow (no separate presets step)
     assert result["type"] == "create_entry"
 
     # ===== STEP 6: Verify persistence =====
@@ -215,14 +211,10 @@ async def test_simple_heater_all_features_full_persistence(hass):
     options_flow2 = OptionsFlowHandler(config_entry_updated)
     options_flow2.hass = hass
 
+    # Simplified options flow: verify it opens successfully with merged values
     result = await options_flow2.async_step_init()
-    result = await options_flow2.async_step_init(
-        {CONF_SYSTEM_TYPE: SYSTEM_TYPE_SIMPLE_HEATER}
-    )
-
-    # Verify options flow opens successfully with merged values
     assert result["type"] == "form"
-    assert result["step_id"] == "basic"
+    assert result["step_id"] == "init"
 
 
 @pytest.mark.asyncio

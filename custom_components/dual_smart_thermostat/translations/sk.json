@@ -1,6 +1,16 @@
 {
   "shared": {
     "step": {
+      "reconfigure_confirm": {
+        "title": "Prekonfigurovať {name}",
+        "description": "Chystáte sa prekonfigurovať **{name}**.\n\nAktuálny typ systému: **{current_system}**\n\nMôžete ponechať aktuálny typ systému alebo zmeniť na iný. Poznámka: Zmena typu systému vymaže vašu aktuálnu konfiguráciu a začne odznova.\n\nIntegrácia bude po prekonfigurovaní znovu načítaná.",
+        "data": {
+          "system_type": "Typ systému"
+        },
+        "data_description": {
+          "system_type": "Vyberte typ systému. Ponechajte aktuálny typ pre úpravu nastavení, alebo vyberte iný typ pre začatie s novou konfiguráciou."
+        }
+      },
       "features": {
         "data": {
           "configure_fan": "Konfigurácia ventilátora",
@@ -37,6 +47,52 @@
         "heat_cool": "Režim vykurovanie/chladenie",
         "fan_only": "Iba ventilátor",
         "dry": "Režim sušenia"
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Ladenie behu pre {name}",
+        "description": "Upravte parametre behu a tolerancie pre váš termostat. Pre štrukturálne zmeny (typ systému, entity, funkcie) použite možnosť **Prekonfigurovať**.\n\n**Tip**: Zmeny tu sa aktualizujú okamžite bez opätovného načítania integrácie.",
+        "data": {
+          "cold_tolerance": "Tolerancia chladu",
+          "hot_tolerance": "Tolerancia tepla",
+          "min_temp": "Minimálna teplota",
+          "max_temp": "Maximálna teplota",
+          "target_temp": "Cieľová teplota",
+          "precision": "Presnosť teploty",
+          "temp_step": "Krok teploty"
+        },
+        "data_description": {
+          "cold_tolerance": "Minimálny rozdiel teploty pod cieľovou hodnotou pred aktiváciou vykurovania. Nižšie hodnoty robia vykurovanie citlivejším (predvolené: 0,3°C).",
+          "hot_tolerance": "Minimálny rozdiel teploty nad cieľovou hodnotou pred aktiváciou chladenia. Nižšie hodnoty robia chladenie citlivejším (predvolené: 0,3°C).",
+          "min_temp": "Minimálne povolené nastavenie teploty. Nastavuje dolnú hranicu pre úpravy cieľovej teploty.",
+          "max_temp": "Maximálne povolené nastavenie teploty. Nastavuje hornú hranicu pre úpravy cieľovej teploty.",
+          "target_temp": "Predvolená cieľová teplota, keď nie je aktívna žiadna predvoľba.",
+          "precision": "Presnosť teploty pre zobrazenie a ovládanie. Určuje desatinnú presnosť pre hodnoty teploty (0,1, 0,5 alebo 1,0 stupňa).",
+          "temp_step": "Veľkosť kroku teploty pre úpravy. Ovláda, o koľko sa cieľová teplota zmení pri každej úprave."
+        },
+        "sections": {
+          "advanced_settings": {
+            "name": "Pokročilé nastavenia",
+            "description": "Voliteľné pokročilé nastavenia pre jemné ladenie správania termostatu.",
+            "data": {
+              "keep_alive": "Interval udržiavania nažive",
+              "initial_hvac_mode": "Počiatočný režim HVAC",
+              "target_temp_high": "Cieľová teplota (vysoká)",
+              "target_temp_low": "Cieľová teplota (nízka)",
+              "heat_cool_mode": "Režim vykurovanie/chladenie"
+            },
+            "data_description": {
+              "keep_alive": "Trvanie udržiavania nažive pre periodické prepínanie. Nastavte to, ak váš vypínač potrebuje signál pre udržanie v stave 'zapnuté'.",
+              "initial_hvac_mode": "Počiatočný režim HVAC pri štarte Home Assistant. Nastavuje predvolený režim prevádzky pri štarte.",
+              "target_temp_high": "Horná cieľová teplota pre systémy s dvojitou teplotou (režim vykurovanie/chladenie).",
+              "target_temp_low": "Dolná cieľová teplota pre systémy s dvojitou teplotou (režim vykurovanie/chladenie).",
+              "heat_cool_mode": "Povoliť režim vykurovanie/chladenie s dvojitou reguláciou teploty. Po povolení umožňuje automatické prepínanie medzi vykurovaním a chladením pre udržanie pohodlného teplotného rozsahu."
+            }
+          }
+        }
       }
     }
   },

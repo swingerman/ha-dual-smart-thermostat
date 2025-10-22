@@ -120,17 +120,19 @@ class TestFanBooleanFalsePersistence:
             CONF_SENSOR: "sensor.temp",
             CONF_HEATER: "switch.heater",
             CONF_COOLER: "switch.cooler",
-            CONF_FAN: "switch.fan",
+            CONF_FAN: "switch.fan",  # Fan must be pre-configured for options flow
             CONF_FAN_ON_WITH_AC: False,  # User previously disabled this
         }
+        config_entry.options = {}
 
         flow = OptionsFlowHandler(config_entry)
         flow.hass = mock_hass
 
-        await flow.async_step_init()
-        await flow.async_step_init({CONF_SYSTEM_TYPE: SYSTEM_TYPE_HEATER_COOLER})
-        await flow.async_step_basic({})
-        result = await flow.async_step_features({"configure_fan": True})
+        # Simplified options flow: init step shows runtime tuning
+        await flow.async_step_init({})
+
+        # After init, flow proceeds to fan_options step since fan is configured
+        result = await flow.async_step_fan_options()
 
         # Get the schema and check the default
         schema = result["data_schema"].schema
@@ -162,17 +164,19 @@ class TestFanBooleanFalsePersistence:
             CONF_SENSOR: "sensor.temp",
             CONF_HEATER: "switch.heater",
             CONF_COOLER: "switch.cooler",
-            CONF_FAN: "switch.fan",
+            CONF_FAN: "switch.fan",  # Fan must be pre-configured
             # fan_on_with_ac NOT in config (never configured)
         }
+        config_entry.options = {}
 
         flow = OptionsFlowHandler(config_entry)
         flow.hass = mock_hass
 
-        await flow.async_step_init()
-        await flow.async_step_init({CONF_SYSTEM_TYPE: SYSTEM_TYPE_HEATER_COOLER})
-        await flow.async_step_basic({})
-        result = await flow.async_step_features({"configure_fan": True})
+        # Simplified options flow: init step shows runtime tuning
+        await flow.async_step_init({})
+
+        # After init, flow proceeds to fan_options step since fan is configured
+        result = await flow.async_step_fan_options()
 
         schema = result["data_schema"].schema
         fan_on_with_ac_default = None
@@ -220,16 +224,16 @@ class TestFanBooleanFalsePersistence:
         config_entry = Mock()
         config_entry.data = dict(flow.collected_config)
         config_entry.data[CONF_NAME] = "Test"
+        config_entry.options = {}
 
         options_flow = OptionsFlowHandler(config_entry)
         options_flow.hass = mock_hass
 
-        await options_flow.async_step_init()
-        await options_flow.async_step_init(
-            {CONF_SYSTEM_TYPE: SYSTEM_TYPE_HEATER_COOLER}
-        )
-        await options_flow.async_step_basic({})
-        result = await options_flow.async_step_features({"configure_fan": True})
+        # Simplified options flow: init step shows runtime tuning
+        await options_flow.async_step_init({})
+
+        # After init, flow proceeds to fan_options step since fan is configured
+        result = await options_flow.async_step_fan_options()
 
         schema = result["data_schema"].schema
         fan_mode_default = None

@@ -100,52 +100,66 @@ def dual_stage_config_entry():
 
 
 async def test_ac_only_options_flow_progression(mock_hass, ac_only_config_entry):
-    """Test that AC-only options flow includes all expected steps."""
+    """Test that AC-only options flow shows runtime tuning parameters."""
     handler = OptionsFlowHandler(ac_only_config_entry)
     handler.hass = mock_hass
 
-    # Step 1: Init with same system type
-    result = await handler.async_step_init({CONF_SYSTEM_TYPE: SYSTEM_TYPE_AC_ONLY})
+    # Step 1: Init shows runtime tuning parameters directly
+    result = await handler.async_step_init()
     assert result["type"] == "form"
-    assert result["step_id"] == "basic"
+    assert result["step_id"] == "init"
 
-    # Step 2: Core configuration
-    core_data = {
-        CONF_COOLER: "switch.ac_unit",
-        CONF_SENSOR: "sensor.temperature",
-        "cold_tolerance": 0.3,
-        "hot_tolerance": 0.3,
-    }
-    result = await handler.async_step_basic(core_data)
-    assert result["type"] == "form"
-
-    # Should proceed to unified features step
-    assert result["step_id"] == "features"
-
-
-async def test_ac_only_features_step(mock_hass, ac_only_config_entry):
-    """Test AC-only features configuration step."""
-    handler = OptionsFlowHandler(ac_only_config_entry)
-    handler.hass = mock_hass
-    handler.collected_config = {"ac_only_features_shown": False}
-
-    # Test basic AC features form
-    result = await handler.async_step_features()
-    assert result["type"] == "form"
-    assert result["step_id"] == "features"
-
-    # Check that schema has the expected fields
+    # Verify schema contains runtime parameters
     schema_dict = result["data_schema"].schema
     field_names = [str(key) for key in schema_dict.keys()]
 
-    expected_fields = [
-        "configure_fan",
-        "configure_humidity",
-        "configure_openings",
-        "configure_presets",
+    # Should have tolerances and temperature limits
+    assert any("cold_tolerance" in name for name in field_names)
+    assert any("hot_tolerance" in name for name in field_names)
+    assert any("min_temp" in name for name in field_names)
+    assert any("max_temp" in name for name in field_names)
+
+    # Submit runtime parameters
+    runtime_data = {
+        "cold_tolerance": 0.3,
+        "hot_tolerance": 0.3,
+        "min_temp": 7,
+        "max_temp": 35,
+    }
+    result = await handler.async_step_init(runtime_data)
+
+    # Since no features are configured, should complete directly
+    assert result["type"] == "create_entry"
+
+
+async def test_ac_only_features_step(mock_hass, ac_only_config_entry):
+    """Test AC-only simplified options flow without feature configuration.
+
+    The new simplified options flow shows only runtime tuning parameters.
+    Feature enable/disable is handled in reconfigure flow.
+    """
+    handler = OptionsFlowHandler(ac_only_config_entry)
+    handler.hass = mock_hass
+
+    # The init step now shows runtime tuning parameters directly
+    result = await handler.async_step_init()
+    assert result["type"] == "form"
+    assert result["step_id"] == "init"
+
+    # Check that schema has runtime tuning fields (not feature toggles)
+    schema_dict = result["data_schema"].schema
+    field_names = [str(key) for key in schema_dict.keys()]
+
+    expected_runtime_fields = [
+        "cold_tolerance",
+        "hot_tolerance",
+        "min_temp",
+        "max_temp",
+        "precision",
+        "temp_step",
     ]
 
-    for field in expected_fields:
+    for field in expected_runtime_fields:
         assert any(field in name for name in field_names), f"Missing field: {field}"
 
 
@@ -153,48 +167,55 @@ async def test_ac_only_features_step(mock_hass, ac_only_config_entry):
 
 
 async def test_options_flow_step_progression(mock_hass, ac_only_config_entry):
-    """Test complete options flow step progression."""
+    """Test simplified options flow step progression.
+
+    The new simplified options flow shows runtime parameters in init,
+    then proceeds to multi-step configuration for already-configured features.
+    """
     handler = OptionsFlowHandler(ac_only_config_entry)
     handler.hass = mock_hass
 
     steps_visited = []
 
-    # Start flow
-    result = await handler.async_step_init({CONF_SYSTEM_TYPE: SYSTEM_TYPE_AC_ONLY})
+    # Start flow - init shows runtime tuning directly
+    result = await handler.async_step_init()
     steps_visited.append("init")
+    assert result["type"] == "form"
+    assert result["step_id"] == "init"
 
-    # Core step
-    core_data = {
-        CONF_COOLER: "switch.ac_unit",
-        CONF_SENSOR: "sensor.temperature",
+    # Submit runtime parameters
+    runtime_data = {
         "cold_tolerance": 0.3,
         "hot_tolerance": 0.3,
+        "min_temp": 7,
+        "max_temp": 35,
     }
-    result = await handler.async_step_basic(core_data)
-    steps_visited.append("basic")
+    result = await handler.async_step_init(runtime_data)
 
-    # Continue through remaining steps with minimal configuration
-    max_iterations = 10
-    iteration = 0
+    # Since no features are configured in the base entry, should complete
+    if result.get("type") == "create_entry":
+        steps_visited.append("complete")
+    else:
+        # If features were configured, continue through remaining steps
+        max_iterations = 10
+        iteration = 0
 
-    while result.get("type") == "form" and iteration < max_iterations:
-        iteration += 1
-        current_step = result["step_id"]
-        steps_visited.append(current_step)
+        while result.get("type") == "form" and iteration < max_iterations:
+            iteration += 1
+            current_step = result["step_id"]
+            steps_visited.append(current_step)
 
-        # Get step method and call with empty input
-        step_method = getattr(handler, f"async_step_{current_step}")
-        try:
-            result = await step_method({})
-        except Exception:
-            # Some steps might require specific input
-            result = {"type": "create_entry"}
-            break
+            # Get step method and call with empty input
+            step_method = getattr(handler, f"async_step_{current_step}")
+            try:
+                result = await step_method({})
+            except Exception:
+                # Some steps might require specific input
+                result = {"type": "create_entry"}
+                break
 
-    # Verify we visited expected steps for AC-only system
-    expected_steps = ["basic", "features"]
-    for step in expected_steps:
-        assert step in steps_visited, f"Missing expected step: {step}"
+    # Verify we visited the init step at minimum
+    assert "init" in steps_visited, "Missing expected init step"
 
 
 async def test_openings_configuration_in_options(mock_hass, ac_only_config_entry):
@@ -275,105 +296,114 @@ async def test_openings_two_step_options_flow(mock_hass, ac_only_config_entry):
 
 
 async def test_system_type_preservation(mock_hass, dual_system_config_entry):
-    """Test that options flow preserves system type and shows appropriate steps."""
+    """Test that options flow preserves system type in simplified flow."""
     handler = OptionsFlowHandler(dual_system_config_entry)
     handler.hass = mock_hass
 
-    # Init with same system type
-    result = await handler.async_step_init(
-        {CONF_SYSTEM_TYPE: SYSTEM_TYPE_HEATER_COOLER}
-    )
-    assert result["step_id"] == "basic"
+    # Init shows runtime tuning parameters
+    result = await handler.async_step_init()
+    assert result["step_id"] == "init"
 
-    # The flow should determine steps based on original system type
-    original_system = handler.config_entry.data.get(CONF_SYSTEM_TYPE)
+    # The flow preserves the original system type from entry
+    current_config = handler._get_current_config()
+    original_system = current_config.get(CONF_SYSTEM_TYPE)
     assert original_system == SYSTEM_TYPE_HEATER_COOLER
 
-    # For heater_cooler system, should show fan toggle (not AC-only features)
-    core_data = {
-        CONF_HEATER: "switch.heater",
-        CONF_COOLER: "switch.cooler",
-        CONF_SENSOR: "sensor.temperature",
+    # Submit runtime parameters
+    runtime_data = {
         "cold_tolerance": 0.3,
         "hot_tolerance": 0.3,
+        "min_temp": 7,
+        "max_temp": 35,
     }
-    result = await handler.async_step_basic(core_data)
+    result = await handler.async_step_init(runtime_data)
 
-    # Should go to the combined features step first (not ac_only_features)
-    assert result["step_id"] == "features"
+    # Since no features are configured in the base entry, should complete
+    # (or proceed to configured feature steps if any exist)
+    assert result["type"] in ["create_entry", "form"]
 
 
 async def test_system_features_fields_and_floor_redirect(
     mock_hass, dual_system_config_entry
 ):
-    """Verify system_features presents expected toggles and floor redirect."""
+    """Verify simplified options flow shows runtime parameters and proceeds to floor options if configured."""
+    # Add a configured floor sensor to test the flow
+    dual_system_config_entry.data[CONF_FLOOR_SENSOR] = "sensor.floor_temp"
+
     handler = OptionsFlowHandler(dual_system_config_entry)
     handler.hass = mock_hass
 
-    # Ensure the handler will use heater_cooler as system type
-    handler.collected_config = {CONF_SYSTEM_TYPE: SYSTEM_TYPE_HEATER_COOLER}
-
-    # Initial display of features should show a form
-    result = await handler.async_step_features()
+    # Initial display shows runtime tuning parameters
+    result = await handler.async_step_init()
     assert result["type"] == "form"
-    assert result["step_id"] == "features"
+    assert result["step_id"] == "init"
 
-    # Check schema fields include fan/humidity/presets/openings/floor/advanced
+    # Check schema has runtime tuning fields
     schema_dict = result["data_schema"].schema
     field_names = [str(key) for key in schema_dict.keys()]
 
-    expected_fields = [
-        "configure_presets",
-        "configure_openings",
-        "configure_fan",
-        "configure_humidity",
-        "configure_floor_heating",
+    expected_runtime_fields = [
+        "cold_tolerance",
+        "hot_tolerance",
+        "min_temp",
+        "max_temp",
     ]
 
-    for field in expected_fields:
+    for field in expected_runtime_fields:
         assert any(field in name for name in field_names), f"Missing field: {field}"
 
-    # If user selects floor heating, options flow should go straight to floor options
-    user_input = {"configure_floor_heating": True}
-    result = await handler.async_step_features(user_input)
+    # Submit runtime data - should proceed to floor options since floor sensor is configured
+    user_input = {
+        "cold_tolerance": 0.3,
+        "hot_tolerance": 0.3,
+    }
+    result = await handler.async_step_init(user_input)
     assert result["type"] == "form"
     assert result["step_id"] == "floor_options"
 
 
 async def test_heat_pump_options_flow_parity(mock_hass, heat_pump_config_entry):
-    """Ensure heat_pump options flow mirrors heater_cooler parity and floor redirect."""
+    """Ensure heat_pump options flow shows runtime tuning and proceeds to floor options if configured."""
+    # Add a configured floor sensor to test the flow
+    heat_pump_config_entry.data[CONF_FLOOR_SENSOR] = "sensor.floor_temp"
+
     handler = OptionsFlowHandler(heat_pump_config_entry)
     handler.hass = mock_hass
 
-    # Ensure the handler will use heat_pump as system type
-    handler.collected_config = {CONF_SYSTEM_TYPE: "heat_pump"}
-
-    # Initial display should be the combined features
-    result = await handler.async_step_features()
+    # Initial display shows runtime tuning
+    result = await handler.async_step_init()
     assert result["type"] == "form"
-    assert result["step_id"] == "features"
+    assert result["step_id"] == "init"
 
-    # If user selects floor heating, options flow should go straight to floor options
-    user_input = {"configure_floor_heating": True}
-    result = await handler.async_step_features(user_input)
+    # Submit runtime parameters - should proceed to floor options since floor sensor is configured
+    user_input = {
+        "cold_tolerance": 0.3,
+        "hot_tolerance": 0.3,
+    }
+    result = await handler.async_step_init(user_input)
     assert result["type"] == "form"
     assert result["step_id"] == "floor_options"
 
 
 async def test_dual_stage_options_flow_parity(mock_hass, dual_stage_config_entry):
-    """Ensure dual_stage options flow presents dual-stage options and floor redirect."""
+    """Ensure dual_stage options flow presents dual-stage options when aux heater is configured."""
+    # Add aux heater to trigger dual stage options
+    dual_stage_config_entry.data["aux_heater"] = "switch.aux_heater"
+
     handler = OptionsFlowHandler(dual_stage_config_entry)
     handler.hass = mock_hass
 
-    # dual_stage should show combined features first
-    handler.collected_config = {CONF_SYSTEM_TYPE: "dual_stage"}
-    result = await handler.async_step_features()
+    # Init shows runtime tuning
+    result = await handler.async_step_init()
     assert result["type"] == "form"
-    assert result["step_id"] == "features"
+    assert result["step_id"] == "init"
 
-    # Selecting floor heating for dual_stage shows dual-stage specific options first
-    user_input = {"configure_floor_heating": True}
-    result = await handler.async_step_features(user_input)
+    # Submit runtime parameters - should proceed to dual_stage_options since aux heater is configured
+    user_input = {
+        "cold_tolerance": 0.3,
+        "hot_tolerance": 0.3,
+    }
+    result = await handler.async_step_init(user_input)
     assert result["type"] == "form"
     assert result["step_id"] == "dual_stage_options"
 
@@ -381,31 +411,26 @@ async def test_dual_stage_options_flow_parity(mock_hass, dual_stage_config_entry
 async def test_simple_heater_select_only_openings_shows_only_openings(
     mock_hass, dual_stage_config_entry
 ):
-    """If the user selects only openings on simple_heater_features, only openings step shows."""
+    """If openings are already configured, the simplified flow shows openings options step."""
     # Reuse a simple heater config entry by modifying the fixture data
     entry = dual_stage_config_entry
     entry.data["system_type"] = "simple_heater"
+    # Add existing openings configuration
+    entry.data[CONF_OPENINGS] = [
+        {"entity_id": "binary_sensor.door", ATTR_OPENING_TIMEOUT: {"seconds": 30}},
+    ]
 
     handler = OptionsFlowHandler(entry)
     handler.hass = mock_hass
 
-    # Simulate we already passed core and are at the simple heater features step
-    handler.collected_config = {
-        "system_type_changed": False,
-        "system_type": "simple_heater",
-    }
+    # Start the simplified flow - init shows runtime tuning
+    result = await handler.async_step_init()
+    assert result["type"] == "form"
+    assert result["step_id"] == "init"
 
-    # Indicate the features form has been shown so a submission will progress
-    handler.collected_config["features_shown"] = True
-
-    # User selects only openings (features are unified into 'features' step)
-    result = await handler.async_step_features(
-        {
-            "configure_openings": True,
-            "configure_presets": False,
-            "configure_floor_heating": False,
-            "configure_advanced": False,
-        }
+    # Submit runtime parameters - should proceed to openings options since openings are configured
+    result = await handler.async_step_init(
+        {"cold_tolerance": 0.3, "hot_tolerance": 0.3}
     )
 
     # Should go to openings options next
@@ -439,62 +464,38 @@ async def test_comprehensive_options_flow_multiple_systems(
     heat_pump_config_entry,
     dual_stage_config_entry,
 ):
-    """Comprehensive smoke-test: run options flow for several system types.
+    """Comprehensive smoke-test: run simplified options flow for several system types.
 
-    This test walks the options flow for different pre-made config entries and
-    ensures the flow visits the expected high-level steps for each system
+    This test walks the simplified options flow for different pre-made config entries and
+    ensures the flow starts with the init step (runtime tuning) for each system
     type without raising unhandled exceptions.
     """
     cases = [
-        (
-            ac_only_config_entry,
-            {
-                CONF_COOLER: ac_only_config_entry.data.get(CONF_COOLER),
-                CONF_SENSOR: ac_only_config_entry.data.get(CONF_SENSOR),
-            },
-            ["basic", "features"],
-        ),
-        (
-            dual_system_config_entry,
-            {
-                CONF_HEATER: dual_system_config_entry.data.get(CONF_HEATER),
-                CONF_COOLER: dual_system_config_entry.data.get(CONF_COOLER),
-                CONF_SENSOR: dual_system_config_entry.data.get(CONF_SENSOR),
-            },
-            ["basic", "features"],
-        ),
-        (
-            heat_pump_config_entry,
-            {
-                CONF_HEATER: heat_pump_config_entry.data.get(CONF_HEATER),
-                CONF_SENSOR: heat_pump_config_entry.data.get(CONF_SENSOR),
-            },
-            ["basic", "features"],
-        ),
-        (
-            dual_stage_config_entry,
-            {
-                CONF_HEATER: dual_stage_config_entry.data.get(CONF_HEATER),
-                CONF_SENSOR: dual_stage_config_entry.data.get(CONF_SENSOR),
-            },
-            ["basic", "features"],
-        ),
+        (ac_only_config_entry, ["init"]),
+        (dual_system_config_entry, ["init"]),
+        (heat_pump_config_entry, ["init"]),
+        (dual_stage_config_entry, ["init"]),
     ]
 
-    for entry, core_data, expected_steps in cases:
+    for entry, expected_steps in cases:
         handler = OptionsFlowHandler(entry)
         handler.hass = mock_hass
         steps_visited = []
 
-        # Start the flow by calling init with the existing system type
-        result = await handler.async_step_init(
-            {CONF_SYSTEM_TYPE: entry.data.get(CONF_SYSTEM_TYPE)}
-        )
+        # Start the simplified flow - init shows runtime tuning
+        result = await handler.async_step_init()
         steps_visited.append("init")
+        assert result["type"] == "form"
+        assert result["step_id"] == "init"
 
-        # Submit basic data and progress
-        result = await handler.async_step_basic(core_data)
-        steps_visited.append("basic")
+        # Submit runtime parameters
+        runtime_data = {
+            "cold_tolerance": 0.3,
+            "hot_tolerance": 0.3,
+            "min_temp": 7,
+            "max_temp": 35,
+        }
+        result = await handler.async_step_init(runtime_data)
 
         # Walk remaining steps until create_entry or iteration limit
         max_iterations = 20

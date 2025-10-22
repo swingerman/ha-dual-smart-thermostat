@@ -115,76 +115,43 @@ async def test_heater_cooler_full_config_then_options_flow_persistence(hass):
     options_flow = OptionsFlowHandler(config_entry)
     options_flow.hass = hass
 
-    # Step through options flow to get to fan configuration
+    # Simplified options flow shows runtime tuning directly in init
     result = await options_flow.async_step_init()
     assert result["type"] == "form"
     assert result["step_id"] == "init"
 
-    result = await options_flow.async_step_init(
-        {CONF_SYSTEM_TYPE: SYSTEM_TYPE_HEATER_COOLER}
-    )
-    assert result["type"] == "form"
-    assert result["step_id"] == "basic"
+    # ===== STEP 5: Submit init step (no changes to basic runtime params) =====
+    # Init step shows basic tolerances, not fan_hot_tolerance
+    result = await options_flow.async_step_init({})
 
-    result = await options_flow.async_step_basic({})
-    assert result["type"] == "form"
-    assert result["step_id"] == "features"
-
-    # Check that fan toggle is pre-checked (because fan is configured)
-    features_schema = result["data_schema"].schema
-    configure_fan_field = None
-    for key in features_schema:
-        if str(key) == "configure_fan":
-            configure_fan_field = key
-            break
-
-    assert configure_fan_field is not None, "configure_fan field should exist"
-    configure_fan_default = (
-        configure_fan_field.default()
-        if callable(configure_fan_field.default)
-        else configure_fan_field.default
-    )
-    assert configure_fan_default is True, "Fan toggle should be pre-checked!"
-
-    # Continue to fan options
-    result = await options_flow.async_step_features(
-        {
-            "configure_fan": True,
-        }
-    )
+    # Since CONF_FAN is configured, proceeds to fan_options
     assert result["type"] == "form"
     assert result["step_id"] == "fan_options"
 
-    # Verify fan options are pre-filled with original values
+    # Verify fan hot tolerance is pre-filled in fan_options step
     fan_schema = result["data_schema"].schema
-    fan_defaults = {}
+    fan_hot_tolerance_default = None
     for key in fan_schema:
-        key_str = str(key)
-        if hasattr(key, "default"):
-            default_val = key.default() if callable(key.default) else key.default
-            fan_defaults[key_str] = default_val
+        if hasattr(key, "schema") and key.schema == CONF_FAN_HOT_TOLERANCE:
+            if hasattr(key, "default"):
+                fan_hot_tolerance_default = (
+                    key.default() if callable(key.default) else key.default
+                )
+            break
 
-    # These should match the initial config
-    assert fan_defaults.get(CONF_FAN) == "switch.fan"
-    assert fan_defaults.get(CONF_FAN_MODE) is True
-    assert fan_defaults.get(CONF_FAN_ON_WITH_AC) is True
-    assert fan_defaults.get(CONF_FAN_AIR_OUTSIDE) is True
-    assert fan_defaults.get(CONF_FAN_HOT_TOLERANCE) == 0.5
+    assert fan_hot_tolerance_default == 0.5, "Fan hot tolerance should be pre-filled!"
 
-    # ===== STEP 5: Make changes to fan settings =====
+    # ===== STEP 6: Make changes to fan runtime tuning =====
+    # Change fan_hot_tolerance in fan_options step
     updated_fan_config = {
-        CONF_FAN: "switch.fan",  # Keep same
-        CONF_FAN_MODE: False,  # CHANGE: was True
-        CONF_FAN_ON_WITH_AC: False,  # CHANGE: was True
-        CONF_FAN_AIR_OUTSIDE: False,  # CHANGE: was True
         CONF_FAN_HOT_TOLERANCE: 0.8,  # CHANGE: was 0.5
     }
     result = await options_flow.async_step_fan_options(updated_fan_config)
 
-    # Should complete the options flow
+    # Now should complete the options flow
     assert result["type"] == "create_entry"
 
-    # ===== STEP 6: Verify persistence in entry =====
+    # ===== STEP 7: Verify persistence in entry =====
     # The entry should now have the updated values in .options
     updated_entry_data = result["data"]
 
@@ -199,32 +166,28 @@ async def test_heater_cooler_full_config_then_options_flow_persistence(hass):
         "fan_options_shown" not in updated_entry_data
     ), "Transient flags should not be saved!"
 
-    # Check changed values are in the result
-    assert updated_entry_data[CONF_FAN_MODE] is False, "Changed value should persist"
-    assert (
-        updated_entry_data[CONF_FAN_ON_WITH_AC] is False
-    ), "Changed value should persist"
-    assert (
-        updated_entry_data[CONF_FAN_AIR_OUTSIDE] is False
-    ), "Changed value should persist"
+    # Check changed runtime tuning parameter
     assert (
         updated_entry_data[CONF_FAN_HOT_TOLERANCE] == 0.8
     ), "Changed value should persist"
 
-    # Check unchanged values are preserved
+    # Check feature config unchanged (only runtime tuning in options flow)
     assert updated_entry_data[CONF_NAME] == "Test Thermostat"
     assert updated_entry_data[CONF_SYSTEM_TYPE] == SYSTEM_TYPE_HEATER_COOLER
     assert updated_entry_data[CONF_FAN] == "switch.fan"
+    assert updated_entry_data[CONF_FAN_MODE] is True  # Unchanged from original
+    assert updated_entry_data[CONF_FAN_ON_WITH_AC] is True  # Unchanged from original
+    assert updated_entry_data[CONF_FAN_AIR_OUTSIDE] is True  # Unchanged from original
     assert updated_entry_data[CONF_HEATER] == "switch.heater"
     assert updated_entry_data[CONF_COOLER] == "switch.cooler"
 
-    # ===== STEP 7: Reopen options flow and verify updated values are shown =====
+    # ===== STEP 8: Reopen options flow and verify updated values are shown =====
     # Simulate what happens when user reopens options flow after changes
     # Update the mock entry to have the options set (as HA would)
     config_entry_after_update = MockConfigEntry(
         domain=DOMAIN,
         data=created_data,  # Original data unchanged
-        options=updated_fan_config,  # Options contains the changes
+        options={CONF_FAN_HOT_TOLERANCE: 0.8},  # Options contains the changes
         title="Test Thermostat",
     )
     config_entry_after_update.add_to_hass(hass)
@@ -232,34 +195,32 @@ async def test_heater_cooler_full_config_then_options_flow_persistence(hass):
     options_flow2 = OptionsFlowHandler(config_entry_after_update)
     options_flow2.hass = hass
 
-    # Navigate to fan options again
+    # Simplified flow shows runtime tuning directly
     result = await options_flow2.async_step_init()
-    result = await options_flow2.async_step_init(
-        {CONF_SYSTEM_TYPE: SYSTEM_TYPE_HEATER_COOLER}
-    )
-    result = await options_flow2.async_step_basic({})
-    result = await options_flow2.async_step_features({"configure_fan": True})
+    assert result["type"] == "form"
+    assert result["step_id"] == "init"
 
-    # Verify the UPDATED values are now shown as defaults
+    # Submit init (no changes)
+    result = await options_flow2.async_step_init({})
+
+    # Should proceed to fan_options
+    assert result["type"] == "form"
+    assert result["step_id"] == "fan_options"
+
+    # Verify the UPDATED fan_hot_tolerance is now shown as default in fan_options
     fan_schema2 = result["data_schema"].schema
-    fan_defaults2 = {}
+    fan_hot_tolerance_default2 = None
     for key in fan_schema2:
-        key_str = str(key)
-        if hasattr(key, "default"):
-            default_val = key.default() if callable(key.default) else key.default
-            fan_defaults2[key_str] = default_val
+        if hasattr(key, "schema") and key.schema == CONF_FAN_HOT_TOLERANCE:
+            if hasattr(key, "default"):
+                fan_hot_tolerance_default2 = (
+                    key.default() if callable(key.default) else key.default
+                )
+            break
 
-    # These should match the UPDATED config from options flow
-    assert fan_defaults2.get(CONF_FAN_MODE) is False, "Updated value should be shown!"
     assert (
-        fan_defaults2.get(CONF_FAN_ON_WITH_AC) is False
-    ), "Updated value should be shown!"
-    assert (
-        fan_defaults2.get(CONF_FAN_AIR_OUTSIDE) is False
-    ), "Updated value should be shown!"
-    assert (
-        fan_defaults2.get(CONF_FAN_HOT_TOLERANCE) == 0.8
-    ), "Updated value should be shown!"
+        fan_hot_tolerance_default2 == 0.8
+    ), "Updated fan_hot_tolerance should be shown!"
 
 
 @pytest.mark.asyncio
@@ -294,40 +255,36 @@ async def test_heater_cooler_options_flow_preserves_unmodified_fields(hass):
     options_flow = OptionsFlowHandler(config_entry)
     options_flow.hass = hass
 
-    # Navigate through options flow and only modify fan, not humidity
+    # Simplified options flow: no navigation, just runtime tuning in init
+    # Since no runtime changes needed, just verify preservation
     result = await options_flow.async_step_init()
-    result = await options_flow.async_step_init(
-        {CONF_SYSTEM_TYPE: SYSTEM_TYPE_HEATER_COOLER}
-    )
-    result = await options_flow.async_step_basic({})
-    result = await options_flow.async_step_features(
-        {
-            "configure_fan": True,  # Only configure fan, not humidity
-        }
-    )
 
-    # Change fan mode
-    result = await options_flow.async_step_fan_options(
-        {
-            CONF_FAN: "switch.fan",
-            CONF_FAN_MODE: False,  # Changed from True
-        }
-    )
+    # Complete without changes (empty dict or just submit)
+    result = await options_flow.async_step_init({})
 
-    # Since humidity is configured, it will show humidity options
-    # Skip through it without changes
-    if result["type"] == "form" and result["step_id"] == "humidity_options":
-        result = await options_flow.async_step_humidity_options({})
+    # Since CONF_FAN is configured, proceeds to fan_options
+    assert result["type"] == "form"
+    assert result["step_id"] == "fan_options"
+
+    # Complete fan options with existing values
+    result = await options_flow.async_step_fan_options({})
+
+    # Since CONF_HUMIDITY_SENSOR is configured, proceeds to humidity_options
+    assert result["type"] == "form"
+    assert result["step_id"] == "humidity_options"
+
+    # Complete humidity options with existing values
+    result = await options_flow.async_step_humidity_options({})
 
     # Now should complete
     assert result["type"] == "create_entry"
 
     updated_data = result["data"]
 
-    # Fan mode should be changed
-    assert updated_data[CONF_FAN_MODE] is False
+    # All feature config should be PRESERVED (no changes in options flow)
+    assert updated_data[CONF_FAN_MODE] is True  # Unchanged
 
-    # Humidity sensor should be PRESERVED even though we didn't configure it
+    # Humidity sensor should be PRESERVED
     assert (
         updated_data.get(CONF_HUMIDITY_SENSOR) == "sensor.humidity"
     ), "Unmodified humidity sensor should be preserved!"
@@ -335,3 +292,4 @@ async def test_heater_cooler_options_flow_preserves_unmodified_fields(hass):
     # All other fields should be preserved
     assert updated_data[CONF_HEATER] == "switch.heater"
     assert updated_data[CONF_COOLER] == "switch.cooler"
+    assert updated_data[CONF_FAN] == "switch.fan"

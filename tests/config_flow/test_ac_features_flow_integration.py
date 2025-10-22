@@ -82,39 +82,50 @@ async def test_options_flow_basic():
 
     from types import SimpleNamespace
 
+    from custom_components.dual_smart_thermostat.const import (
+        CONF_HEATER,
+        CONF_SENSOR,
+        CONF_SYSTEM_TYPE,
+        SYSTEM_TYPE_AC_ONLY,
+    )
     from custom_components.dual_smart_thermostat.options_flow import (
         DualSmartThermostatOptionsFlow,
     )
 
-    flow = DualSmartThermostatOptionsFlow(SimpleNamespace(data={}, options={}))
+    # Create mock entry with minimal config
+    mock_entry = SimpleNamespace(
+        data={
+            CONF_SYSTEM_TYPE: SYSTEM_TYPE_AC_ONLY,
+            CONF_HEATER: "switch.ac",
+            CONF_SENSOR: "sensor.temp",
+            "name": "Test AC",
+        },
+        options={},
+    )
+
+    flow = DualSmartThermostatOptionsFlow(mock_entry)
     flow.hass = Mock()
     flow.collected_config = {}
 
-    # Test initial display
-    result = flow.async_step_features()
-    if hasattr(result, "__await__"):
-
-        result = await result
+    # Test initial display - now using async_step_init
+    result = await flow.async_step_init()
 
     print(f"Options flow initial form displayed with step_id: {result['step_id']}")
-    assert result["step_id"] == "features"
+    assert result["step_id"] == "init"
+    assert result["type"] == "form"
 
-    # Test basic submission
+    # Test basic submission with runtime tuning parameters
     basic_input = {
-        "configure_fan": False,
-        "configure_humidity": True,
-        "configure_openings": False,
-        "configure_presets": True,
+        "cold_tolerance": 0.3,
+        "hot_tolerance": 0.3,
     }
 
-    result = flow.async_step_features(basic_input)
-    if hasattr(result, "__await__"):
-        result = await result
+    result = await flow.async_step_init(basic_input)
 
     print("Options flow basic submission processed successfully")
     # Implementation continues the options flow rather than immediately creating
-    # an entry; expect a form result and that the collected_config contains values.
-    assert result["type"] == "form"
+    # an entry; expect a form result or create_entry
+    assert result["type"] in ["form", "create_entry"]
 
     return True
 

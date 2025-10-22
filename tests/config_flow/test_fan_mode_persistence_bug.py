@@ -105,19 +105,18 @@ class TestFanModePersistenceBug:
             CONF_SENSOR: "sensor.temp",
             CONF_HEATER: "switch.heater",
             CONF_COOLER: "switch.cooler",
-            CONF_FAN: "switch.fan",
+            CONF_FAN: "switch.fan",  # Fan must be pre-configured
             CONF_FAN_MODE: False,  # Previously False
         }
+        config_entry.options = {}
 
         flow = OptionsFlowHandler(config_entry)
         flow.hass = mock_hass
 
-        # Navigate to fan options
-        await flow.async_step_init()
-        await flow.async_step_init({CONF_SYSTEM_TYPE: SYSTEM_TYPE_HEATER_COOLER})
-        await flow.async_step_basic({})
-        await flow.async_step_features({"configure_fan": True})
+        # Simplified options flow: init step shows runtime tuning
+        await flow.async_step_init({})
 
+        # After init, flow proceeds to fan_options step since fan is configured
         # User sets fan_mode to True
         fan_input = {
             CONF_FAN: "switch.fan",
@@ -142,17 +141,19 @@ class TestFanModePersistenceBug:
             CONF_SENSOR: "sensor.temp",
             CONF_HEATER: "switch.heater",
             CONF_COOLER: "switch.cooler",
-            CONF_FAN: "switch.fan",
+            CONF_FAN: "switch.fan",  # Fan must be pre-configured
             # fan_mode not in config (never configured)
         }
+        config_entry.options = {}
 
         flow = OptionsFlowHandler(config_entry)
         flow.hass = mock_hass
 
-        await flow.async_step_init()
-        await flow.async_step_init({CONF_SYSTEM_TYPE: SYSTEM_TYPE_HEATER_COOLER})
-        await flow.async_step_basic({})
-        result = await flow.async_step_features({"configure_fan": True})
+        # Simplified options flow: init step shows runtime tuning
+        await flow.async_step_init({})
+
+        # After init, flow proceeds to fan_options step since fan is configured
+        result = await flow.async_step_fan_options()
 
         # Should show fan_options step
         assert result["step_id"] == "fan_options"
@@ -185,17 +186,19 @@ class TestFanModePersistenceBug:
             CONF_SENSOR: "sensor.temp",
             CONF_HEATER: "switch.heater",
             CONF_COOLER: "switch.cooler",
-            CONF_FAN: "switch.fan",
+            CONF_FAN: "switch.fan",  # Fan must be pre-configured
             CONF_FAN_MODE: True,  # Previously set to True
         }
+        config_entry.options = {}
 
         flow = OptionsFlowHandler(config_entry)
         flow.hass = mock_hass
 
-        await flow.async_step_init()
-        await flow.async_step_init({CONF_SYSTEM_TYPE: SYSTEM_TYPE_HEATER_COOLER})
-        await flow.async_step_basic({})
-        result = await flow.async_step_features({"configure_fan": True})
+        # Simplified options flow: init step shows runtime tuning
+        await flow.async_step_init({})
+
+        # After init, flow proceeds to fan_options step since fan is configured
+        result = await flow.async_step_fan_options()
 
         # Check that fan_mode shows True as default
         schema = result["data_schema"].schema
@@ -256,18 +259,18 @@ class TestFanModePersistenceBug:
             CONF_SENSOR: "sensor.temp",
             CONF_HEATER: "switch.heater",
             CONF_COOLER: "switch.cooler",
-            CONF_FAN: "switch.fan",
+            CONF_FAN: "switch.fan",  # Fan must be pre-configured
             CONF_FAN_MODE: True,  # Previously True
         }
+        config_entry.options = {}
 
         flow = OptionsFlowHandler(config_entry)
         flow.hass = mock_hass
 
-        await flow.async_step_init()
-        await flow.async_step_init({CONF_SYSTEM_TYPE: SYSTEM_TYPE_HEATER_COOLER})
-        await flow.async_step_basic({})
-        await flow.async_step_features({"configure_fan": True})
+        # Simplified options flow: init step shows runtime tuning
+        await flow.async_step_init({})
 
+        # After init, flow proceeds to fan_options step since fan is configured
         # Simulate what happens when user submits fan options WITHOUT changing fan_mode
         # voluptuous Optional fields don't include unchanged values in user_input
         fan_input_without_fan_mode = {

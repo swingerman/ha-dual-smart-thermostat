@@ -57,13 +57,11 @@ class TestPresetToggleBug:
     async def test_preset_toggle_checked_when_presets_configured(
         self, mock_hass, mock_config_entry_with_presets
     ):
-        """Test that configure_presets toggle is checked when presets are configured.
+        """Test that options flow shows preset_selection step when presets are configured.
 
-        Bug: When reopening options flow, configure_presets should be checked
-        if presets were configured in config flow.
-
-        Expected: configure_presets default should be True
-        Actual: configure_presets default is False (bug)
+        With simplified options flow, there is no features toggle step.
+        Instead, the flow automatically navigates through configured features.
+        This test verifies that preset_selection appears when presets are configured.
         """
         # Create options flow
         flow = OptionsFlowHandler(mock_config_entry_with_presets)
@@ -74,26 +72,18 @@ class TestPresetToggleBug:
             return_value=mock_config_entry_with_presets
         )
 
-        # Show features step (this is where the bug manifests)
-        result = await flow.async_step_features()
+        # Simplified options flow: init shows runtime tuning
+        result = await flow.async_step_init()
+        assert result["type"] == "form"
+        assert result["step_id"] == "init"
 
-        # Extract the schema to check defaults
-        schema = result["data_schema"].schema
+        # Submit init step (no runtime changes)
+        result = await flow.async_step_init({})
 
-        # Find the configure_presets field and its default value
-        configure_presets_default = None
-        for key in schema.keys():
-            if hasattr(key, "schema") and key.schema == "configure_presets":
-                default_value = getattr(key, "default", None)
-                # Default might be a callable (lambda function)
-                if callable(default_value):
-                    configure_presets_default = default_value()
-                else:
-                    configure_presets_default = default_value
-                break
+        # Since presets are configured, flow should proceed to preset_selection
+        # (after navigating through any other configured features)
+        # In this mock config, only presets are configured
+        assert result["type"] == "form"
+        assert result["step_id"] == "preset_selection"
 
-        # BUG: This assertion should pass but currently fails
-        # The default should be True because presets are configured
-        assert (
-            configure_presets_default is True
-        ), f"configure_presets default should be True when presets are configured, got {configure_presets_default}"
+        # Test passes: presets are properly detected and preset_selection step appears

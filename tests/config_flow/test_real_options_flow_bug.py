@@ -21,10 +21,11 @@ from custom_components.dual_smart_thermostat.const import (
 
 @pytest.mark.asyncio
 async def test_options_flow_with_real_config_entry(hass):
-    """Test that options flow shows correct fields with real ConfigEntry.
+    """Test that options flow works correctly with real ConfigEntry and transient flags.
 
-    This test replicates the bug where transient flags in storage cause
-    the options flow to show the wrong system type fields.
+    This test verifies that transient flags in storage are properly filtered out
+    and don't affect the options flow. The simplified options flow shows runtime
+    tuning parameters in init, then proceeds through feature option steps.
     """
     # Create a config entry with transient flags (simulating contaminated storage)
     config_data = {
@@ -53,41 +54,49 @@ async def test_options_flow_with_real_config_entry(hass):
     flow = OptionsFlowHandler(entry)
     flow.hass = hass
 
-    # DEBUG: Check what entry.data actually contains
-    print(f"DEBUG: entry.data = {entry.data}")
-    print(f"DEBUG: entry.data type = {type(entry.data)}")
-    print(f"DEBUG: isinstance(entry.data, dict) = {isinstance(entry.data, dict)}")
-
+    # Simplified options flow shows runtime tuning parameters in init step
     result = await flow.async_step_init()
 
-    # Should show the init form (system type selection)
     assert result["type"] == "form"
     assert result["step_id"] == "init"
 
-    # Submit the init form (keeping same system type)
+    # Submit with runtime parameter changes
     result2 = await flow.async_step_init(
-        user_input={CONF_SYSTEM_TYPE: SYSTEM_TYPE_HEATER_COOLER},
+        user_input={"cold_tolerance": 0.5, "hot_tolerance": 0.5},
     )
 
-    # Should now show the basic form
+    # Since fan is configured, should proceed to fan_options step
     assert result2["type"] == "form"
-    assert result2["step_id"] == "basic"
+    assert result2["step_id"] == "fan_options"
 
-    # Check that the schema is for heater_cooler (not AC)
-    # The heater_cooler schema should have both HEATER and COOLER fields
-    schema = result2["data_schema"].schema
-    field_names = [str(key) for key in schema.keys()]
+    # Complete fan options step
+    result3 = await flow.async_step_fan_options({})
 
-    # These fields should be present in heater_cooler schema
-    assert "heater" in field_names, f"heater field missing! Fields: {field_names}"
-    assert "cooler" in field_names, f"cooler field missing! Fields: {field_names}"
+    # Should now complete since no other features are configured
+    assert result3["type"] == "create_entry"
+
+    # Verify transient flags were filtered out from final data
+    final_data = result3["data"]
+    print(f"DEBUG: final_data keys = {list(final_data.keys())}")
+    print(f"DEBUG: has features_shown = {'features_shown' in final_data}")
+    print(f"DEBUG: has configure_fan = {'configure_fan' in final_data}")
+    print(f"DEBUG: has fan_options_shown = {'fan_options_shown' in final_data}")
+
     assert (
-        "target_sensor" in field_names
-    ), f"target_sensor missing! Fields: {field_names}"
+        "features_shown" not in final_data
+    ), f"features_shown still in data! Keys: {list(final_data.keys())}"
+    assert (
+        "configure_fan" not in final_data
+    ), f"configure_fan still in data! Keys: {list(final_data.keys())}"
+    assert (
+        "fan_options_shown" not in final_data
+    ), f"fan_options_shown still in data! Keys: {list(final_data.keys())}"
 
-    # This field should NOT be present (it's AC-only)
-    # If we see AC-only fields, it means the bug is present
-    # Note: Need to identify an AC-only field that's not in heater_cooler
+    # Verify real config is preserved
+    assert final_data[CONF_SYSTEM_TYPE] == SYSTEM_TYPE_HEATER_COOLER
+    assert final_data[CONF_HEATER] == "switch.heater"
+    assert final_data[CONF_COOLER] == "switch.cooler"
+    assert final_data[CONF_FAN] == "switch.fan"
 
 
 @pytest.mark.asyncio

@@ -195,57 +195,44 @@ async def test_heat_pump_all_features_full_persistence(hass):
     options_flow = OptionsFlowHandler(config_entry)
     options_flow.hass = hass
 
+    # Simplified options flow: init shows runtime tuning directly
     result = await options_flow.async_step_init()
-    result = await options_flow.async_step_init(
-        {CONF_SYSTEM_TYPE: SYSTEM_TYPE_HEAT_PUMP}
-    )
-
     assert result["type"] == "form"
-    # Note: Options flow uses "basic" not "heat_pump"
-    assert result["step_id"] == "basic"
+    assert result["step_id"] == "init"
 
     # ===== STEP 5: Make changes - simplified to test persistence =====
-    # Change tolerances in basic step
-    updated_basic = {
-        CONF_SENSOR: "sensor.room_temp",
-        CONF_HEATER: "switch.heat_pump",
-        CONF_HEAT_PUMP_COOLING: "binary_sensor.cooling_mode",
-        CONF_COLD_TOLERANCE: 0.8,  # CHANGED
-        CONF_HOT_TOLERANCE: 0.6,  # CHANGED
-    }
-    # Note: Options flow uses async_step_basic not async_step_heat_pump
-    result = await options_flow.async_step_basic(updated_basic)
-
-    assert result["step_id"] == "features"
-
-    # Disable configuring NEW features, but existing features will still show their options
-    result = await options_flow.async_step_features(
+    # Change tolerances (runtime parameters) in init step
+    result = await options_flow.async_step_init(
         {
-            "configure_floor_heating": False,
-            "configure_fan": False,
-            "configure_humidity": False,
-            "configure_openings": False,
-            "configure_presets": False,
+            CONF_COLD_TOLERANCE: 0.8,  # CHANGED from 0.5
+            CONF_HOT_TOLERANCE: 0.6,  # CHANGED from 0.3
         }
     )
 
-    # Even though we disabled features, fan is already configured so fan_options will show
-    # Note: Floor options won't show because we disabled configure_floor_heating
-    # and the options flow doesn't check if floor sensor is already configured
-    assert result["type"] == "form"
-    assert result["step_id"] == "fan_options"
+    # Navigate through configured features in order (simplified options flow)
+    # Each feature step automatically proceeds to the next when submitted with {}
 
-    # Accept fan defaults (no changes)
+    # Floor heating options
+    assert result["step_id"] == "floor_options"
+    result = await options_flow.async_step_floor_options({})
+
+    # Fan options
+    assert result["step_id"] == "fan_options"
     result = await options_flow.async_step_fan_options({})
 
-    # Humidity is also configured, so humidity_options will show
-    assert result["type"] == "form"
+    # Humidity options
     assert result["step_id"] == "humidity_options"
-
-    # Accept humidity defaults (no changes)
     result = await options_flow.async_step_humidity_options({})
 
-    # Flow should now complete
+    # Openings options (single-step in options flow)
+    assert result["step_id"] == "openings_options"
+    result = await options_flow.async_step_openings_options({})
+
+    # Presets selection - when submitted with {}, completes directly in options flow
+    assert result["step_id"] == "preset_selection"
+    result = await options_flow.async_step_preset_selection({})
+
+    # In options flow, preset_selection with {} completes the flow (no separate presets step)
     assert result["type"] == "create_entry"
 
     # ===== STEP 6: Verify persistence =====
@@ -286,14 +273,10 @@ async def test_heat_pump_all_features_full_persistence(hass):
     options_flow2 = OptionsFlowHandler(config_entry_updated)
     options_flow2.hass = hass
 
+    # Simplified options flow: verify it opens successfully with merged values
     result = await options_flow2.async_step_init()
-    result = await options_flow2.async_step_init(
-        {CONF_SYSTEM_TYPE: SYSTEM_TYPE_HEAT_PUMP}
-    )
-
-    # Verify options flow opens successfully with merged values
     assert result["type"] == "form"
-    assert result["step_id"] == "basic"
+    assert result["step_id"] == "init"
 
 
 @pytest.mark.asyncio

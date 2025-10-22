@@ -67,8 +67,8 @@ class TestACOnlyAdvancedSettings:
         ), "Advanced settings section not found in AC-only options schema"
 
     @pytest.mark.asyncio
-    async def test_options_flow_basic_step_ac_only(self):
-        """Test that options flow basic step correctly handles AC-only system."""
+    async def test_options_flow_init_step_ac_only(self):
+        """Test that options flow init step correctly handles AC-only system."""
         # Mock config entry
         mock_entry = Mock(spec=ConfigEntry)
         mock_entry.data = {
@@ -78,10 +78,12 @@ class TestACOnlyAdvancedSettings:
             "name": "Test Thermostat",
             CONF_COLD_TOLERANCE: 0.3,
             CONF_HOT_TOLERANCE: 0.3,
+            CONF_KEEP_ALIVE: 300,  # Add this so advanced_settings appears
         }
         mock_entry.options = {}
 
         flow = OptionsFlowHandler(mock_entry)
+        flow.hass = Mock()
         flow.collected_config = {}
 
         # Mock the _get_entry method
@@ -93,11 +95,11 @@ class TestACOnlyAdvancedSettings:
 
         flow._determine_options_next_step = mock_next_step
 
-        # Test the basic step with no user input (should show form)
-        result = await flow.async_step_basic(None)
+        # Test the init step with no user input (should show form)
+        result = await flow.async_step_init(None)
 
         assert result["type"] == "form"
-        assert result["step_id"] == "basic"
+        assert result["step_id"] == "init"
 
         # Check that the schema has advanced settings section
         schema_dict = result["data_schema"].schema
@@ -109,7 +111,7 @@ class TestACOnlyAdvancedSettings:
 
         assert (
             advanced_field_found
-        ), "Advanced settings section not found in options flow AC-only basic step"
+        ), "Advanced settings section not found in options flow AC-only init step"
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-"""Tests for heater_cooler system type config and options flows.
+"""Tests for heater_cooler system type config and simplified options flows.
 
 Following TDD approach - these tests should guide implementation.
 Task: T005 - Complete heater_cooler implementation
@@ -223,10 +223,10 @@ class TestHeaterCoolerConfigFlow:
 
 
 class TestHeaterCoolerOptionsFlow:
-    """Test heater_cooler options flow - Core Requirements."""
+    """Test heater_cooler simplified options flow - Core Requirements."""
 
     async def test_options_flow_omits_name_field(self, mock_hass):
-        """Test that options flow does NOT include name field.
+        """Test that simplified options flow does NOT include name field.
 
         Acceptance Criteria: name field is omitted in options flow
         """
@@ -243,13 +243,13 @@ class TestHeaterCoolerOptionsFlow:
             CONF_HEATER: "switch.heater",
             CONF_COOLER: "switch.cooler",
         }
+        config_entry.options = {}
 
         flow = OptionsFlowHandler(config_entry)
         flow.hass = mock_hass
-        flow.collected_config = {}
 
-        # Get options schema
-        result = await flow.async_step_basic()
+        # Get options schema from simplified init step
+        result = await flow.async_step_init()
 
         # Verify name field is NOT in schema
         schema_fields = [
@@ -260,9 +260,9 @@ class TestHeaterCoolerOptionsFlow:
         assert CONF_NAME not in schema_fields
 
     async def test_options_flow_prefills_all_fields(self, mock_hass):
-        """Test that options flow pre-fills all heater_cooler fields from existing config.
+        """Test that simplified options flow pre-fills runtime tuning parameters from existing config.
 
-        Acceptance Criteria: Options flow pre-fills all heater_cooler fields from existing config
+        Acceptance Criteria: Options flow pre-fills runtime tuning parameters from existing config
         """
         from custom_components.dual_smart_thermostat.options_flow import (
             OptionsFlowHandler,
@@ -280,19 +280,21 @@ class TestHeaterCoolerOptionsFlow:
             CONF_HOT_TOLERANCE: 0.8,
             CONF_MIN_DUR: 450,
         }
+        config_entry.options = {}
 
         flow = OptionsFlowHandler(config_entry)
         flow.hass = mock_hass
-        flow.collected_config = {}
 
-        result = await flow.async_step_basic()
+        # Get simplified init step showing runtime tuning
+        result = await flow.async_step_init()
         schema = result["data_schema"].schema
 
-        # Verify defaults are pre-filled from existing config
+        # Verify runtime parameter defaults are pre-filled from existing config
+        runtime_params = [CONF_COLD_TOLERANCE, CONF_HOT_TOLERANCE]
         for key in schema.keys():
             if hasattr(key, "schema"):
                 field_name = key.schema
-                if field_name in config_entry.data:
+                if field_name in runtime_params and field_name in config_entry.data:
                     # Check that default matches existing value
                     if hasattr(key, "default"):
                         expected_value = config_entry.data[field_name]
@@ -303,9 +305,9 @@ class TestHeaterCoolerOptionsFlow:
                             assert key.default == expected_value
 
     async def test_options_flow_preserves_unmodified_fields(self, mock_hass):
-        """Test that options flow preserves fields that weren't changed.
+        """Test that simplified options flow preserves fields from existing config.
 
-        Acceptance Criteria: Unmodified fields preserved - fields not changed remain intact
+        Acceptance Criteria: All existing config fields are preserved when updating runtime parameters
         """
         from custom_components.dual_smart_thermostat.options_flow import (
             OptionsFlowHandler,
@@ -322,28 +324,30 @@ class TestHeaterCoolerOptionsFlow:
             CONF_HOT_TOLERANCE: 0.5,
             CONF_MIN_DUR: 300,
         }
+        config_entry.options = {}
 
         flow = OptionsFlowHandler(config_entry)
         flow.hass = mock_hass
-        flow.collected_config = {}
 
-        # Only change sensor, leave others unchanged
+        # Only change tolerance, leave others unchanged
         options_input = {
-            CONF_SENSOR: "sensor.new_temp",
+            CONF_COLD_TOLERANCE: 0.7,
             # Other fields not provided - should use existing values
         }
 
-        await flow.async_step_basic(options_input)
+        await flow.async_step_init(options_input)
 
-        # Verify unchanged fields are preserved
+        # Verify all existing fields are in collected config (merged from entry.data)
         assert flow.collected_config.get(CONF_HEATER) == "switch.original_heater"
         assert flow.collected_config.get(CONF_COOLER) == "switch.original_cooler"
-        assert flow.collected_config.get(CONF_COLD_TOLERANCE) == 0.5
+        assert flow.collected_config.get(CONF_SENSOR) == "sensor.original"
+        # Updated field should have new value
+        assert flow.collected_config.get(CONF_COLD_TOLERANCE) == 0.7
 
     async def test_options_flow_system_type_display_non_editable(self, mock_hass):
-        """Test that system type is displayed but non-editable in options flow.
+        """Test that system type is preserved but not shown in simplified options flow.
 
-        Acceptance Criteria: System type is displayed but non-editable
+        Acceptance Criteria: System type is preserved in the config entry (not editable in options flow)
         """
         from custom_components.dual_smart_thermostat.options_flow import (
             OptionsFlowHandler,
@@ -357,28 +361,102 @@ class TestHeaterCoolerOptionsFlow:
             CONF_HEATER: "switch.heater",
             CONF_COOLER: "switch.cooler",
         }
+        config_entry.options = {}
 
         flow = OptionsFlowHandler(config_entry)
         flow.hass = mock_hass
 
-        # Initialize options flow
+        # Initialize simplified options flow
         result = await flow.async_step_init()
 
-        # System type should be stored/displayed but not editable
-        # The flow should proceed to basic step without allowing system type change
+        # System type should NOT be in the form (not editable)
         assert result["type"] == FlowResultType.FORM
 
-        # The form should show the system type selector with current value as default
+        # The simplified form shows runtime tuning only, not system type
         schema = result["data_schema"].schema
-        system_type_key = None
-        for key in schema.keys():
-            if str(key) == CONF_SYSTEM_TYPE:
-                system_type_key = key
-                break
-        assert system_type_key is not None
-        default_value = (
-            system_type_key.default()
-            if callable(system_type_key.default)
-            else system_type_key.default
+        schema_field_names = [str(k) for k in schema.keys()]
+
+        # Verify system type is NOT in schema (use reconfigure flow to change it)
+        assert not any(CONF_SYSTEM_TYPE in name for name in schema_field_names)
+
+        # But it should be preserved in the config
+        current_config = flow._get_current_config()
+        assert current_config[CONF_SYSTEM_TYPE] == SYSTEM_TYPE_HEATER_COOLER
+
+    async def test_options_flow_completes_without_error(self, mock_hass):
+        """Test that simplified options flow completes without error.
+
+        Acceptance Criteria: Flow completes without error - all steps navigate successfully
+        """
+        from custom_components.dual_smart_thermostat.options_flow import (
+            OptionsFlowHandler,
         )
-        assert default_value == SYSTEM_TYPE_HEATER_COOLER
+
+        config_entry = Mock()
+        config_entry.data = {
+            CONF_NAME: "Test",
+            CONF_SYSTEM_TYPE: SYSTEM_TYPE_HEATER_COOLER,
+            CONF_SENSOR: "sensor.temp",
+            CONF_HEATER: "switch.heater",
+            CONF_COOLER: "switch.cooler",
+        }
+        config_entry.options = {}
+
+        flow = OptionsFlowHandler(config_entry)
+        flow.hass = mock_hass
+
+        # Start simplified flow
+        result = await flow.async_step_init()
+
+        # Should show form without errors
+        assert result["type"] == FlowResultType.FORM
+        assert "errors" not in result or not result["errors"]
+
+    async def test_options_flow_updated_config_matches_data_model(self, mock_hass):
+        """Test that updated runtime tuning parameters are collected correctly.
+
+        Acceptance Criteria: Updated runtime tuning parameters are collected correctly
+        """
+        from custom_components.dual_smart_thermostat.options_flow import (
+            OptionsFlowHandler,
+        )
+
+        config_entry = Mock()
+        config_entry.data = {
+            CONF_NAME: "Test",
+            CONF_SYSTEM_TYPE: SYSTEM_TYPE_HEATER_COOLER,
+            CONF_SENSOR: "sensor.old_temp",
+            CONF_HEATER: "switch.old_heater",
+            CONF_COOLER: "switch.old_cooler",
+            CONF_COLD_TOLERANCE: 0.3,
+            CONF_HOT_TOLERANCE: 0.3,
+            CONF_MIN_DUR: 300,
+        }
+        config_entry.options = {}
+
+        flow = OptionsFlowHandler(config_entry)
+        flow.hass = mock_hass
+
+        # Update runtime tuning parameters only (entities are in reconfigure flow)
+        options_input = {
+            CONF_COLD_TOLERANCE: 0.5,
+            CONF_HOT_TOLERANCE: 0.5,
+        }
+
+        await flow.async_step_init(options_input)
+
+        # Verify all existing config is preserved
+        assert CONF_SENSOR in flow.collected_config
+        assert CONF_HEATER in flow.collected_config
+        assert CONF_COOLER in flow.collected_config
+        assert CONF_COLD_TOLERANCE in flow.collected_config
+        assert CONF_HOT_TOLERANCE in flow.collected_config
+
+        # Verify existing values are preserved
+        assert flow.collected_config[CONF_SENSOR] == "sensor.old_temp"
+        assert flow.collected_config[CONF_HEATER] == "switch.old_heater"
+        assert flow.collected_config[CONF_COOLER] == "switch.old_cooler"
+
+        # Verify updated runtime parameters
+        assert flow.collected_config[CONF_COLD_TOLERANCE] == 0.5
+        assert flow.collected_config[CONF_HOT_TOLERANCE] == 0.5
