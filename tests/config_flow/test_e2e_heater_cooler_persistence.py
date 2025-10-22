@@ -1088,13 +1088,16 @@ async def test_heater_cooler_fan_mode_true_persists_and_shows_in_options(hass):
     assert flow.collected_config[CONF_FAN_MODE] is True
 
     # Now test options flow shows True
+    # Create complete data dict before MockConfigEntry
+    config_data = dict(flow.collected_config)
+    config_data[CONF_NAME] = "Test"
+    config_data[CONF_SYSTEM_TYPE] = SYSTEM_TYPE_HEATER_COOLER
+
     config_entry = MockConfigEntry(
         domain=DOMAIN,
-        data=dict(flow.collected_config),
+        data=config_data,
         options={},
     )
-    config_entry.data[CONF_NAME] = "Test"
-    config_entry.data[CONF_SYSTEM_TYPE] = SYSTEM_TYPE_HEATER_COOLER
     config_entry.add_to_hass(hass)
 
     options_flow = OptionsFlowHandler(config_entry)
