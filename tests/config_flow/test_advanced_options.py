@@ -1,5 +1,13 @@
 #!/usr/bin/env python3
-"""Test the specific issue: advanced settings showing up without toggle enabled."""
+"""Test advanced options configuration flow behavior.
+
+This module tests:
+1. Advanced settings toggle behavior and flow logic
+2. Prevention of unwanted advanced options appearing
+3. System type configuration (verifying advanced system type removal)
+4. User workflow for configuring advanced options
+5. Edge cases in advanced options handling
+"""
 
 import os
 import sys
@@ -9,6 +17,9 @@ sys.path.insert(
     0, os.path.join(os.path.dirname(__file__), "custom_components")
 )  # noqa: E402
 
+from custom_components.dual_smart_thermostat.const import (  # noqa: E402
+    SYSTEM_TYPES,
+)
 from custom_components.dual_smart_thermostat.schemas import (  # noqa: E402
     get_ac_only_features_schema,
 )
@@ -220,6 +231,39 @@ def test_flow_determination_logic():
         return False
 
 
+def test_separate_advanced_step():
+    """Test that the advanced system type is no longer available."""
+    print("\n🔄 TESTING ADVANCED SYSTEM TYPE REMOVAL")
+    print("=" * 60)
+
+    print("📋 Updated Behavior:")
+    print("• Advanced (Custom Setup) system type removed from SYSTEM_TYPES")
+    print(
+        "• Only 4 system types available: simple_heater, ac_only, heater_cooler, heat_pump"
+    )
+    print("• Advanced system type handling removed from config flows")
+    print()
+
+    print(f"✅ Available system types: {len(SYSTEM_TYPES)}")
+    for k, v in SYSTEM_TYPES.items():
+        print(f"   • {k}: {v}")
+    print()
+
+    # Verify advanced is not present
+    if "advanced" in SYSTEM_TYPES:
+        print("❌ Advanced system type should be removed")
+        return False
+
+    if len(SYSTEM_TYPES) != 4:
+        print(f"❌ Should have exactly 4 system types, found {len(SYSTEM_TYPES)}")
+        return False
+
+    print("✅ Advanced (Custom Setup) system type successfully removed")
+    print("✅ System now exposes only the 4 core system types")
+
+    return True
+
+
 def main():
     """Run the issue reproduction and fix verification."""
     print("🔧 ADVANCED TOGGLE OPTIONS FLOW FIX VERIFICATION")
@@ -230,6 +274,7 @@ def main():
         test_user_workflow,
         test_edge_cases,
         test_flow_determination_logic,
+        test_separate_advanced_step,
     ]
 
     passed = 0
@@ -249,14 +294,16 @@ def main():
     print(f"🎯 Fix Verification Results: {passed} passed, {failed} failed")
 
     if failed == 0:
-        print("\n🎉 ISSUE SUCCESSFULLY FIXED!")
+        print("\n🎉 ALL TESTS PASSED!")
         print()
-        print("📋 Summary of the fix:")
+        print("📋 Summary of verified behaviors:")
         print("   • Options flow now always shows all available features")
         print("   • Previous 'configure_advanced' state is ignored on initial display")
         print("   • 'configure_advanced' flag is cleared during options flow init")
         print("   • Users must explicitly enable advanced options each time")
         print("   • No more unexpected advanced options appearing!")
+        print("   • Advanced (Custom Setup) system type successfully removed")
+        print("   • Only 4 core system types remain available")
         print()
         print("🔄 To test in UI:")
         print("   1. Go to Settings → Devices & Services")

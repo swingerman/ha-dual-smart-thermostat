@@ -166,25 +166,117 @@ GitHub workflows will **reject** commits that fail linting.
 ## Testing Strategy
 
 ### Test Organization
+
+The test suite is organized by functionality with a focus on consolidation and maintainability:
+
+#### Core Functionality Tests
 - `tests/test_<mode>_mode.py` - Mode-specific functionality (heater, cooler, heat pump, fan, dry, dual)
-- `tests/config_flow/` - Configuration flow and validation tests
 - `tests/presets/` - Preset functionality tests
 - `tests/openings/` - Opening detection tests
 - `tests/features/` - Feature-specific tests
 - `tests/conftest.py` - Pytest fixtures and test utilities
 
+#### Config Flow Tests (`tests/config_flow/`)
+
+**IMPORTANT**: The config flow tests have been consolidated to reduce duplication. When adding new tests:
+
+1. **Core Flow Tests** - General configuration and options flow behavior
+   - `test_config_flow.py` - Basic config flow, system type selection, validation
+   - `test_options_flow.py` - **CONSOLIDATED** - All options flow tests including:
+     - Basic flow progression and step navigation
+     - Feature persistence (fan, humidity settings pre-filled)
+     - Preset detection and toggles
+     - Complete flow integration tests
+   - `test_advanced_options.py` - Advanced settings configuration
+
+2. **E2E Persistence Tests** - End-to-end config→options flow testing
+   - `test_e2e_simple_heater_persistence.py` - **CONSOLIDATED** - Includes:
+     - Minimal config + all features persistence tests
+     - Openings scope/timeout edge cases
+   - `test_e2e_ac_only_persistence.py` - **CONSOLIDATED** - Minimal + all features
+   - `test_e2e_heat_pump_persistence.py` - **CONSOLIDATED** - Minimal + all features
+   - `test_e2e_heater_cooler_persistence.py` - **CONSOLIDATED** - Includes:
+     - Minimal config + all features persistence tests
+     - Fan mode persistence edge cases
+     - Boolean False value persistence tests
+
+3. **Reconfigure Flow Tests** - System reconfiguration
+   - `test_reconfigure_flow.py` - General reconfigure mechanics
+   - `test_reconfigure_flow_e2e_<system>.py` - Full reconfigure flow per system type
+   - `test_reconfigure_system_type_change.py` - System type switching
+
+4. **Feature Integration Tests** - Feature combinations per system type
+   - `test_simple_heater_features_integration.py` - All feature combos for simple_heater
+   - `test_ac_only_features_integration.py` - All feature combos for ac_only
+   - `test_heat_pump_features_integration.py` - All feature combos for heat_pump
+   - `test_heater_cooler_features_integration.py` - All feature combos for heater_cooler
+
+5. **System-Specific Tests** - Unique system type behaviors
+   - `test_heat_pump_config_flow.py`, `test_heat_pump_options_flow.py`
+   - `test_heater_cooler_flow.py`
+   - `test_ac_only_features.py`, `test_ac_only_advanced_settings.py`
+   - `test_simple_heater_advanced.py`
+
+6. **Utilities and Validation**
+   - `test_integration.py` - **CONSOLIDATED** - Integration tests and transient flag handling
+   - `test_step_ordering.py` - Config step dependency validation
+   - `test_translations.py` - Localization support
+   - `test_options_entry_helpers.py` - Helper function unit tests
+
+### Adding New Config Flow Tests
+
+**Where to add your test:**
+
+1. **Bug fixes or edge cases?**
+   - **DO NOT** create separate bug fix test files
+   - Add to relevant consolidated file:
+     - Feature persistence issues → `test_options_flow.py`
+     - System-specific persistence → appropriate `test_e2e_<system>_persistence.py`
+     - Openings edge cases → `test_e2e_simple_heater_persistence.py`
+     - Fan edge cases → `test_e2e_heater_cooler_persistence.py`
+
+2. **New system type behavior?**
+   - Add to system-specific test file or create new if needed
+   - Keep system-specific files focused and clear
+
+3. **New feature integration?**
+   - Add to appropriate `test_<system>_features_integration.py`
+
+4. **New reconfigure scenario?**
+   - Add to `test_reconfigure_flow.py` or system-specific reconfigure file
+
+**Pattern to follow:**
+```python
+@pytest.mark.asyncio
+async def test_descriptive_name_of_what_youre_testing(hass):
+    """Clear docstring explaining the test purpose and what it validates.
+
+    If this was a bug fix, mention the original issue here.
+    """
+    # Test implementation using pytest patterns
+    # Use hass fixture from pytest-homeassistant-custom-component
+```
+
 ### Test Requirements
 - **Every new feature MUST have tests** covering success and failure scenarios
 - Use async test fixtures from `conftest.py`
 - Follow existing test patterns for consistency
+- **DO NOT create standalone bug fix test files** - integrate into existing tests
+- **Consolidate related tests** - avoid creating many small test files
 
 ### Running Tests
 ```bash
 # All tests
 pytest
 
+# Config flow tests only
+pytest tests/config_flow/
+
 # Single test file
-pytest tests/test_heat_pump_mode.py
+pytest tests/config_flow/test_e2e_simple_heater_persistence.py
+
+# Single test function
+pytest tests/config_flow/test_options_flow.py::test_options_flow_fan_settings_prefilled
 
 # With debug logging
 pytest --log-cli-level=DEBUG tests/test_heater_mode.py
@@ -212,8 +304,12 @@ Configuration: `pytest.ini` sets asyncio mode and test discovery patterns.
    - Use dependency injection for managers
    - Handle errors gracefully
 
-4. **Add tests**:
-   - Create test file in appropriate directory
+4. **Add tests** (following consolidation guidelines):
+   - **Core functionality**: Add to `tests/features/` or mode-specific test
+   - **Config flow integration**: Add to appropriate `test_<system>_features_integration.py`
+   - **Persistence**: Add test cases to relevant `test_e2e_<system>_persistence.py`
+   - **Options flow**: Add to `test_options_flow.py` if needed
+   - **DO NOT** create new small test files - add to existing consolidated tests
    - Cover success and failure cases
    - Test feature interactions
 
