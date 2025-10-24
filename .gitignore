@@ -10,6 +10,7 @@ __pycache__
 .coverage
 .vscode
 !.vscode/settings.json
+!.vscode/extensions.json
 coverage.xml
 
 
