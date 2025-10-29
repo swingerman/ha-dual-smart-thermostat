@@ -18,4 +18,7 @@ coverage.xml
 config/*
 !config/configuration.yaml
 .claude/settings.local.json
-.specify/scripts
+
+
+# specify
+.specify/scripts/
