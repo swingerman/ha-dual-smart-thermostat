@@ -17,9 +17,7 @@ sys.path.insert(
     0, os.path.join(os.path.dirname(__file__), "custom_components")
 )  # noqa: E402
 
-from custom_components.dual_smart_thermostat.const import (  # noqa: E402
-    SYSTEM_TYPES,
-)
+from custom_components.dual_smart_thermostat.const import SYSTEM_TYPES  # noqa: E402
 from custom_components.dual_smart_thermostat.schemas import (  # noqa: E402
     get_ac_only_features_schema,
 )

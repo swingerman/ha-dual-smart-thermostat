@@ -2641,3 +2641,70 @@ async def test_heater_mode_opening_scope(
         if hvac_mode == HVACMode.HEAT
         else STATE_OFF
     )
+
+
+################################################
+# FUNCTIONAL TESTS - TOLERANCE CONFIGURATIONS #
+################################################
+
+
+async def test_legacy_config_heat_mode_behaves_identically(
+    hass: HomeAssistant, setup_comp_1  # noqa: F811
+) -> None:
+    """Test legacy config in HEAT mode behaves identically.
+
+    This test verifies backward compatibility - configurations using only
+    cold_tolerance and hot_tolerance (no heat_tolerance) should work
+    correctly in HEAT mode.
+    """
+    heater_switch = "input_boolean.test"
+
+    assert await async_setup_component(
+        hass, input_boolean.DOMAIN, {"input_boolean": {"test": None}}
+    )
+
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {"name": "test", "initial": 10, "min": 0, "max": 40, "step": 1}
+            }
+        },
+    )
+
+    # Configure with ONLY cold_tolerance=0.5, hot_tolerance=0.5 (NO heat_tolerance)
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "heater": heater_switch,
+                "target_sensor": common.ENT_SENSOR,
+                "initial_hvac_mode": HVACMode.HEAT,
+                "cold_tolerance": 0.5,
+                "hot_tolerance": 0.5,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    # Set target to 20°C
+    await common.async_set_temperature(hass, 20)
+    await hass.async_block_till_done()
+
+    # Set current to 19.4°C
+    # Should activate heater (19.4 <= 20 - 0.5 = 19.5)
+    setup_sensor(hass, 19.4)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(heater_switch).state == STATE_ON
+
+    # Verify heating uses legacy tolerances
+    # At 20.6°C, heater should deactivate (20.6 >= 20 + 0.5 = 20.5)
+    setup_sensor(hass, 20.6)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(heater_switch).state == STATE_OFF

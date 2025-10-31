@@ -22,6 +22,7 @@ from .const import (
     CONF_AUX_HEATING_DUAL_MODE,
     CONF_AUX_HEATING_TIMEOUT,
     CONF_COLD_TOLERANCE,
+    CONF_COOL_TOLERANCE,
     CONF_COOLER,
     CONF_DRY_TOLERANCE,
     CONF_DRYER,
@@ -34,6 +35,7 @@ from .const import (
     CONF_FLOOR_SENSOR,
     CONF_HEAT_COOL_MODE,
     CONF_HEAT_PUMP_COOLING,
+    CONF_HEAT_TOLERANCE,
     CONF_HEATER,
     CONF_HOT_TOLERANCE,
     CONF_HUMIDITY_SENSOR,
@@ -293,6 +295,18 @@ def get_heater_cooler_schema(defaults=None, include_name=True):
                 ),
             ): get_temperature_selector(min_value=0.1, max_value=10, step=0.1),
             vol.Optional(
+                CONF_HEAT_TOLERANCE,
+                default=(
+                    defaults.get(CONF_HEAT_TOLERANCE) if defaults else vol.UNDEFINED
+                ),
+            ): get_temperature_selector(min_value=0.1, max_value=5.0, step=0.1),
+            vol.Optional(
+                CONF_COOL_TOLERANCE,
+                default=(
+                    defaults.get(CONF_COOL_TOLERANCE) if defaults else vol.UNDEFINED
+                ),
+            ): get_temperature_selector(min_value=0.1, max_value=5.0, step=0.1),
+            vol.Optional(
                 CONF_MIN_DUR,
                 default=defaults.get(CONF_MIN_DUR) if defaults else 300,
             ): get_time_selector(min_value=0, max_value=3600),
@@ -376,6 +390,18 @@ def get_heat_pump_schema(defaults=None, include_name=True):
                     defaults.get(CONF_HOT_TOLERANCE) if defaults else DEFAULT_TOLERANCE
                 ),
             ): get_temperature_selector(min_value=0.1, max_value=10, step=0.1),
+            vol.Optional(
+                CONF_HEAT_TOLERANCE,
+                default=(
+                    defaults.get(CONF_HEAT_TOLERANCE) if defaults else vol.UNDEFINED
+                ),
+            ): get_temperature_selector(min_value=0.1, max_value=5.0, step=0.1),
+            vol.Optional(
+                CONF_COOL_TOLERANCE,
+                default=(
+                    defaults.get(CONF_COOL_TOLERANCE) if defaults else vol.UNDEFINED
+                ),
+            ): get_temperature_selector(min_value=0.1, max_value=5.0, step=0.1),
             vol.Optional(
                 CONF_MIN_DUR,
                 default=defaults.get(CONF_MIN_DUR) if defaults else 300,
@@ -882,6 +908,12 @@ def get_advanced_settings_schema():
             vol.Optional(
                 CONF_HOT_TOLERANCE, default=DEFAULT_TOLERANCE
             ): get_temperature_selector(min_value=0.1, max_value=10, step=0.1),
+            vol.Optional(CONF_HEAT_TOLERANCE): get_temperature_selector(
+                min_value=0.1, max_value=5.0, step=0.1
+            ),
+            vol.Optional(CONF_COOL_TOLERANCE): get_temperature_selector(
+                min_value=0.1, max_value=5.0, step=0.1
+            ),
             vol.Optional(CONF_MIN_DUR, default=300): get_time_selector(
                 min_value=0, max_value=3600
             ),

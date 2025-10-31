@@ -74,6 +74,7 @@ from .const import (
     CONF_AUX_HEATING_DUAL_MODE,
     CONF_AUX_HEATING_TIMEOUT,
     CONF_COLD_TOLERANCE,
+    CONF_COOL_TOLERANCE,
     CONF_COOLER,
     CONF_DRY_TOLERANCE,
     CONF_DRYER,
@@ -86,6 +87,7 @@ from .const import (
     CONF_FLOOR_SENSOR,
     CONF_HEAT_COOL_MODE,
     CONF_HEAT_PUMP_COOLING,
+    CONF_HEAT_TOLERANCE,
     CONF_HEATER,
     CONF_HOT_TOLERANCE,
     CONF_HUMIDITY_SENSOR,
@@ -215,6 +217,8 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
         vol.Optional(CONF_COLD_TOLERANCE, default=DEFAULT_TOLERANCE): vol.Coerce(float),
         vol.Optional(CONF_HOT_TOLERANCE, default=DEFAULT_TOLERANCE): vol.Coerce(float),
+        vol.Optional(CONF_HEAT_TOLERANCE): vol.Coerce(float),
+        vol.Optional(CONF_COOL_TOLERANCE): vol.Coerce(float),
         vol.Optional(CONF_TARGET_TEMP): vol.Coerce(float),
         vol.Optional(CONF_TARGET_TEMP_HIGH): vol.Coerce(float),
         vol.Optional(CONF_TARGET_TEMP_LOW): vol.Coerce(float),
@@ -477,6 +481,10 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self._attr_hvac_modes = self.hvac_device.hvac_modes
         self._hvac_mode = self.hvac_device.hvac_mode
         self._last_hvac_mode = None
+
+        # Initialize environment manager with initial HVAC mode for tolerance selection
+        if self._hvac_mode:
+            self.environment.set_hvac_mode(self._hvac_mode)
 
         # presets
         self._enable_turn_on_off_backwards_compatibility = False
@@ -916,6 +924,9 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
         self._hvac_mode = hvac_mode
         self._set_support_flags()
+
+        # Update environment manager with new HVAC mode for tolerance selection
+        self.environment.set_hvac_mode(hvac_mode)
 
         if not is_restore:
             self.environment.set_temepratures_from_hvac_mode_and_presets(

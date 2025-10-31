@@ -8,7 +8,7 @@ This document focuses **exclusively** on configuration parameters that have cond
 
 **Conditional Parameters**: These parameters are ignored or non-functional unless their required "enabling" parameter is configured first.
 
-## 📋 Critical Dependencies (22 Total)
+## 📋 Critical Dependencies (22 Total) + System-Type Constraints (2 Parameters)
 
 ### 🔥 Secondary Heating Dependencies
 
@@ -66,6 +66,74 @@ When you enable heat/cool mode, these temperature range parameters become availa
 heat_cool_mode: true
 target_temp_low: 18   # ← Only works with heat_cool_mode
 target_temp_high: 24  # ← Only works with heat_cool_mode
+```
+
+---
+
+### 🌡️ Mode-Specific Temperature Tolerances (Dual-Mode Systems Only)
+
+**System Type Requirement**: `heater_cooler` or `heat_pump`
+
+Mode-specific tolerances are **only available** for systems that support both heating and cooling. These parameters allow different temperature tolerances for heating vs cooling operations.
+
+| Parameter | Description | Example |
+|-----------|-------------|---------|
+| `heat_tolerance` | Temperature tolerance for heating mode (°C/°F) | `0.3` |
+| `cool_tolerance` | Temperature tolerance for cooling mode (°C/°F) | `2.0` |
+
+**Availability by System Type**:
+
+| System Type | `heat_tolerance` | `cool_tolerance` | Reason |
+|-------------|-----------------|------------------|---------|
+| `simple_heater` | ❌ Not available | ❌ Not available | Heating only - uses legacy tolerances |
+| `ac_only` | ❌ Not available | ❌ Not available | Cooling only - uses legacy tolerances |
+| `heater_cooler` | ✅ Available | ✅ Available | Dual-mode system |
+| `heat_pump` | ✅ Available | ✅ Available | Dual-mode system |
+
+**Configuration Example (Heater + Cooler)**:
+```yaml
+system_type: heater_cooler
+heater: switch.heater
+cooler: switch.ac_unit
+target_sensor: sensor.temperature
+heat_tolerance: 0.3   # ← Only for dual-mode systems
+cool_tolerance: 2.0   # ← Only for dual-mode systems
+```
+
+**Configuration Example (Heat Pump)**:
+```yaml
+system_type: heat_pump
+heater: switch.heat_pump
+heat_pump_cooling: binary_sensor.heat_pump_mode
+target_sensor: sensor.temperature
+heat_tolerance: 0.5   # ← Only for dual-mode systems
+cool_tolerance: 1.5   # ← Only for dual-mode systems
+```
+
+**Tolerance Selection Priority**:
+1. **Mode-specific tolerance** (if configured): `heat_tolerance` for heating, `cool_tolerance` for cooling
+2. **Legacy tolerances** (if configured): `cold_tolerance` / `hot_tolerance`
+3. **Default tolerance**: 0.3°C/°F
+
+**Why Not Available for Single-Mode Systems?**
+
+Single-mode systems (heating-only or cooling-only) don't need separate tolerances per mode because they only operate in one direction. They use the legacy tolerance parameters:
+- `cold_tolerance`: How much below target before heating activates
+- `hot_tolerance`: How much above target before cooling activates
+
+**Common Mistake**:
+```yaml
+# ❌ WRONG - simple_heater doesn't support mode-specific tolerances
+system_type: simple_heater
+heater: switch.heater
+target_sensor: sensor.temperature
+heat_tolerance: 0.3  # This will be IGNORED!
+
+# ✅ CORRECT - Use legacy tolerance for single-mode systems
+system_type: simple_heater
+heater: switch.heater
+target_sensor: sensor.temperature
+cold_tolerance: 0.3  # Use this instead
 ```
 
 ---
@@ -198,9 +266,10 @@ ac_mode: true  # ← This setting is IGNORED when cooler is defined
 1. **Secondary Heating**: If you set `secondary_heater_timeout`, do you have `secondary_heater` defined?
 2. **Floor Protection**: If you set `max_floor_temp`, do you have `floor_sensor` defined?
 3. **Heat/Cool Mode**: If you set `target_temp_low` or `target_temp_high`, is `heat_cool_mode: true`?
-4. **Fan Control**: If you set any `fan_*` parameters, do you have `fan` defined?
-5. **Humidity**: If you set humidity parameters, do you have `humidity_sensor` and/or `dryer` defined?
-6. **Power Management**: If you set power parameters, do you have `hvac_power_levels` defined?
+4. **Mode-Specific Tolerances**: If you set `heat_tolerance` or `cool_tolerance`, is your system type `heater_cooler` or `heat_pump`?
+5. **Fan Control**: If you set any `fan_*` parameters, do you have `fan` defined?
+6. **Humidity**: If you set humidity parameters, do you have `humidity_sensor` and/or `dryer` defined?
+7. **Power Management**: If you set power parameters, do you have `hvac_power_levels` defined?
 
 ### Common Configuration Mistakes:
 
@@ -296,6 +365,13 @@ dry_tolerance: 5                         # ← Conditional on dryer
 - **Fan Control** (4 parameters): Need `fan` (+ 1 needs `outside_sensor`)
 - **Humidity Control** (5 parameters): Need `humidity_sensor` + `dryer`
 - **Power Management** (3 parameters): Need `hvac_power_levels`
+
+**2 system-type constraints**:
+
+- **Mode-Specific Tolerances** (2 parameters): Only available for dual-mode systems (`heater_cooler` or `heat_pump`)
+  - `heat_tolerance`: Tolerance for heating operations
+  - `cool_tolerance`: Tolerance for cooling operations
+  - Not available for single-mode systems (`simple_heater`, `ac_only`)
 
 **3 critical conflicts** to avoid:
 - Heater ≠ Temperature sensor

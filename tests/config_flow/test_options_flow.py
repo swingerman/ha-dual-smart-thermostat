@@ -15,9 +15,9 @@ then proceeds to configuration steps for already-configured features.
 
 from unittest.mock import AsyncMock, Mock, PropertyMock, patch
 
-import pytest
 from homeassistant.const import CONF_NAME
 from homeassistant.data_entry_flow import FlowResultType
+import pytest
 
 from custom_components.dual_smart_thermostat.const import (
     ATTR_OPENING_TIMEOUT,
@@ -42,7 +42,6 @@ from custom_components.dual_smart_thermostat.const import (
     SYSTEM_TYPE_SIMPLE_HEATER,
 )
 from custom_components.dual_smart_thermostat.options_flow import OptionsFlowHandler
-
 
 # ============================================================================
 # FIXTURES
@@ -1052,3 +1051,16 @@ async def test_ac_only_options_flow_with_fan_and_humidity_enabled(mock_hass):
     missing_steps = [step for step in expected_steps if step not in steps_visited]
 
     assert not missing_steps, f"Missing expected steps: {missing_steps}"
+
+
+# ============================================================================
+# NOTE: Mode-specific tolerance tests (T024-T029) have been removed.
+# Mode-specific tolerances (heat_tolerance, cool_tolerance) are only applicable
+# to dual-mode systems (heater_cooler, heat_pump).
+#
+# Single-mode systems (simple_heater, ac_only) should NOT have mode-specific
+# tolerance fields in their advanced settings.
+#
+# Tests for mode-specific tolerances should be added to dual-mode system test
+# files (e.g., test_e2e_heater_cooler_persistence.py, test_e2e_heat_pump_persistence.py)
+# ============================================================================

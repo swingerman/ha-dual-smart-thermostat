@@ -1123,3 +1123,164 @@ async def test_heater_cooler_fan_mode_true_persists_and_shows_in_options(hass):
     assert (
         fan_mode_default is True
     ), f"fan_mode should show True, got: {fan_mode_default}"
+
+
+# =============================================================================
+# MODE-SPECIFIC TOLERANCES PERSISTENCE TESTS
+# =============================================================================
+# These tests validate that mode-specific tolerances (heat_tolerance,
+# cool_tolerance) persist correctly through config flow → options flow → restart
+
+
+@pytest.mark.asyncio
+class TestHeaterCoolerModeSpecificTolerancesPersistence:
+    """Test mode-specific tolerance persistence for HEATER_COOLER system type."""
+
+    async def test_mode_specific_tolerances_persist_through_config_and_options_flow(
+        self, hass
+    ):
+        """Test heat_tolerance and cool_tolerance persist through full cycle.
+
+        This E2E test validates:
+        1. Mode-specific tolerances configured in config flow
+        2. Values persist through setup
+        3. Values pre-filled in options flow
+        4. Changes in options flow persist
+        5. Values persist after simulated restart (reload)
+
+        Phase 6: E2E Persistence & System Type Coverage (T046)
+        """
+        from custom_components.dual_smart_thermostat.const import (
+            CONF_COOL_TOLERANCE,
+            CONF_HEAT_TOLERANCE,
+        )
+
+        # Step 1: Create initial config with mode-specific tolerances
+        config_entry = MockConfigEntry(
+            domain=DOMAIN,
+            data={
+                CONF_NAME: "Test Heater Cooler",
+                CONF_SYSTEM_TYPE: SYSTEM_TYPE_HEATER_COOLER,
+                CONF_HEATER: "switch.heater",
+                CONF_COOLER: "switch.cooler",
+                CONF_SENSOR: "sensor.temperature",
+                CONF_COLD_TOLERANCE: 0.5,
+                CONF_HOT_TOLERANCE: 0.5,
+                CONF_HEAT_TOLERANCE: 0.3,  # Mode-specific override for heating
+                CONF_COOL_TOLERANCE: 2.0,  # Mode-specific override for cooling
+            },
+            title="Test Heater Cooler",
+        )
+        config_entry.add_to_hass(hass)
+        # Step 3: Verify initial config persisted
+        assert config_entry.data[CONF_HEAT_TOLERANCE] == 0.3
+        assert config_entry.data[CONF_COOL_TOLERANCE] == 2.0
+        assert config_entry.data[CONF_COLD_TOLERANCE] == 0.5
+        assert config_entry.data[CONF_HOT_TOLERANCE] == 0.5
+
+        # Step 4: Open options flow
+        from custom_components.dual_smart_thermostat.options_flow import (
+            OptionsFlowHandler,
+        )
+
+        options_flow = OptionsFlowHandler(config_entry)
+        options_flow.hass = hass
+
+        result = await options_flow.async_step_init()
+        assert result["type"] == "form"
+        assert result["step_id"] == "init"
+
+        # Step 5: Verify mode-specific tolerances are pre-filled in options flow
+        # These are in the advanced_settings collapsed section
+        init_schema = result["data_schema"].schema
+
+        # Find advanced_settings section
+        advanced_key = next(
+            (key for key in init_schema.keys() if "advanced_settings" in str(key)),
+            None,
+        )
+        assert advanced_key is not None, "advanced_settings section not found in schema"
+
+        # Get the advanced settings schema
+        advanced_schema = init_schema[advanced_key]
+        advanced_dict = advanced_schema.schema.schema
+
+        # Extract defaults for heat_tolerance and cool_tolerance
+        heat_tolerance_default = None
+        cool_tolerance_default = None
+
+        for key in advanced_dict:
+            if hasattr(key, "schema") and key.schema == CONF_HEAT_TOLERANCE:
+                # Check for suggested_value in description
+                if hasattr(key, "description") and key.description:
+                    heat_tolerance_default = key.description.get("suggested_value")
+            if hasattr(key, "schema") and key.schema == CONF_COOL_TOLERANCE:
+                # Check for suggested_value in description
+                if hasattr(key, "description") and key.description:
+                    cool_tolerance_default = key.description.get("suggested_value")
+
+        assert (
+            heat_tolerance_default == 0.3
+        ), "heat_tolerance should be pre-filled from config!"
+        assert (
+            cool_tolerance_default == 2.0
+        ), "cool_tolerance should be pre-filled from config!"
+
+        # Step 6: Update through options flow
+        result = await options_flow.async_step_init(
+            {
+                CONF_COLD_TOLERANCE: 0.5,  # Keep same
+                CONF_HOT_TOLERANCE: 0.5,  # Keep same
+                CONF_HEAT_TOLERANCE: 0.4,  # CHANGED from 0.3
+                CONF_COOL_TOLERANCE: 1.8,  # CHANGED from 2.0
+            }
+        )
+
+        # Should complete (no fan or other features in minimal config)
+        assert result["type"] == "create_entry"
+
+        # Step 7: Verify persistence after options flow
+        updated_data = result["data"]
+        assert updated_data[CONF_HEAT_TOLERANCE] == 0.4
+        assert updated_data[CONF_COOL_TOLERANCE] == 1.8
+        assert updated_data[CONF_COLD_TOLERANCE] == 0.5  # Preserved
+        assert updated_data[CONF_HOT_TOLERANCE] == 0.5  # Preserved
+
+        # Step 8: Simulate what HA does - update the config entry
+        # Create a new config entry simulating persistence
+        config_entry_after = MockConfigEntry(
+            domain=DOMAIN,
+            data=updated_data,  # Options flow updates get merged into data
+            title="Test Heater Cooler",
+        )
+        config_entry_after.add_to_hass(hass)
+
+        # Step 9: Reopen options flow to verify values persist (like after restart)
+        options_flow2 = OptionsFlowHandler(config_entry_after)
+        options_flow2.hass = hass
+
+        result2 = await options_flow2.async_step_init()
+        assert result2["type"] == "form"
+
+        # Step 10: Verify mode-specific tolerances still pre-filled with updated values
+        init_schema2 = result2["data_schema"].schema
+        advanced_key2 = next(
+            (key for key in init_schema2.keys() if "advanced_settings" in str(key)),
+            None,
+        )
+        advanced_schema2 = init_schema2[advanced_key2]
+        advanced_dict2 = advanced_schema2.schema.schema
+
+        heat_tolerance_default2 = None
+        cool_tolerance_default2 = None
+
+        for key in advanced_dict2:
+            if hasattr(key, "schema") and key.schema == CONF_HEAT_TOLERANCE:
+                if hasattr(key, "description") and key.description:
+                    heat_tolerance_default2 = key.description.get("suggested_value")
+            if hasattr(key, "schema") and key.schema == CONF_COOL_TOLERANCE:
+                if hasattr(key, "description") and key.description:
+                    cool_tolerance_default2 = key.description.get("suggested_value")
+
+        assert heat_tolerance_default2 == 0.4, "Updated heat_tolerance should persist!"
+        assert cool_tolerance_default2 == 1.8, "Updated cool_tolerance should persist!"
