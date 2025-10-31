@@ -587,3 +587,10 @@ library/API documentation. This means you should automatically use the Context7 
 tools to resolve library id and get library docs without me having to explicitly ask.
 
 - Always lint your code before sending it to me. Use `isort`, `black`, `flake8`, and `codespell` to ensure your code meets quality standards.
+
+## Active Technologies
+- Python 3.13 + Home Assistant 2025.1.0+, voluptuous (schema validation) (002-separate-tolerances)
+- Home Assistant config entries (persistent JSON storage) (002-separate-tolerances)
+
+## Recent Changes
+- 002-separate-tolerances: Added Python 3.13 + Home Assistant 2025.1.0+, voluptuous (schema validation)

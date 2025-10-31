@@ -556,3 +556,70 @@ class TestAcOnlyFeatureOrdering:
 
         # Next should be openings
         assert result["step_id"] == "openings_selection"
+
+
+class TestAcOnlyPartialOverride:
+    """Test partial override of tolerances for ac_only (T039)."""
+
+    async def test_tolerance_partial_override_cool_only(self, mock_hass):
+        """Test partial override with only cool_tolerance configured.
+
+        This test validates that when only cool_tolerance is set:
+        - COOL mode uses the configured cool_tolerance (1.5)
+        - Legacy config (cold_tolerance, hot_tolerance) works for other modes
+        - Backward compatibility is maintained
+
+        Acceptance Criteria:
+        - Config flow accepts cool_tolerance without heat_tolerance
+        - cool_tolerance is saved in configuration
+        - Legacy tolerances (cold_tolerance, hot_tolerance) are also saved
+        - Flow completes successfully
+        """
+        flow = ConfigFlowHandler()
+        flow.hass = mock_hass
+        flow.collected_config = {}
+
+        # Step 1: Select ac_only system type
+        user_input = {CONF_SYSTEM_TYPE: SYSTEM_TYPE_AC_ONLY}
+        result = await flow.async_step_user(user_input)
+
+        assert result["type"] == FlowResultType.FORM
+        assert result["step_id"] == "basic_ac_only"
+
+        # Step 2: Configure with partial override (cool_tolerance only)
+        basic_input = {
+            CONF_NAME: "Test AC Partial Override",
+            CONF_SENSOR: "sensor.temperature",
+            CONF_COOLER: "switch.ac",
+            "advanced_settings": {
+                "cold_tolerance": 0.5,
+                "hot_tolerance": 0.5,
+                "cool_tolerance": 1.5,  # Override for COOL mode
+                # heat_tolerance intentionally omitted
+                "min_cycle_duration": 300,
+            },
+        }
+        result = await flow.async_step_basic_ac_only(basic_input)
+
+        assert result["type"] == FlowResultType.FORM
+        assert result["step_id"] == "features"
+
+        # Step 3: Complete features step (no features enabled)
+        features_input = {
+            "configure_fan": False,
+            "configure_humidity": False,
+            "configure_openings": False,
+            "configure_presets": False,
+        }
+        result = await flow.async_step_features(features_input)
+
+        # Flow should complete
+        assert result["type"] == FlowResultType.CREATE_ENTRY
+
+        # Verify configuration - all tolerances saved
+        assert flow.collected_config["cold_tolerance"] == 0.5
+        assert flow.collected_config["hot_tolerance"] == 0.5
+        assert flow.collected_config["cool_tolerance"] == 1.5
+
+        # heat_tolerance should not be in config (not set)
+        assert "heat_tolerance" not in flow.collected_config

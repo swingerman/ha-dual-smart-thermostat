@@ -475,3 +475,11 @@ async def test_ac_only_fan_only_persistence(hass):
     )
     assert "away_temp" not in created_data  # No presets configured
     assert "home_temp" not in created_data
+
+
+# =============================================================================
+# NOTE: Mode-specific tolerances (heat_tolerance, cool_tolerance) are only
+# applicable to dual-mode systems (heater_cooler, heat_pump). AC_ONLY is a
+# single-mode system and does not support mode-specific tolerances.
+# Tests for mode-specific tolerances should be in dual-mode system test files.
+# =============================================================================

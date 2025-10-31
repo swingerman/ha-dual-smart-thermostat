@@ -21,10 +21,12 @@ from ..const import (
     ATTR_PREV_TARGET_HIGH,
     ATTR_PREV_TARGET_LOW,
     CONF_COLD_TOLERANCE,
+    CONF_COOL_TOLERANCE,
     CONF_DRY_TOLERANCE,
     CONF_FAN_HOT_TOLERANCE,
     CONF_FLOOR_SENSOR,
     CONF_HEAT_COOL_MODE,
+    CONF_HEAT_TOLERANCE,
     CONF_HOT_TOLERANCE,
     CONF_MAX_FLOOR_TEMP,
     CONF_MAX_HUMIDITY,
@@ -43,6 +45,7 @@ from ..const import (
     CONF_TARGET_TEMP_LOW,
     CONF_TEMP_STEP,
     DEFAULT_MAX_FLOOR_TEMP,
+    DEFAULT_TOLERANCE,
 )
 from ..managers.state_manager import StateManager
 from ..preset_env.preset_env import PresetEnv
@@ -97,8 +100,11 @@ class EnvironmentManager(StateManager):
 
         self._cold_tolerance = config.get(CONF_COLD_TOLERANCE)
         self._hot_tolerance = config.get(CONF_HOT_TOLERANCE)
+        self._heat_tolerance = config.get(CONF_HEAT_TOLERANCE)
+        self._cool_tolerance = config.get(CONF_COOL_TOLERANCE)
         self._fan_hot_tolerance = config.get(CONF_FAN_HOT_TOLERANCE)
 
+        self._hvac_mode = None
         self._saved_target_temp = self.target_temp or None
         self._saved_target_temp_low = None
         self._saved_target_temp_high = None
@@ -262,6 +268,100 @@ class EnvironmentManager(StateManager):
             else EnvironmentAttributeType.TEMPERATURE
         )
 
+    def set_hvac_mode(self, hvac_mode: HVACMode) -> None:
+        """Set the current HVAC mode for tolerance selection.
+
+        This method should be called by the climate entity whenever the HVAC mode
+        changes. The stored mode is used to select appropriate tolerances for
+        temperature comparisons.
+
+        Args:
+            hvac_mode (HVACMode): Current HVAC mode from Home Assistant climate platform.
+        """
+        _LOGGER.debug("Setting HVAC mode for tolerance selection: %s", hvac_mode)
+        self._hvac_mode = hvac_mode
+
+    def _get_active_tolerance_for_mode(self) -> tuple[float, float]:
+        """Get active cold and hot tolerance values for current HVAC mode.
+
+        Implements priority-based tolerance selection:
+          Priority 1: Mode-specific tolerance (heat_tolerance or cool_tolerance)
+          Priority 2: Legacy tolerances (cold_tolerance, hot_tolerance)
+
+        Returns:
+            tuple[float, float]: (cold_tolerance, hot_tolerance) to use for comparisons
+                Both values are always valid floats (never None)
+
+        Notes:
+            - For HEAT mode: Returns (heat_tol, heat_tol) if set, else legacy
+            - For COOL mode: Returns (cool_tol, cool_tol) if set, else legacy
+            - For HEAT_COOL: Checks current vs target temp to determine operation
+            - For FAN_ONLY: Uses cool_tolerance (fan behaves like cooling)
+            - For DRY/OFF: Returns legacy (no active tolerance checks)
+            - If _hvac_mode is None: Returns legacy (safe fallback)
+        """
+        # HEAT mode: Use heat_tolerance if configured
+        if self._hvac_mode == HVACMode.HEAT:
+            if self._heat_tolerance is not None:
+                _LOGGER.debug(
+                    "Using heat_tolerance for HEAT mode: %s", self._heat_tolerance
+                )
+                return (self._heat_tolerance, self._heat_tolerance)
+
+        # COOL mode: Use cool_tolerance if configured
+        elif self._hvac_mode == HVACMode.COOL:
+            if self._cool_tolerance is not None:
+                _LOGGER.debug(
+                    "Using cool_tolerance for COOL mode: %s", self._cool_tolerance
+                )
+                return (self._cool_tolerance, self._cool_tolerance)
+
+        # FAN_ONLY: Use cool_tolerance (fan behaves like cooling)
+        elif self._hvac_mode == HVACMode.FAN_ONLY:
+            if self._cool_tolerance is not None:
+                _LOGGER.debug(
+                    "Using cool_tolerance for FAN_ONLY mode: %s", self._cool_tolerance
+                )
+                return (self._cool_tolerance, self._cool_tolerance)
+
+        # HEAT_COOL (Auto): Determine operation from temperature
+        elif self._hvac_mode == HVACMode.HEAT_COOL:
+            if self._cur_temp is not None and self._target_temp is not None:
+                if self._cur_temp < self._target_temp:
+                    # Currently heating
+                    if self._heat_tolerance is not None:
+                        _LOGGER.debug(
+                            "Using heat_tolerance for HEAT_COOL mode (heating): %s",
+                            self._heat_tolerance,
+                        )
+                        return (self._heat_tolerance, self._heat_tolerance)
+                else:
+                    # Currently cooling
+                    if self._cool_tolerance is not None:
+                        _LOGGER.debug(
+                            "Using cool_tolerance for HEAT_COOL mode (cooling): %s",
+                            self._cool_tolerance,
+                        )
+                        return (self._cool_tolerance, self._cool_tolerance)
+
+        # Fallback: Use legacy tolerances (with defaults if not configured)
+        cold_tol = (
+            self._cold_tolerance
+            if self._cold_tolerance is not None
+            else DEFAULT_TOLERANCE
+        )
+        hot_tol = (
+            self._hot_tolerance
+            if self._hot_tolerance is not None
+            else DEFAULT_TOLERANCE
+        )
+        _LOGGER.debug(
+            "Using legacy tolerances (or defaults): cold=%s, hot=%s",
+            cold_tol,
+            hot_tol,
+        )
+        return (cold_tol, hot_tol)
+
     def set_temperature_range_from_saved(self) -> None:
         self.target_temp_low = self.saved_target_temp_low
         self.target_temp_high = self.saved_target_temp_high
@@ -355,14 +455,16 @@ class EnvironmentManager(StateManager):
         if self._cur_temp is None or target_temp is None:
             return False
 
+        cold_tolerance, _ = self._get_active_tolerance_for_mode()
+
         _LOGGER.debug(
             "is_too_cold - target temp attr: %s, Target temp: %s, current temp: %s, tolerance: %s",
             target_attr,
             target_temp,
             self._cur_temp,
-            self._cold_tolerance,
+            cold_tolerance,
         )
-        return target_temp >= self._cur_temp + self._cold_tolerance
+        return target_temp >= self._cur_temp + cold_tolerance
 
     def is_too_hot(self, target_attr="_target_temp") -> bool:
         """Checks if the current temperature is above target."""
@@ -370,14 +472,16 @@ class EnvironmentManager(StateManager):
         if self._cur_temp is None or target_temp is None:
             return False
 
+        _, hot_tolerance = self._get_active_tolerance_for_mode()
+
         _LOGGER.debug(
             "is_too_hot - target temp attr: %s, Target temp: %s, current temp: %s, tolerance: %s",
             target_attr,
             target_temp,
             self._cur_temp,
-            self._hot_tolerance,
+            hot_tolerance,
         )
-        return self._cur_temp >= target_temp + self._hot_tolerance
+        return self._cur_temp >= target_temp + hot_tolerance
 
     def is_equal_to_target(self, target_attr="_target_temp") -> bool:
         """Checks if the current temperature is equal to target."""

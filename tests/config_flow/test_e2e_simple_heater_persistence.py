@@ -639,3 +639,110 @@ async def test_simple_heater_openings_multiple_timeout_values(hass):
     # Verify the specific timeout value is saved
     assert created_data["timeout_openings_open"] == 600
     assert created_data["opening_scope"] == "heat"
+
+
+# =============================================================================
+# NOTE: Mode-specific tolerances (heat_tolerance, cool_tolerance) are only
+# applicable to dual-mode systems (heater_cooler, heat_pump). SIMPLE_HEATER is
+# a single-mode system and does not support mode-specific tolerances.
+# Tests for mode-specific tolerances should be in dual-mode system test files.
+# =============================================================================
+
+
+# =============================================================================
+# LEGACY TOLERANCES PERSISTENCE TESTS
+# =============================================================================
+# These tests validate that legacy configurations (without mode-specific
+# tolerances) continue to work correctly
+
+
+@pytest.mark.asyncio
+class TestSimpleHeaterLegacyTolerancesPersistence:
+    """Test legacy tolerance persistence for SIMPLE_HEATER system type."""
+
+    async def test_legacy_tolerances_persist_without_mode_specific(self, hass):
+        """Test that legacy config without mode-specific tolerances persists correctly.
+
+        This E2E test validates:
+        1. Config with only cold_tolerance and hot_tolerance (no heat/cool)
+        2. Values persist through full cycle
+        3. No mode-specific tolerances are added unexpectedly
+        4. Legacy behavior is preserved
+
+        Phase 6: E2E Persistence & System Type Coverage (T047)
+        """
+        from custom_components.dual_smart_thermostat.const import (
+            CONF_COOL_TOLERANCE,
+            CONF_HEAT_TOLERANCE,
+        )
+
+        # Step 1: Create config with ONLY legacy tolerances
+        config_entry = MockConfigEntry(
+            domain=DOMAIN,
+            data={
+                CONF_NAME: "Legacy Thermostat",
+                CONF_SYSTEM_TYPE: SYSTEM_TYPE_SIMPLE_HEATER,
+                CONF_HEATER: "switch.heater",
+                CONF_SENSOR: "sensor.temperature",
+                CONF_COLD_TOLERANCE: 0.5,
+                CONF_HOT_TOLERANCE: 0.5,
+                # NO heat_tolerance or cool_tolerance
+            },
+            title="Legacy Thermostat",
+        )
+        config_entry.add_to_hass(hass)
+        # Step 3: Verify only legacy config present
+        assert config_entry.data[CONF_COLD_TOLERANCE] == 0.5
+        assert config_entry.data[CONF_HOT_TOLERANCE] == 0.5
+        assert CONF_HEAT_TOLERANCE not in config_entry.data
+        assert CONF_COOL_TOLERANCE not in config_entry.data
+
+        # Step 4: Open options flow
+        from custom_components.dual_smart_thermostat.options_flow import (
+            OptionsFlowHandler,
+        )
+
+        options_flow = OptionsFlowHandler(config_entry)
+        options_flow.hass = hass
+
+        result = await options_flow.async_step_init()
+        assert result["type"] == "form"
+
+        # Step 5: Update only legacy tolerances in options flow
+        result = await options_flow.async_step_init(
+            {
+                CONF_COLD_TOLERANCE: 0.8,  # CHANGED
+                CONF_HOT_TOLERANCE: 0.6,  # CHANGED
+                # Still no mode-specific tolerances
+            }
+        )
+
+        assert result["type"] == "create_entry"
+
+        # Step 6: Verify no mode-specific tolerances were added
+        updated_data = result["data"]
+        assert updated_data[CONF_COLD_TOLERANCE] == 0.8
+        assert updated_data[CONF_HOT_TOLERANCE] == 0.6
+        assert CONF_HEAT_TOLERANCE not in updated_data
+        assert CONF_COOL_TOLERANCE not in updated_data
+
+        # Step 7: Simulate persistence - create new config entry with updated data
+        config_entry_after = MockConfigEntry(
+            domain=DOMAIN,
+            data=updated_data,
+            title="Legacy Thermostat",
+        )
+        config_entry_after.add_to_hass(hass)
+
+        # Step 8: Reopen options flow to verify legacy values persist
+        options_flow2 = OptionsFlowHandler(config_entry_after)
+        options_flow2.hass = hass
+
+        result2 = await options_flow2.async_step_init()
+        assert result2["type"] == "form"
+
+        # Step 9: Verify no mode-specific tolerances added after persistence
+        assert config_entry_after.data[CONF_COLD_TOLERANCE] == 0.8
+        assert config_entry_after.data[CONF_HOT_TOLERANCE] == 0.6
+        assert CONF_HEAT_TOLERANCE not in config_entry_after.data
+        assert CONF_COOL_TOLERANCE not in config_entry_after.data
