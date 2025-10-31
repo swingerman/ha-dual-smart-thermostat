@@ -621,6 +621,38 @@ The internal values can be set by the component only and the external values can
 
   _default: 0.3_
 
+### heat_tolerance
+
+  _(optional) (float)_ **[Dual-mode systems only]** Set a mode-specific tolerance for heating operations. Only available for systems that support both heating and cooling (`heater_cooler` or `heat_pump` system types).
+
+  When configured, this tolerance is used instead of `cold_tolerance` when the system is actively heating. This allows you to have different tolerance values for heating vs cooling operations.
+
+  **Example use case:** Tight temperature control during heating (±0.3°C) while allowing looser control during cooling (±2.0°C) for energy savings.
+
+  **Priority:** If set, `heat_tolerance` takes priority over `cold_tolerance` for heating operations.
+
+  **Availability:**
+  - ✅ Available: `heater_cooler`, `heat_pump` (dual-mode systems)
+  - ❌ Not available: `simple_heater`, `ac_only` (single-mode systems use legacy tolerances)
+
+  _default: Uses `cold_tolerance` if not set_
+
+### cool_tolerance
+
+  _(optional) (float)_ **[Dual-mode systems only]** Set a mode-specific tolerance for cooling operations. Only available for systems that support both heating and cooling (`heater_cooler` or `heat_pump` system types).
+
+  When configured, this tolerance is used instead of `hot_tolerance` when the system is actively cooling. This allows you to have different tolerance values for heating vs cooling operations.
+
+  **Example use case:** Allow wider temperature swings during cooling to reduce energy consumption while maintaining comfort.
+
+  **Priority:** If set, `cool_tolerance` takes priority over `hot_tolerance` for cooling operations.
+
+  **Availability:**
+  - ✅ Available: `heater_cooler`, `heat_pump` (dual-mode systems)
+  - ❌ Not available: `simple_heater`, `ac_only` (single-mode systems use legacy tolerances)
+
+  _default: Uses `hot_tolerance` if not set_
+
 ### keep_alive
 
   _(optional) (time, integer)_ Set a keep-alive interval. If set, the switch specified in the _heater_ and/or _cooler_ option will be triggered every time the interval elapses. Use with heaters and A/C units that shut off if they don't receive a signal from their remote for a while. Use also with switches that might lose state. The keep-alive call is done with the current valid climate integration state (either on or off). When `keep_alive` is set the `min_cycle_duration` option will be ignored.
@@ -815,9 +847,41 @@ climate:
 
 ## Tolerances
 
-The `dual_smart_thermostat` has two tolerance variables: `cold_tolerance` and `hot_tolerance`. These variables are used to prevent the heater or cooler from switching on and off too frequently. For example, if the target temperature is 25 and the tolerance is 0.5 the heater will start when the sensor equals or goes below 24.5. The heater will stop when the sensor equals or goes above 25.5. This prevents the heater from switching on and off too frequently when the temperature is close to the target temperature.
+The `dual_smart_thermostat` supports multiple tolerance configurations to prevent the heater or cooler from switching on and off too frequently.
+
+### Legacy Tolerances (All System Types)
+
+The basic tolerance variables `cold_tolerance` and `hot_tolerance` work for all system types. These variables are used to prevent the heater or cooler from switching on and off too frequently. For example, if the target temperature is 25 and the tolerance is 0.5 the heater will start when the sensor equals or goes below 24.5. The heater will stop when the sensor equals or goes above 25.5. This prevents the heater from switching on and off too frequently when the temperature is close to the target temperature.
 
 If the thermostat is set to heat_cool mode the tolerance will work in the same way for both the heater and the cooler.
+
+### Mode-Specific Tolerances (Dual-Mode Systems Only)
+
+For systems that support both heating and cooling (`heater_cooler` or `heat_pump` system types), you can optionally configure separate tolerances for heating vs cooling operations using `heat_tolerance` and `cool_tolerance`.
+
+**Tolerance Selection Priority:**
+1. **Mode-specific tolerance** (if configured): `heat_tolerance` for heating, `cool_tolerance` for cooling
+2. **Legacy tolerance**: `cold_tolerance` / `hot_tolerance`
+3. **Default**: 0.3°C/°F
+
+**Example:** Tight heating control with loose cooling for energy savings:
+
+```yaml
+climate:
+  - platform: dual_smart_thermostat
+    name: Living Room
+    heater: switch.heater
+    cooler: switch.ac_unit
+    target_sensor: sensor.temperature
+    heat_tolerance: 0.3   # Tight control during heating (±0.3°C)
+    cool_tolerance: 2.0   # Loose control during cooling (±2.0°C) - saves energy
+```
+
+**System Type Availability:**
+- ✅ `heater_cooler` - Full support for heat_tolerance and cool_tolerance
+- ✅ `heat_pump` - Full support for heat_tolerance and cool_tolerance
+- ❌ `simple_heater` - Use cold_tolerance only (heating-only system)
+- ❌ `ac_only` - Use hot_tolerance only (cooling-only system)
 
 ```yaml
 climate:
