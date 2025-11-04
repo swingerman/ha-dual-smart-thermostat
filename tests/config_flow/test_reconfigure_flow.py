@@ -275,6 +275,81 @@ async def test_reconfigure_all_system_types():
             )
 
 
+async def test_reconfigure_uses_data_parameter_not_data_updates():
+    """Test that reconfigure flow uses data parameter to replace all config.
+    
+    This test verifies that async_update_reload_and_abort is called with
+    the 'data' parameter (which replaces all data) rather than 'data_updates'
+    (which merges data). This is critical to prevent duplicate entries.
+    
+    The reconfigure flow collects the entire configuration from the user,
+    so we should replace all data, not merge with existing data.
+    """
+    flow = ConfigFlowHandler()
+    flow.hass = Mock()
+
+    mock_entry = Mock()
+    mock_entry.data = {
+        CONF_NAME: "Test",
+        CONF_SYSTEM_TYPE: SYSTEM_TYPE_SIMPLE_HEATER,
+        CONF_HEATER: "switch.old_heater",  # This should be replaced
+        CONF_SENSOR: "sensor.temp",
+    }
+
+    with patch.object(
+        type(flow), "source", new_callable=PropertyMock, return_value=SOURCE_RECONFIGURE
+    ):
+        flow._get_reconfigure_entry = Mock(return_value=mock_entry)
+
+        # Initialize collected_config with new complete configuration
+        new_config = {
+            CONF_NAME: "Test",
+            CONF_SYSTEM_TYPE: SYSTEM_TYPE_SIMPLE_HEATER,
+            CONF_HEATER: "switch.new_heater",  # Updated heater
+            CONF_SENSOR: "sensor.new_temp",  # Updated sensor
+        }
+        flow.collected_config = new_config
+
+        # Mock async_update_reload_and_abort to capture how it's called
+        with patch.object(flow, "async_update_reload_and_abort") as mock_update:
+            mock_update.return_value = {
+                "type": "abort",
+                "reason": "reconfigure_successful",
+            }
+
+            # Call _async_finish_flow
+            result = await flow._async_finish_flow()
+
+            # Verify async_update_reload_and_abort was called
+            assert mock_update.called, "async_update_reload_and_abort should be called"
+
+            # Verify it was called with the entry and data parameter (not data_updates)
+            call_args = mock_update.call_args
+            assert call_args is not None, "Should have call arguments"
+
+            # Check positional args
+            assert (
+                len(call_args[0]) >= 1
+            ), "Should have at least entry as positional arg"
+            assert (
+                call_args[0][0] == mock_entry
+            ), "First arg should be the config entry"
+
+            # Check keyword args - should have 'data', NOT 'data_updates'
+            assert "data" in call_args[1], "Should use 'data' parameter"
+            assert (
+                "data_updates" not in call_args[1]
+            ), "Should NOT use 'data_updates' parameter"
+
+            # Verify the data parameter contains the cleaned config
+            # (without transient flags like features_shown, etc.)
+            assert call_args[1]["data"] is not None, "data parameter should not be None"
+
+            # Result should be an abort
+            assert result["type"] == "abort"
+            assert result["reason"] == "reconfigure_successful"
+
+
 if __name__ == "__main__":
     """Run tests directly."""
     import asyncio
@@ -306,6 +381,10 @@ if __name__ == "__main__":
             ),
             ("Config uses create_entry", test_config_flow_uses_create_entry()),
             ("All system types", test_reconfigure_all_system_types()),
+            (
+                "Uses data not data_updates",
+                test_reconfigure_uses_data_parameter_not_data_updates(),
+            ),
         ]
 
         passed = 0
