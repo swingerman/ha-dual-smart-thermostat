@@ -766,7 +766,7 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
             )
             return self.async_update_reload_and_abort(
                 self._get_reconfigure_entry(),
-                data_updates=cleaned_config,
+                data=cleaned_config,
             )
         else:
             # Config flow: create new entry
