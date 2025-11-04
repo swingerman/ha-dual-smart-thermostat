@@ -277,11 +277,11 @@ async def test_reconfigure_all_system_types():
 
 async def test_reconfigure_uses_data_parameter_not_data_updates():
     """Test that reconfigure flow uses data parameter to replace all config.
-    
+
     This test verifies that async_update_reload_and_abort is called with
     the 'data' parameter (which replaces all data) rather than 'data_updates'
     (which merges data). This is critical to prevent duplicate entries.
-    
+
     The reconfigure flow collects the entire configuration from the user,
     so we should replace all data, not merge with existing data.
     """
@@ -331,9 +331,7 @@ async def test_reconfigure_uses_data_parameter_not_data_updates():
             assert (
                 len(call_args[0]) >= 1
             ), "Should have at least entry as positional arg"
-            assert (
-                call_args[0][0] == mock_entry
-            ), "First arg should be the config entry"
+            assert call_args[0][0] == mock_entry, "First arg should be the config entry"
 
             # Check keyword args - should have 'data', NOT 'data_updates'
             assert "data" in call_args[1], "Should use 'data' parameter"
