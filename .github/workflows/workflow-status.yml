@@ -75,7 +75,7 @@ jobs:
           echo "3. Adjust exclusions in dependabot.yml as needed" >> workflow-status.md
 
       - name: Upload status report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: workflow-status-report
           path: workflow-status.md
