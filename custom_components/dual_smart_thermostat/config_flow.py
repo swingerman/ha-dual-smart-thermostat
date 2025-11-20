@@ -708,6 +708,14 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
         ):
             return await self.async_step_humidity()
 
+        # Show additional sensors (outside sensor) if fan_air_outside is enabled
+        # This must come after fan configuration since it depends on fan settings
+        if (
+            self.collected_config.get(CONF_FAN_AIR_OUTSIDE, False)
+            and CONF_OUTSIDE_SENSOR not in self.collected_config
+        ):
+            return await self.async_step_additional_sensors()
+
         # For specific system types, show relevant additional configs
         if (
             system_type == SystemType.DUAL_STAGE

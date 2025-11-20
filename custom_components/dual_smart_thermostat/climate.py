@@ -7,7 +7,6 @@ import logging
 from typing import Any
 
 from homeassistant.components.climate import (
-    PLATFORM_SCHEMA,
     ClimateEntity,
     HVACAction,
     HVACMode,
@@ -43,7 +42,6 @@ from homeassistant.core import (
     State,
     callback,
 )
-import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.dispatcher import async_dispatcher_connect, dispatcher_send
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import (
@@ -51,11 +49,8 @@ from homeassistant.helpers.event import (
     async_track_state_change_event,
     async_track_time_interval,
 )
-from homeassistant.helpers.reload import async_setup_reload_service
 from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.service import extract_entity_ids
-from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
-import voluptuous as vol
 
 from . import DOMAIN, PLATFORMS
 from .config_validation import validate_config_with_models
@@ -140,128 +135,6 @@ from .managers.preset_manager import PresetManager
 
 _LOGGER = logging.getLogger(__name__)
 
-PRESET_SCHEMA = {
-    vol.Optional(ATTR_TEMPERATURE): vol.Coerce(float),
-    vol.Optional(ATTR_HUMIDITY): vol.Coerce(float),
-    vol.Optional(ATTR_TARGET_TEMP_LOW): vol.Coerce(float),
-    vol.Optional(ATTR_TARGET_TEMP_HIGH): vol.Coerce(float),
-    vol.Optional(CONF_MAX_FLOOR_TEMP): vol.Coerce(float),
-    vol.Optional(CONF_MIN_FLOOR_TEMP): vol.Coerce(float),
-}
-
-SECONDARY_HEATING_SCHEMA = {
-    vol.Optional(CONF_AUX_HEATER): cv.entity_id,
-    vol.Optional(CONF_AUX_HEATING_DUAL_MODE): cv.boolean,
-    vol.Optional(CONF_AUX_HEATING_TIMEOUT): vol.All(
-        cv.time_period, cv.positive_timedelta
-    ),
-}
-
-FLOOR_TEMPERATURE_SCHEMA = {
-    vol.Optional(CONF_FLOOR_SENSOR): cv.entity_id,
-    vol.Optional(CONF_MAX_FLOOR_TEMP): vol.Coerce(float),
-    vol.Optional(CONF_MIN_FLOOR_TEMP): vol.Coerce(float),
-}
-
-FAN_MODE_SCHEMA = {
-    vol.Optional(CONF_FAN): cv.entity_id,
-    vol.Optional(CONF_FAN_MODE): cv.boolean,
-    vol.Optional(CONF_FAN_ON_WITH_AC): cv.boolean,
-    vol.Optional(CONF_FAN_HOT_TOLERANCE): vol.Coerce(float),
-    vol.Optional(CONF_FAN_HOT_TOLERANCE_TOGGLE): cv.entity_id,
-    vol.Optional(CONF_FAN_AIR_OUTSIDE): cv.boolean,
-}
-
-OPENINGS_SCHEMA = {
-    vol.Optional(CONF_OPENINGS): [vol.Any(cv.entity_id, TIMED_OPENING_SCHEMA)],
-    vol.Optional(CONF_OPENINGS_SCOPE): vol.Any(
-        OpeningHvacModeScope, [scope.value for scope in OpeningHvacModeScope]
-    ),
-}
-
-DEHUMIDIFYER_SCHEMA = {
-    vol.Optional(CONF_DRYER): cv.entity_id,
-    vol.Optional(CONF_HUMIDITY_SENSOR): cv.entity_id,
-    vol.Optional(CONF_MIN_HUMIDITY): vol.Coerce(float),
-    vol.Optional(CONF_MAX_HUMIDITY): vol.Coerce(float),
-    vol.Optional(CONF_TARGET_HUMIDITY): vol.Coerce(float),
-    vol.Optional(CONF_DRY_TOLERANCE): vol.Coerce(float),
-    vol.Optional(CONF_MOIST_TOLERANCE): vol.Coerce(float),
-}
-
-HEAT_PUMP_SCHEMA = {
-    vol.Optional(CONF_HEAT_PUMP_COOLING): cv.entity_id,
-}
-
-HVAC_POWER_SCHEMA = {
-    vol.Optional(CONF_HVAC_POWER_LEVELS): vol.Coerce(int),
-    vol.Optional(CONF_HVAC_POWER_MIN): vol.Coerce(int),
-    vol.Optional(CONF_HVAC_POWER_MAX): vol.Coerce(int),
-    vol.Optional(CONF_HVAC_POWER_TOLERANCE): vol.Coerce(float),
-}
-
-PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
-    {
-        vol.Required(CONF_HEATER): cv.entity_id,
-        vol.Optional(CONF_COOLER): cv.entity_id,
-        vol.Required(CONF_SENSOR): cv.entity_id,
-        vol.Optional(CONF_STALE_DURATION): vol.All(
-            cv.time_period, cv.positive_timedelta
-        ),
-        vol.Optional(CONF_OUTSIDE_SENSOR): cv.entity_id,
-        vol.Optional(CONF_AC_MODE): cv.boolean,
-        vol.Optional(CONF_HEAT_COOL_MODE): cv.boolean,
-        vol.Optional(CONF_MAX_TEMP): vol.Coerce(float),
-        vol.Optional(CONF_MIN_DUR): vol.All(cv.time_period, cv.positive_timedelta),
-        vol.Optional(CONF_MIN_TEMP): vol.Coerce(float),
-        vol.Optional(CONF_NAME, default=DEFAULT_NAME): cv.string,
-        vol.Optional(CONF_COLD_TOLERANCE, default=DEFAULT_TOLERANCE): vol.Coerce(float),
-        vol.Optional(CONF_HOT_TOLERANCE, default=DEFAULT_TOLERANCE): vol.Coerce(float),
-        vol.Optional(CONF_HEAT_TOLERANCE): vol.Coerce(float),
-        vol.Optional(CONF_COOL_TOLERANCE): vol.Coerce(float),
-        vol.Optional(CONF_TARGET_TEMP): vol.Coerce(float),
-        vol.Optional(CONF_TARGET_TEMP_HIGH): vol.Coerce(float),
-        vol.Optional(CONF_TARGET_TEMP_LOW): vol.Coerce(float),
-        vol.Optional(CONF_KEEP_ALIVE): vol.All(cv.time_period, cv.positive_timedelta),
-        vol.Optional(CONF_INITIAL_HVAC_MODE): vol.In(
-            [
-                HVACMode.COOL,
-                HVACMode.HEAT,
-                HVACMode.OFF,
-                HVACMode.HEAT_COOL,
-                HVACMode.FAN_ONLY,
-                HVACMode.DRY,
-            ]
-        ),
-        vol.Optional(CONF_PRECISION): vol.In(
-            [PRECISION_TENTHS, PRECISION_HALVES, PRECISION_WHOLE]
-        ),
-        vol.Optional(CONF_TEMP_STEP): vol.In(
-            [PRECISION_TENTHS, PRECISION_HALVES, PRECISION_WHOLE]
-        ),
-        vol.Optional(CONF_UNIQUE_ID): cv.string,
-    }
-).extend({vol.Optional(v): PRESET_SCHEMA for (k, v) in CONF_PRESETS.items()})
-
-PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(SECONDARY_HEATING_SCHEMA)
-
-PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(FLOOR_TEMPERATURE_SCHEMA)
-
-PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(OPENINGS_SCHEMA)
-
-PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(FAN_MODE_SCHEMA)
-
-PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(DEHUMIDIFYER_SCHEMA)
-
-PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(HEAT_PUMP_SCHEMA)
-
-PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(HVAC_POWER_SCHEMA)
-
-# Add the old presets schema to avoid breaking change
-PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
-    {vol.Optional(v): vol.Coerce(float) for (k, v) in CONF_PRESETS_OLD.items()}
-)
-
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -269,25 +142,14 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Initialize config entry."""
+    # Use options if available (after first options flow save), otherwise use data
+    # This ensures compatibility with both initial config and YAML import
+    config = config_entry.options or config_entry.data
     await _async_setup_config(
         hass,
-        config_entry.options,
+        config,
         config_entry.entry_id,
         async_add_entities,
-    )
-
-
-async def async_setup_platform(
-    hass: HomeAssistant,
-    config: ConfigType,
-    async_add_entities: AddEntitiesCallback,
-    discovery_info: DiscoveryInfoType | None = None,
-) -> None:
-    """Set up the smart dual thermostat platform."""
-
-    await async_setup_reload_service(hass, DOMAIN, PLATFORMS)
-    await _async_setup_config(
-        hass, config, config.get(CONF_UNIQUE_ID), async_add_entities
     )
 
 

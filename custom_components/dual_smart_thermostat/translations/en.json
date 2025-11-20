@@ -56,12 +56,16 @@
                         "data": {
                             "cold_tolerance": "Cold tolerance",
                             "hot_tolerance": "Hot tolerance",
-                            "min_cycle_duration": "Minimum cycle duration"
+                            "min_cycle_duration": "Minimum cycle duration",
+                            "keep_alive": "Keep alive interval",
+                            "sensor_stale_duration": "Sensor stale duration"
                         },
                         "data_description": {
                             "cold_tolerance": "Minimum temperature difference between sensor reading and target before turning on heating. For example, if target is 25°C and tolerance is 0.5°C, heater starts when sensor reaches 24.5°C or below (default: 0.3°C).",
                             "hot_tolerance": "Minimum temperature difference between sensor reading and target before turning off heating. For example, if target is 25°C and tolerance is 0.5°C, heater stops when sensor reaches 25.5°C or above (default: 0.3°C).",
-                            "min_cycle_duration": "Minimum time the heater switch must stay in its current state before being switched. Prevents rapid on/off cycling and protects heating equipment (default: 300 seconds)."
+                            "min_cycle_duration": "Minimum time the heater switch must stay in its current state before being switched. Prevents rapid on/off cycling and protects heating equipment (default: 300 seconds).",
+                            "keep_alive": "Maximum time between updates for the target temperature sensor. Forces periodic switching to ensure the device doesn't turn off unexpectedly (default: 300 seconds).",
+                            "sensor_stale_duration": "Maximum age of sensor readings before they are considered stale. When sensor data exceeds this duration, the thermostat will stop operating to prevent incorrect behavior. Set to 0 to disable stale detection (default: 0 seconds, disabled)."
                         }
                     }
                 }
@@ -93,13 +97,15 @@
                             "cold_tolerance": "Cold tolerance",
                             "hot_tolerance": "Hot tolerance",
                             "min_cycle_duration": "Minimum cycle duration",
-                            "keep_alive": "Keep alive interval"
+                            "keep_alive": "Keep alive interval",
+                            "sensor_stale_duration": "Sensor stale duration"
                         },
                         "data_description": {
                             "cold_tolerance": "Minimum temperature difference between sensor reading and target before turning off cooling. For example, if target is 25°C and tolerance is 0.5°C, cooling stops when sensor reaches 24.5°C or below (default: 0.3°C).",
                             "hot_tolerance": "Minimum temperature difference between sensor reading and target before turning on cooling. For example, if target is 25°C and tolerance is 0.5°C, cooling starts when sensor reaches 25.5°C or above (default: 0.3°C).",
                             "min_cycle_duration": "Minimum time the cooling switch must stay in its current state before being switched. Prevents rapid on/off cycling and protects cooling equipment (default: 300 seconds).",
-                            "keep_alive": "Maximum time between updates for the target temperature sensor. Forces periodic switching to ensure the cooling device doesn't turn off unexpectedly (default: 300 seconds)."
+                            "keep_alive": "Maximum time between updates for the target temperature sensor. Forces periodic switching to ensure the cooling device doesn't turn off unexpectedly (default: 300 seconds).",
+                            "sensor_stale_duration": "Maximum age of sensor readings before they are considered stale. When sensor data exceeds this duration, the thermostat will stop operating to prevent incorrect behavior. Set to 0 to disable stale detection (default: 0 seconds, disabled)."
                         }
                     }
                 }
@@ -154,14 +160,18 @@
                             "hot_tolerance": "Hot tolerance",
                             "heat_tolerance": "Heat tolerance",
                             "cool_tolerance": "Cool tolerance",
-                            "min_cycle_duration": "Minimum cycle duration"
+                            "min_cycle_duration": "Minimum cycle duration",
+                            "keep_alive": "Keep alive interval",
+                            "sensor_stale_duration": "Sensor stale duration"
                         },
                         "data_description": {
                             "cold_tolerance": "Minimum temperature difference between sensor reading and target before activating heating or deactivating cooling. For example, if target is 25°C and tolerance is 0.5°C, changes occur when sensor reaches 24.5°C or below (default: 0.3°C).",
                             "hot_tolerance": "Minimum temperature difference between sensor reading and target before activating cooling or deactivating heating. For example, if target is 25°C and tolerance is 0.5°C, changes occur when sensor reaches 25.5°C or above (default: 0.3°C).",
                             "heat_tolerance": "Mode-specific tolerance for heating operations. Overrides cold_tolerance when in heating mode for finer control. When set, this value determines when heating activates instead of using cold_tolerance (default: uses cold_tolerance if not specified).",
                             "cool_tolerance": "Mode-specific tolerance for cooling operations. Overrides hot_tolerance when in cooling mode for finer control. When set, this value determines when cooling activates instead of using hot_tolerance (default: uses hot_tolerance if not specified).",
-                            "min_cycle_duration": "Minimum time the system switch must stay in its current state before being switched. Prevents rapid on/off cycling and protects equipment (default: 300 seconds)."
+                            "min_cycle_duration": "Minimum time the system switch must stay in its current state before being switched. Prevents rapid on/off cycling and protects equipment (default: 300 seconds).",
+                            "keep_alive": "Maximum time between updates for the target temperature sensor. Forces periodic switching to ensure the device doesn't turn off unexpectedly (default: 300 seconds).",
+                            "sensor_stale_duration": "Maximum age of sensor readings before they are considered stale. When sensor data exceeds this duration, the thermostat will stop operating to prevent incorrect behavior. Set to 0 to disable stale detection (default: 0 seconds, disabled)."
                         }
                     }
                 }
@@ -196,14 +206,18 @@
                             "hot_tolerance": "Hot tolerance",
                             "heat_tolerance": "Heat tolerance",
                             "cool_tolerance": "Cool tolerance",
-                            "min_cycle_duration": "Minimum cycle duration"
+                            "min_cycle_duration": "Minimum cycle duration",
+                            "keep_alive": "Keep alive interval",
+                            "sensor_stale_duration": "Sensor stale duration"
                         },
                         "data_description": {
                             "cold_tolerance": "Minimum temperature difference between sensor reading and target before switching heat pump to heating mode. For example, if target is 25°C and tolerance is 0.5°C, heating starts when sensor reaches 24.5°C or below (default: 0.3°C).",
                             "hot_tolerance": "Minimum temperature difference between sensor reading and target before switching heat pump to cooling mode. For example, if target is 25°C and tolerance is 0.5°C, cooling starts when sensor reaches 25.5°C or above (default: 0.3°C).",
                             "heat_tolerance": "Mode-specific tolerance for heating operations. Overrides cold_tolerance when in heating mode for finer control. When set, this value determines when heating activates instead of using cold_tolerance (default: uses cold_tolerance if not specified).",
                             "cool_tolerance": "Mode-specific tolerance for cooling operations. Overrides hot_tolerance when in cooling mode for finer control. When set, this value determines when cooling activates instead of using hot_tolerance (default: uses hot_tolerance if not specified).",
-                            "min_cycle_duration": "Minimum time the heat pump must stay in its current state before being switched. Critical for heat pump protection as frequent switching can damage the compressor (default: 300 seconds)."
+                            "min_cycle_duration": "Minimum time the heat pump must stay in its current state before being switched. Critical for heat pump protection as frequent switching can damage the compressor (default: 300 seconds).",
+                            "keep_alive": "Maximum time between updates for the target temperature sensor. Forces periodic switching to ensure the device doesn't turn off unexpectedly (default: 300 seconds).",
+                            "sensor_stale_duration": "Maximum age of sensor readings before they are considered stale. When sensor data exceeds this duration, the thermostat will stop operating to prevent incorrect behavior. Set to 0 to disable stale detection (default: 0 seconds, disabled)."
                         }
                     }
                 }
@@ -644,6 +658,7 @@
                         "description": "Optional advanced settings for fine-tuning thermostat behavior.",
                         "data": {
                             "keep_alive": "Keep alive interval",
+                            "sensor_stale_duration": "Sensor stale duration",
                             "initial_hvac_mode": "Initial HVAC mode",
                             "target_temp_high": "Target temperature (high)",
                             "target_temp_low": "Target temperature (low)",
@@ -653,6 +668,7 @@
                         },
                         "data_description": {
                             "keep_alive": "Keep alive duration for periodic switching. Set this if your switch needs a heartbeat to keep it 'alive'.",
+                            "sensor_stale_duration": "Maximum age of sensor readings before they are considered stale. When sensor data exceeds this duration, the thermostat will stop operating to prevent incorrect behavior. Set to 0 to disable stale detection (default: 0 seconds, disabled).",
                             "initial_hvac_mode": "Initial HVAC mode when starting Home Assistant. Sets the default operation mode on startup.",
                             "target_temp_high": "Upper target temperature for dual-temperature systems (heat/cool mode).",
                             "target_temp_low": "Lower target temperature for dual-temperature systems (heat/cool mode).",
@@ -709,12 +725,16 @@
                         "data": {
                             "cold_tolerance": "Cold tolerance",
                             "hot_tolerance": "Hot tolerance",
-                            "min_cycle_duration": "Minimum cycle duration"
+                            "min_cycle_duration": "Minimum cycle duration",
+                            "keep_alive": "Keep alive interval",
+                            "sensor_stale_duration": "Sensor stale duration"
                         },
                         "data_description": {
                             "cold_tolerance": "Minimum temperature difference between sensor reading and target before activating heating or deactivating cooling. For example, if target is 25°C and tolerance is 0.5°C, changes occur when sensor reaches 24.5°C or below (default: 0.3°C).",
                             "hot_tolerance": "Minimum temperature difference between sensor reading and target before activating cooling or deactivating heating. For example, if target is 25°C and tolerance is 0.5°C, changes occur when sensor reaches 25.5°C or above (default: 0.3°C).",
-                            "min_cycle_duration": "Minimum time the system switch must stay in its current state before being switched. Prevents rapid on/off cycling and protects equipment (default: 300 seconds)."
+                            "min_cycle_duration": "Minimum time the system switch must stay in its current state before being switched. Prevents rapid on/off cycling and protects equipment (default: 300 seconds).",
+                            "keep_alive": "Maximum time between updates for the target temperature sensor. Forces periodic switching to ensure the device doesn't turn off unexpectedly (default: 300 seconds).",
+                            "sensor_stale_duration": "Maximum age of sensor readings before they are considered stale. When sensor data exceeds this duration, the thermostat will stop operating to prevent incorrect behavior. Set to 0 to disable stale detection (default: 0 seconds, disabled)."
                         }
                     }
                 }

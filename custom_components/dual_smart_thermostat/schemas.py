@@ -52,6 +52,7 @@ from .const import (
     CONF_PRECISION,
     CONF_PRESETS,
     CONF_SENSOR,
+    CONF_STALE_DURATION,
     CONF_SYSTEM_TYPE,
     CONF_TARGET_HUMIDITY,
     CONF_TARGET_TEMP,
@@ -162,6 +163,10 @@ def get_basic_ac_schema(defaults=None, include_name=True):
                 CONF_KEEP_ALIVE,
                 default=defaults.get(CONF_KEEP_ALIVE) if defaults else 300,
             ): get_time_selector(min_value=0, max_value=3600),
+            vol.Optional(
+                CONF_STALE_DURATION,
+                default=defaults.get(CONF_STALE_DURATION) if defaults else 0,
+            ): get_time_selector(min_value=0, max_value=3600),
         }
     )
 
@@ -221,6 +226,14 @@ def get_simple_heater_schema(defaults=None, include_name=True):
             vol.Optional(
                 CONF_MIN_DUR,
                 default=defaults.get(CONF_MIN_DUR) if defaults else 300,
+            ): get_time_selector(min_value=0, max_value=3600),
+            vol.Optional(
+                CONF_KEEP_ALIVE,
+                default=defaults.get(CONF_KEEP_ALIVE) if defaults else 300,
+            ): get_time_selector(min_value=0, max_value=3600),
+            vol.Optional(
+                CONF_STALE_DURATION,
+                default=defaults.get(CONF_STALE_DURATION) if defaults else 0,
             ): get_time_selector(min_value=0, max_value=3600),
         }
     )
@@ -309,6 +322,14 @@ def get_heater_cooler_schema(defaults=None, include_name=True):
             vol.Optional(
                 CONF_MIN_DUR,
                 default=defaults.get(CONF_MIN_DUR) if defaults else 300,
+            ): get_time_selector(min_value=0, max_value=3600),
+            vol.Optional(
+                CONF_KEEP_ALIVE,
+                default=defaults.get(CONF_KEEP_ALIVE) if defaults else 300,
+            ): get_time_selector(min_value=0, max_value=3600),
+            vol.Optional(
+                CONF_STALE_DURATION,
+                default=defaults.get(CONF_STALE_DURATION) if defaults else 0,
             ): get_time_selector(min_value=0, max_value=3600),
         }
     )
@@ -405,6 +426,14 @@ def get_heat_pump_schema(defaults=None, include_name=True):
             vol.Optional(
                 CONF_MIN_DUR,
                 default=defaults.get(CONF_MIN_DUR) if defaults else 300,
+            ): get_time_selector(min_value=0, max_value=3600),
+            vol.Optional(
+                CONF_KEEP_ALIVE,
+                default=defaults.get(CONF_KEEP_ALIVE) if defaults else 300,
+            ): get_time_selector(min_value=0, max_value=3600),
+            vol.Optional(
+                CONF_STALE_DURATION,
+                default=defaults.get(CONF_STALE_DURATION) if defaults else 0,
             ): get_time_selector(min_value=0, max_value=3600),
         }
     )
