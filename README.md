@@ -12,6 +12,7 @@ The `dual_smart_thermostat` is an enhanced version of generic thermostat impleme
 - [Features](#features)
 - [Services](#services)
 - [Configuration variables](#configuration-variables)
+- [Troubleshooting](#troubleshooting)
 - [Installation](#installation)
 
 ## Features
@@ -657,6 +658,14 @@ The internal values can be set by the component only and the external values can
 
   _(optional) (time, integer)_ Set a keep-alive interval. If set, the switch specified in the _heater_ and/or _cooler_ option will be triggered every time the interval elapses. Use with heaters and A/C units that shut off if they don't receive a signal from their remote for a while. Use also with switches that might lose state. The keep-alive call is done with the current valid climate integration state (either on or off). When `keep_alive` is set the `min_cycle_duration` option will be ignored.
 
+  _default: 300 seconds (5 minutes)_
+
+  **Note:** Some AC units (like certain Hitachi models) beep with each command they receive. If your AC beeps excessively every few minutes, the keep-alive feature may be sending redundant commands. You can disable keep-alive by setting it to `0`:
+
+  ```yaml
+  keep_alive: 0  # Disables keep-alive to prevent beeping
+  ```
+
 ### initial_hvac_mode
 
   _(optional) (string)_ Set the initial HVAC mode. Valid values are `off`, `heat`, `cool` or `heat_cool`. Value has to be double quoted. If this parameter is not set, it is preferable to set a _keep_alive_ value. This is helpful to align any discrepancies between _dual_smart_thermostat_ _heater_ and _cooler_ state.
@@ -754,6 +763,34 @@ The internal values can be set by the component only and the external values can
   _(optional) (float)_ The desired step size for setting the target temperature. Supported values are `0.1`, `0.5` and `1.0`.
 
   _default: Value used for `precision`_
+
+## Troubleshooting
+
+### AC/Heater beeping excessively
+
+**Problem:** Your air conditioner or heater beeps every few minutes (typically every 5 minutes) even when no temperature changes occur.
+
+**Root Cause:** The `keep_alive` feature defaults to 300 seconds (5 minutes) and sends periodic commands to keep devices synchronized. Some HVAC units (like certain Hitachi AC models) beep audibly with each command they receive, including these keep-alive commands.
+
+**Solution:** Disable the keep-alive feature by setting it to `0` in your configuration:
+
+```yaml
+climate:
+  - platform: dual_smart_thermostat
+    name: My Thermostat
+    heater: switch.my_heater
+    target_sensor: sensor.my_temperature
+    keep_alive: 0  # Disables keep-alive to prevent beeping
+```
+
+**When to use keep_alive:** The keep-alive feature is useful for:
+- HVAC units that turn off automatically if they don't receive commands regularly
+- Switches that might lose state over time
+- Maintaining synchronization between the thermostat and physical device
+
+If your HVAC device doesn't have these issues, you can safely disable keep-alive.
+
+**Related:** [GitHub Issue #461](https://github.com/swingerman/ha-dual-smart-thermostat/issues/461)
 
 ## Installation
 
