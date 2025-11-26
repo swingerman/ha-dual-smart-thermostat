@@ -1735,3 +1735,71 @@ async def test_cooler_mode_opening_scope(
         if hvac_mode == HVACMode.COOL
         else STATE_OFF
     )
+
+
+################################################
+# FUNCTIONAL TESTS - TOLERANCE CONFIGURATIONS #
+################################################
+
+
+async def test_legacy_config_cool_mode_behaves_identically(
+    hass: HomeAssistant, setup_comp_1  # noqa: F811
+) -> None:
+    """Test legacy config in COOL mode behaves identically.
+
+    This test verifies backward compatibility - configurations using only
+    cold_tolerance and hot_tolerance (no cool_tolerance) should work
+    correctly in COOL mode.
+    """
+    cooler_switch = "input_boolean.test"
+
+    assert await async_setup_component(
+        hass, input_boolean.DOMAIN, {"input_boolean": {"test": None}}
+    )
+
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {"name": "test", "initial": 10, "min": 0, "max": 40, "step": 1}
+            }
+        },
+    )
+
+    # Configure with ONLY cold_tolerance=0.5, hot_tolerance=0.5 (NO cool_tolerance)
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "heater": cooler_switch,
+                "ac_mode": "true",
+                "target_sensor": common.ENT_SENSOR,
+                "initial_hvac_mode": HVACMode.COOL,
+                "cold_tolerance": 0.5,
+                "hot_tolerance": 0.5,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    # Set target to 22°C
+    await common.async_set_temperature(hass, 22)
+    await hass.async_block_till_done()
+
+    # Set current to 22.6°C
+    # Should activate cooler (22.6 >= 22 + 0.5 = 22.5)
+    setup_sensor(hass, 22.6)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(cooler_switch).state == STATE_ON
+
+    # Verify cooling uses legacy tolerances
+    # At 21.4°C, cooler should deactivate (21.4 <= 22 - 0.5 = 21.5)
+    setup_sensor(hass, 21.4)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(cooler_switch).state == STATE_OFF

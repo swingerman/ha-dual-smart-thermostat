@@ -665,3 +665,204 @@ class TestHeaterCoolerAvailableFeatures:
         feature_fields = [f for f in field_names if f.startswith("configure_")]
 
         assert sorted(feature_fields) == sorted(expected_features)
+
+
+class TestHeaterCoolerPartialOverride:
+    """Test partial override of tolerances for heater_cooler (T041)."""
+
+    async def test_tolerance_partial_override_heat_only(self, mock_hass):
+        """Test partial override with only heat_tolerance configured.
+
+        Heater_cooler supports both heating and cooling with separate switches.
+        This test validates that when only heat_tolerance is set:
+        - HEAT mode uses the configured heat_tolerance (0.3)
+        - COOL mode falls back to legacy tolerances (cold_tolerance, hot_tolerance)
+        - Backward compatibility is maintained
+
+        Acceptance Criteria:
+        - Config flow accepts heat_tolerance without cool_tolerance
+        - heat_tolerance is saved in configuration
+        - Legacy tolerances (cold_tolerance, hot_tolerance) are also saved
+        - Flow completes successfully
+        """
+        flow = ConfigFlowHandler()
+        flow.hass = mock_hass
+        flow.collected_config = {}
+
+        # Step 1: Select heater_cooler system type
+        user_input = {CONF_SYSTEM_TYPE: SYSTEM_TYPE_HEATER_COOLER}
+        result = await flow.async_step_user(user_input)
+
+        assert result["type"] == FlowResultType.FORM
+        assert result["step_id"] == "heater_cooler"
+
+        # Step 2: Configure with partial override (heat_tolerance only)
+        basic_input = {
+            CONF_NAME: "Test HVAC Partial Heat",
+            CONF_SENSOR: "sensor.temperature",
+            CONF_HEATER: "switch.heater",
+            CONF_COOLER: "switch.cooler",
+            "advanced_settings": {
+                "cold_tolerance": 0.5,
+                "hot_tolerance": 0.5,
+                "heat_tolerance": 0.3,  # Override for HEAT mode
+                # cool_tolerance intentionally omitted
+                "min_cycle_duration": 300,
+            },
+        }
+        result = await flow.async_step_heater_cooler(basic_input)
+
+        assert result["type"] == FlowResultType.FORM
+        assert result["step_id"] == "features"
+
+        # Step 3: Complete features step (no features enabled)
+        features_input = {
+            "configure_floor_heating": False,
+            "configure_fan": False,
+            "configure_humidity": False,
+            "configure_openings": False,
+            "configure_presets": False,
+        }
+        result = await flow.async_step_features(features_input)
+
+        # Flow should complete
+        assert result["type"] == FlowResultType.CREATE_ENTRY
+
+        # Verify configuration - all tolerances saved
+        assert flow.collected_config["cold_tolerance"] == 0.5
+        assert flow.collected_config["hot_tolerance"] == 0.5
+        assert flow.collected_config["heat_tolerance"] == 0.3
+
+        # cool_tolerance should not be in config (not set)
+        assert "cool_tolerance" not in flow.collected_config
+
+    async def test_tolerance_partial_override_cool_only(self, mock_hass):
+        """Test partial override with only cool_tolerance configured.
+
+        Heater_cooler supports both heating and cooling with separate switches.
+        This test validates that when only cool_tolerance is set:
+        - COOL mode uses the configured cool_tolerance (1.5)
+        - HEAT mode falls back to legacy tolerances (cold_tolerance, hot_tolerance)
+        - Backward compatibility is maintained
+
+        Acceptance Criteria:
+        - Config flow accepts cool_tolerance without heat_tolerance
+        - cool_tolerance is saved in configuration
+        - Legacy tolerances (cold_tolerance, hot_tolerance) are also saved
+        - Flow completes successfully
+        """
+        flow = ConfigFlowHandler()
+        flow.hass = mock_hass
+        flow.collected_config = {}
+
+        # Step 1: Select heater_cooler system type
+        user_input = {CONF_SYSTEM_TYPE: SYSTEM_TYPE_HEATER_COOLER}
+        result = await flow.async_step_user(user_input)
+
+        assert result["type"] == FlowResultType.FORM
+        assert result["step_id"] == "heater_cooler"
+
+        # Step 2: Configure with partial override (cool_tolerance only)
+        basic_input = {
+            CONF_NAME: "Test HVAC Partial Cool",
+            CONF_SENSOR: "sensor.temperature",
+            CONF_HEATER: "switch.heater",
+            CONF_COOLER: "switch.cooler",
+            "advanced_settings": {
+                "cold_tolerance": 0.5,
+                "hot_tolerance": 0.5,
+                "cool_tolerance": 1.5,  # Override for COOL mode
+                # heat_tolerance intentionally omitted
+                "min_cycle_duration": 300,
+            },
+        }
+        result = await flow.async_step_heater_cooler(basic_input)
+
+        assert result["type"] == FlowResultType.FORM
+        assert result["step_id"] == "features"
+
+        # Step 3: Complete features step (no features enabled)
+        features_input = {
+            "configure_floor_heating": False,
+            "configure_fan": False,
+            "configure_humidity": False,
+            "configure_openings": False,
+            "configure_presets": False,
+        }
+        result = await flow.async_step_features(features_input)
+
+        # Flow should complete
+        assert result["type"] == FlowResultType.CREATE_ENTRY
+
+        # Verify configuration - all tolerances saved
+        assert flow.collected_config["cold_tolerance"] == 0.5
+        assert flow.collected_config["hot_tolerance"] == 0.5
+        assert flow.collected_config["cool_tolerance"] == 1.5
+
+        # heat_tolerance should not be in config (not set)
+        assert "heat_tolerance" not in flow.collected_config
+
+    async def test_tolerance_partial_override_mixed(self, mock_hass):
+        """Test partial override with different tolerance values for each mode.
+
+        Heater_cooler supports both heating and cooling with separate switches.
+        This test validates mixed tolerance configuration:
+        - HEAT mode uses heat_tolerance (0.2)
+        - COOL mode uses cool_tolerance (1.8)
+        - Both mode-specific and legacy tolerances coexist
+        - This is the most realistic use case for heater_cooler systems
+
+        Acceptance Criteria:
+        - Config flow accepts both heat_tolerance and cool_tolerance
+        - Both mode-specific tolerances are saved
+        - Legacy tolerances are also saved
+        - Flow completes successfully
+        """
+        flow = ConfigFlowHandler()
+        flow.hass = mock_hass
+        flow.collected_config = {}
+
+        # Step 1: Select heater_cooler system type
+        user_input = {CONF_SYSTEM_TYPE: SYSTEM_TYPE_HEATER_COOLER}
+        result = await flow.async_step_user(user_input)
+
+        assert result["type"] == FlowResultType.FORM
+        assert result["step_id"] == "heater_cooler"
+
+        # Step 2: Configure with mixed overrides (both heat and cool)
+        basic_input = {
+            CONF_NAME: "Test HVAC Mixed Override",
+            CONF_SENSOR: "sensor.temperature",
+            CONF_HEATER: "switch.heater",
+            CONF_COOLER: "switch.cooler",
+            "advanced_settings": {
+                "cold_tolerance": 0.5,
+                "hot_tolerance": 0.5,
+                "heat_tolerance": 0.2,  # Override for HEAT mode
+                "cool_tolerance": 1.8,  # Override for COOL mode
+                "min_cycle_duration": 300,
+            },
+        }
+        result = await flow.async_step_heater_cooler(basic_input)
+
+        assert result["type"] == FlowResultType.FORM
+        assert result["step_id"] == "features"
+
+        # Step 3: Complete features step (no features enabled)
+        features_input = {
+            "configure_floor_heating": False,
+            "configure_fan": False,
+            "configure_humidity": False,
+            "configure_openings": False,
+            "configure_presets": False,
+        }
+        result = await flow.async_step_features(features_input)
+
+        # Flow should complete
+        assert result["type"] == FlowResultType.CREATE_ENTRY
+
+        # Verify configuration - all tolerances saved
+        assert flow.collected_config["cold_tolerance"] == 0.5
+        assert flow.collected_config["hot_tolerance"] == 0.5
+        assert flow.collected_config["heat_tolerance"] == 0.2
+        assert flow.collected_config["cool_tolerance"] == 1.8

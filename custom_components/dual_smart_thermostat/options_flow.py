@@ -18,11 +18,13 @@ from .const import (
     CONF_AUX_HEATING_DUAL_MODE,
     CONF_AUX_HEATING_TIMEOUT,
     CONF_COLD_TOLERANCE,
+    CONF_COOL_TOLERANCE,
     CONF_COOLER,
     CONF_FAN,
     CONF_FLOOR_SENSOR,
     CONF_HEAT_COOL_MODE,
     CONF_HEAT_PUMP_COOLING,
+    CONF_HEAT_TOLERANCE,
     CONF_HEATER,
     CONF_HOT_TOLERANCE,
     CONF_HUMIDITY_SENSOR,
@@ -39,6 +41,8 @@ from .const import (
     SYSTEM_TYPE_AC_ONLY,
     SYSTEM_TYPE_DUAL_STAGE,
     SYSTEM_TYPE_FLOOR_HEATING,
+    SYSTEM_TYPE_HEAT_PUMP,
+    SYSTEM_TYPE_HEATER_COOLER,
     SYSTEM_TYPE_SIMPLE_HEATER,
 )
 from .feature_steps import (
@@ -276,6 +280,43 @@ class OptionsFlowHandler(OptionsFlow):
                         default=current_config.get(CONF_HEAT_COOL_MODE),
                     )
                 ] = selector.BooleanSelector()
+
+        # Separate tolerances for heating and cooling
+        # Only show for dual-mode systems (heater_cooler and heat_pump)
+        if system_type in (SYSTEM_TYPE_HEATER_COOLER, SYSTEM_TYPE_HEAT_PUMP):
+            advanced_dict[
+                vol.Optional(
+                    CONF_HEAT_TOLERANCE,
+                    description={
+                        "suggested_value": current_config.get(CONF_HEAT_TOLERANCE)
+                    },
+                )
+            ] = selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    mode=selector.NumberSelectorMode.BOX,
+                    min=0.1,
+                    max=5.0,
+                    step=0.1,
+                    unit_of_measurement=DEGREE,
+                )
+            )
+
+            advanced_dict[
+                vol.Optional(
+                    CONF_COOL_TOLERANCE,
+                    description={
+                        "suggested_value": current_config.get(CONF_COOL_TOLERANCE)
+                    },
+                )
+            ] = selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    mode=selector.NumberSelectorMode.BOX,
+                    min=0.1,
+                    max=5.0,
+                    step=0.1,
+                    unit_of_measurement=DEGREE,
+                )
+            )
 
         # Add advanced settings section if there are any fields
         if advanced_dict:

@@ -152,11 +152,15 @@
                         "data": {
                             "cold_tolerance": "Cold tolerance",
                             "hot_tolerance": "Hot tolerance",
+                            "heat_tolerance": "Heat tolerance",
+                            "cool_tolerance": "Cool tolerance",
                             "min_cycle_duration": "Minimum cycle duration"
                         },
                         "data_description": {
                             "cold_tolerance": "Minimum temperature difference between sensor reading and target before activating heating or deactivating cooling. For example, if target is 25°C and tolerance is 0.5°C, changes occur when sensor reaches 24.5°C or below (default: 0.3°C).",
                             "hot_tolerance": "Minimum temperature difference between sensor reading and target before activating cooling or deactivating heating. For example, if target is 25°C and tolerance is 0.5°C, changes occur when sensor reaches 25.5°C or above (default: 0.3°C).",
+                            "heat_tolerance": "Mode-specific tolerance for heating operations. Overrides cold_tolerance when in heating mode for finer control. When set, this value determines when heating activates instead of using cold_tolerance (default: uses cold_tolerance if not specified).",
+                            "cool_tolerance": "Mode-specific tolerance for cooling operations. Overrides hot_tolerance when in cooling mode for finer control. When set, this value determines when cooling activates instead of using hot_tolerance (default: uses hot_tolerance if not specified).",
                             "min_cycle_duration": "Minimum time the system switch must stay in its current state before being switched. Prevents rapid on/off cycling and protects equipment (default: 300 seconds)."
                         }
                     }
@@ -190,11 +194,15 @@
                         "data": {
                             "cold_tolerance": "Cold tolerance",
                             "hot_tolerance": "Hot tolerance",
+                            "heat_tolerance": "Heat tolerance",
+                            "cool_tolerance": "Cool tolerance",
                             "min_cycle_duration": "Minimum cycle duration"
                         },
                         "data_description": {
                             "cold_tolerance": "Minimum temperature difference between sensor reading and target before switching heat pump to heating mode. For example, if target is 25°C and tolerance is 0.5°C, heating starts when sensor reaches 24.5°C or below (default: 0.3°C).",
                             "hot_tolerance": "Minimum temperature difference between sensor reading and target before switching heat pump to cooling mode. For example, if target is 25°C and tolerance is 0.5°C, cooling starts when sensor reaches 25.5°C or above (default: 0.3°C).",
+                            "heat_tolerance": "Mode-specific tolerance for heating operations. Overrides cold_tolerance when in heating mode for finer control. When set, this value determines when heating activates instead of using cold_tolerance (default: uses cold_tolerance if not specified).",
+                            "cool_tolerance": "Mode-specific tolerance for cooling operations. Overrides hot_tolerance when in cooling mode for finer control. When set, this value determines when cooling activates instead of using hot_tolerance (default: uses hot_tolerance if not specified).",
                             "min_cycle_duration": "Minimum time the heat pump must stay in its current state before being switched. Critical for heat pump protection as frequent switching can damage the compressor (default: 300 seconds)."
                         }
                     }
@@ -639,14 +647,18 @@
                             "initial_hvac_mode": "Initial HVAC mode",
                             "target_temp_high": "Target temperature (high)",
                             "target_temp_low": "Target temperature (low)",
-                            "heat_cool_mode": "Heat/Cool mode"
+                            "heat_cool_mode": "Heat/Cool mode",
+                            "heat_tolerance": "Heat tolerance",
+                            "cool_tolerance": "Cool tolerance"
                         },
                         "data_description": {
                             "keep_alive": "Keep alive duration for periodic switching. Set this if your switch needs a heartbeat to keep it 'alive'.",
                             "initial_hvac_mode": "Initial HVAC mode when starting Home Assistant. Sets the default operation mode on startup.",
                             "target_temp_high": "Upper target temperature for dual-temperature systems (heat/cool mode).",
                             "target_temp_low": "Lower target temperature for dual-temperature systems (heat/cool mode).",
-                            "heat_cool_mode": "Enable heat/cool mode with dual temperature control. When enabled, allows automatic switching between heating and cooling to maintain a comfortable temperature range."
+                            "heat_cool_mode": "Enable heat/cool mode with dual temperature control. When enabled, allows automatic switching between heating and cooling to maintain a comfortable temperature range.",
+                            "heat_tolerance": "Tolerance for heating operations. Overrides the legacy cold_tolerance setting specifically for heating mode. When set, this value is used instead of cold_tolerance to determine when heating activates (default: uses cold_tolerance if not specified).",
+                            "cool_tolerance": "Tolerance for cooling operations. Overrides the legacy hot_tolerance setting specifically for cooling mode. When set, this value is used instead of hot_tolerance to determine when cooling activates (default: uses hot_tolerance if not specified)."
                         }
                     }
                 }

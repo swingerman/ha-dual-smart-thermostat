@@ -40,7 +40,6 @@ from custom_components.dual_smart_thermostat.const import (
 )
 from custom_components.dual_smart_thermostat.options_flow import OptionsFlowHandler
 
-
 # =============================================================================
 # FIXTURES
 # =============================================================================
