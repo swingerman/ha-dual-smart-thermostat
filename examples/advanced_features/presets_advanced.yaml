@@ -1,0 +1,359 @@
+# Advanced Preset Configuration
+#
+# Presets allow different temperature settings for various scenarios.
+# Perfect for: Away mode, sleep mode, eco mode, party mode, etc.
+#
+# Documentation: https://github.com/swingerman/ha-dual-smart-thermostat#presets
+
+climate:
+  - platform: dual_smart_thermostat
+    name: "Smart Thermostat"
+
+    heater: switch.heater
+    cooler: switch.cooler
+    target_sensor: sensor.temperature
+    heat_cool_mode: true
+
+    # AWAY Preset - Energy saving when nobody home
+    away_temp: 16        # Heat to 16°C when away (heating mode)
+    away_temp_high: 28   # Cool to 28°C when away (cooling mode)
+
+    # ECO Preset - Moderate energy savings
+    eco_temp: 18
+    eco_temp_high: 26
+
+    # COMFORT Preset - Maximum comfort
+    comfort_temp: 21
+    comfort_temp_high: 24
+
+    # HOME Preset - Normal home temperature
+    home_temp: 20
+    home_temp_high: 25
+
+    # SLEEP Preset - Optimal sleeping temperature
+    sleep_temp: 19
+    sleep_temp_high: 23
+
+    # ACTIVITY Preset - Cooler for exercise/activity
+    activity_temp: 17
+    activity_temp_high: 22
+
+    initial_hvac_mode: "heat_cool"
+
+# ========================================
+# How Presets Work
+# ========================================
+#
+# When you select a preset:
+#   1. Target temperatures change to preset values
+#   2. In heat mode → Uses *_temp value
+#   3. In cool mode → Uses *_temp_high value
+#   4. In heat_cool mode → Uses both (as low and high)
+#
+# Example - ECO preset with heat_cool mode:
+#   - target_temp_low: 18°C (eco_temp)
+#   - target_temp_high: 26°C (eco_temp_high)
+#   - Maintains temperature between 18-26°C
+#
+# When preset is "none" (default):
+#   - Uses whatever temperatures you set manually
+#   - Not tied to any specific preset
+
+# ========================================
+# Built-in Preset Names
+# ========================================
+#
+# Home Assistant recognizes these presets:
+#   - none: No preset (manual control)
+#   - away: Away from home
+#   - eco: Energy saving
+#   - comfort: Maximum comfort
+#   - home: Normal home mode
+#   - sleep: Sleeping mode
+#   - activity: Active/exercise mode
+#   - boost: Temporary boost (not fully supported yet)
+#
+# You can configure any or all of these.
+# Unconfigured presets won't appear in the UI.
+
+# ========================================
+# Example 2: Heating Only with Presets
+# ========================================
+
+# climate:
+#   - platform: dual_smart_thermostat
+#     name: "Heater with Presets"
+#     heater: switch.heater
+#     target_sensor: sensor.temperature
+#
+#     # Only need *_temp for heating-only systems
+#     away_temp: 15      # Minimal heating when away
+#     eco_temp: 18       # Reduced heating for savings
+#     comfort_temp: 22   # Warm and cozy
+#     home_temp: 20      # Normal temperature
+#
+#     initial_hvac_mode: "heat"
+
+# ========================================
+# Example 3: Presets with Floor Heating Limits
+# Different floor limits for different presets
+# ========================================
+
+# climate:
+#   - platform: dual_smart_thermostat
+#     name: "Floor Heat with Preset Limits"
+#     heater: switch.floor_heater
+#     target_sensor: sensor.room_temperature
+#     floor_sensor: sensor.floor_temperature
+#
+#     # Global floor limits
+#     max_floor_temp: 28
+#     min_floor_temp: 20
+#
+#     # Away preset with conservative floor limits
+#     away_temp: 16
+#     away_max_floor_temp: 25  # Lower max to save energy
+#     away_min_floor_temp: 18  # Higher min to prevent freezing
+#
+#     # Comfort preset with relaxed limits
+#     comfort_temp: 22
+#     comfort_max_floor_temp: 30  # Allow warmer floors
+#     comfort_min_floor_temp: 23  # Keep floors warm
+#
+#     # Home preset uses global limits
+#     home_temp: 20
+#
+#     initial_hvac_mode: "heat"
+
+# ========================================
+# Example 4: Automation-Triggered Presets
+# Automatically change presets based on conditions
+# ========================================
+
+# climate:
+#   - platform: dual_smart_thermostat
+#     name: "Auto-Preset Thermostat"
+#     heater: switch.heater
+#     cooler: switch.cooler
+#     target_sensor: sensor.temperature
+#     heat_cool_mode: true
+#
+#     away_temp: 16
+#     away_temp_high: 28
+#     eco_temp: 18
+#     eco_temp_high: 26
+#     home_temp: 20
+#     home_temp_high: 24
+#     sleep_temp: 19
+#     sleep_temp_high: 23
+#
+#     initial_hvac_mode: "heat_cool"
+#
+# # Automation: Set to AWAY when nobody home
+# automation:
+#   - alias: "Thermostat - Away Mode"
+#     trigger:
+#       - platform: state
+#         entity_id: zone.home
+#         to: "0"  # Nobody home
+#         for:
+#           minutes: 15
+#     action:
+#       - service: climate.set_preset_mode
+#         target:
+#           entity_id: climate.auto_preset_thermostat
+#         data:
+#           preset_mode: "away"
+#
+#   # Return to HOME when someone arrives
+#   - alias: "Thermostat - Home Mode"
+#     trigger:
+#       - platform: state
+#         entity_id: zone.home
+#         from: "0"
+#     action:
+#       - service: climate.set_preset_mode
+#         target:
+#           entity_id: climate.auto_preset_thermostat
+#         data:
+#           preset_mode: "home"
+#
+#   # Switch to SLEEP at bedtime
+#   - alias: "Thermostat - Sleep Mode"
+#     trigger:
+#       - platform: time
+#         at: "22:30:00"
+#     action:
+#       - service: climate.set_preset_mode
+#         target:
+#           entity_id: climate.auto_preset_thermostat
+#         data:
+#           preset_mode: "sleep"
+#
+#   # Return to HOME in morning
+#   - alias: "Thermostat - Wake Up"
+#     trigger:
+#       - platform: time
+#         at: "07:00:00"
+#     action:
+#       - service: climate.set_preset_mode
+#         target:
+#           entity_id: climate.auto_preset_thermostat
+#         data:
+#           preset_mode: "home"
+
+# ========================================
+# Preset Temperature Guidelines
+# ========================================
+#
+# AWAY Preset:
+#   - Winter: 15-16°C (59-61°F) - Prevent freezing
+#   - Summer: 28-30°C (82-86°F) - Minimal cooling
+#   - Goal: Maximum energy savings
+#
+# ECO Preset:
+#   - Winter: 18-19°C (64-66°F) - Moderate savings
+#   - Summer: 26-27°C (79-81°F) - Light cooling
+#   - Goal: Balance comfort and efficiency
+#
+# HOME Preset:
+#   - Winter: 20-21°C (68-70°F) - Comfortable
+#   - Summer: 24-25°C (75-77°F) - Pleasant
+#   - Goal: Everyday comfort
+#
+# COMFORT Preset:
+#   - Winter: 21-22°C (70-72°F) - Warm
+#   - Summer: 23-24°C (73-75°F) - Cool
+#   - Goal: Maximum comfort
+#
+# SLEEP Preset:
+#   - Winter: 18-19°C (64-66°F) - Cooler for sleeping
+#   - Summer: 22-23°C (72-73°F) - Comfortable sleep
+#   - Goal: Optimal sleep temperature
+#
+# ACTIVITY Preset:
+#   - Winter: 17-18°C (63-64°F) - Cooler for exercise
+#   - Summer: 21-22°C (70-72°F) - Active cooling
+#   - Goal: Comfortable during physical activity
+
+# ========================================
+# Preset Best Practices
+# ========================================
+#
+# 1. Don't over-configure:
+#    - Only create presets you'll actually use
+#    - Too many presets = confusion
+#    - Start with 2-3, add more if needed
+#
+# 2. Use appropriate ranges:
+#    - Away: Widest range (maximum savings)
+#    - Eco: Medium range (balanced)
+#    - Comfort: Narrowest range (maximum comfort)
+#
+# 3. Automate preset changes:
+#    - Based on presence detection
+#    - Based on time of day
+#    - Based on sleep tracking
+#    - Based on calendar events
+#
+# 4. Test before automating:
+#    - Manually try each preset for a day
+#    - Adjust temperatures based on comfort
+#    - Then add automations
+#
+# 5. Seasonal adjustment:
+#    - Consider different presets for summer/winter
+#    - Or adjust preset values seasonally
+#    - Use input_numbers for dynamic presets
+
+# ========================================
+# Dynamic Presets with Input Numbers
+# Allow adjusting preset temps without config changes
+# ========================================
+
+# # Add to configuration.yaml:
+# input_number:
+#   away_temp_heat:
+#     name: "Away Heating Temperature"
+#     min: 10
+#     max: 25
+#     step: 0.5
+#     unit_of_measurement: "°C"
+#     icon: mdi:home-thermometer-outline
+#
+#   away_temp_cool:
+#     name: "Away Cooling Temperature"
+#     min: 20
+#     max: 35
+#     step: 0.5
+#     unit_of_measurement: "°C"
+#     icon: mdi:home-thermometer
+#
+# # Then use template in climate config:
+# climate:
+#   - platform: dual_smart_thermostat
+#     name: "Dynamic Preset Thermostat"
+#     heater: switch.heater
+#     cooler: switch.cooler
+#     target_sensor: sensor.temperature
+#     heat_cool_mode: true
+#     away_temp: "{{ states('input_number.away_temp_heat') | float }}"
+#     away_temp_high: "{{ states('input_number.away_temp_cool') | float }}"
+#
+# NOTE: Templates in climate config require restart to update!
+# Better approach is to use automations to set temps dynamically.
+
+# ========================================
+# Monitoring Preset Usage
+# ========================================
+#
+# Track which preset is active:
+#
+# template:
+#   - sensor:
+#       - name: "Thermostat Active Preset"
+#         state: "{{ state_attr('climate.smart_thermostat', 'preset_mode') }}"
+#         icon: mdi:thermometer-auto
+#
+# Track energy savings from presets:
+#
+# template:
+#   - sensor:
+#       - name: "Thermostat Energy Mode"
+#         state: >
+#           {% set preset = state_attr('climate.smart_thermostat', 'preset_mode') %}
+#           {% if preset == 'away' %}
+#             High Savings
+#           {% elif preset == 'eco' %}
+#             Medium Savings
+#           {% elif preset == 'comfort' %}
+#             Low Savings
+#           {% else %}
+#             Normal
+#           {% endif %}
+
+# ========================================
+# Troubleshooting
+# ========================================
+#
+# Preset doesn't appear in UI:
+#   - Check that both *_temp and *_temp_high are set
+#   - For heating-only, only *_temp is needed
+#   - Restart Home Assistant after config changes
+#   - Check logs for configuration errors
+#
+# Temperature doesn't change when preset selected:
+#   - Check that preset temps are different from current
+#   - Verify preset_mode attribute changes
+#   - Check climate entity state in Developer Tools
+#   - Review logs for errors
+#
+# Preset keeps getting reset:
+#   - Check for conflicting automations
+#   - Verify no other integrations controlling preset
+#   - Check if UI/app is overriding
+#
+# Want to disable a preset:
+#   - Remove the *_temp and *_temp_high lines
+#   - Restart Home Assistant
+#   - Preset will no longer appear in UI

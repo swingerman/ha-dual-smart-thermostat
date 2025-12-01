@@ -10,6 +10,7 @@ The `dual_smart_thermostat` is an enhanced version of generic thermostat impleme
 ## Table of contents
 
 - [Features](#features)
+- [Examples](#examples)
 - [Services](#services)
 - [Configuration variables](#configuration-variables)
 - [Troubleshooting](#troubleshooting)
@@ -31,6 +32,17 @@ The `dual_smart_thermostat` is an enhanced version of generic thermostat impleme
 | **Window/Door Sensor Integration (Openings)** | ![window-open](docs/images/window-open-custom.png)  ![window-open](docs/images/door-open-custom.png) ![chevron-right](docs/images/chevron-right-custom.png) ![timer-cog](docs/images/timer-cog-outline-custom.png)  ![chevron-right](docs/images/chevron-right-custom.png) ![hvac-off](docs/images/hvac-off-custom.png)| [docs](#openings) |
 | **Preset Modes Support** |  | [docs](#presets) |
 | **HVAC Action Reason Tracking** | | [docs](#hvac-action-reason) |
+
+## Examples
+
+Looking for ready-to-use configurations? Check out our **[examples directory](examples/)** with:
+
+- **[Basic Configurations](examples/basic_configurations/)** - Simple setups for heater-only, cooler-only, heat pumps, and dual-mode systems
+- **[Advanced Features](examples/advanced_features/)** - Floor heating limits, two-stage heating, opening detection, and presets
+- **[Integration Patterns](examples/integrations/)** - Smart scheduling and automation examples
+- **[Single-Mode Thermostat Wrapper](examples/single_mode_wrapper/)** - Create Nest-like "Keep Between" functionality on single-mode thermostats
+
+Each example includes complete YAML configurations with detailed explanations, troubleshooting tips, and best practices.
 
 ## Heat/Cool Mode
 

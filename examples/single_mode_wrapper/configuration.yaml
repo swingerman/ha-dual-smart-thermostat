@@ -1,0 +1,37 @@
+# Dual Smart Thermostat Configuration for Single-Mode Wrapper
+#
+# This creates a virtual dual-mode thermostat that wraps around a single-mode
+# physical thermostat using dummy input_boolean helpers.
+#
+# IMPORTANT: Replace entity IDs with your actual devices!
+
+climate:
+  # https://github.com/swingerman/ha-dual-smart-thermostat?tab=readme-ov-file#dual-heat-cool-mode-example
+  - platform: dual_smart_thermostat
+    name: "Dual Thermostat"
+
+    # These are dummy switches - they don't actually control hardware
+    heater: input_boolean.dual_thermostat_heat_mode
+    cooler: input_boolean.dual_thermostat_cool_mode
+
+    # CHANGE THIS: Your real thermostat's temperature sensor
+    # Examples:
+    #   - sensor.thermostat_air_temperature
+    #   - sensor.living_room_temperature
+    #   - climate.honeywell_t6  (some thermostats expose temp as attribute)
+    target_sensor: sensor.your_thermostat_temperature
+
+    # Enable heat_cool mode (this is what gives us "Keep Between" functionality)
+    heat_cool_mode: true
+
+    # Start in heat_cool mode by default
+    initial_hvac_mode: "heat_cool"
+
+    # Optional: Set default tolerances
+    # These control when the virtual thermostat decides to heat/cool
+    cold_tolerance: 0.5  # Start heating when 0.5° below target
+    hot_tolerance: 0.5   # Start cooling when 0.5° above target
+
+    # Optional: Minimum cycle time (prevents rapid switching)
+    min_cycle_duration:
+      seconds: 300  # Wait at least 5 minutes between mode changes

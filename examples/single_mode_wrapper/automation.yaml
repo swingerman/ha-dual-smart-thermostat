@@ -1,0 +1,171 @@
+# Reconciliation Automation for Single-Mode Thermostat Wrapper
+#
+# This automation translates the virtual dual thermostat's state to your
+# real single-mode thermostat.
+#
+# IMPORTANT: You MUST customize this automation:
+#   1. Replace ALL instances of "climate.your_real_thermostat" with your actual thermostat entity
+#   2. Replace "sensor.your_thermostat_temperature" with your actual temperature sensor
+#   3. If using device_id, find it in: Settings → Devices & Services → [Your Device] → Device Info
+#
+# The automation can be created via:
+#   - UI: Settings → Automations → Create Automation → Empty → Switch to YAML
+#   - YAML: Add to automations.yaml (if you use that method)
+
+alias: "Reconcile Dual Thermostat to Real Thermostat"
+description: "Translates virtual dual-mode thermostat state to single-mode thermostat"
+
+# Triggers: Run every 5 minutes OR when dual thermostat changes
+triggers:
+  # Periodic check every 5 minutes
+  - trigger: time_pattern
+    hours: "*"
+    minutes: /5
+    seconds: "0"
+
+  # Immediate response when dual thermostat state changes
+  - trigger: state
+    entity_id:
+      - climate.dual_thermostat  # CHANGE THIS if you named your thermostat differently
+
+conditions: []
+
+actions:
+  # ========================================
+  # Action 1: Handle OFF mode
+  # ========================================
+  - if:
+      - condition: state
+        entity_id: climate.dual_thermostat
+        state: "off"
+    then:
+      - action: climate.turn_off
+        metadata: {}
+        data: {}
+        target:
+          entity_id: climate.your_real_thermostat  # CHANGE THIS!
+
+  # ========================================
+  # Action 2: Handle COOL mode
+  # ========================================
+  - if:
+      - condition: state
+        entity_id: climate.dual_thermostat
+        state: cool
+    then:
+      - action: climate.set_temperature
+        metadata: {}
+        data:
+          hvac_mode: cool
+          temperature: >-
+            {{ state_attr('climate.dual_thermostat', 'temperature') | float }}
+        target:
+          entity_id: climate.your_real_thermostat  # CHANGE THIS!
+
+  # ========================================
+  # Action 3: Handle HEAT mode
+  # ========================================
+  - if:
+      - condition: state
+        entity_id: climate.dual_thermostat
+        state: heat
+    then:
+      - action: climate.set_temperature
+        metadata: {}
+        data:
+          hvac_mode: heat
+          temperature: >-
+            {{ state_attr('climate.dual_thermostat', 'temperature') | float }}
+        target:
+          entity_id: climate.your_real_thermostat  # CHANGE THIS!
+
+  # ========================================
+  # Action 4: Update helper numbers when in heat_cool mode
+  # This stores the target low/high temps for use in conditions below
+  # ========================================
+  - if:
+      - condition: state
+        entity_id: climate.dual_thermostat
+        state: heat_cool
+    then:
+      - action: input_number.set_value
+        metadata: {}
+        data:
+          value: >-
+            {{ state_attr('climate.dual_thermostat', 'target_temp_high') | float }}
+        target:
+          entity_id: input_number.dual_thermostat_maximum_temperature
+
+      - action: input_number.set_value
+        metadata: {}
+        data:
+          value: >-
+            {{ state_attr('climate.dual_thermostat', 'target_temp_low') | float }}
+        target:
+          entity_id: input_number.dual_thermostat_minimum_temperature
+
+  # ========================================
+  # Action 5: Heat/Cool mode - Temperature in range → Turn off
+  # ========================================
+  - if:
+      - condition: state
+        entity_id: climate.dual_thermostat
+        state: heat_cool
+      - condition: numeric_state
+        entity_id: sensor.your_thermostat_temperature  # CHANGE THIS!
+        below: input_number.dual_thermostat_maximum_temperature
+        above: input_number.dual_thermostat_minimum_temperature
+    then:
+      - action: climate.set_hvac_mode
+        metadata: {}
+        data:
+          hvac_mode: "off"
+        target:
+          entity_id: climate.your_real_thermostat  # CHANGE THIS!
+
+  # ========================================
+  # Action 6: Heat/Cool mode - Too hot → Cool to midpoint
+  # ========================================
+  - if:
+      - condition: state
+        entity_id: climate.dual_thermostat
+        state: heat_cool
+      - condition: numeric_state
+        entity_id: sensor.your_thermostat_temperature  # CHANGE THIS!
+        above: input_number.dual_thermostat_maximum_temperature
+    then:
+      - action: climate.set_temperature
+        metadata: {}
+        data:
+          hvac_mode: cool
+          # Set to midpoint between low and high targets
+          temperature: >-
+            {{ ((state_attr('climate.dual_thermostat', 'target_temp_low') | float) +
+                (state_attr('climate.dual_thermostat', 'target_temp_high') | float)) / 2 }}
+        target:
+          entity_id: climate.your_real_thermostat  # CHANGE THIS!
+
+  # ========================================
+  # Action 7: Heat/Cool mode - Too cold → Heat to midpoint
+  # ========================================
+  - if:
+      - condition: state
+        entity_id: climate.dual_thermostat
+        state: heat_cool
+      - condition: numeric_state
+        entity_id: sensor.your_thermostat_temperature  # CHANGE THIS!
+        below: input_number.dual_thermostat_minimum_temperature
+    then:
+      - action: climate.set_temperature
+        metadata: {}
+        data:
+          hvac_mode: heat
+          # Set to midpoint between low and high targets
+          temperature: >-
+            {{ ((state_attr('climate.dual_thermostat', 'target_temp_low') | float) +
+                (state_attr('climate.dual_thermostat', 'target_temp_high') | float)) / 2 }}
+        target:
+          entity_id: climate.your_real_thermostat  # CHANGE THIS!
+
+# Only run one instance at a time (prevent overlapping executions)
+mode: single

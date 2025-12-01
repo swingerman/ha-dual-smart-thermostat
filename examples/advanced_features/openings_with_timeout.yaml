@@ -1,0 +1,352 @@
+# Opening Detection (Window/Door Sensors)
+#
+# Automatically pauses HVAC when windows or doors are open to save energy.
+# Perfect for: Energy savings, preventing waste, automation integration
+#
+# Documentation: https://github.com/swingerman/ha-dual-smart-thermostat#openings
+
+climate:
+  - platform: dual_smart_thermostat
+    name: "Living Room Climate"
+
+    heater: switch.living_room_heater
+    cooler: switch.living_room_ac
+    target_sensor: sensor.living_room_temperature
+
+    # Required: List of opening sensors (windows, doors, etc.)
+    openings:
+      - binary_sensor.living_room_window
+      - binary_sensor.patio_door
+
+    initial_hvac_mode: "heat"
+
+# ========================================
+# How Opening Detection Works
+# ========================================
+#
+# Basic Behavior:
+# 1. Any opening sensor changes to "open" state
+# 2. HVAC immediately turns OFF
+# 3. All openings close
+# 4. HVAC resumes operation
+#
+# This prevents:
+#   - Heating/cooling the outdoors
+#   - Wasting energy
+#   - System running inefficiently
+
+# ========================================
+# Example 2: Openings with Timeout
+# Prevents turning off for brief door openings
+# ========================================
+
+climate:
+  - platform: dual_smart_thermostat
+    name: "Bedroom Climate"
+    heater: switch.bedroom_heater
+    target_sensor: sensor.bedroom_temperature
+
+    openings:
+      # Simple opening (no timeout)
+      - binary_sensor.bedroom_window
+
+      # Opening with timeout - waits 5 minutes before turning off
+      - entity_id: binary_sensor.bedroom_door
+        timeout: 00:05:00
+
+      # Another window with 3-minute timeout
+      - entity_id: binary_sensor.bedroom_window_2
+        timeout: 00:03:00
+
+    initial_hvac_mode: "heat"
+
+# Behavior with timeout:
+#   Door opens → Wait 5 minutes → If still open, turn OFF HVAC
+#   Door closes before 5 min → Cancel timeout, keep running
+#   Door closes after OFF → Wait for closing_timeout, then resume
+
+# ========================================
+# Example 3: Advanced - Timeout + Closing Timeout
+# Control both opening and closing delays
+# ========================================
+
+climate:
+  - platform: dual_smart_thermostat
+    name: "Advanced Opening Control"
+    heater: switch.heater
+    cooler: switch.cooler
+    target_sensor: sensor.temperature
+    heat_cool_mode: true
+
+    openings:
+      # Entry door - 5 min delay to turn off, 2 min delay to turn back on
+      - entity_id: binary_sensor.front_door
+        timeout: 00:05:00           # Wait 5 min before turning off
+        closing_timeout: 00:02:00    # Wait 2 min after closing before resuming
+
+      # Window - immediate off, 5 min delay to resume
+      - entity_id: binary_sensor.window
+        closing_timeout: 00:05:00    # Wait 5 min after closing
+
+      # Patio door - immediate both ways
+      - binary_sensor.patio_door
+
+    initial_hvac_mode: "heat_cool"
+
+# Why use closing_timeout?
+#   - Prevents short cycling when people go in/out repeatedly
+#   - Allows air to stabilize before resuming
+#   - Reduces wear on equipment
+#   - Can save energy if openings are frequently opened
+
+# ========================================
+# Example 4: Scope-Limited Opening Detection
+# Only affect specific HVAC modes
+# ========================================
+
+climate:
+  - platform: dual_smart_thermostat
+    name: "Scope-Limited Openings"
+    heater: switch.heater
+    cooler: switch.cooler
+    target_sensor: sensor.temperature
+    heat_cool_mode: true
+
+    openings:
+      # Only turn off heating when window opens (not cooling)
+      - entity_id: binary_sensor.window_1
+        scope: heat  # Only affects heating mode
+
+      # Only turn off cooling when this window opens
+      - entity_id: binary_sensor.window_2
+        scope: cool  # Only affects cooling mode
+
+      # Turn off everything when door opens
+      - entity_id: binary_sensor.door
+        scope: all  # Affects heat, cool, and heat_cool modes (default)
+
+    initial_hvac_mode: "heat_cool"
+
+# Scope options:
+#   - all: Turn off in any mode (default)
+#   - heat: Only turn off when heating
+#   - cool: Only turn off when cooling
+#   - heat_cool: Only turn off in heat_cool mode
+
+# Use cases:
+#   - North-facing window: Only care when cooling
+#   - South-facing window in winter: Only care when heating
+#   - Minimize false triggers from less critical openings
+
+# ========================================
+# Example 5: Complete Advanced Configuration
+# All features combined
+# ========================================
+
+# climate:
+#   - platform: dual_smart_thermostat
+#     name: "Whole House Climate"
+#     heater: switch.furnace
+#     cooler: switch.ac
+#     target_sensor: sensor.house_temperature
+#     heat_cool_mode: true
+#
+#     openings:
+#       # Front door - used frequently, long timeouts
+#       - entity_id: binary_sensor.front_door
+#         timeout: 00:10:00          # Wait 10 min (people coming/going)
+#         closing_timeout: 00:05:00  # Wait 5 min to resume
+#         scope: all
+#
+#       # Living room windows - immediate action when cooling
+#       - entity_id: binary_sensor.living_room_window_1
+#         scope: cool
+#       - entity_id: binary_sensor.living_room_window_2
+#         scope: cool
+#
+#       # Bedroom windows - moderate timeout
+#       - entity_id: binary_sensor.bedroom_window
+#         timeout: 00:05:00
+#         closing_timeout: 00:03:00
+#
+#       # Garage door - only care when heating
+#       - entity_id: binary_sensor.garage_door
+#         timeout: 00:15:00  # Long timeout for garage work
+#         scope: heat
+#
+#       # Basement door - immediate, heating only
+#       - entity_id: binary_sensor.basement_door
+#         scope: heat
+#
+#     initial_hvac_mode: "heat_cool"
+
+# ========================================
+# Timeout Guidelines
+# ========================================
+#
+# No timeout (immediate):
+#   - Windows you want closed while HVAC runs
+#   - Critical openings (garage doors, large openings)
+#   - High-traffic areas where openings indicate problems
+#
+# Short timeout (1-3 minutes):
+#   - Side/back doors with moderate use
+#   - Small windows
+#   - Pet doors
+#
+# Medium timeout (5-10 minutes):
+#   - Main entry doors
+#   - Frequently used doors
+#   - Areas where brief opening is normal
+#
+# Long timeout (15+ minutes):
+#   - Garage doors (for working in garage)
+#   - Basement access
+#   - Areas where extended opening is normal
+
+# ========================================
+# Closing Timeout Guidelines
+# ========================================
+#
+# No closing timeout:
+#   - When immediate resumption is desired
+#   - Rarely used openings
+#   - When energy waste is not a concern
+#
+# Short closing timeout (1-2 minutes):
+#   - Light air exchange needed
+#   - Minimal temperature impact expected
+#
+# Medium closing timeout (3-5 minutes):
+#   - Standard recommendation
+#   - Allows air to stabilize
+#   - Prevents short cycling
+#
+# Long closing timeout (5-10 minutes):
+#   - High-traffic areas
+#   - Frequent opening/closing expected
+#   - Maximum short-cycle prevention
+
+# ========================================
+# Sensor Types and Setup
+# ========================================
+#
+# Supported sensor types:
+#   - binary_sensor.* (any binary sensor)
+#   - Contact sensors (door/window sensors)
+#   - Motion sensors (as proxy for door usage)
+#   - Smart locks (detect when door opened)
+#
+# Sensor requirements:
+#   - Must report "on"/"open" when opening is open
+#   - Must report "off"/"closed" when opening is closed
+#   - Should be reliable (battery monitoring recommended)
+#
+# Setup tips:
+#   - Test each sensor before configuring
+#   - Check state in Developer Tools → States
+#   - Ensure sensors have unique names
+#   - Consider battery monitoring automations
+
+# ========================================
+# Monitoring Opening Activity
+# ========================================
+#
+# Create template sensor to track opening state:
+#
+# template:
+#   - binary_sensor:
+#       - name: "Any Opening Open"
+#         state: >
+#           {{
+#             is_state('binary_sensor.front_door', 'on') or
+#             is_state('binary_sensor.window_1', 'on') or
+#             is_state('binary_sensor.window_2', 'on')
+#           }}
+#
+# Use for:
+#   - Dashboard indicators
+#   - Notifications ("Window open for 10 minutes")
+#   - Energy tracking
+#   - Automation triggers
+
+# ========================================
+# Troubleshooting
+# ========================================
+#
+# HVAC doesn't turn off when opening opens:
+#   - Check sensor state in Developer Tools
+#   - Verify entity_id is correct
+#   - Check timeout setting (may still be waiting)
+#   - Review logs for errors
+#
+# HVAC doesn't resume after closing:
+#   - Check closing_timeout setting
+#   - Verify sensor reports "closed" state
+#   - Check if thermostat is in correct HVAC mode
+#   - Review hvac_action_reason attribute
+#
+# Too sensitive / turns off too often:
+#   - Add timeout to reduce sensitivity
+#   - Use scope to limit which modes are affected
+#   - Consider if sensor placement is correct
+#
+# Not sensitive enough:
+#   - Remove timeout
+#   - Add more opening sensors
+#   - Check sensor battery/connectivity
+#   - Verify sensor triggers correctly
+
+# ========================================
+# Energy Savings Tips
+# ========================================
+#
+# 1. Prioritize high-impact openings:
+#    - Large windows and doors first
+#    - Openings on weather-facing sides
+#
+# 2. Use appropriate timeouts:
+#    - Don't turn off for quick door use
+#    - Do turn off for extended window opening
+#
+# 3. Monitor and adjust:
+#    - Track when HVAC turns off due to openings
+#    - Adjust timeouts based on actual usage patterns
+#    - Use Home Assistant energy dashboard
+#
+# 4. Educate household:
+#    - Let people know system pauses when windows open
+#    - Encourage closing openings promptly
+#    - Display opening status on dashboard
+
+# ========================================
+# Integration with Automations
+# ========================================
+#
+# Send notification when opening left open:
+#
+# automation:
+#   - alias: "Notify - Window Left Open"
+#     trigger:
+#       - platform: state
+#         entity_id: binary_sensor.window_1
+#         to: "on"
+#         for:
+#           minutes: 30
+#     action:
+#       - service: notify.mobile_app
+#         data:
+#           message: "Window has been open for 30 minutes, HVAC is paused"
+#
+# Auto-close motorized windows when away:
+#
+# automation:
+#   - alias: "Auto Close Windows When Away"
+#     trigger:
+#       - platform: state
+#         entity_id: person.home
+#         to: "not_home"
+#     action:
+#       - service: cover.close_cover
+#         target:
+#           entity_id: cover.motorized_window
