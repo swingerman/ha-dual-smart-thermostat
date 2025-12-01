@@ -1,0 +1,63 @@
+# Heater Only Configuration
+#
+# This is the simplest configuration - only heating, no cooling.
+# Perfect for: Baseboard heaters, radiators, space heaters, boilers
+#
+# Documentation: https://github.com/swingerman/ha-dual-smart-thermostat#heater-only-mode
+
+climate:
+  - platform: dual_smart_thermostat
+    name: "Living Room Heater"
+
+    # Required: Switch entity that controls your heater
+    heater: switch.living_room_heater
+
+    # Required: Temperature sensor for the room
+    target_sensor: sensor.living_room_temperature
+
+    # Recommended: Start in heat mode
+    initial_hvac_mode: "heat"
+
+    # Optional: Tolerance - prevents frequent on/off cycling
+    # Heater turns ON when temp <= (target - cold_tolerance)
+    # Heater turns OFF when temp >= target
+    cold_tolerance: 0.5
+
+    # Optional: Minimum cycle duration - protects equipment
+    # Prevents turning on/off more frequently than this
+    min_cycle_duration:
+      minutes: 5
+
+    # Optional: Keep alive interval for thermostatic valves
+    # Some valves need periodic signals to prevent sticking
+    # keep_alive:
+    #   minutes: 15
+
+# ========================================
+# Additional Examples
+# ========================================
+
+# Example 2: Two-stage heating (with aux/emergency heat)
+# Uncomment and customize if you have secondary/backup heating
+#
+# climate:
+#   - platform: dual_smart_thermostat
+#     name: "Living Room Heater with Aux"
+#     heater: switch.primary_heater
+#     secondary_heater: switch.aux_heater        # Auxiliary/emergency heater
+#     secondary_heater_timeout: 01:00:00         # Activate aux after 1 hour
+#     target_sensor: sensor.living_room_temperature
+#     initial_hvac_mode: "heat"
+
+# Example 3: Floor heating with temperature limits
+# Uncomment and customize if you have floor heating
+#
+# climate:
+#   - platform: dual_smart_thermostat
+#     name: "Bathroom Floor Heat"
+#     heater: switch.floor_heater
+#     target_sensor: sensor.bathroom_temperature
+#     floor_sensor: sensor.floor_temperature     # Floor temp sensor
+#     max_floor_temp: 28                         # Max floor temp (°C)
+#     min_floor_temp: 20                         # Min floor temp (°C)
+#     initial_hvac_mode: "heat"

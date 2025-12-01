@@ -1,0 +1,119 @@
+# Heat Pump Configuration (Single Switch)
+#
+# For heat pumps that use ONE switch for both heating and cooling.
+# The system determines heating vs cooling based on a state sensor.
+#
+# Perfect for: Mini-splits, VRF systems, modern heat pumps with single control
+#
+# Documentation: https://github.com/swingerman/ha-dual-smart-thermostat#heat-pump-one-switch-heatcool-mode
+
+climate:
+  - platform: dual_smart_thermostat
+    name: "Living Room Heat Pump"
+
+    # Required: Single switch that controls the heat pump
+    heater: switch.heat_pump
+
+    # Required: Temperature sensor for the room
+    target_sensor: sensor.living_room_temperature
+
+    # Required: Sensor indicating current mode (on = cooling, off = heating)
+    # This can be:
+    #   - A boolean input_boolean for manual control
+    #   - A sensor from the heat pump itself
+    #   - A binary_sensor that detects the current mode
+    heat_pump_cooling: input_boolean.heat_pump_cooling_mode
+
+    # Recommended: Start in heat mode (or cool, depending on season)
+    initial_hvac_mode: "heat"
+
+    # Optional: Tolerances
+    cold_tolerance: 0.5  # For heating
+    hot_tolerance: 0.5   # For cooling
+
+    # Optional: Minimum cycle duration
+    min_cycle_duration:
+      minutes: 5
+
+# ========================================
+# Example 2: Heat Pump with Heat/Cool Mode
+# Allows switching between heat, cool, and heat_cool modes
+# ========================================
+
+climate:
+  - platform: dual_smart_thermostat
+    name: "Bedroom Heat Pump"
+    heater: switch.bedroom_heat_pump
+    target_sensor: sensor.bedroom_temperature
+    heat_pump_cooling: input_boolean.bedroom_hp_cooling
+
+    # Enable heat_cool mode (maintain temperature range)
+    heat_cool_mode: true
+    initial_hvac_mode: "heat_cool"
+
+    cold_tolerance: 0.5
+    hot_tolerance: 0.5
+
+# ========================================
+# How to Set Up heat_pump_cooling Input Boolean
+# ========================================
+# Add this to your configuration.yaml:
+#
+# input_boolean:
+#   heat_pump_cooling_mode:
+#     name: "Heat Pump Cooling Mode"
+#     icon: mdi:heat-pump
+#
+# Then create automations to set it:
+#
+# automation:
+#   # Set to cooling mode when heat pump reports cooling
+#   - alias: "Heat Pump Mode - Cooling"
+#     trigger:
+#       - platform: state
+#         entity_id: sensor.heat_pump_mode
+#         to: "cool"
+#     action:
+#       - service: input_boolean.turn_on
+#         target:
+#           entity_id: input_boolean.heat_pump_cooling_mode
+#
+#   # Set to heating mode when heat pump reports heating
+#   - alias: "Heat Pump Mode - Heating"
+#     trigger:
+#       - platform: state
+#         entity_id: sensor.heat_pump_mode
+#         to: "heat"
+#     action:
+#       - service: input_boolean.turn_off
+#         target:
+#           entity_id: input_boolean.heat_pump_cooling_mode
+
+# ========================================
+# Example 3: Heat Pump with Additional Features
+# ========================================
+
+# climate:
+#   - platform: dual_smart_thermostat
+#     name: "Main Heat Pump"
+#     heater: switch.main_heat_pump
+#     target_sensor: sensor.main_temperature
+#     heat_pump_cooling: input_boolean.main_hp_cooling
+#     heat_cool_mode: true
+#
+#     # Opening detection (windows/doors)
+#     openings:
+#       - binary_sensor.living_room_window
+#       - binary_sensor.front_door
+#
+#     # Presets for different scenarios
+#     away_temp: 16          # Temperature when away
+#     away_temp_high: 28
+#     eco_temp: 18           # Eco mode temperature
+#     eco_temp_high: 26
+#     comfort_temp: 20       # Comfort mode
+#     comfort_temp_high: 24
+#     home_temp: 21          # Home mode
+#     home_temp_high: 23
+#
+#     initial_hvac_mode: "heat_cool"
