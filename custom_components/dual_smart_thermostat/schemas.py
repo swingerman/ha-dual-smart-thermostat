@@ -76,6 +76,57 @@ from .schema_utils import (
 _LOGGER = logging.getLogger(__name__)
 
 
+def validate_template_or_number(value: Any) -> Any:
+    """Validate that value is either a valid number or a valid template string.
+
+    This validator allows preset temperature fields to accept both:
+    - Static numeric values (e.g., 20, 20.5) for backward compatibility
+    - Template strings (e.g., "{{ states('input_number.away_temp') }}")
+
+    Args:
+        value: The input value to validate
+
+    Returns:
+        The validated value (unchanged)
+
+    Raises:
+        vol.Invalid: If value is neither a valid number nor a valid template
+    """
+    from homeassistant.helpers.template import Template
+
+    # Allow None (optional fields)
+    if value is None:
+        return value
+
+    # Check if it's a valid number (int or float)
+    if isinstance(value, (int, float)):
+        return value
+
+    # Try to parse as float string (e.g., "20", "20.5")
+    if isinstance(value, str):
+        # First try numeric conversion
+        try:
+            float_val = float(value)
+            return float_val
+        except ValueError:
+            pass  # Not a number, might be a template
+
+        # Not a number, validate as template
+        try:
+            # Create Template object to validate syntax
+            Template(value)
+            return value  # Return original string for template
+        except Exception as e:
+            raise vol.Invalid(
+                f"Value must be a number or valid template. "
+                f"Template syntax error: {str(e)}"
+            ) from e
+
+    raise vol.Invalid(
+        f"Value must be a number or template string, got {type(value).__name__}"
+    )
+
+
 def get_system_type_schema(default: str | None = None):
     """Get system type selection schema.
 
@@ -466,20 +517,12 @@ def get_grouped_schema(
 
 def get_heating_schema():
     """Get heating-specific configuration schema."""
-    return vol.Schema(
-        {
-            vol.Required(CONF_HEATER): get_entity_selector(SWITCH_DOMAIN),
-        }
-    )
+    return vol.Schema({vol.Required(CONF_HEATER): get_entity_selector(SWITCH_DOMAIN)})
 
 
 def get_cooling_schema():
     """Get cooling-specific configuration schema."""
-    return vol.Schema(
-        {
-            vol.Required(CONF_COOLER): get_entity_selector(SWITCH_DOMAIN),
-        }
-    )
+    return vol.Schema({vol.Required(CONF_COOLER): get_entity_selector(SWITCH_DOMAIN)})
 
 
 def get_dual_stage_schema():
@@ -522,29 +565,17 @@ def get_floor_heating_schema(defaults: dict[str, Any] | None = None):
 
 def get_openings_toggle_schema():
     """Get openings toggle schema."""
-    return vol.Schema(
-        {
-            vol.Optional("openings", default=False): get_boolean_selector(),
-        }
-    )
+    return vol.Schema({vol.Optional("openings", default=False): get_boolean_selector()})
 
 
 def get_fan_toggle_schema():
     """Get fan toggle schema."""
-    return vol.Schema(
-        {
-            vol.Optional("fan", default=False): get_boolean_selector(),
-        }
-    )
+    return vol.Schema({vol.Optional("fan", default=False): get_boolean_selector()})
 
 
 def get_humidity_toggle_schema():
     """Get humidity toggle schema."""
-    return vol.Schema(
-        {
-            vol.Optional("humidity", default=False): get_boolean_selector(),
-        }
-    )
+    return vol.Schema({vol.Optional("humidity", default=False): get_boolean_selector()})
 
 
 def get_features_schema(
@@ -868,18 +899,14 @@ def get_humidity_schema(defaults: dict[str, Any] | None = None):
 def get_additional_sensors_schema():
     """Get additional sensors configuration schema."""
     return vol.Schema(
-        {
-            vol.Optional(CONF_OUTSIDE_SENSOR): get_entity_selector(SENSOR_DOMAIN),
-        }
+        {vol.Optional(CONF_OUTSIDE_SENSOR): get_entity_selector(SENSOR_DOMAIN)}
     )
 
 
 def get_heat_cool_mode_schema():
     """Get heat/cool mode configuration schema."""
     return vol.Schema(
-        {
-            vol.Optional(CONF_HEAT_COOL_MODE, default=False): get_boolean_selector(),
-        }
+        {vol.Optional(CONF_HEAT_COOL_MODE, default=False): get_boolean_selector()}
     )
 
 
@@ -1053,16 +1080,36 @@ def get_presets_schema(user_input: dict[str, Any]) -> vol.Schema:
         if preset in CONF_PRESETS:
             # When heat_cool_mode is enabled, render dual fields (low/high)
             if heat_cool_enabled:
-                schema_dict[vol.Optional(f"{preset}_temp_low", default=20)] = (
-                    get_temperature_selector(min_value=5, max_value=35)
+                # Use TextSelector to accept both numbers and template strings
+                schema_dict[vol.Optional(f"{preset}_temp_low", default=20)] = vol.All(
+                    selector.TextSelector(
+                        selector.TextSelectorConfig(
+                            multiline=True,
+                            type=selector.TextSelectorType.TEXT,
+                        )
+                    ),
+                    validate_template_or_number,
                 )
-                schema_dict[vol.Optional(f"{preset}_temp_high", default=24)] = (
-                    get_temperature_selector(min_value=5, max_value=35)
+                schema_dict[vol.Optional(f"{preset}_temp_high", default=24)] = vol.All(
+                    selector.TextSelector(
+                        selector.TextSelectorConfig(
+                            multiline=True,
+                            type=selector.TextSelectorType.TEXT,
+                        )
+                    ),
+                    validate_template_or_number,
                 )
             else:
                 # Backwards compatible single-temp field
-                schema_dict[vol.Optional(f"{preset}_temp", default=20)] = (
-                    get_temperature_selector(min_value=5, max_value=35)
+                # Use TextSelector to accept both numbers and template strings
+                schema_dict[vol.Optional(f"{preset}_temp", default=20)] = vol.All(
+                    selector.TextSelector(
+                        selector.TextSelectorConfig(
+                            multiline=True,
+                            type=selector.TextSelectorType.TEXT,
+                        )
+                    ),
+                    validate_template_or_number,
                 )
 
     return vol.Schema(schema_dict)

@@ -16,9 +16,33 @@
 # See here for more info: https://docs.pytest.org/en/latest/fixture.html (note that
 # pytest includes fixtures OOB which you can use as defined on this page)
 
+from homeassistant.core import HomeAssistant
 import pytest
 
 
 @pytest.fixture(autouse=True)
 def auto_enable_custom_integrations(enable_custom_integrations):
     yield
+
+
+@pytest.fixture
+async def setup_template_test_entities(hass: HomeAssistant):
+    """Set up helper entities for template testing."""
+    # Helper entity for simple template tests
+    hass.states.async_set("input_number.away_temp", "18", {"unit_of_measurement": "°C"})
+    hass.states.async_set("input_number.eco_temp", "20", {"unit_of_measurement": "°C"})
+    hass.states.async_set(
+        "input_number.comfort_temp", "22", {"unit_of_measurement": "°C"}
+    )
+
+    # Season sensor for conditional template tests
+    hass.states.async_set("sensor.season", "winter")
+
+    # Outdoor temperature for calculated template tests
+    hass.states.async_set("sensor.outdoor_temp", "20", {"unit_of_measurement": "°C"})
+
+    # Binary sensor for presence-based templates
+    hass.states.async_set("binary_sensor.someone_home", "on")
+
+    await hass.async_block_till_done()
+    return hass

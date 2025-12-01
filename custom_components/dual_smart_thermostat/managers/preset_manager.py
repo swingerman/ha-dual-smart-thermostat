@@ -188,8 +188,9 @@ class PresetManager(StateManager):
                         )
                         self._environment.saved_target_temp = float(old_temperature)
 
-                    preset_target_temp_low = preset.to_dict.get(ATTR_TARGET_TEMP_LOW)
-                    preset_target_temp_high = preset.to_dict.get(ATTR_TARGET_TEMP_HIGH)
+                    # Use template-aware getters for preset temperatures
+                    preset_target_temp_low = preset.get_target_temp_low(self.hass)
+                    preset_target_temp_high = preset.get_target_temp_high(self.hass)
 
                     if preset_target_temp_low is not None:
                         self._environment.target_temp_low = (
@@ -222,15 +223,16 @@ class PresetManager(StateManager):
                 self._environment.target_temp = float(old_temperature)
                 return
 
-            if isinstance(self._presets[old_pres_mode], float):
-                self._environment.target_temp = float(self._presets[old_pres_mode])
-            elif (
-                isinstance(self._presets[old_pres_mode], dict)
-                and ATTR_TEMPERATURE in self._presets[old_pres_mode]
-            ):
-                self._environment.target_temp = float(
-                    self._presets[old_pres_mode][ATTR_TEMPERATURE]
-                )
+            preset = self._presets[old_pres_mode]
+            if isinstance(preset, float):
+                self._environment.target_temp = float(preset)
+            elif isinstance(preset, dict) and ATTR_TEMPERATURE in preset:
+                self._environment.target_temp = float(preset[ATTR_TEMPERATURE])
+            elif hasattr(preset, "get_temperature"):
+                # PresetEnv object - use template-aware getter
+                temp = preset.get_temperature(self.hass)
+                if temp is not None:
+                    self._environment.target_temp = temp
             else:
                 _LOGGER.debug("Restoring previous preset mode temp unhandled")
 
