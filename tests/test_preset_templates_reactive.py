@@ -11,7 +11,9 @@ from homeassistant.const import ATTR_TEMPERATURE
 from homeassistant.core import HomeAssistant
 import pytest
 
-from custom_components.dual_smart_thermostat.climate import DualSmartThermostatClimate
+from custom_components.dual_smart_thermostat.climate import (
+    DualSmartThermostat as DualSmartThermostatClimate,
+)
 from custom_components.dual_smart_thermostat.const import (
     CONF_HEATER,
     CONF_PRESETS,

@@ -1110,20 +1110,29 @@ def get_presets_schema(user_input: dict[str, Any]) -> vol.Schema:
                 # Use TextSelector to accept both numbers and template strings
                 # Note: Validation happens in the flow handler, not in schema
                 # Defaults must be strings to match TextSelector type
-                schema_dict[vol.Optional(f"{preset}_temp_low", default="20")] = (
-                    selector.TextSelector(
-                        selector.TextSelectorConfig(
-                            multiline=False,
-                            type=selector.TextSelectorType.TEXT,
-                        )
+                # Extract existing values from user_input, or use fallback defaults
+                existing_temp_low = user_input.get(f"{preset}_temp_low", "20")
+                existing_temp_high = user_input.get(f"{preset}_temp_high", "24")
+                # Ensure defaults are strings
+                if not isinstance(existing_temp_low, str):
+                    existing_temp_low = str(existing_temp_low)
+                if not isinstance(existing_temp_high, str):
+                    existing_temp_high = str(existing_temp_high)
+
+                schema_dict[
+                    vol.Optional(f"{preset}_temp_low", default=existing_temp_low)
+                ] = selector.TextSelector(
+                    selector.TextSelectorConfig(
+                        multiline=False,
+                        type=selector.TextSelectorType.TEXT,
                     )
                 )
-                schema_dict[vol.Optional(f"{preset}_temp_high", default="24")] = (
-                    selector.TextSelector(
-                        selector.TextSelectorConfig(
-                            multiline=False,
-                            type=selector.TextSelectorType.TEXT,
-                        )
+                schema_dict[
+                    vol.Optional(f"{preset}_temp_high", default=existing_temp_high)
+                ] = selector.TextSelector(
+                    selector.TextSelectorConfig(
+                        multiline=False,
+                        type=selector.TextSelectorType.TEXT,
                     )
                 )
             else:
@@ -1131,7 +1140,13 @@ def get_presets_schema(user_input: dict[str, Any]) -> vol.Schema:
                 # Use TextSelector to accept both numbers and template strings
                 # Note: Validation happens in the flow handler, not in schema
                 # Defaults must be strings to match TextSelector type
-                schema_dict[vol.Optional(f"{preset}_temp", default="20")] = (
+                # Extract existing value from user_input, or use fallback default
+                existing_temp = user_input.get(f"{preset}_temp", "20")
+                # Ensure default is a string
+                if not isinstance(existing_temp, str):
+                    existing_temp = str(existing_temp)
+
+                schema_dict[vol.Optional(f"{preset}_temp", default=existing_temp)] = (
                     selector.TextSelector(
                         selector.TextSelectorConfig(
                             multiline=False,

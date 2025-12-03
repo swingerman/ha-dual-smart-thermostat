@@ -5,7 +5,6 @@ from __future__ import annotations
 from typing import Any
 
 from homeassistant.config_entries import OptionsFlow
-from homeassistant.const import CONF_NAME
 from homeassistant.data_entry_flow import FlowResult
 
 from ..const import CONF_PRESETS
@@ -65,13 +64,22 @@ class PresetsSteps:
 
         # Attempt to include current persisted presets selection so the options
         # form pre-checks any presets that already have configuration.
-        current_config = None
-        try:
-            if hasattr(flow_instance, "_get_entry"):
-                entry = flow_instance._get_entry()
-                current_config = entry.data if entry is not None else None
-        except Exception:
-            current_config = None
+        # For reconfigure flows, collected_config already contains existing data.
+        # For options flows, we need to get it from the entry.
+        current_config = (
+            collected_config  # Start with collected_config (works for reconfigure)
+        )
+
+        # If collected_config doesn't have presets, try getting from entry (options flow)
+        if "presets" not in current_config:
+            try:
+                if hasattr(flow_instance, "_get_entry"):
+                    entry = flow_instance._get_entry()
+                    current_config = (
+                        entry.data if entry is not None else collected_config
+                    )
+            except Exception:
+                current_config = collected_config
 
         # Determine defaults: if current config contains presets (new format)
         # use those; otherwise if presets exist in data map keys, mark them.
@@ -124,10 +132,8 @@ class PresetsSteps:
 
             # For config flow, this is the final step
             if not isinstance(flow_instance, OptionsFlow):
-                return flow_instance.async_create_entry(
-                    title=collected_config[CONF_NAME],
-                    data=collected_config,
-                )
+                # Call _async_finish_flow to properly handle both config and reconfigure flows
+                return await flow_instance._async_finish_flow()
             else:
                 # For options flow, continue (this becomes async_update_entry call)
                 return flow_instance.async_create_entry(title="", data=collected_config)
