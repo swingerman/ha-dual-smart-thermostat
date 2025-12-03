@@ -1109,7 +1109,8 @@ def get_presets_schema(user_input: dict[str, Any]) -> vol.Schema:
             if heat_cool_enabled:
                 # Use TextSelector to accept both numbers and template strings
                 # Note: Validation happens in the flow handler, not in schema
-                schema_dict[vol.Optional(f"{preset}_temp_low", default=20)] = (
+                # Defaults must be strings to match TextSelector type
+                schema_dict[vol.Optional(f"{preset}_temp_low", default="20")] = (
                     selector.TextSelector(
                         selector.TextSelectorConfig(
                             multiline=False,
@@ -1117,7 +1118,7 @@ def get_presets_schema(user_input: dict[str, Any]) -> vol.Schema:
                         )
                     )
                 )
-                schema_dict[vol.Optional(f"{preset}_temp_high", default=24)] = (
+                schema_dict[vol.Optional(f"{preset}_temp_high", default="24")] = (
                     selector.TextSelector(
                         selector.TextSelectorConfig(
                             multiline=False,
@@ -1129,7 +1130,8 @@ def get_presets_schema(user_input: dict[str, Any]) -> vol.Schema:
                 # Backwards compatible single-temp field
                 # Use TextSelector to accept both numbers and template strings
                 # Note: Validation happens in the flow handler, not in schema
-                schema_dict[vol.Optional(f"{preset}_temp", default=20)] = (
+                # Defaults must be strings to match TextSelector type
+                schema_dict[vol.Optional(f"{preset}_temp", default="20")] = (
                     selector.TextSelector(
                         selector.TextSelectorConfig(
                             multiline=False,
