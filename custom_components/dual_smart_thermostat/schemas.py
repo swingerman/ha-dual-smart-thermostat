@@ -75,6 +75,28 @@ from .schema_utils import (
 
 _LOGGER = logging.getLogger(__name__)
 
+# Cache translations at module level to avoid blocking I/O in async context
+_CACHED_TRANSLATIONS = None
+
+
+def _load_translations() -> dict:
+    """Load translations from file (called once at module import)."""
+    global _CACHED_TRANSLATIONS
+    if _CACHED_TRANSLATIONS is not None:
+        return _CACHED_TRANSLATIONS
+
+    try:
+        trans_path = Path(__file__).parent / "translations" / "en.json"
+        if trans_path.exists():
+            with trans_path.open("r", encoding="utf-8") as fh:
+                _CACHED_TRANSLATIONS = json.load(fh)
+                return _CACHED_TRANSLATIONS
+    except Exception as e:
+        _LOGGER.debug(f"Could not load translations: {e}")
+
+    _CACHED_TRANSLATIONS = {}
+    return _CACHED_TRANSLATIONS
+
 
 def validate_template_or_number(value: Any) -> Any:
     """Validate that value is either a valid number or a valid template string.
@@ -979,49 +1001,46 @@ def get_preset_selection_schema(defaults: list[str] | None = None):
     selector (used by the options flow to pre-check presets that have
     configuration data stored in the entry).
     """
-    # Attempt to load translation labels from the integration translations file.
+    # Load translation labels from cached translations
     labels: dict[str, str] = {}
     try:
-        trans_path = Path(__file__).parent / "translations" / "en.json"
-        if trans_path.exists():
-            with trans_path.open("r", encoding="utf-8") as fh:
-                trans = json.load(fh)
+        trans = _load_translations()
 
-            # Support a shared/common section so translations can be reused
-            # between config and options flows to avoid duplication.
-            shared = (
-                trans.get("shared", {})
-                .get("step", {})
-                .get("preset_selection", {})
-                .get("data", {})
-            ) or {}
-            common = (
-                trans.get("common", {})
-                .get("step", {})
-                .get("preset_selection", {})
-                .get("data", {})
-            ) or {}
+        # Support a shared/common section so translations can be reused
+        # between config and options flows to avoid duplication.
+        shared = (
+            trans.get("shared", {})
+            .get("step", {})
+            .get("preset_selection", {})
+            .get("data", {})
+        ) or {}
+        common = (
+            trans.get("common", {})
+            .get("step", {})
+            .get("preset_selection", {})
+            .get("data", {})
+        ) or {}
 
-            config_labels = (
-                trans.get("config", {})
-                .get("step", {})
-                .get("preset_selection", {})
-                .get("data", {})
-            ) or {}
-            options_labels = (
-                trans.get("options", {})
-                .get("step", {})
-                .get("preset_selection", {})
-                .get("data", {})
-            ) or {}
+        config_labels = (
+            trans.get("config", {})
+            .get("step", {})
+            .get("preset_selection", {})
+            .get("data", {})
+        ) or {}
+        options_labels = (
+            trans.get("options", {})
+            .get("step", {})
+            .get("preset_selection", {})
+            .get("data", {})
+        ) or {}
 
-            # Merge with priority: shared/common < config < options
-            merged: dict[str, str] = {}
-            merged.update(shared)
-            merged.update(common)
-            merged.update(config_labels)
-            merged.update(options_labels)
-            labels = merged
+        # Merge with priority: shared/common < config < options
+        merged: dict[str, str] = {}
+        merged.update(shared)
+        merged.update(common)
+        merged.update(config_labels)
+        merged.update(options_labels)
+        labels = merged
     except Exception:
         labels = {}
 
