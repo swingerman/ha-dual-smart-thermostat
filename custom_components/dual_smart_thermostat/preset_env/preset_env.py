@@ -1,4 +1,5 @@
 import logging
+import re
 from typing import Any
 
 from homeassistant.components.climate.const import (
@@ -97,41 +98,46 @@ class PresetEnv(TempEnv, HumidityEnv):
             _LOGGER.debug(f"PresetEnv: {field_name} detected as template: {value}")
 
     def _extract_entities(self, template_str: str) -> None:
-        """Extract entity IDs from template string."""
-        try:
-            # Note: Template requires hass for full functionality, but extract_entities()
-            # can work without it for basic entity extraction
-            from homeassistant.helpers.template import Template as TemplateClass
+        """Extract entity IDs from template string using regex.
 
-            template = TemplateClass(template_str)
-            entities = template.extract_entities()
-            if entities:
-                self._referenced_entities.update(entities)
-                _LOGGER.debug(
-                    f"PresetEnv: Extracted entities from template: {entities}"
-                )
+        Parses template strings for entity_id patterns like:
+        - states('sensor.temperature')
+        - is_state('binary_sensor.motion', 'on')
+        - state_attr('climate.thermostat', 'temperature')
+        """
+        try:
+            # Pattern to match entity IDs in common template functions
+            # Matches: states('entity.id'), is_state('entity.id', ...), state_attr('entity.id', ...)
+            pattern = (
+                r"(?:states|is_state|state_attr)\s*\(\s*['\"]([a-z_]+\.[a-z0-9_]+)['\"]"
+            )
+            matches = re.findall(pattern, template_str, re.IGNORECASE)
+
+            if matches:
+                self._referenced_entities.update(matches)
+                _LOGGER.debug(f"PresetEnv: Extracted entities from template: {matches}")
         except Exception as e:
             _LOGGER.debug(f"PresetEnv: Could not extract entities from template: {e}")
 
-    def get_temperature(self, hass: HomeAssistant) -> float | None:
+    async def get_temperature(self, hass: HomeAssistant) -> float | None:
         """Get temperature, evaluating template if needed."""
         if "temperature" in self._template_fields:
-            return self._evaluate_template(hass, "temperature")
+            return await self._evaluate_template(hass, "temperature")
         return self.temperature
 
-    def get_target_temp_low(self, hass: HomeAssistant) -> float | None:
+    async def get_target_temp_low(self, hass: HomeAssistant) -> float | None:
         """Get target_temp_low, evaluating template if needed."""
         if "target_temp_low" in self._template_fields:
-            return self._evaluate_template(hass, "target_temp_low")
+            return await self._evaluate_template(hass, "target_temp_low")
         return self.target_temp_low
 
-    def get_target_temp_high(self, hass: HomeAssistant) -> float | None:
+    async def get_target_temp_high(self, hass: HomeAssistant) -> float | None:
         """Get target_temp_high, evaluating template if needed."""
         if "target_temp_high" in self._template_fields:
-            return self._evaluate_template(hass, "target_temp_high")
+            return await self._evaluate_template(hass, "target_temp_high")
         return self.target_temp_high
 
-    def _evaluate_template(self, hass: HomeAssistant, field_name: str) -> float:
+    async def _evaluate_template(self, hass: HomeAssistant, field_name: str) -> float:
         """Safely evaluate template with fallback to previous value."""
         template_str = self._template_fields.get(field_name)
         if not template_str:
@@ -140,6 +146,7 @@ class PresetEnv(TempEnv, HumidityEnv):
 
         try:
             template = Template(template_str, hass)
+            # Note: async_render is actually synchronous despite the name
             result = template.async_render()
             temp = float(result)
 

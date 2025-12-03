@@ -150,7 +150,7 @@ class PresetManager(StateManager):
         self._preset_mode = preset_mode
         self._preset_env = self.presets[preset_mode]
 
-    def apply_old_state(self, old_state: State):
+    async def apply_old_state(self, old_state: State):
         if old_state is None:
             return
 
@@ -189,8 +189,10 @@ class PresetManager(StateManager):
                         self._environment.saved_target_temp = float(old_temperature)
 
                     # Use template-aware getters for preset temperatures
-                    preset_target_temp_low = preset.get_target_temp_low(self.hass)
-                    preset_target_temp_high = preset.get_target_temp_high(self.hass)
+                    preset_target_temp_low = await preset.get_target_temp_low(self.hass)
+                    preset_target_temp_high = await preset.get_target_temp_high(
+                        self.hass
+                    )
 
                     if preset_target_temp_low is not None:
                         self._environment.target_temp_low = (
@@ -230,7 +232,7 @@ class PresetManager(StateManager):
                 self._environment.target_temp = float(preset[ATTR_TEMPERATURE])
             elif hasattr(preset, "get_temperature"):
                 # PresetEnv object - use template-aware getter
-                temp = preset.get_temperature(self.hass)
+                temp = await preset.get_temperature(self.hass)
                 if temp is not None:
                     self._environment.target_temp = temp
             else:

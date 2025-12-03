@@ -21,7 +21,7 @@ class TestPresetManagerTemplateIntegration:
     ):
         """Test T027: Verify PresetManager uses getters."""
         # Arrange: Setup entities and create preset with template
-        await setup_template_test_entities
+        setup_template_test_entities
         template_str = "{{ states('input_number.away_temp') }}"
         preset_env = PresetEnv(**{ATTR_TEMPERATURE: template_str})
 
@@ -44,7 +44,7 @@ class TestPresetManagerTemplateIntegration:
         }
 
         # Act: Apply old state (which should use getter)
-        preset_manager.apply_old_state(old_state)
+        await preset_manager.apply_old_state(old_state)
 
         # Assert: Environment target temp set from template evaluation
         assert environment.target_temp == 18.0  # Value from template
@@ -55,7 +55,7 @@ class TestPresetManagerTemplateIntegration:
     ):
         """Test T028: Verify environment.target_temp updated with template result."""
         # Arrange: Setup entities
-        await setup_template_test_entities
+        setup_template_test_entities
 
         # Change entity value to verify template evaluation
         hass.states.async_set(
@@ -84,7 +84,7 @@ class TestPresetManagerTemplateIntegration:
         }
 
         # Act: Apply old state
-        preset_manager.apply_old_state(old_state)
+        await preset_manager.apply_old_state(old_state)
 
         # Assert: Target temp is the evaluated template value (22, not the original entity value 20)
         assert environment.target_temp == 22.0
@@ -95,7 +95,7 @@ class TestPresetManagerTemplateIntegration:
     ):
         """Test PresetManager handles range mode templates."""
         # Arrange: Setup entities
-        await setup_template_test_entities
+        setup_template_test_entities
 
         preset_env = PresetEnv(
             **{
@@ -125,7 +125,7 @@ class TestPresetManagerTemplateIntegration:
         }
 
         # Act: Apply old state
-        preset_manager.apply_old_state(old_state)
+        await preset_manager.apply_old_state(old_state)
 
         # Assert: Both temps set from templates (outdoor_temp = 20 in fixture)
         assert environment.target_temp_low == 18.0  # 20 - 2

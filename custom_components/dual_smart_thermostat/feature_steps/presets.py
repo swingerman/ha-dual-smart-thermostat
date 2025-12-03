@@ -89,6 +89,36 @@ class PresetsSteps:
     ) -> FlowResult:
         """Handle presets configuration."""
         if user_input is not None:
+            # Validate template or number values for all preset temperature fields
+            import voluptuous as vol
+
+            from ..schemas import validate_template_or_number
+
+            errors = {}
+            for key, value in user_input.items():
+                # Check if this is a preset temperature field
+                if (
+                    key.endswith(("_temp", "_temp_low", "_temp_high"))
+                    and value is not None
+                ):
+                    try:
+                        # Validate the value
+                        validated_value = validate_template_or_number(value)
+                        user_input[key] = validated_value
+                    except vol.Invalid as e:
+                        errors[key] = str(e)
+
+            # If there are validation errors, show the form again with errors
+            if errors:
+                schema_context = build_schema_context_from_flow(
+                    flow_instance, collected_config
+                )
+                return flow_instance.async_show_form(
+                    step_id="presets",
+                    data_schema=get_presets_schema(schema_context),
+                    errors={"base": "invalid_template"},
+                )
+
             collected_config.update(user_input)
 
             # For config flow, this is the final step

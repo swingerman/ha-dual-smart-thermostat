@@ -594,8 +594,8 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
         # Get new temperature values from templates
         if self.features.is_range_mode:
-            new_temp_low = preset_env.get_target_temp_low(self.hass)
-            new_temp_high = preset_env.get_target_temp_high(self.hass)
+            new_temp_low = await preset_env.get_target_temp_low(self.hass)
+            new_temp_high = await preset_env.get_target_temp_high(self.hass)
 
             if new_temp_low is not None:
                 self.environment.target_temp_low = new_temp_low
@@ -615,7 +615,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                     new_temp_high,
                 )
         else:
-            new_temp = preset_env.get_temperature(self.hass)
+            new_temp = await preset_env.get_temperature(self.hass)
             if new_temp is not None:
                 self.environment.target_temp = new_temp
                 self._target_temp = new_temp
@@ -800,7 +800,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             self._set_support_flags()
 
             # restore previous preset mode if available
-            self.presets.apply_old_state(old_state)
+            await self.presets.apply_old_state(old_state)
             self._attr_preset_mode = self.presets.preset_mode
 
             _LOGGER.debug("restoring hvac_mode: %s", hvac_mode)

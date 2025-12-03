@@ -98,8 +98,8 @@ def validate_template_or_number(value: Any) -> Any:
     if value is None:
         return value
 
-    # Check if it's a valid number (int or float)
-    if isinstance(value, (int, float)):
+    # Check if it's a valid number (int or float), but not bool
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
         return value
 
     # Try to parse as float string (e.g., "20", "20.5")
@@ -114,7 +114,10 @@ def validate_template_or_number(value: Any) -> Any:
         # Not a number, validate as template
         try:
             # Create Template object to validate syntax
-            Template(value)
+            # Note: Pass None for hass during validation (not available in schema context)
+            template = Template(value, hass=None)
+            # Call ensure_valid() to check syntax
+            template.ensure_valid()
             return value  # Return original string for template
         except Exception as e:
             raise vol.Invalid(
@@ -1081,35 +1084,34 @@ def get_presets_schema(user_input: dict[str, Any]) -> vol.Schema:
             # When heat_cool_mode is enabled, render dual fields (low/high)
             if heat_cool_enabled:
                 # Use TextSelector to accept both numbers and template strings
-                schema_dict[vol.Optional(f"{preset}_temp_low", default=20)] = vol.All(
+                # Note: Validation happens in the flow handler, not in schema
+                schema_dict[vol.Optional(f"{preset}_temp_low", default=20)] = (
                     selector.TextSelector(
                         selector.TextSelectorConfig(
-                            multiline=True,
+                            multiline=False,
                             type=selector.TextSelectorType.TEXT,
                         )
-                    ),
-                    validate_template_or_number,
+                    )
                 )
-                schema_dict[vol.Optional(f"{preset}_temp_high", default=24)] = vol.All(
+                schema_dict[vol.Optional(f"{preset}_temp_high", default=24)] = (
                     selector.TextSelector(
                         selector.TextSelectorConfig(
-                            multiline=True,
+                            multiline=False,
                             type=selector.TextSelectorType.TEXT,
                         )
-                    ),
-                    validate_template_or_number,
+                    )
                 )
             else:
                 # Backwards compatible single-temp field
                 # Use TextSelector to accept both numbers and template strings
-                schema_dict[vol.Optional(f"{preset}_temp", default=20)] = vol.All(
+                # Note: Validation happens in the flow handler, not in schema
+                schema_dict[vol.Optional(f"{preset}_temp", default=20)] = (
                     selector.TextSelector(
                         selector.TextSelectorConfig(
-                            multiline=True,
+                            multiline=False,
                             type=selector.TextSelectorType.TEXT,
                         )
-                    ),
-                    validate_template_or_number,
+                    )
                 )
 
     return vol.Schema(schema_dict)
