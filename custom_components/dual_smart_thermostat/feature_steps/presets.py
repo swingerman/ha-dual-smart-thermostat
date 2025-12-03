@@ -95,16 +95,17 @@ class PresetsSteps:
             from ..schemas import validate_template_or_number
 
             errors = {}
-            for key, value in user_input.items():
+            for key, value in list(user_input.items()):
                 # Check if this is a preset temperature field
-                if (
-                    key.endswith(("_temp", "_temp_low", "_temp_high"))
-                    and value is not None
-                ):
+                if key.endswith(("_temp", "_temp_low", "_temp_high")):
                     try:
-                        # Validate the value
+                        # Validate the value (handles None, empty strings, numbers, templates)
                         validated_value = validate_template_or_number(value)
-                        user_input[key] = validated_value
+                        if validated_value is None:
+                            # Remove empty/None values from config
+                            user_input.pop(key, None)
+                        else:
+                            user_input[key] = validated_value
                     except vol.Invalid as e:
                         errors[key] = str(e)
 

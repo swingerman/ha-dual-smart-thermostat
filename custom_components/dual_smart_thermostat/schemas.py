@@ -94,9 +94,9 @@ def validate_template_or_number(value: Any) -> Any:
     """
     from homeassistant.helpers.template import Template
 
-    # Allow None (optional fields)
-    if value is None:
-        return value
+    # Allow None or empty string (optional fields)
+    if value is None or value == "":
+        return None
 
     # Check if it's a valid number (int or float), but not bool
     if isinstance(value, (int, float)) and not isinstance(value, bool):
@@ -104,6 +104,11 @@ def validate_template_or_number(value: Any) -> Any:
 
     # Try to parse as float string (e.g., "20", "20.5")
     if isinstance(value, str):
+        # Skip whitespace-only strings
+        value = value.strip()
+        if not value:
+            return None
+
         # First try numeric conversion
         try:
             float_val = float(value)
