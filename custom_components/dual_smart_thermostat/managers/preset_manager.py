@@ -151,98 +151,138 @@ class PresetManager(StateManager):
         self._preset_env = self.presets[preset_mode]
 
     async def apply_old_state(self, old_state: State):
+        """Restore state from previous session."""
         if old_state is None:
             return
 
-        _LOGGER.debug("Presets applying old state")
-        _LOGGER.debug("Old state: %s", old_state)
-        _LOGGER.debug("target temp: %s", self._environment.target_temp)
+        _LOGGER.debug("Presets applying old state: %s", old_state)
+        _LOGGER.debug("Current target temp: %s", self._environment.target_temp)
 
-        old_pres_mode = old_state.attributes.get(ATTR_PRESET_MODE)
+        old_preset_mode = old_state.attributes.get(ATTR_PRESET_MODE)
         old_temperature = old_state.attributes.get(ATTR_TEMPERATURE)
         old_target_temp_low = old_state.attributes.get(ATTR_TARGET_TEMP_LOW)
         old_target_temp_high = old_state.attributes.get(ATTR_TARGET_TEMP_HIGH)
 
         if self._features.is_range_mode:
-            _LOGGER.debug("Apply preset range mode - old state: %s", old_pres_mode)
-            if self._preset_modes and old_pres_mode in self._presets:
-                _LOGGER.debug("Restoring previous preset mode range: %s", old_pres_mode)
-                self._preset_mode = old_pres_mode
-
-                # need to save the previous target temps
-                # before we apply a preset
-                self._environment.saved_target_temp_low = (
-                    self._environment.target_temp_low
-                )
-                self._environment.saved_target_temp_high = (
-                    self._environment.target_temp_high
-                )
-
-                preset = self._presets[old_pres_mode]
-                if preset:
-
-                    if old_temperature is not None:
-                        _LOGGER.debug(
-                            "saved target temperature: %s",
-                            self._environment.target_temp,
-                        )
-                        self._environment.saved_target_temp = float(old_temperature)
-
-                    # Use template-aware getters for preset temperatures
-                    preset_target_temp_low = await preset.get_target_temp_low(self.hass)
-                    preset_target_temp_high = await preset.get_target_temp_high(
-                        self.hass
-                    )
-
-                    if preset_target_temp_low is not None:
-                        self._environment.target_temp_low = (
-                            float(old_target_temp_low)
-                            if old_target_temp_low
-                            else float(preset_target_temp_low)
-                        )
-
-                    if preset_target_temp_high is not None:
-                        self._environment.target_temp_high = (
-                            float(old_target_temp_high)
-                            if old_target_temp_high
-                            else float(preset_target_temp_high)
-                        )
-
-            else:
-                _LOGGER.debug(
-                    "Restoring previous preset mode range no match: %s", old_pres_mode
-                )
-        elif self._preset_modes and old_pres_mode in self._presets:
-            _LOGGER.debug("Restoring previous preset mode target: %s", old_pres_mode)
-            _LOGGER.debug("Target temp: %s", self._environment.target_temp)
-            _LOGGER.debug("Target temp form preset: %s", self._presets[old_pres_mode])
-            _LOGGER.debug("Old temperature: %s", old_temperature)
-
-            self._preset_mode = old_pres_mode
-            self._environment.saved_target_temp = self._environment.target_temp
-
-            if old_temperature is not None:
-                self._environment.target_temp = float(old_temperature)
-                return
-
-            preset = self._presets[old_pres_mode]
-            if isinstance(preset, float):
-                self._environment.target_temp = float(preset)
-            elif isinstance(preset, dict) and ATTR_TEMPERATURE in preset:
-                self._environment.target_temp = float(preset[ATTR_TEMPERATURE])
-            elif hasattr(preset, "get_temperature"):
-                # PresetEnv object - use template-aware getter
-                temp = await preset.get_temperature(self.hass)
-                if temp is not None:
-                    self._environment.target_temp = temp
-            else:
-                _LOGGER.debug("Restoring previous preset mode temp unhandled")
-
+            await self._apply_range_mode_state(
+                old_preset_mode,
+                old_temperature,
+                old_target_temp_low,
+                old_target_temp_high,
+            )
         else:
-            _LOGGER.debug("Restoring previous preset mode no match")
-            if old_temperature is not None and old_pres_mode is None:
-                _LOGGER.debug("Restoring previous target temp: %s", old_temperature)
-                self._environment.target_temp = float(old_temperature)
+            await self._apply_single_temp_mode_state(old_preset_mode, old_temperature)
+
+    async def _apply_range_mode_state(
+        self,
+        old_preset_mode: str | None,
+        old_temperature: float | None,
+        old_target_temp_low: float | None,
+        old_target_temp_high: float | None,
+    ):
+        """Restore range mode (heat/cool) state."""
+        _LOGGER.debug("Apply preset range mode - old state: %s", old_preset_mode)
+
+        if not self._preset_modes or old_preset_mode not in self._presets:
+            _LOGGER.debug("No matching preset for range mode: %s", old_preset_mode)
+            return
+
+        _LOGGER.debug("Restoring previous preset mode range: %s", old_preset_mode)
+        self._preset_mode = old_preset_mode
+
+        # Save current target temps before applying preset
+        self._environment.saved_target_temp_low = self._environment.target_temp_low
+        self._environment.saved_target_temp_high = self._environment.target_temp_high
+
+        if old_temperature is not None:
+            _LOGGER.debug("Saved target temperature: %s", self._environment.target_temp)
+            self._environment.saved_target_temp = float(old_temperature)
+
+        # Apply preset temperatures
+        preset = self._presets[old_preset_mode]
+        await self._restore_range_temps_from_preset(
+            preset, old_target_temp_low, old_target_temp_high
+        )
+
+    async def _apply_single_temp_mode_state(
+        self, old_preset_mode: str | None, old_temperature: float | None
+    ):
+        """Restore single temperature mode state."""
+        if not self._preset_modes or old_preset_mode not in self._presets:
+            self._restore_temperature_fallback(old_temperature, old_preset_mode)
+            return
+
+        _LOGGER.debug("Restoring previous preset mode target: %s", old_preset_mode)
+        _LOGGER.debug("Target temp: %s", self._environment.target_temp)
+        _LOGGER.debug("Preset config: %s", self._presets[old_preset_mode])
+        _LOGGER.debug("Old temperature: %s", old_temperature)
+
+        self._preset_mode = old_preset_mode
+        self._environment.saved_target_temp = self._environment.target_temp
+
+        # Prefer old temperature if available (actual state)
+        if old_temperature is not None:
+            self._environment.target_temp = float(old_temperature)
+            return
+
+        # Otherwise restore from preset configuration
+        await self._restore_temp_from_preset(self._presets[old_preset_mode])
+
+    async def _restore_range_temps_from_preset(
+        self,
+        preset: PresetEnv,
+        old_target_temp_low: float | None,
+        old_target_temp_high: float | None,
+    ):
+        """Restore range temperatures from preset, preferring old state values."""
+        # Use template-aware getters for preset temperatures
+        preset_temp_low = preset.get_target_temp_low(self.hass)
+        preset_temp_high = preset.get_target_temp_high(self.hass)
+
+        # Prefer old state values, fall back to preset values
+        if preset_temp_low is not None:
+            self._environment.target_temp_low = (
+                float(old_target_temp_low)
+                if old_target_temp_low
+                else float(preset_temp_low)
+            )
+
+        if preset_temp_high is not None:
+            self._environment.target_temp_high = (
+                float(old_target_temp_high)
+                if old_target_temp_high
+                else float(preset_temp_high)
+            )
+
+    async def _restore_temp_from_preset(self, preset):
+        """Restore temperature from preset configuration (supports multiple formats)."""
+        # Handle legacy float format
+        if isinstance(preset, float):
+            self._environment.target_temp = float(preset)
+            return
+
+        # Handle legacy dict format
+        if isinstance(preset, dict) and ATTR_TEMPERATURE in preset:
+            self._environment.target_temp = float(preset[ATTR_TEMPERATURE])
+            return
+
+        # Handle PresetEnv object with template support
+        if hasattr(preset, "get_temperature"):
+            temp = preset.get_temperature(self.hass)
+            if temp is not None:
+                self._environment.target_temp = temp
+            return
+
+        _LOGGER.debug("Unhandled preset format: %s", type(preset))
+
+    def _restore_temperature_fallback(
+        self, old_temperature: float | None, old_preset_mode: str | None
+    ):
+        """Restore temperature when no preset match found."""
+        _LOGGER.debug("No matching preset found")
+        if old_temperature is not None and old_preset_mode is None:
+            _LOGGER.debug("Restoring previous target temp: %s", old_temperature)
+            self._environment.target_temp = float(old_temperature)
 
     def find_matching_preset(self) -> str | None:
         """Find a preset that matches the current environment settings.

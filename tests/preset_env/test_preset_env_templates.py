@@ -21,7 +21,7 @@ class TestStaticValueBackwardCompatibility:
         preset_env = PresetEnv(**{ATTR_TEMPERATURE: 20})
 
         # Act: Get temperature using new getter
-        temp = await preset_env.get_temperature(hass)
+        temp = preset_env.get_temperature(hass)
 
         # Assert: Value returned as float, exactly matching input
         assert temp == 20.0
@@ -50,7 +50,7 @@ class TestStaticValueBackwardCompatibility:
         preset_env = PresetEnv(**{ATTR_TEMPERATURE: 22.0})
 
         # Act: Call getter with hass (required signature)
-        temp = await preset_env.get_temperature(hass)
+        temp = preset_env.get_temperature(hass)
 
         # Assert: Returns correct value, no errors with hass parameter
         assert temp == 22.0
@@ -64,8 +64,8 @@ class TestStaticValueBackwardCompatibility:
         )
 
         # Act: Get temperatures
-        temp_low = await preset_env.get_target_temp_low(hass)
-        temp_high = await preset_env.get_target_temp_high(hass)
+        temp_low = preset_env.get_target_temp_low(hass)
+        temp_high = preset_env.get_target_temp_high(hass)
 
         # Assert: Both return correct static values
         assert temp_low == 18.0
@@ -78,7 +78,7 @@ class TestStaticValueBackwardCompatibility:
         preset_env = PresetEnv(**{ATTR_TEMPERATURE: 20})  # Integer, not float
 
         # Act: Get temperature
-        temp = await preset_env.get_temperature(hass)
+        temp = preset_env.get_temperature(hass)
 
         # Assert: Returns as float
         assert temp == 20.0
@@ -125,7 +125,7 @@ class TestTemplateDetectionAndEvaluation:
         preset_env = PresetEnv(**{ATTR_TEMPERATURE: template_str})
 
         # Act: Get temperature (triggers template evaluation)
-        temp = await preset_env.get_temperature(hass)
+        temp = preset_env.get_temperature(hass)
 
         # Assert: Template evaluated to float value from entity
         assert temp == 18.0  # input_number.away_temp set to 18 in fixture
@@ -142,7 +142,7 @@ class TestTemplateDetectionAndEvaluation:
         preset_env = PresetEnv(**{ATTR_TEMPERATURE: template_str})
 
         # Act: Get temperature (establishes last_good_value)
-        first_temp = await preset_env.get_temperature(hass)
+        first_temp = preset_env.get_temperature(hass)
         assert first_temp == 18.0
 
         # Make entity unavailable
@@ -150,7 +150,7 @@ class TestTemplateDetectionAndEvaluation:
         await hass.async_block_till_done()
 
         # Get temperature again (should fall back)
-        second_temp = await preset_env.get_temperature(hass)
+        second_temp = preset_env.get_temperature(hass)
 
         # Assert: Fallback to last good value
         assert second_temp == 18.0  # Same as previous successful evaluation
@@ -165,7 +165,7 @@ class TestTemplateDetectionAndEvaluation:
         preset_env = PresetEnv(**{ATTR_TEMPERATURE: template_str})
 
         # Act: Get temperature (no previous value, entity doesn't exist)
-        temp = await preset_env.get_temperature(hass)
+        temp = preset_env.get_temperature(hass)
 
         # Assert: Falls back to 20.0 default
         assert temp == 20.0
@@ -181,7 +181,7 @@ class TestTemplateDetectionAndEvaluation:
         preset_env = PresetEnv(**{ATTR_TEMPERATURE: template_str})
 
         # Act: Get temperature
-        temp = await preset_env.get_temperature(hass)
+        temp = preset_env.get_temperature(hass)
 
         # Assert: Template evaluated correctly with filter
         assert temp == 20.0  # input_number.eco_temp set to 20 in fixture
@@ -201,8 +201,8 @@ class TestTemplateDetectionAndEvaluation:
         )
 
         # Act: Get temperatures
-        temp_low = await preset_env.get_target_temp_low(hass)
-        temp_high = await preset_env.get_target_temp_high(hass)
+        temp_low = preset_env.get_target_temp_low(hass)
+        temp_high = preset_env.get_target_temp_high(hass)
 
         # Assert: Both templates evaluated (outdoor_temp = 20 in fixture)
         assert temp_low == 18.0  # 20 - 2
@@ -223,7 +223,7 @@ class TestComplexConditionalTemplates:
         preset_env = PresetEnv(**{ATTR_TEMPERATURE: template_str})
 
         # Act: Get temperature with season='winter'
-        temp_winter = await preset_env.get_temperature(hass)
+        temp_winter = preset_env.get_temperature(hass)
 
         # Assert: Winter condition evaluates to 16
         assert temp_winter == 16.0
@@ -233,7 +233,7 @@ class TestComplexConditionalTemplates:
         await hass.async_block_till_done()
 
         # Act: Get temperature with season='summer'
-        temp_summer = await preset_env.get_temperature(hass)
+        temp_summer = preset_env.get_temperature(hass)
 
         # Assert: Summer condition evaluates to 26
         assert temp_summer == 26.0
@@ -270,7 +270,7 @@ class TestComplexConditionalTemplates:
         preset_env = PresetEnv(**{ATTR_TEMPERATURE: template_str})
 
         # Act: Get temperature with someone_home='on' (fixture default)
-        temp_home = await preset_env.get_temperature(hass)
+        temp_home = preset_env.get_temperature(hass)
 
         # Assert: Home condition takes precedence (22°C)
         assert temp_home == 22.0
@@ -280,7 +280,7 @@ class TestComplexConditionalTemplates:
         await hass.async_block_till_done()
 
         # Act: Get temperature when away in winter
-        temp_away_winter = await preset_env.get_temperature(hass)
+        temp_away_winter = preset_env.get_temperature(hass)
 
         # Assert: Falls through to winter condition (16°C)
         assert temp_away_winter == 16.0
@@ -290,7 +290,7 @@ class TestComplexConditionalTemplates:
         await hass.async_block_till_done()
 
         # Act: Get temperature when away in summer
-        temp_away_summer = await preset_env.get_temperature(hass)
+        temp_away_summer = preset_env.get_temperature(hass)
 
         # Assert: Falls through to summer condition (26°C)
         assert temp_away_summer == 26.0
@@ -314,8 +314,8 @@ class TestRangeModeWithTemplates:
         )
 
         # Act: Get temperatures
-        temp_low = await preset_env.get_target_temp_low(hass)
-        temp_high = await preset_env.get_target_temp_high(hass)
+        temp_low = preset_env.get_target_temp_low(hass)
+        temp_high = preset_env.get_target_temp_high(hass)
 
         # Assert: Static returns fixed value, template evaluates
         assert temp_low == 18.0  # Static
@@ -326,8 +326,8 @@ class TestRangeModeWithTemplates:
         await hass.async_block_till_done()
 
         # Act: Get temperatures again
-        temp_low_after = await preset_env.get_target_temp_low(hass)
-        temp_high_after = await preset_env.get_target_temp_high(hass)
+        temp_low_after = preset_env.get_target_temp_low(hass)
+        temp_high_after = preset_env.get_target_temp_high(hass)
 
         # Assert: Static unchanged, template updated
         assert temp_low_after == 18.0  # Still static

@@ -228,14 +228,14 @@ Home Assistant custom component structure:
 
 **Purpose**: Comprehensive validation across all user stories
 
-- [ ] T086 [P] Add test_e2e_template_persistence_simple_heater() to tests/config_flow/test_e2e_simple_heater_persistence.py - config flow with template → options flow → verify persistence
-- [ ] T087 [P] Add test_e2e_template_persistence_heater_cooler() to tests/config_flow/test_e2e_heater_cooler_persistence.py - range mode template persistence
-- [ ] T088 [P] Add test_seasonal_template_full_flow() to tests/test_preset_templates_reactive.py - end-to-end seasonal preset scenario
-- [ ] T089 [P] Add test_rapid_entity_changes() - verify system stable with multiple quick entity changes
-- [ ] T090 [P] Add test_entity_unavailable_then_available() - entity goes unavailable, then available again with new value
-- [ ] T091 [P] Add test_non_numeric_template_result() - template returns "unknown", verify graceful fallback
-- [ ] T092 [P] Add test_template_timeout() - verify system handles slow template evaluation
-- [ ] T093 Run full test suite - pytest tests/ -v --log-cli-level=DEBUG
+- [ ] T086 [P] Add test_e2e_template_persistence_simple_heater() to tests/config_flow/test_e2e_simple_heater_persistence.py - config flow with template → options flow → verify persistence (deferred - full config flow simulation)
+- [ ] T087 [P] Add test_e2e_template_persistence_heater_cooler() to tests/config_flow/test_e2e_heater_cooler_persistence.py - range mode template persistence (deferred - full config flow simulation)
+- [X] T088 [P] Add test_seasonal_template_full_flow() to tests/test_preset_templates_integration.py - end-to-end seasonal preset scenario
+- [X] T089 [P] Add test_rapid_entity_changes() - verify system stable with multiple quick entity changes
+- [X] T090 [P] Add test_entity_unavailable_then_available() - entity goes unavailable, then available again with new value
+- [X] T091 [P] Add test_non_numeric_template_result() - template returns "unknown", verify graceful fallback
+- [ ] T092 [P] Add test_template_timeout() - verify system handles slow template evaluation (edge case, low priority)
+- [ ] T093 Run full test suite - pytest tests/ -v --log-cli-level=DEBUG (requires full test environment)
 
 ---
 

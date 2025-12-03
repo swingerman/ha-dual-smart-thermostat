@@ -1,0 +1,633 @@
+# Presets with Template-Based Temperatures
+#
+# Templates allow preset temperatures to dynamically adjust based on:
+# - Other entity states (sensors, input_numbers, etc.)
+# - Conditional logic (seasons, time of day, occupancy)
+# - Calculations (outdoor temp ± offset)
+# - Complex multi-condition scenarios
+#
+# Templates use Home Assistant's template syntax with Jinja2.
+# Templates are evaluated when: preset is activated, referenced entities change.
+#
+# Documentation: https://github.com/swingerman/ha-dual-smart-thermostat#template-based-presets
+
+# ========================================
+# Example 1: Seasonal Temperature Adjustment
+# Different temperatures for winter vs summer
+# ========================================
+
+climate:
+  - platform: dual_smart_thermostat
+    name: "Seasonal Smart Thermostat"
+    heater: switch.heater
+    cooler: switch.cooler
+    target_sensor: sensor.room_temperature
+    heat_cool_mode: true
+
+    # ECO preset adapts to season
+    # Winter: Keep at 16°C (energy saving)
+    # Summer: Keep at 26°C (minimal cooling)
+    eco_temp: "{{ 16 if is_state('sensor.season', 'winter') else 26 }}"
+
+    # AWAY preset with more aggressive seasonal savings
+    away_temp: "{{ 14 if is_state('sensor.season', 'winter') else 28 }}"
+
+    initial_hvac_mode: "heat_cool"
+
+# Create the season sensor (add to configuration.yaml):
+#
+# sensor:
+#   - platform: season
+#     type: meteorological
+#
+# Or create a template sensor based on months:
+#
+# template:
+#   - sensor:
+#       - name: "Season"
+#         state: >
+#           {% set month = now().month %}
+#           {% if month in [12, 1, 2] %}
+#             winter
+#           {% elif month in [3, 4, 5] %}
+#             spring
+#           {% elif month in [6, 7, 8] %}
+#             summer
+#           {% else %}
+#             fall
+#           {% endif %}
+
+# ========================================
+# Example 2: Outdoor Temperature-Based Adjustment
+# Automatically adjust indoor target based on outdoor conditions
+# ========================================
+
+climate:
+  - platform: dual_smart_thermostat
+    name: "Weather-Adaptive Thermostat"
+    heater: switch.heater
+    cooler: switch.cooler
+    target_sensor: sensor.indoor_temperature
+    heat_cool_mode: true
+
+    # AWAY preset with temperature offset from outdoor temp
+    # If outdoor is 5°C → indoor target 7°C (outdoor + 2)
+    # If outdoor is 25°C → indoor target 27°C (outdoor + 2)
+    away_temp: "{{ states('sensor.outdoor_temperature') | float + 2 }}"
+
+    # ECO preset maintains comfortable offset
+    # If outdoor is 5°C → indoor target 16°C
+    # If outdoor is 25°C → indoor target 24°C
+    eco_temp: "{{ [16, states('sensor.outdoor_temperature') | float + 11] | min }}"
+    eco_temp_high: "{{ [28, states('sensor.outdoor_temperature') | float - 1] | max }}"
+
+    # HOME preset with moderate outdoor influence
+    home_temp: "{{ states('sensor.outdoor_temperature') | float * 0.3 + 14 }}"
+    home_temp_high: "{{ 30 - (states('sensor.outdoor_temperature') | float * 0.2) }}"
+
+    initial_hvac_mode: "heat_cool"
+
+# Notes:
+# - Templates evaluate every time outdoor_temperature changes
+# - Use | min / | max to clamp values within reasonable range
+# - Adjust multipliers and offsets to your comfort preferences
+# - Test with different outdoor temps before deploying
+
+# ========================================
+# Example 3: Simple Entity Reference
+# Use input_number helpers for UI-adjustable presets
+# ========================================
+
+# First, create input_number helpers (configuration.yaml):
+#
+# input_number:
+#   away_heating_target:
+#     name: "Away Mode Heating Target"
+#     min: 10
+#     max: 25
+#     step: 0.5
+#     unit_of_measurement: "°C"
+#     icon: mdi:home-thermometer-outline
+#
+#   away_cooling_target:
+#     name: "Away Mode Cooling Target"
+#     min: 20
+#     max: 35
+#     step: 0.5
+#     unit_of_measurement: "°C"
+#     icon: mdi:home-thermometer
+#
+#   eco_heating_target:
+#     name: "Eco Mode Heating Target"
+#     min: 15
+#     max: 22
+#     step: 0.5
+#     unit_of_measurement: "°C"
+#
+#   eco_cooling_target:
+#     name: "Eco Mode Cooling Target"
+#     min: 23
+#     max: 30
+#     step: 0.5
+#     unit_of_measurement: "°C"
+
+climate:
+  - platform: dual_smart_thermostat
+    name: "User-Adjustable Thermostat"
+    heater: switch.heater
+    cooler: switch.cooler
+    target_sensor: sensor.temperature
+    heat_cool_mode: true
+
+    # Reference input_numbers directly
+    away_temp: "{{ states('input_number.away_heating_target') | float }}"
+    away_temp_high: "{{ states('input_number.away_cooling_target') | float }}"
+
+    eco_temp: "{{ states('input_number.eco_heating_target') | float }}"
+    eco_temp_high: "{{ states('input_number.eco_cooling_target') | float }}"
+
+    # Static presets for comparison
+    comfort_temp: 21
+    comfort_temp_high: 24
+
+    initial_hvac_mode: "heat_cool"
+
+# Benefits:
+# - Adjust preset temps through UI without restarting HA
+# - Changes take effect immediately when preset is active
+# - Great for testing optimal temperatures
+# - Can expose input_numbers to Lovelace dashboards
+
+# ========================================
+# Example 4: Time-Based Temperature Adjustment
+# Different temperatures for day vs night within same preset
+# ========================================
+
+climate:
+  - platform: dual_smart_thermostat
+    name: "Time-Aware Thermostat"
+    heater: switch.heater
+    target_sensor: sensor.temperature
+
+    # AWAY preset: Minimal heating during day, slightly warmer at night
+    away_temp: "{{ 14 if now().hour >= 6 and now().hour < 22 else 16 }}"
+
+    # ECO preset: Warmer during evening/morning, cooler midday
+    eco_temp: >
+      {% set hour = now().hour %}
+      {% if hour >= 6 and hour < 9 %}
+        20
+      {% elif hour >= 9 and hour < 17 %}
+        18
+      {% elif hour >= 17 and hour < 22 %}
+        21
+      {% else %}
+        19
+      {% endif %}
+
+    # SLEEP preset: Gradually lower temperature overnight
+    # 22:00 → 19°C
+    # 00:00 → 18°C
+    # 02:00 → 17°C
+    # 06:00 → 18°C
+    sleep_temp: >
+      {% set hour = now().hour %}
+      {% if hour >= 22 or hour < 2 %}
+        19
+      {% elif hour >= 2 and hour < 6 %}
+        17
+      {% else %}
+        18
+      {% endif %}
+
+    initial_hvac_mode: "heat"
+
+# Notes:
+# - now() returns current time in HA timezone
+# - now().hour returns 0-23 (24-hour format)
+# - Templates re-evaluate when time changes
+# - Consider using time-based automations for preset switching
+#   instead of/in addition to time-based temperatures
+
+# ========================================
+# Example 5: Range Mode with Template Temperatures
+# Both low and high targets can use templates
+# ========================================
+
+climate:
+  - platform: dual_smart_thermostat
+    name: "Template Range Thermostat"
+    heater: switch.heater
+    cooler: switch.cooler
+    target_sensor: sensor.room_temperature
+    heat_cool_mode: true
+
+    # AWAY preset: Wide temperature range based on outdoor temp
+    # Outdoor 10°C → Range: 12-28°C (outdoor + 2 to 28)
+    # Outdoor 20°C → Range: 22-28°C (outdoor + 2 to 28)
+    away_temp: "{{ states('sensor.outdoor_temp') | float + 2 }}"
+    away_temp_high: 28
+
+    # ECO preset: Dynamic range based on season
+    # Winter: 18-24°C (6°C range)
+    # Summer: 22-28°C (6°C range)
+    eco_temp: "{{ 18 if is_state('sensor.season', 'winter') else 22 }}"
+    eco_temp_high: "{{ 24 if is_state('sensor.season', 'winter') else 28 }}"
+
+    # COMFORT preset: Narrow range adapting to time of day
+    # Day: 20-23°C
+    # Night: 19-22°C
+    comfort_temp: "{{ 20 if now().hour >= 6 and now().hour < 22 else 19 }}"
+    comfort_temp_high: "{{ 23 if now().hour >= 6 and now().hour < 22 else 22 }}"
+
+    # HOME preset: Mix static low, dynamic high
+    home_temp: 20
+    home_temp_high: "{{ states('input_number.home_cooling_target') | float }}"
+
+    initial_hvac_mode: "heat_cool"
+
+# Range Mode Notes:
+# - In heat_cool mode, *_temp becomes target_temp_low
+# - *_temp_high becomes target_temp_high
+# - Both can independently use templates or static values
+# - Ensure low < high (HA validates this)
+# - Templates must return numeric values
+
+# ========================================
+# Example 6: Complex Multi-Condition Template
+# Combining multiple factors: presence, season, time, weather
+# ========================================
+
+climate:
+  - platform: dual_smart_thermostat
+    name: "Smart Adaptive Thermostat"
+    heater: switch.heater
+    cooler: switch.cooler
+    target_sensor: sensor.temperature
+    heat_cool_mode: true
+
+    # ECO preset with complex adaptive logic
+    eco_temp: >
+      {% set outdoor = states('sensor.outdoor_temp') | float(20) %}
+      {% set is_home = is_state('binary_sensor.someone_home', 'on') %}
+      {% set is_winter = is_state('sensor.season', 'winter') %}
+      {% set hour = now().hour %}
+
+      {# Base temperature depends on season #}
+      {% set base = 18 if is_winter else 24 %}
+
+      {# Adjust for presence #}
+      {% if is_home %}
+        {% set base = base + 1 %}
+      {% endif %}
+
+      {# Adjust for extreme outdoor temps #}
+      {% if outdoor < 0 %}
+        {% set base = base + 2 %}
+      {% elif outdoor > 30 %}
+        {% set base = base + 1 %}
+      {% endif %}
+
+      {# Adjust for time of day (comfort hours) #}
+      {% if hour >= 6 and hour < 9 or hour >= 17 and hour < 22 %}
+        {% set base = base + 1 %}
+      {% endif %}
+
+      {{ base }}
+
+    # AWAY preset with presence and weather consideration
+    away_temp: >
+      {% set outdoor = states('sensor.outdoor_temp') | float(20) %}
+      {% set is_sunny = is_state('weather.home', 'sunny') %}
+      {% set is_winter = is_state('sensor.season', 'winter') %}
+
+      {% if is_winter %}
+        {# Winter: Prevent freezing, slightly warmer if sunny #}
+        {{ 14 if not is_sunny else 15 }}
+      {% else %}
+        {# Summer: Minimal cooling, warmer if not sunny #}
+        {{ 29 if not is_sunny else 28 }}
+      {% endif %}
+
+    # COMFORT preset balancing outdoor and indoor targets
+    comfort_temp: >
+      {% set outdoor = states('sensor.outdoor_temp') | float(20) %}
+      {% set indoor = states('sensor.temperature') | float(20) %}
+
+      {# Gradually adjust toward optimal based on current indoor temp #}
+      {% set optimal = 21 %}
+      {% set diff = (optimal - indoor) | abs %}
+
+      {% if diff < 2 %}
+        {{ optimal }}
+      {% else %}
+        {# More aggressive when further from optimal #}
+        {{ optimal + 1 if indoor < optimal else optimal - 1 }}
+      {% endif %}
+
+    initial_hvac_mode: "heat_cool"
+
+# Complex Template Notes:
+# - Use {% set variable = value %} for readability
+# - Break complex logic into multiple steps
+# - Use default values with | float(default) for safety
+# - Add {# comments #} to explain logic
+# - Test thoroughly with different input states
+# - Consider performance with very complex templates
+
+# ========================================
+# Template Syntax Quick Reference
+# ========================================
+#
+# Get entity state:
+#   {{ states('sensor.temperature') }}
+#   {{ states('input_number.target') }}
+#
+# Convert to number:
+#   {{ states('sensor.temp') | float }}
+#   {{ states('sensor.temp') | float(20) }}  # With default
+#   {{ states('sensor.temp') | int }}
+#
+# Check state:
+#   {{ is_state('sensor.season', 'winter') }}
+#   {{ is_state('binary_sensor.home', 'on') }}
+#
+# Conditional (if/else):
+#   {{ 16 if condition else 26 }}
+#   {% if condition %}...{% else %}...{% endif %}
+#
+# Math operations:
+#   {{ value + 2 }}
+#   {{ value - 3 }}
+#   {{ value * 0.5 }}
+#   {{ value / 2 }}
+#
+# Min/Max:
+#   {{ [value1, value2, value3] | min }}
+#   {{ [value1, value2, value3] | max }}
+#
+# Current time:
+#   {{ now().hour }}        # 0-23
+#   {{ now().minute }}      # 0-59
+#   {{ now().day }}         # 1-31
+#   {{ now().month }}       # 1-12
+#   {{ now().weekday() }}   # 0=Monday, 6=Sunday
+#
+# Multiline templates:
+#   Use > or | for readability
+#   Indentation matters in YAML
+
+# ========================================
+# Best Practices for Template-Based Presets
+# ========================================
+#
+# 1. Start Simple:
+#    - Begin with simple entity references
+#    - Test thoroughly before adding complexity
+#    - Gradually add conditional logic
+#
+# 2. Always Use | float Filter:
+#    - Entity states are strings by default
+#    - Always convert to number with | float
+#    - Provide defaults: | float(20)
+#
+# 3. Test Template Evaluation:
+#    - Use Developer Tools → Template
+#    - Test with different entity states
+#    - Verify numeric output
+#    - Check for errors or "unavailable"
+#
+# 4. Handle Unavailable Entities:
+#    - Use | float(default) to provide fallback
+#    - Template continues working if entity unavailable
+#    - Prevents thermostat from failing
+#
+# 5. Consider Performance:
+#    - Templates re-evaluate when referenced entities change
+#    - Avoid templates referencing many entities
+#    - Simple templates are faster
+#
+# 6. Document Your Logic:
+#    - Add comments explaining template logic
+#    - Future you will thank you
+#    - Makes troubleshooting easier
+#
+# 7. Validate Output Range:
+#    - Use | min and | max to clamp values
+#    - Prevent unreasonable temperatures
+#    - Example: {{ value | min(30) | max(10) }}
+#
+# 8. Plan for Edge Cases:
+#    - What if outdoor sensor fails?
+#    - What if season sensor returns unexpected value?
+#    - What if time is midnight (hour = 0)?
+#
+# 9. Combine with Automations:
+#    - Templates for temperature values
+#    - Automations for preset switching
+#    - Best of both approaches
+#
+# 10. Monitor in Production:
+#     - Watch for unexpected temperatures
+#     - Check logs for template errors
+#     - Verify entity state changes trigger updates
+
+# ========================================
+# Common Pitfalls and Solutions
+# ========================================
+#
+# Pitfall: Temperature doesn't update when entity changes
+# Solution: Verify entity_id is correct, check if preset is active
+#
+# Pitfall: Template returns "unknown" or "unavailable"
+# Solution: Use | float(default) to provide fallback value
+#
+# Pitfall: Temperature is way too high/low
+# Solution: Remember to convert state to float with | float
+#           Clamp values with | min(max_val) | max(min_val)
+#
+# Pitfall: Template syntax error on restart
+# Solution: Test template in Developer Tools → Template first
+#           Check for unmatched quotes, brackets, braces
+#
+# Pitfall: Changes to input_number don't take effect
+# Solution: Templates update automatically! No restart needed.
+#           If preset is active, temperature updates immediately.
+#
+# Pitfall: Complex template is hard to debug
+# Solution: Break into smaller steps with {% set %}
+#           Test each part separately in Developer Tools
+#           Add {# comments #} explaining logic
+#
+# Pitfall: Template references non-existent entity
+# Solution: Check entity_id spelling, verify entity exists
+#           Use | float(default) to handle missing entities
+
+# ========================================
+# Debugging Templates
+# ========================================
+#
+# 1. Developer Tools → Template:
+#    - Copy your template
+#    - Paste into template editor
+#    - See live output as you type
+#    - Change entity states to test different scenarios
+#
+# 2. Check Climate Entity Attributes:
+#    - Developer Tools → States
+#    - Find your climate entity
+#    - Check "temperature" or "target_temp_low/high" attributes
+#    - Should show evaluated numeric value, not template string
+#
+# 3. Enable Debug Logging:
+#    Add to configuration.yaml:
+#    logger:
+#      default: info
+#      logs:
+#        custom_components.dual_smart_thermostat: debug
+#
+#    Check logs for template evaluation errors
+#
+# 4. Test with Different States:
+#    - Manually change entity states
+#    - Watch climate temperature update
+#    - Verify timing of updates
+#
+# 5. Verify Entity Changes Trigger Updates:
+#    - Change referenced entity state
+#    - Climate should update within 1-2 seconds
+#    - Check climate attributes in Developer Tools
+
+# ========================================
+# Migration from Static to Template Presets
+# ========================================
+#
+# Current config:
+#   away_temp: 16
+#
+# Step 1 - Convert to input_number reference:
+#   1. Create input_number with value 16
+#   2. Change to: away_temp: "{{ states('input_number.away_temp') | float }}"
+#   3. Test: Adjust input_number, verify climate updates
+#
+# Step 2 - Add conditional logic:
+#   away_temp: "{{ states('input_number.away_temp') | float if is_state('sensor.season', 'winter') else 26 }}"
+#
+# Step 3 - Add more complexity as needed:
+#   away_temp: >
+#     {% set base = states('input_number.away_temp') | float %}
+#     {% if is_state('binary_sensor.freeze_warning', 'on') %}
+#       {{ base + 2 }}
+#     {% else %}
+#       {{ base }}
+#     {% endif %}
+#
+# Benefits of gradual migration:
+# - Test at each step
+# - Roll back easily if issues
+# - Learn template syntax incrementally
+# - Maintain working system throughout
+
+# ========================================
+# Advanced: Combining Templates with Floor Heating
+# ========================================
+
+# climate:
+#   - platform: dual_smart_thermostat
+#     name: "Smart Floor Heat"
+#     heater: switch.floor_heater
+#     target_sensor: sensor.room_temperature
+#     floor_sensor: sensor.floor_temperature
+#
+#     # Global floor limits
+#     max_floor_temp: 28
+#     min_floor_temp: 20
+#
+#     # AWAY preset with template temperature and floor limits
+#     away_temp: "{{ 16 if is_state('sensor.season', 'winter') else 20 }}"
+#     away_max_floor_temp: 25  # Static floor limit for away
+#
+#     # ECO preset with template-based floor limits
+#     eco_temp: "{{ states('input_number.eco_target') | float }}"
+#     eco_max_floor_temp: "{{ states('input_number.eco_floor_max') | float }}"
+#     eco_min_floor_temp: "{{ states('input_number.eco_floor_min') | float }}"
+#
+#     initial_hvac_mode: "heat"
+#
+# Note: Floor limits can also use templates!
+#       Allows dynamic floor protection based on conditions.
+
+# ========================================
+# Integration with Home Assistant Helpers
+# ========================================
+#
+# Recommended helpers for dynamic presets:
+#
+# input_number: For adjustable temperature targets
+# input_select: For seasonal mode selection
+# input_boolean: For feature toggles (guest mode, vacation mode)
+# sensor (template): For calculated temperature targets
+# binary_sensor (template): For conditional logic
+#
+# Example helper-based system:
+#
+# input_boolean:
+#   guest_mode:
+#     name: "Guest Mode"
+#     icon: mdi:account-multiple
+#
+# climate:
+#   - platform: dual_smart_thermostat
+#     name: "Guest-Aware Thermostat"
+#     heater: switch.heater
+#     target_sensor: sensor.temperature
+#
+#     # HOME preset adjusts for guests
+#     home_temp: "{{ 22 if is_state('input_boolean.guest_mode', 'on') else 20 }}"
+#
+#     initial_hvac_mode: "heat"
+
+# ========================================
+# Real-World Usage Examples
+# ========================================
+#
+# Scenario 1: Vacation Mode
+# Problem: Want minimal heating/cooling while away for extended period
+# Solution: Create input_boolean.vacation_mode, adjust away_temp template
+#
+# Scenario 2: Energy Price-Based Heating
+# Problem: Want to reduce heating during expensive electricity hours
+# Solution: Reference energy price sensor, lower target when price high
+#
+# Scenario 3: Sleep Tracking Integration
+# Problem: Want temperature to adjust based on actual sleep/wake
+# Solution: Reference sleep sensor from fitness tracker, use in template
+#
+# Scenario 4: Weather Forecast Integration
+# Problem: Pre-adjust temperature based on coming weather
+# Solution: Reference weather forecast entity, adjust proactively
+#
+# Scenario 5: Room Occupancy
+# Problem: Different temps based on who's in room (kids/adults)
+# Solution: Reference occupancy/presence sensors, adjust accordingly
+#
+# All of these are possible with template-based presets!
+
+# ========================================
+# For More Information
+# ========================================
+#
+# Home Assistant Template Documentation:
+#   https://www.home-assistant.io/docs/configuration/templating/
+#
+# Dual Smart Thermostat Documentation:
+#   https://github.com/swingerman/ha-dual-smart-thermostat
+#
+# Template Testing:
+#   Developer Tools → Template (in Home Assistant UI)
+#
+# Community Forum:
+#   https://community.home-assistant.io/
+#
+# Report Issues:
+#   https://github.com/swingerman/ha-dual-smart-thermostat/issues

@@ -132,25 +132,25 @@ class PresetEnv(TempEnv, HumidityEnv):
         except Exception as e:
             _LOGGER.debug(f"PresetEnv: Could not extract entities from template: {e}")
 
-    async def get_temperature(self, hass: HomeAssistant) -> float | None:
+    def get_temperature(self, hass: HomeAssistant) -> float | None:
         """Get temperature, evaluating template if needed."""
         if "temperature" in self._template_fields:
-            return await self._evaluate_template(hass, "temperature")
+            return self._evaluate_template(hass, "temperature")
         return self.temperature
 
-    async def get_target_temp_low(self, hass: HomeAssistant) -> float | None:
+    def get_target_temp_low(self, hass: HomeAssistant) -> float | None:
         """Get target_temp_low, evaluating template if needed."""
         if "target_temp_low" in self._template_fields:
-            return await self._evaluate_template(hass, "target_temp_low")
+            return self._evaluate_template(hass, "target_temp_low")
         return self.target_temp_low
 
-    async def get_target_temp_high(self, hass: HomeAssistant) -> float | None:
+    def get_target_temp_high(self, hass: HomeAssistant) -> float | None:
         """Get target_temp_high, evaluating template if needed."""
         if "target_temp_high" in self._template_fields:
-            return await self._evaluate_template(hass, "target_temp_high")
+            return self._evaluate_template(hass, "target_temp_high")
         return self.target_temp_high
 
-    async def _evaluate_template(self, hass: HomeAssistant, field_name: str) -> float:
+    def _evaluate_template(self, hass: HomeAssistant, field_name: str) -> float:
         """Safely evaluate template with fallback to previous value."""
         template_str = self._template_fields.get(field_name)
         if not template_str:

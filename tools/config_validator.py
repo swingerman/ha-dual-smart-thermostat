@@ -12,7 +12,15 @@ import yaml
 
 
 class ConfigValidator:
-    """Validates configuration against critical dependencies."""
+    """Validates configuration against critical dependencies.
+
+    Note: This validator checks parameter-level dependencies (e.g., max_floor_temp
+    requires floor_sensor). It does NOT validate preset temperature VALUES, including
+    templates. Template validation is handled by the config flow validator
+    (schemas.py:validate_template_or_number). Preset parameters (away_temp, eco_temp,
+    etc.) can contain static numeric values or template strings, and this validator
+    correctly treats them as values rather than dependencies.
+    """
 
     def __init__(self):
         self.conditional_dependencies = {
@@ -285,6 +293,22 @@ fan: switch.ceiling_fan
 fan_mode: true
 humidity_sensor: sensor.humidity
 target_humidity: 50
+        """,
+        "✅ Valid - Template-Based Presets": """
+name: "Template Thermostat"
+heater: switch.heater
+cooler: switch.ac_unit
+target_sensor: sensor.temperature
+heat_cool_mode: true
+# Preset temperatures can use static values or templates
+away_temp: "{{ states('input_number.away_heat') | float }}"
+away_temp_high: "{{ states('input_number.away_cool') | float }}"
+eco_temp: "{{ 16 if is_state('sensor.season', 'winter') else 26 }}"
+eco_temp_high: 28
+home_temp: "{{ states('sensor.outdoor_temp') | float + 5 }}"
+home_temp_high: "{{ states('sensor.outdoor_temp') | float + 10 }}"
+comfort_temp: 21
+comfort_temp_high: 24
         """,
     }
 

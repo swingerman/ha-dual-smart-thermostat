@@ -234,6 +234,63 @@
       }
     ]
   },
+  "template_dependencies": {
+    "description": "Template-based preset temperatures depend on referenced entities existing",
+    "applies_to": [
+      "away_temp",
+      "away_temp_high",
+      "eco_temp",
+      "eco_temp_high",
+      "comfort_temp",
+      "comfort_temp_high",
+      "home_temp",
+      "home_temp_high",
+      "sleep_temp",
+      "sleep_temp_high",
+      "activity_temp",
+      "activity_temp_high",
+      "boost_temp",
+      "boost_temp_high",
+      "anti_freeze_temp",
+      "anti_freeze_temp_high"
+    ],
+    "dependency_type": "entity_reference",
+    "examples": {
+      "input_number_reference": {
+        "template": "{{ states('input_number.away_temp') | float }}",
+        "requires": "input_number.away_temp must exist",
+        "description": "Template references input_number helper"
+      },
+      "sensor_reference": {
+        "template": "{{ states('sensor.outdoor_temp') | float + 5 }}",
+        "requires": "sensor.outdoor_temp must exist",
+        "description": "Template references sensor with calculation"
+      },
+      "conditional_logic": {
+        "template": "{{ 16 if is_state('sensor.season', 'winter') else 26 }}",
+        "requires": "sensor.season must exist",
+        "description": "Template uses conditional logic based on entity state"
+      },
+      "multiple_entities": {
+        "template": "{{ states('input_number.base_temp') | float + states('input_number.offset') | float }}",
+        "requires": "Both input_number.base_temp and input_number.offset must exist",
+        "description": "Template references multiple entities"
+      }
+    },
+    "validation": {
+      "config_flow": "Templates validated for syntax before saving",
+      "runtime": "Referenced entities checked during template evaluation",
+      "fallback": "Uses last good value if template evaluation fails"
+    },
+    "notes": [
+      "All entities referenced in template must exist",
+      "Always use | float filter to convert states to numbers",
+      "Use | float(default) to provide fallback if entity unavailable",
+      "Templates automatically re-evaluate when referenced entities change",
+      "Both static values and templates can be used for preset temperatures",
+      "Template syntax errors are caught during config flow validation"
+    ]
+  },
   "configuration_examples": {
     "floor_heating": {
       "description": "Floor heating with temperature protection",
@@ -335,6 +392,30 @@
         "hvac_power_max": 100,
         "hvac_power_tolerance": 0.5
       }
+    },
+    "template_based_presets": {
+      "description": "Preset temperatures using templates for dynamic adjustment",
+      "required": [
+        "Referenced entities (input_number, sensor, etc.) must exist"
+      ],
+      "optional": [
+        "Any preset temperature parameter can use templates",
+        "Templates can reference multiple entities",
+        "Conditional logic can be used"
+      ],
+      "example": {
+        "away_temp": "{{ states('input_number.away_target') | float }}",
+        "eco_temp": "{{ 16 if is_state('sensor.season', 'winter') else 26 }}",
+        "home_temp": "{{ states('sensor.outdoor_temp') | float + 5 }}",
+        "comfort_temp": "{{ states('input_number.base_temp') | float + states('input_number.offset') | float }}"
+      },
+      "notes": [
+        "Preset parameters can use static values OR templates",
+        "Both single temp mode (away_temp) and range mode (away_temp, away_temp_high) support templates",
+        "Template validation occurs in config flow before saving",
+        "Runtime evaluation includes fallback to last good value if template fails",
+        "See template_dependencies section for detailed requirements"
+      ]
     }
   }
 }
