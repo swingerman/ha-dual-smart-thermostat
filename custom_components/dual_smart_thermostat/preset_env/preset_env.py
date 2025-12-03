@@ -92,6 +92,19 @@ class PresetEnv(TempEnv, HumidityEnv):
                 f"PresetEnv: {field_name} stored as static value: {float(value)}"
             )
         elif isinstance(value, str):
+            # Try to parse as number first (config stores numbers as strings)
+            try:
+                float_val = float(value)
+                # It's a numeric string, treat as static value
+                setattr(self, field_name, float_val)
+                self._last_good_values[field_name] = float_val
+                _LOGGER.debug(
+                    f"PresetEnv: {field_name} stored as static value from string: {float_val}"
+                )
+                return
+            except ValueError:
+                pass  # Not a number, treat as template
+
             # Template string - store in template_fields and extract entities
             self._template_fields[field_name] = value
             self._extract_entities(value)

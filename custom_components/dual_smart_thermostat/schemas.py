@@ -109,10 +109,10 @@ def validate_template_or_number(value: Any) -> Any:
         if not value:
             return None
 
-        # First try numeric conversion
+        # First check if it's a valid number (but keep as string for config storage)
         try:
-            float_val = float(value)
-            return float_val
+            float(value)  # Validate it's a number
+            return value  # Return as string for config flow compatibility
         except ValueError:
             pass  # Not a number, might be a template
 

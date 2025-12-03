@@ -44,7 +44,7 @@ class TestPresetTemplatesConfigFlow:
         # Assert: All numeric forms accepted
         assert int_result == 20
         assert float_result == 20.5
-        assert string_number_result == 21.0  # Converted to float
+        assert string_number_result == "21"  # Kept as string for config storage
 
     @pytest.mark.asyncio
     async def test_config_flow_template_syntax_validation(self, hass: HomeAssistant):
