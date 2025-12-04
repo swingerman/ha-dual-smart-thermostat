@@ -44,6 +44,8 @@ pre-commit run --all-files
 ```
 
 ### Development Setup
+
+**Local Development:**
 ```bash
 # Install dependencies
 pip install -r requirements-dev.txt
@@ -51,6 +53,60 @@ pip install -r requirements-dev.txt
 # Install pre-commit hooks
 pre-commit install
 ```
+
+**Docker Development (Recommended for CI/CD and version testing):**
+
+The project includes a complete Docker-based development workflow. See [README-DOCKER.md](README-DOCKER.md) for comprehensive documentation.
+
+```bash
+# Build development environment with HA 2025.1.0 (default)
+docker-compose build dev
+
+# Build with specific HA version
+HA_VERSION=2025.2.0 docker-compose build dev
+
+# Build with latest HA
+HA_VERSION=latest docker-compose build dev
+
+# Run all tests
+./scripts/docker-test
+
+# Run specific tests
+./scripts/docker-test tests/test_heater_mode.py
+./scripts/docker-test -k "heater"
+
+# Run linting checks
+./scripts/docker-lint
+
+# Auto-fix linting issues
+./scripts/docker-lint --fix
+
+# Open interactive shell
+./scripts/docker-shell
+
+# Run any command in container
+docker-compose run --rm dev <command>
+```
+
+**When to use Docker vs Local:**
+- **Use Docker when:**
+  - Running CI/CD pipelines
+  - Testing with different HA versions
+  - Need consistent environment across team
+  - Want isolated dependencies
+  - Debugging version-specific issues
+
+- **Use Local/DevContainer when:**
+  - Doing interactive development
+  - Want faster iteration (no container overhead)
+  - Using VS Code with DevContainer features
+  - Debugging with IDE integration
+
+**Important Docker Notes:**
+- The `/config` directory is mounted at `./config` for Home Assistant configuration
+- Source code is live-mounted, so changes are immediately reflected (no rebuild needed)
+- Docker caches pip, pytest, and mypy for faster subsequent runs
+- All linting and testing commands work identically in Docker and locally
 
 ## Architecture Overview
 
@@ -595,4 +651,32 @@ tools to resolve library id and get library docs without me having to explicitly
 
 ## Recent Changes
 - 002-separate-tolerances: Added Python 3.13 + Home Assistant 2025.1.0+, voluptuous (schema validation)
-- this is a devconainer/docker based repo. In dev ready environment is set up in docker. The development os best done inside the docker instance
+- Added Docker-based development workflow with support for testing multiple HA versions
+
+## Development Environment Options
+
+This repository supports **two development approaches**:
+
+1. **Docker Compose Workflow** (Recommended for CI/CD and version testing)
+   - Standalone Docker setup without VS Code
+   - Easy testing with different Home Assistant versions
+   - Ideal for running tests, linting, and CI/CD pipelines
+   - See [README-DOCKER.md](README-DOCKER.md) for complete guide
+   - Commands: `./scripts/docker-test`, `./scripts/docker-lint`, `./scripts/docker-shell`
+
+2. **VS Code DevContainer** (Recommended for interactive development)
+   - Integrated development experience in VS Code
+   - Automatic environment setup
+   - Full IDE features (debugging, IntelliSense, etc.)
+   - Opens directly in container for seamless development
+
+**Both approaches provide:**
+- Python 3.13
+- Home Assistant 2025.1.0+
+- All development dependencies
+- Consistent environment across machines
+
+**Choose based on your workflow:**
+- Use **Docker Compose** for testing, CI/CD, and multi-version testing
+- Use **DevContainer** for daily development with VS Code
+- Both can be used together for different tasks

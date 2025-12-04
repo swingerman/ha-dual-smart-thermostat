@@ -1,11 +1,17 @@
 -r requirements.txt
 pip>=24.1.2,<26.0
 pytest-homeassistant-custom-component==0.13.224
+# Explicit pytest dependencies (may be transitive from pytest-homeassistant-custom-component)
+pytest>=8.0.0
+pytest-cov>=4.1.0
+pytest-asyncio>=0.23.0
+# Code formatting and linting
 pre-commit
 isort
 black
 codespell
 mypy
+ruff>=0.3.0
 colorlog
 # Security and quality tools
 safety

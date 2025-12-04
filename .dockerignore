@@ -1,0 +1,87 @@
+# Git files
+.git
+.gitignore
+.gitattributes
+
+# Python cache and artifacts
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info
+dist
+build
+eggs
+.eggs
+*.egg
+
+# Virtual environments
+.venv
+venv
+ENV
+env
+
+# Testing and coverage
+.pytest_cache
+.tox
+.coverage
+.coverage.*
+htmlcov
+coverage.xml
+*.cover
+.hypothesis
+.cache
+
+# Type checking
+.mypy_cache
+.dmypy.json
+dmypy.json
+
+# Linting and formatting
+.ruff_cache
+
+# IDE and editor files
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+
+# DevContainer (not needed in Docker builds)
+.devcontainer
+.devcontainer.json
+
+# CI/CD
+.github
+
+# Documentation (not needed at runtime)
+docs
+*.md
+LICENSE
+
+# Config and data directories (mounted as volumes)
+config
+.storage
+
+# Test and development files
+tests
+examples
+tools
+specs
+.specify
+
+# Pre-commit
+.pre-commit-config.yaml
+
+# Docker itself
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Logs
+*.log
+
+# GitHub Actions
+action/

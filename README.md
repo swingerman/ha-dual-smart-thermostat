@@ -993,22 +993,140 @@ I am happy to help the Home Assistant community but I do it in my free time at t
 
 ### Development
 
+The Dual Smart Thermostat supports two development workflows: **Docker-based** and **VS Code DevContainer**. Both approaches provide consistent, isolated development environments with Home Assistant 2025.1.0+.
+
+📚 **[Comprehensive Docker Development Guide](README-DOCKER.md)** - Complete documentation for Docker-based development, testing with multiple HA versions, and CI/CD integration.
+
+📋 **[Development Guidelines](CLAUDE.md)** - Detailed coding standards, architecture overview, and contribution requirements.
+
+#### Quick Start
+
+**Option 1: Docker Workflow (Recommended for CI/CD and version testing)**
+
+```bash
+# Build development environment with HA 2025.1.0
+docker-compose build dev
+
+# Run all tests
+./scripts/docker-test
+
+# Run linting checks
+./scripts/docker-lint
+
+# Open interactive shell
+./scripts/docker-shell
+
+# Test with different HA version
+HA_VERSION=2025.2.0 docker-compose build dev
+```
+
+**Option 2: VS Code DevContainer (Recommended for interactive development)**
+
+Open the project in VS Code and select "Reopen in Container" when prompted. The DevContainer will automatically set up the development environment.
+
 #### Testing
 
-Use pytest to run the tests:
-
+**Run all tests:**
 ```bash
 pytest
+# or with Docker:
+./scripts/docker-test
 ```
 
-**Specific test**
-
+**Run specific test file:**
 ```bash
 pytest tests/test_heater_mode.py
+# or with Docker:
+./scripts/docker-test tests/test_heater_mode.py
 ```
 
-**Log Level**
+**Run specific test function:**
+```bash
+pytest tests/test_heater_mode.py::test_heater_mode_on
+```
+
+**Run tests with pattern matching:**
+```bash
+pytest -k "heater"
+```
+
+**Run with verbose output and debug logging:**
+```bash
+pytest -v --log-cli-level=DEBUG
+```
+
+**Run with coverage report:**
+```bash
+pytest --cov --cov-report=html
+```
+
+**Run config flow tests only:**
+```bash
+pytest tests/config_flow/
+```
+
+#### Code Quality & Linting
+
+**All code must pass linting checks before committing.** The following tools are required:
 
 ```bash
-pytest --log-cli-level=DEBUG
+# Check all linting rules
+isort . --check-only --diff    # Import sorting
+black --check .                 # Code formatting
+flake8 .                        # Style/linting
+codespell                       # Spell checking
+ruff check .                    # Modern Python linter
+
+# Auto-fix issues
+isort .                         # Fix imports
+black .                         # Fix formatting
+ruff check . --fix              # Fix ruff issues
+
+# Or use Docker to run all checks
+./scripts/docker-lint           # Check all
+./scripts/docker-lint --fix     # Auto-fix
 ```
+
+**Pre-commit hooks** (automatically runs linting on commit):
+```bash
+pre-commit install              # Install hooks
+pre-commit run --all-files      # Run manually
+```
+
+#### Testing with Different Home Assistant Versions
+
+The Docker workflow makes it easy to test with different HA versions:
+
+```bash
+# Test with HA 2025.1.0 (default)
+docker-compose build dev
+./scripts/docker-test
+
+# Test with HA 2025.2.0
+HA_VERSION=2025.2.0 docker-compose build dev
+./scripts/docker-test
+
+# Test with latest HA
+HA_VERSION=latest docker-compose build dev
+./scripts/docker-test
+```
+
+#### Development Resources
+
+- **[README-DOCKER.md](README-DOCKER.md)** - Docker workflow, troubleshooting, and advanced usage
+- **[CLAUDE.md](CLAUDE.md)** - Architecture, development rules, and testing strategy
+- **[Examples Directory](examples/)** - Ready-to-use configuration examples
+- **[GitHub Issues](https://github.com/swingerman/ha-dual-smart-thermostat/issues)** - Bug reports and feature requests
+- **[Home Assistant Developer Docs](https://developers.home-assistant.io/)** - Official HA development documentation
+
+#### Contributing
+
+Before submitting a pull request:
+
+1. ✅ All tests pass: `pytest` or `./scripts/docker-test`
+2. ✅ All linting passes: `./scripts/docker-lint` or run linters individually
+3. ✅ Add tests for new features
+4. ✅ Update documentation if needed
+5. ✅ Follow the patterns in [CLAUDE.md](CLAUDE.md)
+
+**Configuration Flow Changes:** If you add or modify configuration options, you **must** integrate them into the appropriate configuration flows (config, reconfigure, or options). See [CLAUDE.md Configuration Flow Integration](CLAUDE.md#configuration-flow-integration) for detailed requirements.

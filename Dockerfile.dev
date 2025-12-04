@@ -1,0 +1,79 @@
+# Development Dockerfile for Dual Smart Thermostat Integration
+# This image is used for testing, linting, and development outside of VS Code devcontainer.
+#
+# Build with specific Home Assistant version:
+#   docker build -f Dockerfile.dev --build-arg HA_VERSION=2025.1.0 -t dual-thermostat:dev .
+#
+# Build with latest Home Assistant:
+#   docker build -f Dockerfile.dev -t dual-thermostat:dev .
+
+ARG PYTHON_VERSION=3.13
+FROM python:${PYTHON_VERSION}-slim-bookworm
+
+# Metadata
+LABEL maintainer="Dual Smart Thermostat Contributors"
+LABEL description="Development environment for Dual Smart Thermostat Home Assistant integration"
+
+# Build arguments
+ARG HA_VERSION=2025.1.0
+ARG DEBIAN_FRONTEND=noninteractive
+
+# Environment variables
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    TERM=xterm-256color
+
+# Install system dependencies required by Home Assistant and this integration
+# - libpcap0.8, libpcap-dev: Packet capture (for network integrations)
+# - ffmpeg: Media processing
+# - libturbojpeg0, libjpeg-turbo-progs: JPEG processing
+# - git: For pre-commit hooks and version control
+# - build-essential: For building Python C extensions
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpcap0.8 \
+    libpcap0.8-dev \
+    libpcap-dev \
+    ffmpeg \
+    libturbojpeg0 \
+    libjpeg-turbo-progs \
+    git \
+    build-essential \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create working directory
+WORKDIR /workspace
+
+# Copy requirements files first (for Docker layer caching)
+COPY requirements.txt requirements-dev.txt ./
+
+# Install Python dependencies
+# If a specific HA version is requested, install it explicitly
+RUN pip install --upgrade pip setuptools wheel && \
+    if [ "${HA_VERSION}" != "latest" ]; then \
+        pip install "homeassistant==${HA_VERSION}"; \
+    fi && \
+    pip install -r requirements-dev.txt
+
+# Attempt to install pypcap (best effort - may fail on Python 3.13)
+# This is not critical for most integration functionality
+RUN pip install --no-binary :all: pypcap || \
+    echo "Warning: pypcap installation failed. This is expected on Python 3.13. Network discovery features may be limited."
+
+# Copy the entire project
+COPY . .
+
+# Create config directory for Home Assistant
+RUN mkdir -p /config
+
+# Set Python path to include custom_components
+ENV PYTHONPATH=/workspace
+
+# Default command: run bash (can be overridden in docker-compose.yml or command line)
+CMD ["/bin/bash"]
+
+# Health check (optional - checks if Python is responsive)
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD python3 -c "import sys; sys.exit(0)" || exit 1

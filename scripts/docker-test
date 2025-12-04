@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Run tests in Docker container
+# Usage:
+#   ./scripts/docker-test                    # Run all tests
+#   ./scripts/docker-test tests/test_heater_mode.py  # Run specific test file
+#   ./scripts/docker-test -k "test_name"     # Run specific test by name
+#   ./scripts/docker-test --cov              # Run with coverage report
+
+set -e
+
+# Build image if it doesn't exist
+if ! docker images | grep -q "dual-smart-thermostat.*dev"; then
+    echo "Building Docker image..."
+    docker-compose build dev
+fi
+
+# Run pytest with all arguments passed through
+echo "Running tests in Docker container..."
+docker-compose run --rm dev pytest "$@"
