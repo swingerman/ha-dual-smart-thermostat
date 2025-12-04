@@ -268,10 +268,19 @@ async def async_setup_entry(
     config_entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Initialize config entry."""
+    """Initialize config entry.
+
+    Merges data and options, with options taking precedence.
+    This ensures the entity can be created both after initial config flow
+    (when only data is populated) and after options flow (when both are populated).
+    """
+    # Merge data and options - options takes precedence if keys overlap
+    # This fixes issue #468 where entity wasn't created after initial config
+    config = {**config_entry.data, **config_entry.options}
+
     await _async_setup_config(
         hass,
-        config_entry.options,
+        config,
         config_entry.entry_id,
         async_add_entities,
     )
