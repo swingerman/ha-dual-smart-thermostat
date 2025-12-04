@@ -355,9 +355,182 @@ dry_tolerance: 5                         # ← Conditional on dryer
 
 ---
 
+### 📝 Template-Based Preset Dependencies
+
+**Feature**: Template-based preset temperatures (dynamic temperature targets)
+
+Template-based presets allow you to use Home Assistant templates instead of static numeric values for preset temperatures. Templates can reference other entities and use conditional logic.
+
+**Syntax**:
+```yaml
+# Static value (traditional)
+away_temp: 18
+
+# Template value (dynamic)
+away_temp: "{{ states('input_number.away_target') | float }}"
+```
+
+#### Entity Dependencies
+
+**Key Principle**: Templates that reference entities depend on those entities existing and being available.
+
+| Template References | Required Entities | Example |
+|---------------------|-------------------|---------|
+| `input_number.*` | Input number helpers must exist | `{{ states('input_number.away_temp') \| float }}` |
+| `sensor.*` | Sensors must exist and report numeric values | `{{ states('sensor.outdoor_temp') \| float + 2 }}` |
+| `binary_sensor.*` | Binary sensors for conditional logic | `{{ 16 if is_state('sensor.season', 'winter') else 26 }}` |
+| Any entity | Referenced entities must be valid | `{{ states('any.entity_id') \| float(20) }}` |
+
+**Configuration Example - Simple Entity Reference**:
+```yaml
+# First, ensure input_number exists (configuration.yaml or UI)
+input_number:
+  away_heating_target:
+    min: 10
+    max: 30
+    step: 0.5
+
+# Then reference in preset template
+climate:
+  - platform: dual_smart_thermostat
+    name: "Smart Thermostat"
+    heater: switch.heater
+    target_sensor: sensor.temperature
+    away_temp: "{{ states('input_number.away_heating_target') | float }}"  # ← Depends on input_number existing
+```
+
+**Configuration Example - Conditional Template**:
+```yaml
+# First, ensure season sensor exists
+sensor:
+  - platform: season
+    type: meteorological
+
+# Then use in conditional template
+climate:
+  - platform: dual_smart_thermostat
+    name: "Seasonal Thermostat"
+    heater: switch.heater
+    target_sensor: sensor.temperature
+    away_temp: "{{ 16 if is_state('sensor.season', 'winter') else 26 }}"  # ← Depends on sensor.season existing
+```
+
+#### System Type Dependencies
+
+**Template preset field requirements depend on system type**:
+
+| System Type | Required Preset Fields | Template Support |
+|-------------|------------------------|------------------|
+| `simple_heater` | `<preset>_temp` | ✅ Templates work |
+| `ac_only` | `<preset>_temp_high` | ✅ Templates work |
+| `heater_cooler` (single mode) | `<preset>_temp` (heat) OR `<preset>_temp_high` (cool) | ✅ Templates work |
+| `heater_cooler` (heat_cool mode) | Both `<preset>_temp` AND `<preset>_temp_high` | ✅ Both can use templates |
+| `heat_pump` (single mode) | `<preset>_temp` (heat) OR `<preset>_temp_high` (cool) | ✅ Templates work |
+| `heat_pump` (heat_cool mode) | Both `<preset>_temp` AND `<preset>_temp_high` | ✅ Both can use templates |
+
+**Configuration Example - Heat/Cool Mode with Templates**:
+```yaml
+climate:
+  - platform: dual_smart_thermostat
+    system_type: heater_cooler
+    heater: switch.heater
+    cooler: switch.ac_unit
+    target_sensor: sensor.temperature
+    heat_cool_mode: true
+
+    # Both fields required for heat_cool mode
+    # Both can use templates independently
+    away_temp: "{{ states('input_number.away_heat') | float }}"      # ← For heating
+    away_temp_high: "{{ states('input_number.away_cool') | float }}"  # ← For cooling
+
+    # Or mix static and template
+    eco_temp: 18                                                       # ← Static heating target
+    eco_temp_high: "{{ states('sensor.outdoor') | float + 6 }}"       # ← Dynamic cooling target
+```
+
+#### Template Best Practices and Pitfalls
+
+**Critical Requirement**: Always use `| float` filter to convert entity states to numbers.
+
+**Common Mistakes**:
+
+❌ **Referencing non-existent entities**:
+```yaml
+# This will fail if input_number doesn't exist
+away_temp: "{{ states('input_number.nonexistent') | float }}"
+```
+
+❌ **Forgetting to convert to float**:
+```yaml
+# Template will concatenate strings instead of adding numbers
+away_temp: "{{ states('sensor.outdoor') + 5 }}"  # Returns "205" not 25!
+```
+
+❌ **No default value**:
+```yaml
+# Will return 0.0 if entity unavailable
+away_temp: "{{ states('sensor.outdoor') | float }}"
+```
+
+✅ **Correct template patterns**:
+```yaml
+# With default fallback value
+away_temp: "{{ states('input_number.away_temp') | float(18) }}"
+
+# With proper float conversion
+eco_temp: "{{ states('sensor.outdoor') | float + 5 }}"
+
+# With value clamping for safety
+home_temp: "{{ states('sensor.outdoor') | float | min(25) | max(15) }}"
+```
+
+#### Template Validation
+
+**Config Flow Validation**: The configuration UI validates template syntax before saving:
+
+- ✅ Valid templates are accepted: `{{ states('sensor.temp') | float }}`
+- ✅ Valid numeric values are accepted: `20`, `20.5`, `"21"`
+- ❌ Invalid template syntax is rejected: `{{ states('sensor.temp' }}`
+- ❌ Invalid types are rejected: `[20]`, `{"temp": 20}`
+
+**Runtime Validation**: Templates are evaluated when:
+1. Preset is activated
+2. Referenced entity state changes
+3. Climate entity loads on startup
+
+**Error Handling**: If template evaluation fails:
+1. Uses last successfully evaluated temperature
+2. Falls back to previous manual temperature
+3. Falls back to 20°C (default)
+
+This ensures the thermostat remains functional even if templates have temporary issues.
+
+#### Template Dependencies Summary
+
+**Entity Requirements**:
+- All entities referenced in templates must exist
+- Entities should report appropriate values (numeric for calculations)
+- Use `| float(default)` to handle unavailable entities gracefully
+
+**System Type Requirements**:
+- Templates work with all system types
+- Field requirements (temp vs temp_high) depend on system type and mode
+- Heat/cool mode requires both temp and temp_high fields
+
+**Validation**:
+- Config flow validates template syntax before saving
+- Runtime evaluation includes error handling and fallbacks
+- Templates automatically re-evaluate when referenced entities change
+
+**See Also**:
+- [Template Examples](../../examples/advanced_features/presets_with_templates.yaml)
+- [Template Troubleshooting](../troubleshooting.md#template-based-preset-issues)
+
+---
+
 ## 🎯 Summary
 
-**22 conditional dependencies** across **6 feature areas**:
+**22 conditional dependencies** across **7 feature areas**:
 
 - **Secondary Heating** (2 parameters): Need `secondary_heater`
 - **Floor Protection** (2 parameters): Need `floor_sensor`
@@ -365,6 +538,7 @@ dry_tolerance: 5                         # ← Conditional on dryer
 - **Fan Control** (4 parameters): Need `fan` (+ 1 needs `outside_sensor`)
 - **Humidity Control** (5 parameters): Need `humidity_sensor` + `dryer`
 - **Power Management** (3 parameters): Need `hvac_power_levels`
+- **Template-Based Presets**: Referenced entities must exist (input_numbers, sensors, etc.)
 
 **2 system-type constraints**:
 

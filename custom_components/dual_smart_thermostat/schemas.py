@@ -75,6 +75,87 @@ from .schema_utils import (
 
 _LOGGER = logging.getLogger(__name__)
 
+# Cache translations at module level to avoid blocking I/O in async context
+_CACHED_TRANSLATIONS = None
+
+
+def _load_translations() -> dict:
+    """Load translations from file (called once at module import)."""
+    global _CACHED_TRANSLATIONS
+    if _CACHED_TRANSLATIONS is not None:
+        return _CACHED_TRANSLATIONS
+
+    try:
+        trans_path = Path(__file__).parent / "translations" / "en.json"
+        if trans_path.exists():
+            with trans_path.open("r", encoding="utf-8") as fh:
+                _CACHED_TRANSLATIONS = json.load(fh)
+                return _CACHED_TRANSLATIONS
+    except Exception as e:
+        _LOGGER.debug(f"Could not load translations: {e}")
+
+    _CACHED_TRANSLATIONS = {}
+    return _CACHED_TRANSLATIONS
+
+
+def validate_template_or_number(value: Any) -> Any:
+    """Validate that value is either a valid number or a valid template string.
+
+    This validator allows preset temperature fields to accept both:
+    - Static numeric values (e.g., 20, 20.5) for backward compatibility
+    - Template strings (e.g., "{{ states('input_number.away_temp') }}")
+
+    Args:
+        value: The input value to validate
+
+    Returns:
+        The validated value (unchanged)
+
+    Raises:
+        vol.Invalid: If value is neither a valid number nor a valid template
+    """
+    from homeassistant.helpers.template import Template
+
+    # Allow None or empty string (optional fields)
+    if value is None or value == "":
+        return None
+
+    # Check if it's a valid number (int or float), but not bool
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return value
+
+    # Try to parse as float string (e.g., "20", "20.5")
+    if isinstance(value, str):
+        # Skip whitespace-only strings
+        value = value.strip()
+        if not value:
+            return None
+
+        # First check if it's a valid number (but keep as string for config storage)
+        try:
+            float(value)  # Validate it's a number
+            return value  # Return as string for config flow compatibility
+        except ValueError:
+            pass  # Not a number, might be a template
+
+        # Not a number, validate as template
+        try:
+            # Create Template object to validate syntax
+            # Note: Pass None for hass during validation (not available in schema context)
+            template = Template(value, hass=None)
+            # Call ensure_valid() to check syntax
+            template.ensure_valid()
+            return value  # Return original string for template
+        except Exception as e:
+            raise vol.Invalid(
+                f"Value must be a number or valid template. "
+                f"Template syntax error: {str(e)}"
+            ) from e
+
+    raise vol.Invalid(
+        f"Value must be a number or template string, got {type(value).__name__}"
+    )
+
 
 def get_system_type_schema(default: str | None = None):
     """Get system type selection schema.
@@ -466,20 +547,12 @@ def get_grouped_schema(
 
 def get_heating_schema():
     """Get heating-specific configuration schema."""
-    return vol.Schema(
-        {
-            vol.Required(CONF_HEATER): get_entity_selector(SWITCH_DOMAIN),
-        }
-    )
+    return vol.Schema({vol.Required(CONF_HEATER): get_entity_selector(SWITCH_DOMAIN)})
 
 
 def get_cooling_schema():
     """Get cooling-specific configuration schema."""
-    return vol.Schema(
-        {
-            vol.Required(CONF_COOLER): get_entity_selector(SWITCH_DOMAIN),
-        }
-    )
+    return vol.Schema({vol.Required(CONF_COOLER): get_entity_selector(SWITCH_DOMAIN)})
 
 
 def get_dual_stage_schema():
@@ -522,29 +595,17 @@ def get_floor_heating_schema(defaults: dict[str, Any] | None = None):
 
 def get_openings_toggle_schema():
     """Get openings toggle schema."""
-    return vol.Schema(
-        {
-            vol.Optional("openings", default=False): get_boolean_selector(),
-        }
-    )
+    return vol.Schema({vol.Optional("openings", default=False): get_boolean_selector()})
 
 
 def get_fan_toggle_schema():
     """Get fan toggle schema."""
-    return vol.Schema(
-        {
-            vol.Optional("fan", default=False): get_boolean_selector(),
-        }
-    )
+    return vol.Schema({vol.Optional("fan", default=False): get_boolean_selector()})
 
 
 def get_humidity_toggle_schema():
     """Get humidity toggle schema."""
-    return vol.Schema(
-        {
-            vol.Optional("humidity", default=False): get_boolean_selector(),
-        }
-    )
+    return vol.Schema({vol.Optional("humidity", default=False): get_boolean_selector()})
 
 
 def get_features_schema(
@@ -868,18 +929,14 @@ def get_humidity_schema(defaults: dict[str, Any] | None = None):
 def get_additional_sensors_schema():
     """Get additional sensors configuration schema."""
     return vol.Schema(
-        {
-            vol.Optional(CONF_OUTSIDE_SENSOR): get_entity_selector(SENSOR_DOMAIN),
-        }
+        {vol.Optional(CONF_OUTSIDE_SENSOR): get_entity_selector(SENSOR_DOMAIN)}
     )
 
 
 def get_heat_cool_mode_schema():
     """Get heat/cool mode configuration schema."""
     return vol.Schema(
-        {
-            vol.Optional(CONF_HEAT_COOL_MODE, default=False): get_boolean_selector(),
-        }
+        {vol.Optional(CONF_HEAT_COOL_MODE, default=False): get_boolean_selector()}
     )
 
 
@@ -944,49 +1001,46 @@ def get_preset_selection_schema(defaults: list[str] | None = None):
     selector (used by the options flow to pre-check presets that have
     configuration data stored in the entry).
     """
-    # Attempt to load translation labels from the integration translations file.
+    # Load translation labels from cached translations
     labels: dict[str, str] = {}
     try:
-        trans_path = Path(__file__).parent / "translations" / "en.json"
-        if trans_path.exists():
-            with trans_path.open("r", encoding="utf-8") as fh:
-                trans = json.load(fh)
+        trans = _load_translations()
 
-            # Support a shared/common section so translations can be reused
-            # between config and options flows to avoid duplication.
-            shared = (
-                trans.get("shared", {})
-                .get("step", {})
-                .get("preset_selection", {})
-                .get("data", {})
-            ) or {}
-            common = (
-                trans.get("common", {})
-                .get("step", {})
-                .get("preset_selection", {})
-                .get("data", {})
-            ) or {}
+        # Support a shared/common section so translations can be reused
+        # between config and options flows to avoid duplication.
+        shared = (
+            trans.get("shared", {})
+            .get("step", {})
+            .get("preset_selection", {})
+            .get("data", {})
+        ) or {}
+        common = (
+            trans.get("common", {})
+            .get("step", {})
+            .get("preset_selection", {})
+            .get("data", {})
+        ) or {}
 
-            config_labels = (
-                trans.get("config", {})
-                .get("step", {})
-                .get("preset_selection", {})
-                .get("data", {})
-            ) or {}
-            options_labels = (
-                trans.get("options", {})
-                .get("step", {})
-                .get("preset_selection", {})
-                .get("data", {})
-            ) or {}
+        config_labels = (
+            trans.get("config", {})
+            .get("step", {})
+            .get("preset_selection", {})
+            .get("data", {})
+        ) or {}
+        options_labels = (
+            trans.get("options", {})
+            .get("step", {})
+            .get("preset_selection", {})
+            .get("data", {})
+        ) or {}
 
-            # Merge with priority: shared/common < config < options
-            merged: dict[str, str] = {}
-            merged.update(shared)
-            merged.update(common)
-            merged.update(config_labels)
-            merged.update(options_labels)
-            labels = merged
+        # Merge with priority: shared/common < config < options
+        merged: dict[str, str] = {}
+        merged.update(shared)
+        merged.update(common)
+        merged.update(config_labels)
+        merged.update(options_labels)
+        labels = merged
     except Exception:
         labels = {}
 
@@ -1053,16 +1107,52 @@ def get_presets_schema(user_input: dict[str, Any]) -> vol.Schema:
         if preset in CONF_PRESETS:
             # When heat_cool_mode is enabled, render dual fields (low/high)
             if heat_cool_enabled:
-                schema_dict[vol.Optional(f"{preset}_temp_low", default=20)] = (
-                    get_temperature_selector(min_value=5, max_value=35)
+                # Use TextSelector to accept both numbers and template strings
+                # Note: Validation happens in the flow handler, not in schema
+                # Defaults must be strings to match TextSelector type
+                # Extract existing values from user_input, or use fallback defaults
+                existing_temp_low = user_input.get(f"{preset}_temp_low", "20")
+                existing_temp_high = user_input.get(f"{preset}_temp_high", "24")
+                # Ensure defaults are strings
+                if not isinstance(existing_temp_low, str):
+                    existing_temp_low = str(existing_temp_low)
+                if not isinstance(existing_temp_high, str):
+                    existing_temp_high = str(existing_temp_high)
+
+                schema_dict[
+                    vol.Optional(f"{preset}_temp_low", default=existing_temp_low)
+                ] = selector.TextSelector(
+                    selector.TextSelectorConfig(
+                        multiline=False,
+                        type=selector.TextSelectorType.TEXT,
+                    )
                 )
-                schema_dict[vol.Optional(f"{preset}_temp_high", default=24)] = (
-                    get_temperature_selector(min_value=5, max_value=35)
+                schema_dict[
+                    vol.Optional(f"{preset}_temp_high", default=existing_temp_high)
+                ] = selector.TextSelector(
+                    selector.TextSelectorConfig(
+                        multiline=False,
+                        type=selector.TextSelectorType.TEXT,
+                    )
                 )
             else:
                 # Backwards compatible single-temp field
-                schema_dict[vol.Optional(f"{preset}_temp", default=20)] = (
-                    get_temperature_selector(min_value=5, max_value=35)
+                # Use TextSelector to accept both numbers and template strings
+                # Note: Validation happens in the flow handler, not in schema
+                # Defaults must be strings to match TextSelector type
+                # Extract existing value from user_input, or use fallback default
+                existing_temp = user_input.get(f"{preset}_temp", "20")
+                # Ensure default is a string
+                if not isinstance(existing_temp, str):
+                    existing_temp = str(existing_temp)
+
+                schema_dict[vol.Optional(f"{preset}_temp", default=existing_temp)] = (
+                    selector.TextSelector(
+                        selector.TextSelectorConfig(
+                            multiline=False,
+                            type=selector.TextSelectorType.TEXT,
+                        )
+                    )
                 )
 
     return vol.Schema(schema_dict)

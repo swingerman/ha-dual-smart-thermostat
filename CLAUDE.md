@@ -591,6 +591,8 @@ tools to resolve library id and get library docs without me having to explicitly
 ## Active Technologies
 - Python 3.13 + Home Assistant 2025.1.0+, voluptuous (schema validation) (002-separate-tolerances)
 - Home Assistant config entries (persistent JSON storage) (002-separate-tolerances)
+- Python 3.13 + Home Assistant 2025.1.0+, Home Assistant Template Engine (homeassistant.helpers.template), voluptuous (schema validation) (004-template-based-presets)
 
 ## Recent Changes
 - 002-separate-tolerances: Added Python 3.13 + Home Assistant 2025.1.0+, voluptuous (schema validation)
+- this is a devconainer/docker based repo. In dev ready environment is set up in docker. The development os best done inside the docker instance
