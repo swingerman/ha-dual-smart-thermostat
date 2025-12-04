@@ -75,26 +75,31 @@ from .schema_utils import (
 
 _LOGGER = logging.getLogger(__name__)
 
-# Cache translations at module level to avoid blocking I/O in async context
-_CACHED_TRANSLATIONS = None
 
+# Load translations at module import time to avoid blocking I/O in async context
+def _load_translations_sync() -> dict:
+    """Load translations from file synchronously at module import time.
 
-def _load_translations() -> dict:
-    """Load translations from file (called once at module import)."""
-    global _CACHED_TRANSLATIONS
-    if _CACHED_TRANSLATIONS is not None:
-        return _CACHED_TRANSLATIONS
-
+    This function is called during module initialization (not in async context)
+    to avoid blocking I/O warnings in Home Assistant's event loop.
+    """
     try:
         trans_path = Path(__file__).parent / "translations" / "en.json"
         if trans_path.exists():
             with trans_path.open("r", encoding="utf-8") as fh:
-                _CACHED_TRANSLATIONS = json.load(fh)
-                return _CACHED_TRANSLATIONS
+                return json.load(fh)
     except Exception as e:
         _LOGGER.debug(f"Could not load translations: {e}")
 
-    _CACHED_TRANSLATIONS = {}
+    return {}
+
+
+# Load translations immediately at module import (outside async context)
+_CACHED_TRANSLATIONS = _load_translations_sync()
+
+
+def _load_translations() -> dict:
+    """Return cached translations loaded at module import time."""
     return _CACHED_TRANSLATIONS
 
 
