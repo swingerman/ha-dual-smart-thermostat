@@ -1,6 +1,6 @@
 -r requirements.txt
 pip>=24.1.2,<26.0
-pytest-homeassistant-custom-component==0.13.224
+pytest-homeassistant-custom-component==0.13.297
 # Explicit pytest dependencies (may be transitive from pytest-homeassistant-custom-component)
 pytest>=8.0.0
 pytest-cov>=4.1.0
