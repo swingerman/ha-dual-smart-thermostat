@@ -465,6 +465,17 @@ class OptionsFlowHandler(OptionsFlow):
         }
         updated_data = {**cleaned_entry_data, **cleaned_collected_config}
 
+        # Convert string values from select selectors to proper numeric types
+        # SelectSelector always returns strings, but these should be floats
+        # (fixes issue #468 where precision/temp_step stored as strings)
+        float_keys = [CONF_PRECISION, CONF_TEMP_STEP]
+        for key in float_keys:
+            if key in updated_data and isinstance(updated_data[key], str):
+                try:
+                    updated_data[key] = float(updated_data[key])
+                except (ValueError, TypeError):
+                    pass  # Keep original value if conversion fails
+
         # Validate configuration using models for type safety
         if not validate_config_with_models(updated_data):
             _LOGGER.warning(

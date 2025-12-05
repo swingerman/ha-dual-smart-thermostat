@@ -137,14 +137,16 @@ from .managers.feature_manager import FeatureManager
 from .managers.hvac_power_manager import HvacPowerManager
 from .managers.opening_manager import OpeningHvacModeScope, OpeningManager
 from .managers.preset_manager import PresetManager
+from .schemas import validate_template_or_number
 
 _LOGGER = logging.getLogger(__name__)
 
+# Preset schema supports both static numbers and templates
 PRESET_SCHEMA = {
-    vol.Optional(ATTR_TEMPERATURE): vol.Coerce(float),
+    vol.Optional(ATTR_TEMPERATURE): validate_template_or_number,
     vol.Optional(ATTR_HUMIDITY): vol.Coerce(float),
-    vol.Optional(ATTR_TARGET_TEMP_LOW): vol.Coerce(float),
-    vol.Optional(ATTR_TARGET_TEMP_HIGH): vol.Coerce(float),
+    vol.Optional(ATTR_TARGET_TEMP_LOW): validate_template_or_number,
+    vol.Optional(ATTR_TARGET_TEMP_HIGH): validate_template_or_number,
     vol.Optional(CONF_MAX_FLOOR_TEMP): vol.Coerce(float),
     vol.Optional(CONF_MIN_FLOOR_TEMP): vol.Coerce(float),
 }
@@ -258,8 +260,12 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(HEAT_PUMP_SCHEMA)
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(HVAC_POWER_SCHEMA)
 
 # Add the old presets schema to avoid breaking change
+# Now supports both static numbers and templates
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
-    {vol.Optional(v): vol.Coerce(float) for (k, v) in CONF_PRESETS_OLD.items()}
+    {
+        vol.Optional(v): validate_template_or_number
+        for (k, v) in CONF_PRESETS_OLD.items()
+    }
 )
 
 
@@ -300,6 +306,32 @@ async def async_setup_platform(
     )
 
 
+def _normalize_config_numeric_values(config: dict[str, Any]) -> dict[str, Any]:
+    """Convert string numeric values to floats in config.
+
+    This is a safety net for:
+    1. Existing config entries that may have string values stored
+    2. Edge cases where config flow normalization wasn't applied
+
+    The primary fix is in config_flow.py/_clean_config_for_storage()
+    which converts values at save time.
+
+    Fixes issue #468 where precision/temp_step stored as strings caused
+    incorrect behavior in temperature rounding and step calculations.
+    """
+    # Keys that might be strings from SelectSelector in config flow
+    float_keys = [CONF_PRECISION, CONF_TEMP_STEP]
+
+    for key in float_keys:
+        if key in config and isinstance(config[key], str):
+            try:
+                config[key] = float(config[key])
+            except (ValueError, TypeError):
+                pass  # Keep original if conversion fails
+
+    return config
+
+
 async def _async_setup_config(
     hass: HomeAssistant,
     config: dict[str, Any],
@@ -307,6 +339,10 @@ async def _async_setup_config(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the smart dual thermostat platform."""
+
+    # Normalize config values from config flow (strings to proper types)
+    # This ensures consistency between YAML config and config entry setup
+    config = _normalize_config_numeric_values(config)
 
     # Validate configuration using data models for type safety
     if not validate_config_with_models(config):
