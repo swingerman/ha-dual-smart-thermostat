@@ -36,7 +36,6 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class HVACDeviceFactory:
-
     def __init__(
         self, hass: HomeAssistant, config: ConfigType, features: FeatureManager
     ) -> None:

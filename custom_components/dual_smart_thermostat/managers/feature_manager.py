@@ -37,7 +37,6 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class FeatureManager(StateManager):
-
     def __init__(
         self, hass: HomeAssistant, config: ConfigType, environment: EnvironmentManager
     ) -> None:
