@@ -364,14 +364,20 @@ class PresetManager(StateManager):
         return True
 
     def _check_temperature_match(self, preset_env, current_temp: float | None) -> bool:
-        """Check if single temperature matches preset."""
-        if preset_env.temperature is None:
+        """Check if single temperature matches preset.
+
+        For template-based presets, evaluates the template to get current value.
+        """
+        # Get the preset temperature, evaluating template if needed
+        preset_temp = preset_env.get_temperature(self.hass)
+
+        if preset_temp is None:
             return True
 
         if current_temp is None:
             return False
 
-        return self._values_equal(preset_env.temperature, current_temp)
+        return self._values_equal(preset_temp, current_temp)
 
     def _check_temperature_range_match(
         self,
@@ -379,18 +385,25 @@ class PresetManager(StateManager):
         current_temp_low: float | None,
         current_temp_high: float | None,
     ) -> bool:
-        """Check if temperature range matches preset."""
+        """Check if temperature range matches preset.
+
+        For template-based presets, evaluates templates to get current values.
+        """
+        # Get preset values, evaluating templates if needed
+        preset_temp_low = preset_env.get_target_temp_low(self.hass)
+        preset_temp_high = preset_env.get_target_temp_high(self.hass)
+
         # Check low temperature
-        if preset_env.target_temp_low is not None:
+        if preset_temp_low is not None:
             if current_temp_low is None or not self._values_equal(
-                preset_env.target_temp_low, current_temp_low
+                preset_temp_low, current_temp_low
             ):
                 return False
 
         # Check high temperature
-        if preset_env.target_temp_high is not None:
+        if preset_temp_high is not None:
             if current_temp_high is None or not self._values_equal(
-                preset_env.target_temp_high, current_temp_high
+                preset_temp_high, current_temp_high
             ):
                 return False
 
