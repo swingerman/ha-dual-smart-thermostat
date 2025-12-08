@@ -16,17 +16,22 @@ from .const import (
     CONF_AC_MODE,
     CONF_AUX_HEATER,
     CONF_AUX_HEATING_TIMEOUT,
+    CONF_COLD_TOLERANCE,
+    CONF_COOL_TOLERANCE,
     CONF_COOLER,
     CONF_FAN,
     CONF_FLOOR_SENSOR,
     CONF_HEAT_PUMP_COOLING,
+    CONF_HEAT_TOLERANCE,
     CONF_HEATER,
+    CONF_HOT_TOLERANCE,
     CONF_HUMIDITY_SENSOR,
     CONF_PRECISION,
     CONF_PRESETS,
     CONF_SENSOR,
     CONF_SYSTEM_TYPE,
     CONF_TEMP_STEP,
+    DEFAULT_TOLERANCE,
     DOMAIN,
     SYSTEM_TYPE_SIMPLE_HEATER,
     SystemType,
@@ -264,6 +269,13 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
                 if advanced_settings:
                     user_input.update(advanced_settings)
 
+            # Apply defaults for optional fields not provided by user
+            # This ensures tolerance values are set even if user doesn't modify them
+            if CONF_COLD_TOLERANCE not in user_input:
+                user_input[CONF_COLD_TOLERANCE] = DEFAULT_TOLERANCE
+            if CONF_HOT_TOLERANCE not in user_input:
+                user_input[CONF_HOT_TOLERANCE] = DEFAULT_TOLERANCE
+
             if not await self._validate_basic_config(user_input):
                 errors = EntityValidator.get_validation_errors(user_input)
             else:
@@ -306,6 +318,13 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
                 advanced_settings = user_input.pop("advanced_settings")
                 if advanced_settings:
                     user_input.update(advanced_settings)
+
+            # Apply defaults for optional fields not provided by user
+            # This ensures tolerance values are set even if user doesn't modify them
+            if CONF_COLD_TOLERANCE not in user_input:
+                user_input[CONF_COLD_TOLERANCE] = DEFAULT_TOLERANCE
+            if CONF_HOT_TOLERANCE not in user_input:
+                user_input[CONF_HOT_TOLERANCE] = DEFAULT_TOLERANCE
 
             if not await self._validate_basic_config(user_input):
                 errors = EntityValidator.get_validation_errors(user_input)
@@ -376,6 +395,16 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
                 if advanced_settings:
                     user_input.update(advanced_settings)
 
+            # Apply defaults for optional fields not provided by user
+            if CONF_COLD_TOLERANCE not in user_input:
+                user_input[CONF_COLD_TOLERANCE] = DEFAULT_TOLERANCE
+            if CONF_HOT_TOLERANCE not in user_input:
+                user_input[CONF_HOT_TOLERANCE] = DEFAULT_TOLERANCE
+            if CONF_HEAT_TOLERANCE not in user_input:
+                user_input[CONF_HEAT_TOLERANCE] = DEFAULT_TOLERANCE
+            if CONF_COOL_TOLERANCE not in user_input:
+                user_input[CONF_COOL_TOLERANCE] = DEFAULT_TOLERANCE
+
             if not await self._validate_basic_config(user_input):
                 heater = user_input.get(CONF_HEATER)
                 sensor = user_input.get(CONF_SENSOR)
@@ -413,6 +442,16 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
                 advanced_settings = user_input.pop("advanced_settings")
                 if advanced_settings:
                     user_input.update(advanced_settings)
+
+            # Apply defaults for optional fields not provided by user
+            if CONF_COLD_TOLERANCE not in user_input:
+                user_input[CONF_COLD_TOLERANCE] = DEFAULT_TOLERANCE
+            if CONF_HOT_TOLERANCE not in user_input:
+                user_input[CONF_HOT_TOLERANCE] = DEFAULT_TOLERANCE
+            if CONF_HEAT_TOLERANCE not in user_input:
+                user_input[CONF_HEAT_TOLERANCE] = DEFAULT_TOLERANCE
+            if CONF_COOL_TOLERANCE not in user_input:
+                user_input[CONF_COOL_TOLERANCE] = DEFAULT_TOLERANCE
 
             if not await self._validate_basic_config(user_input):
                 heater = user_input.get(CONF_HEATER)
