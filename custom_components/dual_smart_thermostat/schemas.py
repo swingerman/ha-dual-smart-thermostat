@@ -231,22 +231,37 @@ def get_basic_ac_schema(defaults=None, include_name=True):
         {
             vol.Optional(
                 CONF_COLD_TOLERANCE,
-                default=(
-                    defaults.get(CONF_COLD_TOLERANCE) if defaults else DEFAULT_TOLERANCE
-                ),
+                description={
+                    "suggested_value": (
+                        defaults.get(CONF_COLD_TOLERANCE)
+                        if defaults
+                        else DEFAULT_TOLERANCE
+                    )
+                },
             ): get_temperature_selector(min_value=0.05, max_value=10, step=0.05),
             vol.Optional(
                 CONF_HOT_TOLERANCE,
-                default=(
-                    defaults.get(CONF_HOT_TOLERANCE) if defaults else DEFAULT_TOLERANCE
-                ),
+                description={
+                    "suggested_value": (
+                        defaults.get(CONF_HOT_TOLERANCE)
+                        if defaults
+                        else DEFAULT_TOLERANCE
+                    )
+                },
             ): get_temperature_selector(min_value=0.05, max_value=10, step=0.05),
             vol.Optional(
-                CONF_MIN_DUR, default=defaults.get(CONF_MIN_DUR) if defaults else 300
+                CONF_MIN_DUR,
+                description={
+                    "suggested_value": defaults.get(CONF_MIN_DUR) if defaults else 300
+                },
             ): get_time_selector(min_value=0, max_value=3600),
             vol.Optional(
                 CONF_KEEP_ALIVE,
-                default=defaults.get(CONF_KEEP_ALIVE) if defaults else 300,
+                description={
+                    "suggested_value": (
+                        defaults.get(CONF_KEEP_ALIVE) if defaults else 300
+                    )
+                },
             ): get_time_selector(min_value=0, max_value=3600),
         }
     )
@@ -295,19 +310,29 @@ def get_simple_heater_schema(defaults=None, include_name=True):
         {
             vol.Optional(
                 CONF_COLD_TOLERANCE,
-                default=(
-                    defaults.get(CONF_COLD_TOLERANCE) if defaults else DEFAULT_TOLERANCE
-                ),
+                description={
+                    "suggested_value": (
+                        defaults.get(CONF_COLD_TOLERANCE)
+                        if defaults
+                        else DEFAULT_TOLERANCE
+                    )
+                },
             ): get_temperature_selector(min_value=0.05, max_value=10, step=0.05),
             vol.Optional(
                 CONF_HOT_TOLERANCE,
-                default=(
-                    defaults.get(CONF_HOT_TOLERANCE) if defaults else DEFAULT_TOLERANCE
-                ),
+                description={
+                    "suggested_value": (
+                        defaults.get(CONF_HOT_TOLERANCE)
+                        if defaults
+                        else DEFAULT_TOLERANCE
+                    )
+                },
             ): get_temperature_selector(min_value=0.05, max_value=10, step=0.05),
             vol.Optional(
                 CONF_MIN_DUR,
-                default=defaults.get(CONF_MIN_DUR) if defaults else 300,
+                description={
+                    "suggested_value": defaults.get(CONF_MIN_DUR) if defaults else 300
+                },
             ): get_time_selector(min_value=0, max_value=3600),
         }
     )
@@ -372,31 +397,49 @@ def get_heater_cooler_schema(defaults=None, include_name=True):
         {
             vol.Optional(
                 CONF_COLD_TOLERANCE,
-                default=(
-                    defaults.get(CONF_COLD_TOLERANCE) if defaults else DEFAULT_TOLERANCE
-                ),
+                description={
+                    "suggested_value": (
+                        defaults.get(CONF_COLD_TOLERANCE)
+                        if defaults
+                        else DEFAULT_TOLERANCE
+                    )
+                },
             ): get_temperature_selector(min_value=0.05, max_value=10, step=0.05),
             vol.Optional(
                 CONF_HOT_TOLERANCE,
-                default=(
-                    defaults.get(CONF_HOT_TOLERANCE) if defaults else DEFAULT_TOLERANCE
-                ),
+                description={
+                    "suggested_value": (
+                        defaults.get(CONF_HOT_TOLERANCE)
+                        if defaults
+                        else DEFAULT_TOLERANCE
+                    )
+                },
             ): get_temperature_selector(min_value=0.05, max_value=10, step=0.05),
             vol.Optional(
                 CONF_HEAT_TOLERANCE,
-                default=(
-                    defaults.get(CONF_HEAT_TOLERANCE) if defaults else DEFAULT_TOLERANCE
-                ),
+                description={
+                    "suggested_value": (
+                        defaults.get(CONF_HEAT_TOLERANCE)
+                        if defaults
+                        else DEFAULT_TOLERANCE
+                    )
+                },
             ): get_temperature_selector(min_value=0.05, max_value=5.0, step=0.05),
             vol.Optional(
                 CONF_COOL_TOLERANCE,
-                default=(
-                    defaults.get(CONF_COOL_TOLERANCE) if defaults else DEFAULT_TOLERANCE
-                ),
+                description={
+                    "suggested_value": (
+                        defaults.get(CONF_COOL_TOLERANCE)
+                        if defaults
+                        else DEFAULT_TOLERANCE
+                    )
+                },
             ): get_temperature_selector(min_value=0.05, max_value=5.0, step=0.05),
             vol.Optional(
                 CONF_MIN_DUR,
-                default=defaults.get(CONF_MIN_DUR) if defaults else 300,
+                description={
+                    "suggested_value": defaults.get(CONF_MIN_DUR) if defaults else 300
+                },
             ): get_time_selector(min_value=0, max_value=3600),
         }
     )
@@ -469,31 +512,49 @@ def get_heat_pump_schema(defaults=None, include_name=True):
         {
             vol.Optional(
                 CONF_COLD_TOLERANCE,
-                default=(
-                    defaults.get(CONF_COLD_TOLERANCE) if defaults else DEFAULT_TOLERANCE
-                ),
+                description={
+                    "suggested_value": (
+                        defaults.get(CONF_COLD_TOLERANCE)
+                        if defaults
+                        else DEFAULT_TOLERANCE
+                    )
+                },
             ): get_temperature_selector(min_value=0.05, max_value=10, step=0.05),
             vol.Optional(
                 CONF_HOT_TOLERANCE,
-                default=(
-                    defaults.get(CONF_HOT_TOLERANCE) if defaults else DEFAULT_TOLERANCE
-                ),
+                description={
+                    "suggested_value": (
+                        defaults.get(CONF_HOT_TOLERANCE)
+                        if defaults
+                        else DEFAULT_TOLERANCE
+                    )
+                },
             ): get_temperature_selector(min_value=0.05, max_value=10, step=0.05),
             vol.Optional(
                 CONF_HEAT_TOLERANCE,
-                default=(
-                    defaults.get(CONF_HEAT_TOLERANCE) if defaults else DEFAULT_TOLERANCE
-                ),
+                description={
+                    "suggested_value": (
+                        defaults.get(CONF_HEAT_TOLERANCE)
+                        if defaults
+                        else DEFAULT_TOLERANCE
+                    )
+                },
             ): get_temperature_selector(min_value=0.05, max_value=5.0, step=0.05),
             vol.Optional(
                 CONF_COOL_TOLERANCE,
-                default=(
-                    defaults.get(CONF_COOL_TOLERANCE) if defaults else DEFAULT_TOLERANCE
-                ),
+                description={
+                    "suggested_value": (
+                        defaults.get(CONF_COOL_TOLERANCE)
+                        if defaults
+                        else DEFAULT_TOLERANCE
+                    )
+                },
             ): get_temperature_selector(min_value=0.05, max_value=5.0, step=0.05),
             vol.Optional(
                 CONF_MIN_DUR,
-                default=defaults.get(CONF_MIN_DUR) if defaults else 300,
+                description={
+                    "suggested_value": defaults.get(CONF_MIN_DUR) if defaults else 300
+                },
             ): get_time_selector(min_value=0, max_value=3600),
         }
     )
