@@ -252,8 +252,9 @@ def get_basic_ac_schema(defaults=None, include_name=True):
     )
 
     # Add advanced settings as a collapsible section
+    # Expanded by default so users can see the pre-filled default values
     core_schema[vol.Optional("advanced_settings")] = section(
-        advanced_section_schema, {"collapsed": True}
+        advanced_section_schema, {"collapsed": False}
     )
 
     return vol.Schema(core_schema)
@@ -312,8 +313,9 @@ def get_simple_heater_schema(defaults=None, include_name=True):
     )
 
     # Add advanced settings as a collapsible section
+    # Expanded by default so users can see the pre-filled default values
     core_schema[vol.Optional("advanced_settings")] = section(
-        advanced_section_schema, {"collapsed": True}
+        advanced_section_schema, {"collapsed": False}
     )
 
     return vol.Schema(core_schema)
@@ -400,8 +402,9 @@ def get_heater_cooler_schema(defaults=None, include_name=True):
     )
 
     # Add advanced settings as a collapsible section
+    # Expanded by default so users can see the pre-filled default values
     core_schema[vol.Optional("advanced_settings")] = section(
-        advanced_section_schema, {"collapsed": True}
+        advanced_section_schema, {"collapsed": False}
     )
 
     return vol.Schema(core_schema)
@@ -496,8 +499,9 @@ def get_heat_pump_schema(defaults=None, include_name=True):
     )
 
     # Add advanced settings as a collapsible section
+    # Expanded by default so users can see the pre-filled default values
     core_schema[vol.Optional("advanced_settings")] = section(
-        advanced_section_schema, {"collapsed": True}
+        advanced_section_schema, {"collapsed": False}
     )
 
     return vol.Schema(core_schema)
