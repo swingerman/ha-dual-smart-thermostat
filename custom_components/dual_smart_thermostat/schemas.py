@@ -196,9 +196,99 @@ def get_base_schema():
     )
 
 
+def get_tolerance_fields(
+    defaults: dict[str, Any] | None = None,
+    include_heat_cool_tolerance: bool = False,
+) -> dict[Any, Any]:
+    """Get tolerance fields to be placed OUTSIDE sections (for UI pre-fill to work).
+
+    Due to a Home Assistant frontend limitation, fields inside collapsible sections
+    don't get pre-filled with default values. Tolerance fields are moved outside
+    sections so users can see the default values.
+
+    Args:
+        defaults: Optional dict with default values to pre-fill the form
+        include_heat_cool_tolerance: Whether to include heat/cool tolerance fields
+            (True for heater_cooler and heat_pump, False for ac_only and simple_heater)
+
+    Returns:
+        Dictionary of tolerance schema fields
+    """
+    defaults = defaults or {}
+    schema_dict = {}
+
+    # Common tolerance fields (present in all system types)
+    cold_tol_value = defaults.get(CONF_COLD_TOLERANCE, DEFAULT_TOLERANCE)
+    hot_tol_value = defaults.get(CONF_HOT_TOLERANCE, DEFAULT_TOLERANCE)
+
+    schema_dict[vol.Optional(CONF_COLD_TOLERANCE, default=cold_tol_value)] = (
+        get_temperature_selector(min_value=0.05, max_value=10, step=0.05)
+    )
+
+    schema_dict[vol.Optional(CONF_HOT_TOLERANCE, default=hot_tol_value)] = (
+        get_temperature_selector(min_value=0.05, max_value=10, step=0.05)
+    )
+
+    # Heat/Cool tolerance fields (only for heater_cooler and heat_pump)
+    # These are optional overrides - only show default if user has set them
+    if include_heat_cool_tolerance:
+        heat_tol_value = defaults.get(CONF_HEAT_TOLERANCE)
+        cool_tol_value = defaults.get(CONF_COOL_TOLERANCE)
+
+        schema_dict[
+            vol.Optional(
+                CONF_HEAT_TOLERANCE,
+                default=heat_tol_value if heat_tol_value is not None else vol.UNDEFINED,
+            )
+        ] = get_temperature_selector(min_value=0.05, max_value=5.0, step=0.05)
+
+        schema_dict[
+            vol.Optional(
+                CONF_COOL_TOLERANCE,
+                default=cool_tol_value if cool_tol_value is not None else vol.UNDEFINED,
+            )
+        ] = get_temperature_selector(min_value=0.05, max_value=5.0, step=0.05)
+
+    return schema_dict
+
+
+def get_timing_fields_for_section(
+    defaults: dict[str, Any] | None = None,
+    include_keep_alive: bool = True,
+) -> dict[Any, Any]:
+    """Get timing fields to be placed INSIDE the advanced section.
+
+    These fields (min_cycle_duration, keep_alive) are less commonly changed,
+    so they stay in the collapsible section. The default values still work
+    when submitting, they just won't be visually pre-filled.
+
+    Args:
+        defaults: Optional dict with default values
+        include_keep_alive: Whether to include keep_alive field
+
+    Returns:
+        Dictionary of timing schema fields for use in a section
+    """
+    defaults = defaults or {}
+    schema_dict = {}
+
+    min_dur_value = defaults.get(CONF_MIN_DUR, 300)
+    schema_dict[vol.Optional(CONF_MIN_DUR, default=min_dur_value)] = get_time_selector(
+        min_value=0, max_value=3600
+    )
+
+    if include_keep_alive:
+        keep_alive_value = defaults.get(CONF_KEEP_ALIVE, 300)
+        schema_dict[vol.Optional(CONF_KEEP_ALIVE, default=keep_alive_value)] = (
+            get_time_selector(min_value=0, max_value=3600)
+        )
+
+    return schema_dict
+
+
 def get_basic_ac_schema(defaults=None, include_name=True):
     """Get AC-only configuration schema with advanced settings in collapsible section."""
-    # Core AC configuration
+    defaults = defaults or {}
     core_schema = {}
 
     # Add name field if requested (for config flow, not options flow)
@@ -226,48 +316,26 @@ def get_basic_ac_schema(defaults=None, include_name=True):
         )
     ] = get_entity_selector(SWITCH_DOMAIN)
 
-    # Advanced settings in collapsible section
-    advanced_section_schema = vol.Schema(
-        {
-            vol.Optional(
-                CONF_COLD_TOLERANCE,
-                default=(
-                    defaults.get(CONF_COLD_TOLERANCE, DEFAULT_TOLERANCE)
-                    if defaults
-                    else DEFAULT_TOLERANCE
-                ),
-            ): get_temperature_selector(min_value=0.05, max_value=10, step=0.05),
-            vol.Optional(
-                CONF_HOT_TOLERANCE,
-                default=(
-                    defaults.get(CONF_HOT_TOLERANCE, DEFAULT_TOLERANCE)
-                    if defaults
-                    else DEFAULT_TOLERANCE
-                ),
-            ): get_temperature_selector(min_value=0.05, max_value=10, step=0.05),
-            vol.Optional(
-                CONF_MIN_DUR,
-                default=defaults.get(CONF_MIN_DUR, 300) if defaults else 300,
-            ): get_time_selector(min_value=0, max_value=3600),
-            vol.Optional(
-                CONF_KEEP_ALIVE,
-                default=defaults.get(CONF_KEEP_ALIVE, 300) if defaults else 300,
-            ): get_time_selector(min_value=0, max_value=3600),
-        }
+    # Tolerance fields OUTSIDE section (so defaults are pre-filled in UI)
+    core_schema.update(
+        get_tolerance_fields(defaults=defaults, include_heat_cool_tolerance=False)
     )
 
-    # Add advanced settings as a collapsible section
-    # Collapsed by default; suggested_value pre-fills fields when expanded
-    core_schema[vol.Optional("advanced_settings")] = section(
-        advanced_section_schema, {"collapsed": True}
+    # Timing fields in collapsible section (less commonly changed)
+    timing_fields = get_timing_fields_for_section(
+        defaults=defaults, include_keep_alive=True
     )
+    if timing_fields:
+        core_schema[vol.Optional("advanced_settings")] = section(
+            vol.Schema(timing_fields), {"collapsed": True}
+        )
 
     return vol.Schema(core_schema)
 
 
 def get_simple_heater_schema(defaults=None, include_name=True):
     """Get simple heater configuration schema with advanced settings in collapsible section."""
-    # Core heater configuration
+    defaults = defaults or {}
     core_schema = {}
 
     if include_name:
@@ -295,44 +363,27 @@ def get_simple_heater_schema(defaults=None, include_name=True):
         )
     ] = get_entity_selector(SWITCH_DOMAIN)
 
-    # Advanced settings in collapsible section
-    advanced_section_schema = vol.Schema(
-        {
-            vol.Optional(
-                CONF_COLD_TOLERANCE,
-                default=(
-                    defaults.get(CONF_COLD_TOLERANCE, DEFAULT_TOLERANCE)
-                    if defaults
-                    else DEFAULT_TOLERANCE
-                ),
-            ): get_temperature_selector(min_value=0.05, max_value=10, step=0.05),
-            vol.Optional(
-                CONF_HOT_TOLERANCE,
-                default=(
-                    defaults.get(CONF_HOT_TOLERANCE, DEFAULT_TOLERANCE)
-                    if defaults
-                    else DEFAULT_TOLERANCE
-                ),
-            ): get_temperature_selector(min_value=0.05, max_value=10, step=0.05),
-            vol.Optional(
-                CONF_MIN_DUR,
-                default=defaults.get(CONF_MIN_DUR, 300) if defaults else 300,
-            ): get_time_selector(min_value=0, max_value=3600),
-        }
+    # Tolerance fields OUTSIDE section (so defaults are pre-filled in UI)
+    core_schema.update(
+        get_tolerance_fields(defaults=defaults, include_heat_cool_tolerance=False)
     )
 
-    # Add advanced settings as a collapsible section
-    # Collapsed by default; suggested_value pre-fills fields when expanded
-    core_schema[vol.Optional("advanced_settings")] = section(
-        advanced_section_schema, {"collapsed": True}
+    # Timing fields in collapsible section (less commonly changed)
+    # Simple heater doesn't have keep_alive
+    timing_fields = get_timing_fields_for_section(
+        defaults=defaults, include_keep_alive=False
     )
+    if timing_fields:
+        core_schema[vol.Optional("advanced_settings")] = section(
+            vol.Schema(timing_fields), {"collapsed": True}
+        )
 
     return vol.Schema(core_schema)
 
 
 def get_heater_cooler_schema(defaults=None, include_name=True):
     """Get heater + cooler configuration schema with advanced settings in collapsible section."""
-    # Core heater + cooler configuration
+    defaults = defaults or {}
     core_schema = {}
 
     if include_name:
@@ -376,53 +427,21 @@ def get_heater_cooler_schema(defaults=None, include_name=True):
         )
     ] = get_boolean_selector()
 
-    # Advanced settings in collapsible section
-    advanced_section_schema = vol.Schema(
-        {
-            vol.Optional(
-                CONF_COLD_TOLERANCE,
-                default=(
-                    defaults.get(CONF_COLD_TOLERANCE, DEFAULT_TOLERANCE)
-                    if defaults
-                    else DEFAULT_TOLERANCE
-                ),
-            ): get_temperature_selector(min_value=0.05, max_value=10, step=0.05),
-            vol.Optional(
-                CONF_HOT_TOLERANCE,
-                default=(
-                    defaults.get(CONF_HOT_TOLERANCE, DEFAULT_TOLERANCE)
-                    if defaults
-                    else DEFAULT_TOLERANCE
-                ),
-            ): get_temperature_selector(min_value=0.05, max_value=10, step=0.05),
-            vol.Optional(
-                CONF_HEAT_TOLERANCE,
-                description=(
-                    {"suggested_value": defaults.get(CONF_HEAT_TOLERANCE)}
-                    if defaults and defaults.get(CONF_HEAT_TOLERANCE) is not None
-                    else {}
-                ),
-            ): get_temperature_selector(min_value=0.05, max_value=5.0, step=0.05),
-            vol.Optional(
-                CONF_COOL_TOLERANCE,
-                description=(
-                    {"suggested_value": defaults.get(CONF_COOL_TOLERANCE)}
-                    if defaults and defaults.get(CONF_COOL_TOLERANCE) is not None
-                    else {}
-                ),
-            ): get_temperature_selector(min_value=0.05, max_value=5.0, step=0.05),
-            vol.Optional(
-                CONF_MIN_DUR,
-                default=defaults.get(CONF_MIN_DUR, 300) if defaults else 300,
-            ): get_time_selector(min_value=0, max_value=3600),
-        }
+    # Tolerance fields OUTSIDE section (so defaults are pre-filled in UI)
+    # Heater+cooler includes heat/cool tolerance overrides
+    core_schema.update(
+        get_tolerance_fields(defaults=defaults, include_heat_cool_tolerance=True)
     )
 
-    # Add advanced settings as a collapsible section
-    # Collapsed by default; suggested_value pre-fills fields when expanded
-    core_schema[vol.Optional("advanced_settings")] = section(
-        advanced_section_schema, {"collapsed": True}
+    # Timing fields in collapsible section (less commonly changed)
+    # Heater+cooler doesn't have keep_alive
+    timing_fields = get_timing_fields_for_section(
+        defaults=defaults, include_keep_alive=False
     )
+    if timing_fields:
+        core_schema[vol.Optional("advanced_settings")] = section(
+            vol.Schema(timing_fields), {"collapsed": True}
+        )
 
     return vol.Schema(core_schema)
 
@@ -442,7 +461,7 @@ def get_heat_pump_schema(defaults=None, include_name=True):
     Returns:
         vol.Schema with heat pump configuration fields
     """
-    # Core heat pump configuration
+    defaults = defaults or {}
     core_schema = {}
 
     if include_name:
@@ -481,53 +500,21 @@ def get_heat_pump_schema(defaults=None, include_name=True):
         )
     ] = get_entity_selector([SENSOR_DOMAIN, BINARY_SENSOR_DOMAIN, INPUT_BOOLEAN_DOMAIN])
 
-    # Advanced settings in collapsible section
-    advanced_section_schema = vol.Schema(
-        {
-            vol.Optional(
-                CONF_COLD_TOLERANCE,
-                default=(
-                    defaults.get(CONF_COLD_TOLERANCE, DEFAULT_TOLERANCE)
-                    if defaults
-                    else DEFAULT_TOLERANCE
-                ),
-            ): get_temperature_selector(min_value=0.05, max_value=10, step=0.05),
-            vol.Optional(
-                CONF_HOT_TOLERANCE,
-                default=(
-                    defaults.get(CONF_HOT_TOLERANCE, DEFAULT_TOLERANCE)
-                    if defaults
-                    else DEFAULT_TOLERANCE
-                ),
-            ): get_temperature_selector(min_value=0.05, max_value=10, step=0.05),
-            vol.Optional(
-                CONF_HEAT_TOLERANCE,
-                description=(
-                    {"suggested_value": defaults.get(CONF_HEAT_TOLERANCE)}
-                    if defaults and defaults.get(CONF_HEAT_TOLERANCE) is not None
-                    else {}
-                ),
-            ): get_temperature_selector(min_value=0.05, max_value=5.0, step=0.05),
-            vol.Optional(
-                CONF_COOL_TOLERANCE,
-                description=(
-                    {"suggested_value": defaults.get(CONF_COOL_TOLERANCE)}
-                    if defaults and defaults.get(CONF_COOL_TOLERANCE) is not None
-                    else {}
-                ),
-            ): get_temperature_selector(min_value=0.05, max_value=5.0, step=0.05),
-            vol.Optional(
-                CONF_MIN_DUR,
-                default=defaults.get(CONF_MIN_DUR, 300) if defaults else 300,
-            ): get_time_selector(min_value=0, max_value=3600),
-        }
+    # Tolerance fields OUTSIDE section (so defaults are pre-filled in UI)
+    # Heat pump includes heat/cool tolerance overrides
+    core_schema.update(
+        get_tolerance_fields(defaults=defaults, include_heat_cool_tolerance=True)
     )
 
-    # Add advanced settings as a collapsible section
-    # Collapsed by default; suggested_value pre-fills fields when expanded
-    core_schema[vol.Optional("advanced_settings")] = section(
-        advanced_section_schema, {"collapsed": True}
+    # Timing fields in collapsible section (less commonly changed)
+    # Heat pump doesn't have keep_alive
+    timing_fields = get_timing_fields_for_section(
+        defaults=defaults, include_keep_alive=False
     )
+    if timing_fields:
+        core_schema[vol.Optional("advanced_settings")] = section(
+            vol.Schema(timing_fields), {"collapsed": True}
+        )
 
     return vol.Schema(core_schema)
 
