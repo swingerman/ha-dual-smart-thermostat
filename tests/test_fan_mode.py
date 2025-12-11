@@ -81,6 +81,7 @@ async def test_cooler_fan_unique_id(
     hass: HomeAssistant, entity_registry: er.EntityRegistry, setup_comp_1  # noqa: F811
 ) -> None:
     """Test setting a unique ID."""
+    # GIVEN: A cooler with fan configuration
     unique_id = "some_unique_id"
     heater_switch = "input_boolean.test"
     fan_switch = "input_boolean.test_fan"
@@ -97,6 +98,8 @@ async def test_cooler_fan_unique_id(
             }
         },
     )
+
+    # WHEN: Setting up climate entity with unique ID
     assert await async_setup_component(
         hass,
         CLIMATE,
@@ -115,6 +118,7 @@ async def test_cooler_fan_unique_id(
     )
     await hass.async_block_till_done()
 
+    # THEN: Entity should be registered with the unique ID
     entry = entity_registry.async_get(common.ENTITY)
     assert entry
     assert entry.unique_id == unique_id
@@ -124,6 +128,7 @@ async def test_fan_only_unique_id(
     hass: HomeAssistant, entity_registry: er.EntityRegistry, setup_comp_1  # noqa: F811
 ) -> None:
     """Test setting a unique ID."""
+    # GIVEN: A fan-only mode configuration
     unique_id = "some_unique_id"
     heater_switch = "input_boolean.test"
     assert await async_setup_component(
@@ -139,6 +144,8 @@ async def test_fan_only_unique_id(
             }
         },
     )
+
+    # WHEN: Setting up climate entity with unique ID
     assert await async_setup_component(
         hass,
         CLIMATE,
@@ -157,38 +164,35 @@ async def test_fan_only_unique_id(
     )
     await hass.async_block_till_done()
 
+    # THEN: Entity should be registered with the unique ID
     entry = entity_registry.async_get(common.ENTITY)
     assert entry
     assert entry.unique_id == unique_id
 
 
-async def test_setup_defaults_to_unknown(hass: HomeAssistant) -> None:  # noqa: F811
-    """Test the setting of defaults to unknown."""
-    heater_switch = "input_boolean.test"
-
-    assert await async_setup_component(
-        hass,
-        CLIMATE,
-        {
-            "climate": {
-                "platform": DOMAIN,
-                "name": "test",
-                "heater": heater_switch,
-                "target_sensor": common.ENT_SENSOR,
-                "fan_mode": "true",
-            }
-        },
-    )
-    await hass.async_block_till_done()
-    assert hass.states.get(common.ENTITY).state == HVACMode.OFF
-
-
+@pytest.mark.parametrize(
+    ("preset", "temp"),
+    [
+        (PRESET_NONE, 23),
+        (PRESET_AWAY, 16),
+        (PRESET_COMFORT, 20),
+        (PRESET_ECO, 18),
+        (PRESET_HOME, 19),
+        (PRESET_SLEEP, 17),
+        (PRESET_ACTIVITY, 21),
+        (PRESET_BOOST, 10),
+        (PRESET_ANTI_FREEZE, 5),
+    ],
+)
 async def test_cool_fan_setup_defaults_to_unknown(
     hass: HomeAssistant,
 ) -> None:  # noqa: F811
     """Test the setting of defaults to unknown."""
+    # GIVEN: A cooler with fan configuration without initial HVAC mode
     heater_switch = "input_boolean.test"
     fan_switch = "input_boolean.test_fan"
+
+    # WHEN: Setting up climate entity
     assert await async_setup_component(
         hass,
         CLIMATE,
@@ -204,44 +208,21 @@ async def test_cool_fan_setup_defaults_to_unknown(
         },
     )
     await hass.async_block_till_done()
+
+    # THEN: HVAC mode should default to OFF
     assert hass.states.get(common.ENTITY).state == HVACMode.OFF
-
-
-async def test_setup_gets_current_temp_from_sensor(
-    hass: HomeAssistant,
-) -> None:  # noqa: F811
-    """Test that current temperature is updated on entity addition."""
-    hass.config.units = METRIC_SYSTEM
-    setup_sensor(hass, 18)
-    await hass.async_block_till_done()
-
-    assert await async_setup_component(
-        hass,
-        CLIMATE,
-        {
-            "climate": {
-                "platform": DOMAIN,
-                "name": "test",
-                "cold_tolerance": 2,
-                "hot_tolerance": 4,
-                "heater": common.ENT_HEATER,
-                "target_sensor": common.ENT_SENSOR,
-                "fan_mode": "true",
-            }
-        },
-    )
-    await hass.async_block_till_done()
-    assert hass.states.get(common.ENTITY).attributes["current_temperature"] == 18
 
 
 async def test_setup_cool_fan_gets_current_temp_from_sensor(
     hass: HomeAssistant,
 ) -> None:  # noqa: F811
     """Test that current temperature is updated on entity addition."""
+    # GIVEN: A temperature sensor reporting 18°C
     hass.config.units = METRIC_SYSTEM
     setup_sensor(hass, 18)
     await hass.async_block_till_done()
 
+    # WHEN: Setting up cooler with fan configuration
     assert await async_setup_component(
         hass,
         CLIMATE,
@@ -259,6 +240,8 @@ async def test_setup_cool_fan_gets_current_temp_from_sensor(
         },
     )
     await hass.async_block_till_done()
+
+    # THEN: Current temperature should be read from sensor
     assert hass.states.get(common.ENTITY).attributes["current_temperature"] == 18
 
 
@@ -271,8 +254,13 @@ async def test_get_hvac_modes_cool_fan_configured(
     hass: HomeAssistant, setup_comp_heat_ac_cool_fan_config  # noqa: F811
 ) -> None:
     """Test that the operation list returns the correct modes."""
+    # GIVEN: A cooler with fan configured
+
+    # WHEN: Getting the climate entity state
     state = hass.states.get(common.ENTITY)
     modes = state.attributes.get("hvac_modes")
+
+    # THEN: Available modes should include COOL, OFF, and FAN_ONLY
     assert set(modes) == set([HVACMode.COOL, HVACMode.OFF, HVACMode.FAN_ONLY])
 
 
@@ -280,8 +268,13 @@ async def test_get_hvac_modes_fan_only_configured(
     hass: HomeAssistant, setup_comp_fan_only_config  # noqa: F811
 ) -> None:
     """Test that the operation list returns the correct modes."""
+    # GIVEN: A fan-only configuration
+
+    # WHEN: Getting the climate entity state
     state = hass.states.get(common.ENTITY)
     modes = state.attributes.get("hvac_modes")
+
+    # THEN: Available modes should include OFF and FAN_ONLY
     assert set(modes) == set([HVACMode.OFF, HVACMode.FAN_ONLY])
 
 
@@ -306,8 +299,13 @@ async def test_set_preset_mode(
     temp,
 ) -> None:
     """Test the setting preset mode."""
+    # GIVEN: Cooler with fan and presets configured, temperature set to 23
     await common.async_set_temperature(hass, 23)
+
+    # WHEN: Setting preset mode
     await common.async_set_preset_mode(hass, preset)
+
+    # THEN: Temperature should match preset value
     state = hass.states.get(common.ENTITY)
     assert state.attributes.get("temperature") == temp
 
@@ -330,8 +328,13 @@ async def test_fan_only_set_preset_mode(
     hass: HomeAssistant, setup_comp_fan_only_config_presets, preset, temp  # noqa: F811
 ) -> None:
     """Test the setting preset mode."""
+    # GIVEN: Fan-only mode with presets configured, temperature set to 23
     await common.async_set_temperature(hass, 23)
+
+    # WHEN: Setting preset mode
     await common.async_set_preset_mode(hass, preset)
+
+    # THEN: Temperature should match preset value
     state = hass.states.get(common.ENTITY)
     assert state.attributes.get("temperature") == temp
 
@@ -360,11 +363,16 @@ async def test_set_preset_mode_and_restore_prev_temp(
 
     Verify original temperature is restored.
     """
+    # GIVEN: Cooler with fan and presets configured, temperature set to 23
     await common.async_set_temperature(hass, 23)
+
+    # WHEN: Setting preset mode and then returning to PRESET_NONE
     await common.async_set_preset_mode(hass, preset)
     state = hass.states.get(common.ENTITY)
     assert state.attributes.get("temperature") == temp
     await common.async_set_preset_mode(hass, PRESET_NONE)
+
+    # THEN: Original temperature should be restored
     state = hass.states.get(common.ENTITY)
     assert state.attributes.get("temperature") == 23
 
@@ -378,8 +386,8 @@ async def test_set_preset_mode_and_restore_prev_temp(
         (PRESET_ECO, 18),
         (PRESET_HOME, 19),
         (PRESET_SLEEP, 17),
-        (PRESET_ACTIVITY, 21),
         (PRESET_BOOST, 10),
+        (PRESET_ACTIVITY, 21),
         (PRESET_ANTI_FREEZE, 5),
     ],
 )
@@ -390,9 +398,14 @@ async def test_fan_only_set_preset_mode_and_restore_prev_temp(
 
     Verify original temperature is restored.
     """
+    # GIVEN: Fan-only mode configured with presets
+
+    # WHEN: Setting target temperature and preset mode
     await common.async_set_temperature(hass, 23)
     await common.async_set_preset_mode(hass, preset)
     state = hass.states.get(common.ENTITY)
+
+    # THEN: Temperature should be correct
     assert state.attributes.get("temperature") == temp
     await common.async_set_preset_mode(hass, PRESET_NONE)
     state = hass.states.get(common.ENTITY)
@@ -423,10 +436,37 @@ async def test_set_preset_modet_twice_and_restore_prev_temp(
 
     Verify original temperature is restored.
     """
+    # GIVEN: Thermostat configured with presets
+
+    # WHEN: Setting target temperature and preset mode twice
     await common.async_set_temperature(hass, 23)
     await common.async_set_preset_mode(hass, preset)
     await common.async_set_preset_mode(hass, preset)
     state = hass.states.get(common.ENTITY)
+
+    # THEN: Temperature should be correct
+    assert state.attributes.get("temperature") == temp
+    await common.async_set_preset_mode(hass, PRESET_NONE)
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes.get("temperature") == 23
+
+
+async def test_fan_only_set_preset_modet_twice_and_restore_prev_temp(
+    hass: HomeAssistant, setup_comp_fan_only_config_presets, preset, temp  # noqa: F811
+) -> None:
+    """Test the setting preset mode twice in a row.
+
+    Verify original temperature is restored.
+    """
+    # GIVEN: Fan-only mode configured with presets
+
+    # WHEN: Setting target temperature and preset mode twice
+    await common.async_set_temperature(hass, 23)
+    await common.async_set_preset_mode(hass, preset)
+    await common.async_set_preset_mode(hass, preset)
+    state = hass.states.get(common.ENTITY)
+
+    # THEN: Temperature should be correct
     assert state.attributes.get("temperature") == temp
     await common.async_set_preset_mode(hass, PRESET_NONE)
     state = hass.states.get(common.ENTITY)
@@ -447,30 +487,18 @@ async def test_set_preset_modet_twice_and_restore_prev_temp(
         (PRESET_ANTI_FREEZE, 5),
     ],
 )
-async def test_fan_only_set_preset_modet_twice_and_restore_prev_temp(
-    hass: HomeAssistant, setup_comp_fan_only_config_presets, preset, temp  # noqa: F811
-) -> None:
-    """Test the setting preset mode twice in a row.
-
-    Verify original temperature is restored.
-    """
-    await common.async_set_temperature(hass, 23)
-    await common.async_set_preset_mode(hass, preset)
-    await common.async_set_preset_mode(hass, preset)
-    state = hass.states.get(common.ENTITY)
-    assert state.attributes.get("temperature") == temp
-    await common.async_set_preset_mode(hass, PRESET_NONE)
-    state = hass.states.get(common.ENTITY)
-    assert state.attributes.get("temperature") == 23
-
-
 async def test_set_preset_mode_invalid(
     hass: HomeAssistant, setup_comp_heat_ac_cool_fan_config_presets  # noqa: F811
 ) -> None:
     """Test an invalid mode raises an error and ignore case when checking modes."""
+    # GIVEN: Cooler with fan configured with presets
+
+    # WHEN: Setting target temperature and preset modes
     await common.async_set_temperature(hass, 23)
     await common.async_set_preset_mode(hass, "away")
     state = hass.states.get(common.ENTITY)
+
+    # THEN: Preset mode should be correct
     assert state.attributes.get("preset_mode") == "away"
     await common.async_set_preset_mode(hass, "none")
     state = hass.states.get(common.ENTITY)
@@ -485,9 +513,14 @@ async def test_fan_only_set_preset_mode_invalid(
     hass: HomeAssistant, setup_comp_fan_only_config_presets  # noqa: F811
 ) -> None:
     """Test an invalid mode raises an error and ignore case when checking modes."""
+    # GIVEN: Fan-only mode configured with presets
+
+    # WHEN: Setting target temperature and preset modes
     await common.async_set_temperature(hass, 23)
     await common.async_set_preset_mode(hass, "away")
     state = hass.states.get(common.ENTITY)
+
+    # THEN: Preset mode should be correct
     assert state.attributes.get("preset_mode") == "away"
     await common.async_set_preset_mode(hass, "none")
     state = hass.states.get(common.ENTITY)
@@ -522,10 +555,15 @@ async def test_set_preset_mode_set_temp_keeps_preset_mode(
 
     Verify preset mode preserved while temperature updated.
     """
+    # GIVEN: Thermostat configured with presets
     target_temp = 32
+
+    # WHEN: Setting target temperature and preset mode
     await common.async_set_temperature(hass, 23)
     await common.async_set_preset_mode(hass, preset)
     state = hass.states.get(common.ENTITY)
+
+    # THEN: Temperature should be correct
     assert state.attributes.get("temperature") == temp
     await common.async_set_temperature(hass, target_temp)
     assert state.attributes.get("supported_features") == 401
@@ -541,20 +579,6 @@ async def test_set_preset_mode_set_temp_keeps_preset_mode(
         assert state.attributes.get("temperature") == 23
 
 
-@pytest.mark.parametrize(
-    ("preset", "temp"),
-    [
-        (PRESET_NONE, 23),
-        (PRESET_AWAY, 16),
-        (PRESET_COMFORT, 20),
-        (PRESET_ECO, 18),
-        (PRESET_HOME, 19),
-        (PRESET_SLEEP, 17),
-        (PRESET_BOOST, 10),
-        (PRESET_ACTIVITY, 21),
-        (PRESET_ANTI_FREEZE, 5),
-    ],
-)
 async def test_fan_only_set_preset_mode_set_temp_keeps_preset_mode(
     hass: HomeAssistant, setup_comp_fan_only_config_presets, preset, temp  # noqa: F811
 ) -> None:
@@ -562,10 +586,15 @@ async def test_fan_only_set_preset_mode_set_temp_keeps_preset_mode(
 
     Verify preset mode preserved while temperature updated.
     """
+    # GIVEN: Fan-only mode configured with presets
     target_temp = 32
+
+    # WHEN: Setting target temperature and preset mode
     await common.async_set_temperature(hass, 23)
     await common.async_set_preset_mode(hass, preset)
     state = hass.states.get(common.ENTITY)
+
+    # THEN: Temperature should be correct
     assert state.attributes.get("temperature") == temp
     await common.async_set_temperature(hass, target_temp)
     assert state.attributes.get("supported_features") == 401
@@ -581,17 +610,27 @@ async def test_fan_only_set_preset_mode_set_temp_keeps_preset_mode(
         assert state.attributes.get("temperature") == 23
 
 
+###################
+# HVAC OPERATIONS #
+###################
+
+
 async def test_turn_away_mode_on_fan(
     hass: HomeAssistant, setup_comp_fan_only_config  # noqa: F811
 ) -> None:
-    """Test the setting away mode when cooling."""
+    """Test the setting away mode when in fan-only mode."""
+    # GIVEN: Fan-only mode configured with switch on and sensor at 25°C
     setup_switch(hass, True)
     setup_sensor(hass, 25)
     await hass.async_block_till_done()
     state = hass.states.get(common.ENTITY)
     assert set(state.attributes.get("preset_modes")) == set([PRESET_NONE, PRESET_AWAY])
+
+    # WHEN: Setting target temperature and away preset mode
     await common.async_set_temperature(hass, 19)
     await common.async_set_preset_mode(hass, PRESET_AWAY)
+
+    # THEN: Temperature should be set to away preset value
     state = hass.states.get(common.ENTITY)
     assert state.attributes.get("temperature") == 30
 
@@ -600,33 +639,34 @@ async def test_turn_away_mode_on_cooling(
     hass: HomeAssistant, setup_comp_heat_ac_cool_fan_config  # noqa: F811
 ) -> None:
     """Test the setting away mode when cooling."""
+    # GIVEN: Cooler with fan configured, switch on, sensor at 25°C
     setup_switch(hass, True)
     setup_sensor(hass, 25)
     await hass.async_block_till_done()
     state = hass.states.get(common.ENTITY)
     assert set(state.attributes.get("preset_modes")) == set([PRESET_NONE, PRESET_AWAY])
+
+    # WHEN: Setting target temperature and away preset mode
     await common.async_set_temperature(hass, 19)
     await common.async_set_preset_mode(hass, PRESET_AWAY)
+
+    # THEN: Temperature should be set to away preset value
     state = hass.states.get(common.ENTITY)
     assert state.attributes.get("temperature") == 30
-
-
-###################
-# HVAC OPERATIONS #
-###################
 
 
 async def test_toggle_fan_only(
     hass: HomeAssistant, setup_comp_fan_only_config  # noqa: F811
 ) -> None:
-    """Test change mode from OFF to COOL.
-
-    Switch turns on when temp below setpoint and mode changes.
-    """
+    """Test toggling between OFF and FAN_ONLY modes."""
+    # GIVEN: Fan-only mode configured in OFF state
     await common.async_set_hvac_mode(hass, HVACMode.OFF)
+
+    # WHEN: Toggling HVAC mode
     await common.async_toggle(hass)
     await hass.async_block_till_done()
 
+    # THEN: Entity state should be FAN_ONLY
     state = hass.states.get(common.ENTITY)
     assert state.state == HVACMode.FAN_ONLY
 
@@ -637,26 +677,6 @@ async def test_toggle_fan_only(
     assert state.state == HVACMode.OFF
 
 
-async def test_hvac_mode_fan_only(
-    hass: HomeAssistant, setup_comp_fan_only_config  # noqa: F811
-) -> None:
-    """Test change mode from OFF to COOL.
-
-    Switch turns on when temp below setpoint and mode changes.
-    """
-    await common.async_set_hvac_mode(hass, HVACMode.OFF)
-    await common.async_set_temperature(hass, 25)
-    setup_sensor(hass, 30)
-    await hass.async_block_till_done()
-    calls = setup_switch(hass, False)
-    await common.async_set_hvac_mode(hass, HVACMode.FAN_ONLY)
-    assert len(calls) == 1
-    call = calls[0]
-    assert call.domain == HASS_DOMAIN
-    assert call.service == SERVICE_TURN_ON
-    assert call.data["entity_id"] == common.ENT_SWITCH
-
-
 @pytest.mark.parametrize(
     ["from_hvac_mode", "to_hvac_mode"],
     [
@@ -665,20 +685,46 @@ async def test_hvac_mode_fan_only(
         [HVACMode.FAN_ONLY, HVACMode.OFF],
     ],
 )
+async def test_hvac_mode_fan_only(
+    hass: HomeAssistant, setup_comp_fan_only_config  # noqa: F811
+) -> None:
+    """Test change mode from OFF to FAN_ONLY.
+
+    Switch turns on when temp above setpoint and mode changes.
+    """
+    # GIVEN: Fan-only mode configured with temp above setpoint
+    await common.async_set_hvac_mode(hass, HVACMode.OFF)
+    await common.async_set_temperature(hass, 25)
+    setup_sensor(hass, 30)
+    await hass.async_block_till_done()
+    calls = setup_switch(hass, False)
+
+    # WHEN: Setting HVAC mode to FAN_ONLY
+    await common.async_set_hvac_mode(hass, HVACMode.FAN_ONLY)
+
+    # THEN: Switch should turn on
+    assert len(calls) == 1
+    call = calls[0]
+    assert call.domain == HASS_DOMAIN
+    assert call.service == SERVICE_TURN_ON
+    assert call.data["entity_id"] == common.ENT_SWITCH
+
+
 async def test_toggle_cool_fan(
     hass: HomeAssistant,
     from_hvac_mode,
     to_hvac_mode,
     setup_comp_heat_ac_cool_fan_config,  # noqa: F811
 ) -> None:
-    """Test change mode from OFF to COOL.
-
-    Switch turns on when temp below setpoint and mode changes.
-    """
+    """Test toggling between different HVAC modes with cooler and fan."""
+    # GIVEN: Cooler with fan configured in specific HVAC mode
     await common.async_set_hvac_mode(hass, from_hvac_mode)
+
+    # WHEN: Toggling HVAC mode
     await common.async_toggle(hass)
     await hass.async_block_till_done()
 
+    # THEN: HVAC mode should change to expected mode
     state = hass.states.get(common.ENTITY)
     assert state.state == to_hvac_mode
 
@@ -692,17 +738,18 @@ async def test_toggle_cool_fan(
 async def test_hvac_mode_cool_fan(
     hass: HomeAssistant, setup_comp_heat_ac_cool_fan_config  # noqa: F811
 ) -> None:
-    """Test change mode from OFF to COOL.
-
-    Switch turns on when temp below setpoint and mode changes.
-    """
+    """Test COOL and FAN_ONLY mode switching with cooler and fan devices."""
+    # GIVEN: Cooler with fan configured with temp above setpoint
     await common.async_set_hvac_mode(hass, HVACMode.OFF)
     await common.async_set_temperature(hass, 25)
     setup_sensor(hass, 30)
     await hass.async_block_till_done()
-    # cooler
     calls = setup_switch(hass, False)
+
+    # WHEN: Setting HVAC mode to COOL
     await common.async_set_hvac_mode(hass, HVACMode.COOL)
+
+    # THEN: Cooler switch should turn on
     assert len(calls) == 1
     call = calls[0]
     assert call.domain == HASS_DOMAIN
@@ -727,10 +774,15 @@ async def test_set_target_temp_fan_off(
     hass: HomeAssistant, setup_comp_fan_only_config  # noqa: F811
 ) -> None:
     """Test if target temperature turn fan off."""
+    # GIVEN: Fan-only mode configured with switch on and sensor at 25°C
     calls = setup_switch(hass, True)
     setup_sensor(hass, 25)
+
+    # WHEN: Setting target temperature above current temperature
     await common.async_set_temperature(hass, 30)
     await hass.async_block_till_done()
+
+    # THEN: Fan switch should be turned off
     assert len(calls) == 1
     call = calls[0]
     assert call.domain == HASS_DOMAIN
@@ -742,13 +794,17 @@ async def test_set_target_temp_cool_fan_off(
     hass: HomeAssistant, setup_comp_heat_ac_cool_fan_config  # noqa: F811
 ) -> None:
     """Test if target temperature turn ac off."""
+    # GIVEN: Cooler with fan in COOL mode, both switches on
     await common.async_set_hvac_mode(hass, HVACMode.COOL)
     await hass.async_block_till_done()
     calls = setup_switch_dual(hass, common.ENT_FAN, True, True)
-
     setup_sensor(hass, 25)
     await hass.async_block_till_done()
+
+    # WHEN: Setting target temperature above current temperature
     await common.async_set_temperature(hass, 30)
+
+    # THEN: Both switches should be turned off
     assert len(calls) == 4
 
     call_switch = calls[0]
@@ -765,11 +821,16 @@ async def test_set_target_temp_cool_fan_off(
 async def test_set_target_temp_fan_on(
     hass: HomeAssistant, setup_comp_fan_only_config  # noqa: F811
 ) -> None:
-    """Test if target temperature turn ac on."""
+    """Test if target temperature turn fan on."""
+    # GIVEN: Fan-only mode configured with switch off and sensor at 30°C
     calls = setup_switch(hass, False)
     setup_sensor(hass, 30)
     await hass.async_block_till_done()
+
+    # WHEN: Setting target temperature below current temperature
     await common.async_set_temperature(hass, 25)
+
+    # THEN: Fan switch should be turned on
     assert len(calls) == 1
     call = calls[0]
     assert call.domain == HASS_DOMAIN
@@ -781,12 +842,16 @@ async def test_set_target_temp_cooler_on(
     hass: HomeAssistant, setup_comp_heat_ac_cool_fan_config  # noqa: F811
 ) -> None:
     """Test if target temperature turn ac on."""
+    # GIVEN: Cooler with fan configured, switches off, sensor at 30°C
     calls = setup_switch_dual(hass, common.ENT_FAN, False, False)
     setup_sensor(hass, 30)
-    # only turns on if in COOL mode
+
+    # WHEN: Setting HVAC mode to COOL and target temperature below current
     await common.async_set_hvac_mode(hass, HVACMode.COOL)
     await common.async_set_temperature(hass, 25)
     await hass.async_block_till_done()
+
+    # THEN: Cooler switch should be turned on
     assert len(calls) == 1
     call = calls[0]
     assert call.domain == HASS_DOMAIN
@@ -798,12 +863,16 @@ async def test_set_target_temp_cooler_fan_on(
     hass: HomeAssistant, setup_comp_heat_ac_cool_fan_config  # noqa: F811
 ) -> None:
     """Test if target temperature turn fan on."""
+    # GIVEN: Cooler with fan configured, switches off, sensor at 30°C
     calls = setup_switch_dual(hass, common.ENT_FAN, False, False)
     setup_sensor(hass, 30)
-    # only turns on if in COOL mode
+
+    # WHEN: Setting HVAC mode to FAN_ONLY and target temperature below current
     await common.async_set_hvac_mode(hass, HVACMode.FAN_ONLY)
     await common.async_set_temperature(hass, 25)
     await hass.async_block_till_done()
+
+    # THEN: Fan switch should be turned on
     assert len(calls) == 1
     call = calls[0]
     assert call.domain == HASS_DOMAIN
@@ -815,10 +884,15 @@ async def test_temp_change_fan_off_within_tolerance(
     hass: HomeAssistant, setup_comp_fan_only_config  # noqa: F811
 ) -> None:
     """Test if temperature change doesn't turn ac off within tolerance."""
+    # GIVEN: Fan-only mode configured with switch on
     calls = setup_switch(hass, True)
+
+    # WHEN: Setting target temp and sensor reports temp within tolerance
     await common.async_set_temperature(hass, 30)
     setup_sensor(hass, 29.8)
     await hass.async_block_till_done()
+
+    # THEN: No switch calls should be made
     assert len(calls) == 0
 
 
@@ -826,11 +900,16 @@ async def test_temp_change_cooler_fan_ac_off_within_tolerance(
     hass: HomeAssistant, setup_comp_heat_ac_cool_fan_config  # noqa: F811
 ) -> None:
     """Test if temperature change doesn't turn ac off within tolerance."""
+    # GIVEN: Cooler with fan in COOL mode, cooler switch on
     await common.async_set_hvac_mode(hass, HVACMode.COOL)
     calls = setup_switch_dual(hass, common.ENT_FAN, True, False)
+
+    # WHEN: Setting target temp and sensor reports temp within tolerance
     await common.async_set_temperature(hass, 30)
     setup_sensor(hass, 29.8)
     await hass.async_block_till_done()
+
+    # THEN: No switch calls should be made
     assert len(calls) == 0
 
 
@@ -838,22 +917,32 @@ async def test_temp_change_cooler_fan_off_within_tolerance(
     hass: HomeAssistant, setup_comp_heat_ac_cool_fan_config  # noqa: F811
 ) -> None:
     """Test if temperature change doesn't turn fan off within tolerance."""
+    # GIVEN: Cooler with fan in FAN_ONLY mode, fan switch on
     await common.async_set_hvac_mode(hass, HVACMode.FAN_ONLY)
     calls = setup_switch_dual(hass, common.ENT_FAN, False, True)
+
+    # WHEN: Setting target temp and sensor reports temp within tolerance
     await common.async_set_temperature(hass, 30)
     setup_sensor(hass, 29.8)
     await hass.async_block_till_done()
+
+    # THEN: No switch calls should be made
     assert len(calls) == 0
 
 
 async def test_set_temp_change_fan_off_outside_tolerance(
     hass: HomeAssistant, setup_comp_fan_only_config  # noqa: F811
 ) -> None:
-    """Test if temperature change turn ac off."""
+    """Test if temperature change turn fan off."""
+    # GIVEN: Fan-only mode configured with switch on
     calls = setup_switch(hass, True)
+
+    # WHEN: Setting target temp and sensor reports temp outside tolerance
     await common.async_set_temperature(hass, 30)
     setup_sensor(hass, 27)
     await hass.async_block_till_done()
+
+    # THEN: Fan switch should be turned off
     assert len(calls) == 1
     call = calls[0]
     assert call.domain == HASS_DOMAIN
@@ -865,11 +954,16 @@ async def test_set_temp_change_cooler_fan_ac_off_outside_tolerance(
     hass: HomeAssistant, setup_comp_heat_ac_cool_fan_config  # noqa: F811
 ) -> None:
     """Test if temperature change turn ac off."""
+    # GIVEN: Cooler with fan in COOL mode, cooler switch on
     await common.async_set_hvac_mode(hass, HVACMode.COOL)
     calls = setup_switch_dual(hass, common.ENT_FAN, True, False)
+
+    # WHEN: Setting target temp and sensor reports temp outside tolerance
     await common.async_set_temperature(hass, 30)
     setup_sensor(hass, 27)
     await hass.async_block_till_done()
+
+    # THEN: Cooler switch should be turned off
     assert len(calls) == 1
     call = calls[0]
     assert call.domain == HASS_DOMAIN
@@ -880,12 +974,17 @@ async def test_set_temp_change_cooler_fan_ac_off_outside_tolerance(
 async def test_set_temp_change_cooler_fan_off_outside_tolerance(
     hass: HomeAssistant, setup_comp_heat_ac_cool_fan_config  # noqa: F811
 ) -> None:
-    """Test if temperature change turn ac off."""
+    """Test if temperature change turn fan off."""
+    # GIVEN: Cooler with fan in FAN_ONLY mode, fan switch on
     await common.async_set_hvac_mode(hass, HVACMode.FAN_ONLY)
     calls = setup_switch_dual(hass, common.ENT_FAN, False, True)
+
+    # WHEN: Setting target temp and sensor reports temp outside tolerance
     await common.async_set_temperature(hass, 30)
     setup_sensor(hass, 27)
     await hass.async_block_till_done()
+
+    # THEN: Fan switch should be turned off
     assert len(calls) == 1
     call = calls[0]
     assert call.domain == HASS_DOMAIN
@@ -897,10 +996,15 @@ async def test_temp_change_fan_on_within_tolerance(
     hass: HomeAssistant, setup_comp_fan_only_config  # noqa: F811
 ) -> None:
     """Test if temperature change doesn't turn fan on within tolerance."""
+    # GIVEN: Fan-only mode configured with switch off
     calls = setup_switch(hass, False)
+
+    # WHEN: Setting target temp and sensor reports temp within tolerance
     await common.async_set_temperature(hass, 25)
     setup_sensor(hass, 25.2)
     await hass.async_block_till_done()
+
+    # THEN: No switch calls should be made
     assert len(calls) == 0
 
 
@@ -908,11 +1012,16 @@ async def test_temp_change_cooler_fan_ac_on_within_tolerance(
     hass: HomeAssistant, setup_comp_heat_ac_cool_fan_config  # noqa: F811
 ) -> None:
     """Test if temperature change doesn't turn ac on within tolerance."""
+    # GIVEN: Cooler with fan in COOL mode, switches off
     await common.async_set_hvac_mode(hass, HVACMode.COOL)
     calls = setup_switch_dual(hass, common.ENT_FAN, False, False)
+
+    # WHEN: Setting target temp and sensor reports temp within tolerance
     await common.async_set_temperature(hass, 25)
     setup_sensor(hass, 25.2)
     await hass.async_block_till_done()
+
+    # THEN: No switch calls should be made
     assert len(calls) == 0
 
 
@@ -920,22 +1029,32 @@ async def test_temp_change_cooler_fan_on_within_tolerance(
     hass: HomeAssistant, setup_comp_heat_ac_cool_fan_config  # noqa: F811
 ) -> None:
     """Test if temperature change doesn't turn ac on within tolerance."""
+    # GIVEN: Cooler with fan in FAN_ONLY mode, switches off
     await common.async_set_hvac_mode(hass, HVACMode.FAN_ONLY)
     calls = setup_switch_dual(hass, common.ENT_FAN, False, False)
+
+    # WHEN: Setting target temp and sensor reports temp within tolerance
     await common.async_set_temperature(hass, 25)
     setup_sensor(hass, 25.2)
     await hass.async_block_till_done()
+
+    # THEN: No switch calls should be made
     assert len(calls) == 0
 
 
 async def test_temp_change_fan_on_outside_tolerance(
     hass: HomeAssistant, setup_comp_fan_only_config  # noqa: F811
 ) -> None:
-    """Test if temperature change turn ac on."""
+    """Test if temperature change turn fan on."""
+    # GIVEN: Fan-only mode configured with switch off
     calls = setup_switch(hass, False)
+
+    # WHEN: Setting target temp and sensor reports temp outside tolerance
     await common.async_set_temperature(hass, 25)
     setup_sensor(hass, 30)
     await hass.async_block_till_done()
+
+    # THEN: Fan switch should be turned on
     assert len(calls) == 1
     call = calls[0]
     assert call.domain == HASS_DOMAIN
@@ -947,11 +1066,16 @@ async def test_temp_change_cooler_fan_ac_on_outside_tolerance(
     hass: HomeAssistant, setup_comp_heat_ac_cool_fan_config  # noqa: F811
 ) -> None:
     """Test if temperature change turn ac on."""
+    # GIVEN: Cooler with fan in COOL mode, switches off
     await common.async_set_hvac_mode(hass, HVACMode.COOL)
     calls = setup_switch_dual(hass, common.ENT_FAN, False, False)
+
+    # WHEN: Setting target temp and sensor reports temp outside tolerance
     await common.async_set_temperature(hass, 25)
     setup_sensor(hass, 30)
     await hass.async_block_till_done()
+
+    # THEN: Cooler switch should be turned on
     assert len(calls) == 1
     call = calls[0]
     assert call.domain == HASS_DOMAIN
@@ -962,12 +1086,17 @@ async def test_temp_change_cooler_fan_ac_on_outside_tolerance(
 async def test_temp_change_cooler_fan_on_outside_tolerance(
     hass: HomeAssistant, setup_comp_heat_ac_cool_fan_config  # noqa: F811
 ) -> None:
-    """Test if temperature change turn ac on."""
+    """Test if temperature change turns fan on when outside tolerance in FAN_ONLY mode."""
+    # GIVEN: Cooler with fan in FAN_ONLY mode, switches off
     await common.async_set_hvac_mode(hass, HVACMode.FAN_ONLY)
     calls = setup_switch_dual(hass, common.ENT_FAN, False, False)
+
+    # WHEN: Setting target temp and sensor reports temp outside tolerance
     await common.async_set_temperature(hass, 25)
     setup_sensor(hass, 30)
     await hass.async_block_till_done()
+
+    # THEN: Fan switch should be turned on
     assert len(calls) == 1
     call = calls[0]
     assert call.domain == HASS_DOMAIN
@@ -979,9 +1108,14 @@ async def test_running_fan_when_operating_mode_is_off_2(
     hass: HomeAssistant, setup_comp_fan_only_config  # noqa: F811
 ) -> None:
     """Test that the switch turns off when enabled is set False."""
+    # GIVEN: Fan-only mode configured with switch on
     calls = setup_switch(hass, True)
     await common.async_set_temperature(hass, 30)
+
+    # WHEN: Setting HVAC mode to OFF
     await common.async_set_hvac_mode(hass, HVACMode.OFF)
+
+    # THEN: Switch should be turned off
     assert len(calls) == 1
     call = calls[0]
     assert call.domain == HASS_DOMAIN
@@ -992,11 +1126,16 @@ async def test_running_fan_when_operating_mode_is_off_2(
 async def test_running_cooler_fan_ac_when_operating_mode_is_off_2(
     hass: HomeAssistant, setup_comp_heat_ac_cool_fan_config  # noqa: F811
 ) -> None:
-    """Test that the switch turns off when enabled is set False."""
+    """Test that the switch turns off when HVAC mode is set to OFF."""
+    # GIVEN: Cooler with fan in COOL mode, cooler switch on
     await common.async_set_hvac_mode(hass, HVACMode.COOL)
     calls = setup_switch_dual(hass, common.ENT_FAN, True, False)
     await common.async_set_temperature(hass, 30)
+
+    # WHEN: Setting HVAC mode to OFF
     await common.async_set_hvac_mode(hass, HVACMode.OFF)
+
+    # THEN: Cooler switch should be turned off
     assert len(calls) == 1
     call = calls[0]
     assert call.domain == HASS_DOMAIN
@@ -1008,10 +1147,15 @@ async def test_running_cooler_fan_when_operating_mode_is_off_2(
     hass: HomeAssistant, setup_comp_heat_ac_cool_fan_config  # noqa: F811
 ) -> None:
     """Test that the switch turns off when enabled is set False."""
+    # GIVEN: Cooler with fan in FAN_ONLY mode, fan switch on
     await common.async_set_hvac_mode(hass, HVACMode.FAN_ONLY)
     calls = setup_switch_dual(hass, common.ENT_FAN, False, True)
     await common.async_set_temperature(hass, 30)
+
+    # WHEN: Setting HVAC mode to OFF
     await common.async_set_hvac_mode(hass, HVACMode.OFF)
+
+    # THEN: Fan switch should be turned off
     assert len(calls) == 1
     call = calls[0]
     assert call.domain == HASS_DOMAIN
@@ -1022,12 +1166,17 @@ async def test_running_cooler_fan_when_operating_mode_is_off_2(
 async def test_no_state_change_fan_when_operation_mode_off_2(
     hass: HomeAssistant, setup_comp_fan_only_config  # noqa: F811
 ) -> None:
-    """Test that the switch doesn't turn on when enabled is False."""
+    """Test that the switch doesn't turn on when HVAC mode is OFF."""
+    # GIVEN: Fan-only mode configured with switch off
     calls = setup_switch(hass, False)
     await common.async_set_temperature(hass, 30)
+
+    # WHEN: Setting HVAC mode to OFF and sensor reports high temperature
     await common.async_set_hvac_mode(hass, HVACMode.OFF)
     setup_sensor(hass, 35)
     await hass.async_block_till_done()
+
+    # THEN: No switch calls should be made
     assert len(calls) == 0
 
 
@@ -1035,25 +1184,37 @@ async def test_no_state_cooler_fan_ac_change_when_operation_mode_off_2(
     hass: HomeAssistant, setup_comp_heat_ac_cool_fan_config  # noqa: F811
 ) -> None:
     """Test that the switch doesn't turn on when enabled is False."""
+    # GIVEN: Cooler with fan in COOL mode, switches off
     await common.async_set_hvac_mode(hass, HVACMode.COOL)
     calls = setup_switch_dual(hass, common.ENT_FAN, False, False)
     await common.async_set_temperature(hass, 30)
+
+    # WHEN: Setting HVAC mode to OFF and sensor reports high temp
     await common.async_set_hvac_mode(hass, HVACMode.OFF)
     setup_sensor(hass, 35)
     await hass.async_block_till_done()
+
+    # THEN: No switch calls should be made
     assert len(calls) == 0
 
 
+@pytest.mark.parametrize("sw_on", [True, False])
+@pytest.mark.parametrize("expected_lingering_timers", [True])
 async def test_no_state_cooler_fan_change_when_operation_mode_off_2(
     hass: HomeAssistant, setup_comp_heat_ac_cool_fan_config  # noqa: F811
 ) -> None:
-    """Test that the switch doesn't turn on when enabled is False."""
+    """Test that the switch doesn't turn on when HVAC mode is OFF."""
+    # GIVEN: Cooler with fan in FAN_ONLY mode, switches off
     await common.async_set_hvac_mode(hass, HVACMode.FAN_ONLY)
     calls = setup_switch_dual(hass, common.ENT_FAN, False, False)
     await common.async_set_temperature(hass, 30)
+
+    # WHEN: Setting HVAC mode to OFF and sensor reports high temperature
     await common.async_set_hvac_mode(hass, HVACMode.OFF)
     setup_sensor(hass, 35)
     await hass.async_block_till_done()
+
+    # THEN: No switch calls should be made
     assert len(calls) == 0
 
 
@@ -1066,6 +1227,7 @@ async def test_temp_change_fan_trigger_long_enough(
     setup_comp_fan_only_config_cycle,  # noqa: F811
 ) -> None:
     """Test if temperature change turn fan on or off."""
+    # GIVEN: Fan-only mode with cycle configured
     calls = setup_switch(hass, sw_on)
     await common.async_set_temperature(hass, 25)
     setup_sensor(hass, 30 if sw_on else 23)
@@ -1075,11 +1237,11 @@ async def test_temp_change_fan_trigger_long_enough(
     common.async_fire_time_changed(hass)
     await hass.async_block_till_done()
 
-    # set temperature to switch
+    # WHEN: Temperature changes to trigger switch before cycle completes
     setup_sensor(hass, 23 if sw_on else 30)
     await hass.async_block_till_done()
 
-    # no call, not enough time
+    # THEN: No call yet, not enough time
     assert len(calls) == 0
 
     # move back to no switch temp
@@ -1115,6 +1277,7 @@ async def test_time_change_fan_trigger_long_enough(
     setup_comp_fan_only_config_cycle,  # noqa: F811
 ) -> None:
     """Test if temperature change turn fan on or off when cycle time is past."""
+    # GIVEN: Fan-only mode with cycle configured
     calls = setup_switch(hass, sw_on)
     await common.async_set_temperature(hass, 25)
     setup_sensor(hass, 30 if sw_on else 23)
@@ -1124,19 +1287,19 @@ async def test_time_change_fan_trigger_long_enough(
     common.async_fire_time_changed(hass)
     await hass.async_block_till_done()
 
-    # set temperature to switch
+    # WHEN: Temperature changes to trigger switch but cycle time not reached
     setup_sensor(hass, 23 if sw_on else 30)
     await hass.async_block_till_done()
 
-    # no call, not enough time
+    # THEN: No call yet, not enough time
     assert len(calls) == 0
 
-    # complete cycle time
+    # WHEN: Cycle time completes
     freezer.tick(timedelta(minutes=5))
     common.async_fire_time_changed(hass)
     await hass.async_block_till_done()
 
-    # call triggered, time is enough and temp reached
+    # THEN: Switch call triggered, time is enough and temp reached
     assert len(calls) == 1
     call = calls[0]
     assert call.domain == HASS_DOMAIN
@@ -1150,12 +1313,17 @@ async def test_mode_change_fan_trigger_not_long_enough(
     hass: HomeAssistant, sw_on, setup_comp_fan_only_config_cycle  # noqa: F811
 ) -> None:
     """Test if mode change turns fan despite minimum cycle."""
+    # GIVEN: Fan-only mode with cycle configured, initial state
     calls = setup_switch(hass, sw_on)
     await common.async_set_temperature(hass, 25)
     setup_sensor(hass, 20 if sw_on else 30)
     await hass.async_block_till_done()
     assert len(calls) == 0
+
+    # WHEN: Changing HVAC mode before minimum cycle elapsed
     await common.async_set_hvac_mode(hass, HVACMode.OFF if sw_on else HVACMode.FAN_ONLY)
+
+    # THEN: Switch should change despite minimum cycle
     assert len(calls) == 1
     call = calls[0]
     assert call.domain == HASS_DOMAIN
@@ -1172,6 +1340,7 @@ async def test_temp_change_cooler_fan_ac_trigger_on_long_enough(
     setup_comp_heat_ac_cool_fan_config_cycle,  # noqa: F811
 ) -> None:
     """Test if temperature change turn ac on or off."""
+    # GIVEN: Cooler with fan in COOL mode with cycle configured
     await common.async_set_hvac_mode(hass, HVACMode.COOL)
     calls = setup_switch_dual(hass, common.ENT_FAN, sw_on, False)
     await common.async_set_temperature(hass, 25)
@@ -1182,11 +1351,11 @@ async def test_temp_change_cooler_fan_ac_trigger_on_long_enough(
     common.async_fire_time_changed(hass)
     await hass.async_block_till_done()
 
-    # set temperature to switch
+    # WHEN: Temperature changes to trigger switch before cycle completes
     setup_sensor(hass, 23 if sw_on else 30)
     await hass.async_block_till_done()
 
-    # no call, not enough time
+    # THEN: No call yet, not enough time
     assert len(calls) == 0
 
     # move back to no switch temp
@@ -1222,6 +1391,7 @@ async def test_time_change_cooler_fan_ac_trigger_on_long_enough(
     setup_comp_heat_ac_cool_fan_config_cycle,  # noqa: F811
 ) -> None:
     """Test if temperature change turn ac on or off when cycle time is past."""
+    # GIVEN: Cooler with fan in COOL mode, initial state
     await common.async_set_hvac_mode(hass, HVACMode.COOL)
     calls = setup_switch_dual(hass, common.ENT_FAN, sw_on, False)
     await common.async_set_temperature(hass, 25)
@@ -1232,11 +1402,11 @@ async def test_time_change_cooler_fan_ac_trigger_on_long_enough(
     common.async_fire_time_changed(hass)
     await hass.async_block_till_done()
 
-    # set temperature to switch
+    # WHEN: Temperature changes to trigger switch before cycle completes
     setup_sensor(hass, 23 if sw_on else 30)
     await hass.async_block_till_done()
 
-    # no call, not enough time
+    # THEN: No call yet, not enough time
     assert len(calls) == 0
 
     # go over cycle time
@@ -1261,6 +1431,7 @@ async def test_temp_change_cooler_fan_trigger_on_long_enough(
     setup_comp_heat_ac_cool_fan_config_cycle,  # noqa: F811
 ) -> None:
     """Test if temperature change turn fan on or off."""
+    # GIVEN: Cooler with fan in FAN_ONLY mode with cycle configured
     await common.async_set_hvac_mode(hass, HVACMode.FAN_ONLY)
     calls = setup_switch_dual(hass, common.ENT_FAN, False, sw_on)
     await common.async_set_temperature(hass, 25)
@@ -1271,11 +1442,11 @@ async def test_temp_change_cooler_fan_trigger_on_long_enough(
     common.async_fire_time_changed(hass)
     await hass.async_block_till_done()
 
-    # set temperature to switch
+    # WHEN: Temperature changes to trigger switch before cycle completes
     setup_sensor(hass, 23 if sw_on else 30)
     await hass.async_block_till_done()
 
-    # no call, not enough time
+    # THEN: No call yet, not enough time
     assert len(calls) == 0
 
     # move back to no switch temp
@@ -1311,6 +1482,7 @@ async def test_time_change_cooler_fan_trigger_on_long_enough(
     setup_comp_heat_ac_cool_fan_config_cycle,  # noqa: F811
 ) -> None:
     """Test if temperature change turn fan on or off when cycle time is past."""
+    # GIVEN: Cooler with fan in FAN_ONLY mode, initial state
     await common.async_set_hvac_mode(hass, HVACMode.FAN_ONLY)
     calls = setup_switch_dual(hass, common.ENT_FAN, False, sw_on)
     await common.async_set_temperature(hass, 25)
@@ -1321,11 +1493,11 @@ async def test_time_change_cooler_fan_trigger_on_long_enough(
     common.async_fire_time_changed(hass)
     await hass.async_block_till_done()
 
-    # set temperature to switch
+    # WHEN: Temperature changes to trigger switch before cycle completes
     setup_sensor(hass, 23 if sw_on else 30)
     await hass.async_block_till_done()
 
-    # no call, not enough time
+    # THEN: No call yet, not enough time
     assert len(calls) == 0
 
     # go over cycle time
@@ -1347,13 +1519,18 @@ async def test_mode_change_cooler_fan_ac_trigger_off_not_long_enough(
     hass: HomeAssistant, sw_on, setup_comp_heat_ac_cool_fan_config_cycle  # noqa: F811
 ) -> None:
     """Test if mode change turns ac despite minimum cycle."""
+    # GIVEN: Cooler with fan and min cycle configured
     await common.async_set_hvac_mode(hass, HVACMode.COOL if sw_on else HVACMode.OFF)
     calls = setup_switch_dual(hass, common.ENT_FAN, sw_on, False)
     await common.async_set_temperature(hass, 25)
     setup_sensor(hass, 20 if sw_on else 30)
     await hass.async_block_till_done()
     assert len(calls) == 0
+
+    # WHEN: Changing HVAC mode before minimum cycle elapsed
     await common.async_set_hvac_mode(hass, HVACMode.OFF if sw_on else HVACMode.COOL)
+
+    # THEN: Switch should still change despite minimum cycle
     assert len(calls) == 1
     call = calls[0]
     assert call.domain == HASS_DOMAIN
@@ -1367,13 +1544,18 @@ async def test_mode_change_cooler_fan_trigger_off_not_long_enough(
     hass: HomeAssistant, sw_on, setup_comp_heat_ac_cool_fan_config_cycle  # noqa: F811
 ) -> None:
     """Test if mode change turns fan despite minimum cycle."""
+    # GIVEN: Cooler with fan in initial mode, initial state
     await common.async_set_hvac_mode(hass, HVACMode.FAN_ONLY if sw_on else HVACMode.OFF)
     calls = setup_switch_dual(hass, common.ENT_FAN, False, sw_on)
     await common.async_set_temperature(hass, 25)
     setup_sensor(hass, 20 if sw_on else 30)
     await hass.async_block_till_done()
     assert len(calls) == 0
+
+    # WHEN: Changing HVAC mode before minimum cycle elapsed
     await common.async_set_hvac_mode(hass, HVACMode.OFF if sw_on else HVACMode.FAN_ONLY)
+
+    # THEN: Switch should change despite minimum cycle
     assert len(calls) == 1
     call = calls[0]
     assert call.domain == HASS_DOMAIN
@@ -1390,25 +1572,27 @@ async def test_time_change_fan_trigger_keep_alive(
     setup_comp_fan_only_config_keep_alive,  # noqa: F811
 ) -> None:
     """Test turn fan on or off when keep alive time is past."""
+    # GIVEN: Fan-only mode with keep-alive configured
     await common.async_set_hvac_mode(hass, HVACMode.FAN_ONLY if sw_on else HVACMode.OFF)
     calls = setup_switch(hass, sw_on)
     await common.async_set_temperature(hass, 25)
     setup_sensor(hass, 30 if sw_on else 23)
     await hass.async_block_till_done()
 
+    # WHEN: Advancing time but not past keep-alive interval
     freezer.tick(timedelta(minutes=5))
     common.async_fire_time_changed(hass)
     await hass.async_block_till_done()
 
-    # no call, not enough time
+    # THEN: No call yet, not enough time
     assert len(calls) == 0
 
-    # complete keep-alive time
+    # WHEN: Completing keep-alive time
     freezer.tick(timedelta(minutes=5))
     common.async_fire_time_changed(hass)
     await hass.async_block_till_done()
 
-    # keep-alive call triggered, time is enough
+    # THEN: Keep-alive call triggered
     assert len(calls) == 1
     call = calls[0]
     assert call.domain == HASS_DOMAIN
@@ -1425,17 +1609,19 @@ async def test_time_change_ac_trigger_keep_alive(
     setup_comp_heat_ac_cool_fan_config_keep_alive,  # noqa: F811
 ) -> None:
     """Test turn ac on or off when keep alive time is past."""
+    # GIVEN: Cooler with fan and keep-alive configured
     await common.async_set_hvac_mode(hass, HVACMode.COOL if sw_on else HVACMode.OFF)
     calls = setup_switch_dual(hass, common.ENT_FAN, sw_on, False)
     await common.async_set_temperature(hass, 25)
     setup_sensor(hass, 30 if sw_on else 20)
     await hass.async_block_till_done()
 
+    # WHEN: Advancing time but not past keep-alive interval
     freezer.tick(timedelta(minutes=5))
     common.async_fire_time_changed(hass)
     await hass.async_block_till_done()
 
-    # no call, not enough time
+    # THEN: No call yet, not enough time
     assert len(calls) == 0
 
     # complete keep-alive time
@@ -1457,8 +1643,6 @@ async def test_time_change_ac_trigger_keep_alive(
         assert call.data["entity_id"] == common.ENT_FAN
 
 
-@pytest.mark.parametrize("sw_on", [True, False])
-@pytest.mark.parametrize("expected_lingering_timers", [True])
 async def test_time_change_ac_fan_trigger_keep_alive(
     hass: HomeAssistant,
     freezer: FrozenDateTimeFactory,
@@ -1466,26 +1650,27 @@ async def test_time_change_ac_fan_trigger_keep_alive(
     setup_comp_heat_ac_cool_fan_config_keep_alive,  # noqa: F811
 ) -> None:
     """Test turn fan on or off when keep alive time is past."""
+    # GIVEN: Cooler with fan and keep-alive configured
     await common.async_set_hvac_mode(hass, HVACMode.FAN_ONLY if sw_on else HVACMode.OFF)
     calls = setup_switch_dual(hass, common.ENT_FAN, False, sw_on)
     await common.async_set_temperature(hass, 25)
     setup_sensor(hass, 30 if sw_on else 20)
     await hass.async_block_till_done()
 
+    # WHEN: Advancing time but not past keep-alive interval
     freezer.tick(timedelta(minutes=5))
     common.async_fire_time_changed(hass)
     await hass.async_block_till_done()
 
-    # no call, not enough time
+    # THEN: No call yet, not enough time
     assert len(calls) == 0
 
-    # complete keep-alive time
+    # WHEN: Completing keep-alive time
     freezer.tick(timedelta(minutes=5))
     common.async_fire_time_changed(hass)
     await hass.async_block_till_done()
 
-    # keep-alive call triggered, time is enough
-    # on turn off we have 2 call, 1 per switch
+    # THEN: Keep-alive call triggered (2 calls on turn off, 1 per switch)
     assert len(calls) == 1 if sw_on else 2
     call = calls[0]
     assert call.domain == HASS_DOMAIN
@@ -1499,7 +1684,8 @@ async def test_time_change_ac_fan_trigger_keep_alive(
 
 
 async def test_fan_mode(hass: HomeAssistant, setup_comp_1) -> None:  # noqa: F811
-    """Test thermostat cooler switch in cooling mode."""
+    """Test thermostat switch in fan_mode configuration."""
+    # GIVEN: Thermostat configured with fan_mode
     cooler_switch = "input_boolean.test"
     assert await async_setup_component(
         hass, input_boolean.DOMAIN, {"input_boolean": {"test": None}}
@@ -1536,6 +1722,7 @@ async def test_fan_mode(hass: HomeAssistant, setup_comp_1) -> None:  # noqa: F81
     setup_sensor(hass, 23)
     await hass.async_block_till_done()
 
+    # WHEN: Setting target temperature
     await common.async_set_temperature(hass, 18)
     await hass.async_block_till_done()
     assert hass.states.get(cooler_switch).state == STATE_ON
@@ -1549,6 +1736,7 @@ async def test_cooler_fan_cool_mode(
     hass: HomeAssistant, setup_comp_1  # noqa: F811
 ) -> None:
     """Test thermostat cooler switch in cooling mode."""
+    # GIVEN: Cooler with fan configured in COOL mode
     cooler_switch = "input_boolean.test"
     fan_switch = "input_boolean.test_fan"
     assert await async_setup_component(
@@ -1588,13 +1776,19 @@ async def test_cooler_fan_cool_mode(
     setup_sensor(hass, 23)
     await hass.async_block_till_done()
 
+    # WHEN: Setting target temperature below current temperature
     await common.async_set_temperature(hass, 18)
     await hass.async_block_till_done()
+
+    # THEN: Cooler switch should turn on, fan should stay off
     assert hass.states.get(cooler_switch).state == STATE_ON
     assert hass.states.get(fan_switch).state == STATE_OFF
 
+    # WHEN: Temperature drops below target
     setup_sensor(hass, 17)
     await hass.async_block_till_done()
+
+    # THEN: Cooler switch should turn off
     assert hass.states.get(cooler_switch).state == STATE_OFF
     assert hass.states.get(fan_switch).state == STATE_OFF
 
@@ -1603,6 +1797,7 @@ async def test_cooler_fan_fan_mode(
     hass: HomeAssistant, setup_comp_1  # noqa: F811
 ) -> None:
     """Test thermostat cooler switch in cooling fan mode."""
+    # GIVEN: Cooler with fan configured in FAN_ONLY mode
     cooler_switch = "input_boolean.test"
     fan_switch = "input_boolean.test_fan"
     assert await async_setup_component(
@@ -1642,13 +1837,19 @@ async def test_cooler_fan_fan_mode(
     setup_sensor(hass, 23)
     await hass.async_block_till_done()
 
+    # WHEN: Setting target temperature below current temperature
     await common.async_set_temperature(hass, 18)
     await hass.async_block_till_done()
+
+    # THEN: Fan switch should turn on, cooler should stay off
     assert hass.states.get(cooler_switch).state == STATE_OFF
     assert hass.states.get(fan_switch).state == STATE_ON
 
+    # WHEN: Temperature drops below target
     setup_sensor(hass, 17)
     await hass.async_block_till_done()
+
+    # THEN: Fan switch should turn off
     assert hass.states.get(cooler_switch).state == STATE_OFF
     assert hass.states.get(fan_switch).state == STATE_OFF
 
@@ -1657,6 +1858,7 @@ async def test_fan_mode_from_off_to_idle(
     hass: HomeAssistant, setup_comp_1  # noqa: F811
 ) -> None:
     """Test thermostat switch state if HVAC mode changes."""
+    # GIVEN: Thermostat with fan_mode configured, starting in OFF mode
     cooler_switch = "input_boolean.test"
     assert await async_setup_component(
         hass, input_boolean.DOMAIN, {"input_boolean": {"test": None}}
@@ -1695,8 +1897,10 @@ async def test_fan_mode_from_off_to_idle(
     assert hass.states.get(cooler_switch).state == STATE_OFF
     assert hass.states.get(common.ENTITY).attributes["hvac_action"] == HVACAction.OFF
 
+    # WHEN: Changing HVAC mode to FAN_ONLY
     await common.async_set_hvac_mode(hass, HVACMode.FAN_ONLY)
 
+    # THEN: Switch should remain off, action should be IDLE
     assert hass.states.get(cooler_switch).state == STATE_OFF
     assert hass.states.get(common.ENTITY).attributes["hvac_action"] == HVACAction.IDLE
 
@@ -1705,6 +1909,7 @@ async def test_cooler_fan_cooler_mode_from_off_to_idle(
     hass: HomeAssistant, setup_comp_1  # noqa: F811
 ) -> None:
     """Test thermostat switch state if HVAC mode changes."""
+    # GIVEN: Cooler with fan configured, starting in OFF mode
     cooler_switch = "input_boolean.test"
     fan_switch = "input_boolean.test_fan"
     assert await async_setup_component(
@@ -1745,8 +1950,10 @@ async def test_cooler_fan_cooler_mode_from_off_to_idle(
     assert hass.states.get(cooler_switch).state == STATE_OFF
     assert hass.states.get(common.ENTITY).attributes["hvac_action"] == HVACAction.OFF
 
+    # WHEN: Changing HVAC mode to COOL
     await common.async_set_hvac_mode(hass, HVACMode.COOL)
 
+    # THEN: Switch should remain off, action should be IDLE
     assert hass.states.get(cooler_switch).state == STATE_OFF
     assert hass.states.get(common.ENTITY).attributes["hvac_action"] == HVACAction.IDLE
 
@@ -1755,6 +1962,7 @@ async def test_cooler_fan_fan_mode_from_off_to_idle(
     hass: HomeAssistant, setup_comp_1  # noqa: F811
 ) -> None:
     """Test thermostat switch state if HVAC mode changes."""
+    # GIVEN: Cooler with fan configured, starting in OFF mode
     cooler_switch = "input_boolean.test"
     fan_switch = "input_boolean.test_fan"
     assert await async_setup_component(
@@ -1795,8 +2003,10 @@ async def test_cooler_fan_fan_mode_from_off_to_idle(
     assert hass.states.get(cooler_switch).state == STATE_OFF
     assert hass.states.get(common.ENTITY).attributes["hvac_action"] == HVACAction.OFF
 
+    # WHEN: Changing HVAC mode to FAN_ONLY
     await common.async_set_hvac_mode(hass, HVACMode.FAN_ONLY)
 
+    # THEN: Switch should remain off, action should be IDLE
     assert hass.states.get(cooler_switch).state == STATE_OFF
     assert hass.states.get(common.ENTITY).attributes["hvac_action"] == HVACAction.IDLE
 
@@ -1804,7 +2014,8 @@ async def test_cooler_fan_fan_mode_from_off_to_idle(
 async def test_fan_mode_tolerance(
     hass: HomeAssistant, setup_comp_1  # noqa: F811
 ) -> None:
-    """Test thermostat cooler switch in cooling mode."""
+    """Test thermostat switch in fan_mode with tolerance settings."""
+    # GIVEN: Thermostat with fan_mode and tolerance configured
     cooler_switch = "input_boolean.test"
     assert await async_setup_component(
         hass, input_boolean.DOMAIN, {"input_boolean": {"test": None}}
@@ -1843,6 +2054,7 @@ async def test_fan_mode_tolerance(
     setup_sensor(hass, 22.4)
     await hass.async_block_till_done()
 
+    # WHEN: Setting target temperature
     await common.async_set_temperature(hass, 22)
     await hass.async_block_till_done()
     assert hass.states.get(cooler_switch).state == STATE_OFF
@@ -1864,6 +2076,7 @@ async def test_cooler_fan_cooler_mode_tolerance(
     hass: HomeAssistant, setup_comp_1  # noqa: F811
 ) -> None:
     """Test thermostat cooler switch in cooling mode."""
+    # GIVEN: Cooler with fan configured with tolerance settings in COOL mode
     cooler_switch = "input_boolean.test"
     fan_switch = "input_boolean.test_fan"
     assert await async_setup_component(
@@ -1929,7 +2142,8 @@ async def test_cooler_fan_cooler_mode_tolerance(
 async def test_cooler_fan_mode_tolerance(
     hass: HomeAssistant, setup_comp_1  # noqa: F811
 ) -> None:
-    """Test thermostat cooler switch in cooling mode."""
+    """Test thermostat fan switch in FAN_ONLY mode with tolerance settings."""
+    # GIVEN: Cooler with fan configured with tolerance settings in FAN_ONLY mode
     cooler_switch = "input_boolean.test"
     fan_switch = "input_boolean.test_fan"
     assert await async_setup_component(
@@ -1971,6 +2185,7 @@ async def test_cooler_fan_mode_tolerance(
     setup_sensor(hass, 22.4)
     await hass.async_block_till_done()
 
+    # WHEN: Setting target temperature
     await common.async_set_temperature(hass, 22)
     await hass.async_block_till_done()
     assert hass.states.get(cooler_switch).state == STATE_OFF
@@ -1992,10 +2207,21 @@ async def test_cooler_fan_mode_tolerance(
     assert hass.states.get(cooler_switch).state == STATE_OFF
 
 
+@pytest.mark.parametrize(
+    ["duration", "hvac_mode", "cooler_result_state", "fan_result_state"],
+    [
+        (timedelta(seconds=10), HVACMode.COOL, STATE_ON, STATE_OFF),
+        (timedelta(seconds=30), HVACMode.COOL, STATE_OFF, STATE_OFF),
+        (timedelta(seconds=10), HVACMode.FAN_ONLY, STATE_OFF, STATE_ON),
+        (timedelta(seconds=30), HVACMode.FAN_ONLY, STATE_OFF, STATE_OFF),
+    ],
+)
+@pytest.mark.parametrize("expected_lingering_timers", [True])
 async def test_cooler_fan_ac_and_mode(
     hass: HomeAssistant, setup_comp_1  # noqa: F811
 ) -> None:
-    """Test thermostat cooler switch in cooling mode."""
+    """Test thermostat with fan_on_with_ac feature enabled in COOL mode."""
+    # GIVEN: Cooler with fan configured with fan_on_with_ac enabled
     cooler_switch = "input_boolean.test"
     fan_switch = "input_boolean.test_fan"
     assert await async_setup_component(
@@ -2074,7 +2300,8 @@ async def test_fan_mode_cycle(
     result_state,
     setup_comp_1,  # noqa: F811
 ) -> None:
-    """Test thermostat cooler switch in cooling mode with cycle duration."""
+    """Test thermostat switch in FAN_ONLY mode with min_cycle_duration."""
+    # GIVEN: Thermostat with fan_mode and min_cycle_duration configured
     cooler_switch = "input_boolean.test"
     assert await async_setup_component(
         hass, input_boolean.DOMAIN, {"input_boolean": {"test": None}}
@@ -2112,6 +2339,7 @@ async def test_fan_mode_cycle(
     setup_sensor(hass, 23)
     await hass.async_block_till_done()
 
+    # WHEN: Setting target temperature
     await common.async_set_temperature(hass, 18)
     await hass.async_block_till_done()
     assert hass.states.get(cooler_switch).state == STATE_ON
@@ -2125,16 +2353,6 @@ async def test_fan_mode_cycle(
     assert hass.states.get(cooler_switch).state == result_state
 
 
-@pytest.mark.parametrize(
-    ["duration", "hvac_mode", "cooler_result_state", "fan_result_state"],
-    [
-        (timedelta(seconds=10), HVACMode.COOL, STATE_ON, STATE_OFF),
-        (timedelta(seconds=30), HVACMode.COOL, STATE_OFF, STATE_OFF),
-        (timedelta(seconds=10), HVACMode.FAN_ONLY, STATE_OFF, STATE_ON),
-        (timedelta(seconds=30), HVACMode.FAN_ONLY, STATE_OFF, STATE_OFF),
-    ],
-)
-@pytest.mark.parametrize("expected_lingering_timers", [True])
 async def test_cooler_fan_mode_cycle(
     hass: HomeAssistant,
     freezer: FrozenDateTimeFactory,
@@ -2145,6 +2363,7 @@ async def test_cooler_fan_mode_cycle(
     setup_comp_1,  # noqa: F811
 ) -> None:
     """Test thermostat cooler switch in cooling mode with cycle duration."""
+    # GIVEN: Cooler with fan configured with min_cycle_duration
     cooler_switch = "input_boolean.test"
     fan_switch = "input_boolean.test_fan"
     assert await async_setup_component(
@@ -2213,14 +2432,19 @@ async def test_hvac_mode_cool_fan_only(
 ) -> None:
     """Test change mode from OFF to FAN_ONLY.
 
-    Switch turns on when temp below setpoint and mode changes.
+    Fan switch turns on when temp above setpoint and mode changes.
     """
+    # GIVEN: Cooler with fan configured in OFF mode, temperature above setpoint
     await common.async_set_hvac_mode(hass, HVACMode.OFF)
     await common.async_set_temperature(hass, 25)
     setup_sensor(hass, 30)
     await hass.async_block_till_done()
     calls = setup_fan(hass, False)
+
+    # WHEN: Changing HVAC mode to FAN_ONLY
     await common.async_set_hvac_mode(hass, HVACMode.FAN_ONLY)
+
+    # THEN: Fan should turn on
     assert len(calls) == 1
     call = calls[0]
     assert call.domain == HASS_DOMAIN
@@ -2232,12 +2456,16 @@ async def test_set_target_temp_ac_fan_on(
     hass: HomeAssistant, setup_comp_heat_ac_cool_fan_config  # noqa: F811
 ) -> None:
     """Test if target temperature turn ac on."""
+    # GIVEN: Cooler with fan in FAN_ONLY mode, fan off
     calls = setup_fan(hass, False)
     await common.async_set_hvac_mode(hass, HVACMode.FAN_ONLY)
     setup_sensor(hass, 30)
+
+    # WHEN: Setting target temperature below current
     await common.async_set_temperature(hass, 25)
     await hass.async_block_till_done()
 
+    # THEN: Fan should turn on
     assert len(calls) == 1
     call = calls[0]
     assert call.domain == HASS_DOMAIN
@@ -2250,6 +2478,7 @@ async def test_set_target_temp_ac_on_tolerance_and_cycle(
     hass: HomeAssistant, setup_comp_1  # noqa: F811
 ) -> None:
     """Test if target temperature turn ac or fan on without cycle gap."""
+    # GIVEN: Cooler with fan configured with tolerance and cycle settings
     cooler_switch = "input_boolean.test"
     fan_switch = "input_boolean.fan"
 
@@ -2290,63 +2519,76 @@ async def test_set_target_temp_ac_on_tolerance_and_cycle(
     )
     await hass.async_block_till_done()
 
+    # WHEN: Setting HVAC mode to COOL and target temperature
     await common.async_set_hvac_mode(hass, HVACMode.COOL)
     await common.async_set_temperature(hass, 20)
 
-    # below hot_tolerance
+    # THEN: Below hot_tolerance, both should be off
     setup_sensor(hass, 20)
     await hass.async_block_till_done()
 
     assert hass.states.get(cooler_switch).state == STATE_OFF
     assert hass.states.get(fan_switch).state == STATE_OFF
 
-    # within hot_tolerance and fan_hot_tolerance
+    # WHEN: Temperature within hot_tolerance and fan_hot_tolerance
     setup_sensor(hass, 20.2)
     await hass.async_block_till_done()
 
+    # THEN: Fan should turn on
     assert hass.states.get(cooler_switch).state == STATE_OFF
     assert hass.states.get(fan_switch).state == STATE_ON
 
-    # within hot_tolerance and fan_hot_tolerance
+    # WHEN: Temperature still within fan_hot_tolerance
     setup_sensor(hass, 20.5)
     await hass.async_block_till_done()
 
+    # THEN: Fan should remain on
     assert hass.states.get(cooler_switch).state == STATE_OFF
     assert hass.states.get(fan_switch).state == STATE_ON
 
-    # within hot_tolerance and fan_hot_tolerance
+    # WHEN: Temperature at upper edge of fan_hot_tolerance
     setup_sensor(hass, 20.7)
     await hass.async_block_till_done()
 
+    # THEN: Fan should remain on
     assert hass.states.get(cooler_switch).state == STATE_OFF
     assert hass.states.get(fan_switch).state == STATE_ON
 
-    # outside fan_hot_tolerance, within hot_tolerance
+    # WHEN: Temperature outside fan_hot_tolerance
     setup_sensor(hass, 20.8)
     await hass.async_block_till_done()
 
+    # THEN: AC should turn on, fan should turn off
     assert hass.states.get(cooler_switch).state == STATE_ON
     assert hass.states.get(fan_switch).state == STATE_OFF
 
 
+@pytest.mark.parametrize("expected_lingering_timers", [True])
 async def test_set_target_temp_ac_on_after_fan_tolerance(
     hass: HomeAssistant, setup_comp_heat_ac_cool_fan_config_tolerance  # noqa: F811
 ) -> None:
     """Test if target temperature turn fan on."""
+    # GIVEN: Cooler with fan in COOL mode, switches off
     calls = setup_switch_dual(hass, common.ENT_FAN, False, False)
     await common.async_set_hvac_mode(hass, HVACMode.COOL)
     setup_sensor(hass, 26)
+
+    # WHEN: Setting target temperature
     await common.async_set_temperature(hass, 21)
     await hass.async_block_till_done()
 
+    # THEN: Fan should turn on (within fan threshold)
     assert len(calls) == 1
     call = calls[0]
     assert call.domain == HASS_DOMAIN
     assert call.service == SERVICE_TURN_ON
     assert call.data["entity_id"] == common.ENT_FAN
 
+    # WHEN: Changing target temperature
     await common.async_set_temperature(hass, 22)
     await hass.async_block_till_done()
+
+    # THEN: Fan should remain on
     assert len(calls) == 4
     call = calls[1]
     assert call.domain == HASS_DOMAIN
@@ -2359,27 +2601,31 @@ async def test_set_target_temp_ac_on_dont_switch_to_fan_during_cycle1(
     hass: HomeAssistant,
 ) -> None:
     """Test if cooler stay on because min_cycle_duration not reached."""
-    # Given
+    # GIVEN: Cooler with fan configured with tolerance and min_cycle settings
     await setup_comp_heat_ac_cool_fan_config_tolerance_min_cycle(hass)
     calls = setup_switch_dual(hass, common.ENT_FAN, False, False)
     await common.async_set_hvac_mode(hass, HVACMode.COOL)
     await common.async_set_temperature(hass, 20)
-    # outside fan_hot_tolerance, within hot_tolerance
+
+    # WHEN: Temperature is outside fan_hot_tolerance (triggers AC)
     setup_sensor(hass, 20.8)
     await hass.async_block_till_done()
 
+    # THEN: AC should turn on
     assert len(calls) == 1
     call = calls[0]
     assert call.domain == HASS_DOMAIN
     assert call.service == SERVICE_TURN_ON
     assert call.data["entity_id"] == common.ENT_SWITCH
 
-    # When
+    # GIVEN: AC is now on
     calls = setup_switch_dual(hass, common.ENT_FAN, True, False)
+
+    # WHEN: Temperature drops into fan threshold but cycle not elapsed
     setup_sensor(hass, 20.6)
     await hass.async_block_till_done()
 
-    # Then
+    # THEN: AC should stay on due to min cycle duration
     state = hass.states.get(common.ENTITY)
     assert len(calls) == 0
     assert (
@@ -2388,23 +2634,22 @@ async def test_set_target_temp_ac_on_dont_switch_to_fan_during_cycle1(
     )
 
 
-@pytest.mark.parametrize("expected_lingering_timers", [True])
 async def test_set_target_temp_ac_on_dont_switch_to_fan_during_cycle2(
     hass: HomeAssistant,
 ) -> None:
     """Test if cooler stay on because min_cycle_duration not reached."""
-    # Given
+    # GIVEN: Cooler with fan configured, AC already on
     await setup_comp_heat_ac_cool_fan_config_tolerance_min_cycle(hass)
 
     calls = setup_switch_dual(hass, common.ENT_FAN, True, False)
 
-    # When
+    # WHEN: Setting HVAC mode and temperature with sensor in fan threshold
     await common.async_set_hvac_mode(hass, HVACMode.COOL)
     await common.async_set_temperature(hass, 20)
     setup_sensor(hass, 20.6)
     await hass.async_block_till_done()
 
-    # Then
+    # THEN: No calls should be made (AC stays on due to cycle)
     assert len(calls) == 0
 
 
@@ -2413,23 +2658,24 @@ async def test_set_target_temp_ac_on_dont_switch_to_fan_during_cycle3(
     hass: HomeAssistant, freezer: FrozenDateTimeFactory
 ) -> None:
     """Test if switched to fan because min_cycle_duration reached."""
-    # Given
+    # GIVEN: Cooler with fan configured, AC on, min cycle duration configured
     await setup_comp_heat_ac_cool_fan_config_tolerance_min_cycle(hass)
 
     calls = setup_switch_dual(hass, common.ENT_FAN, True, False)
 
+    # WHEN: Waiting past min cycle duration
     freezer.tick(timedelta(minutes=3))
     common.async_fire_time_changed(hass)
     await hass.async_block_till_done()
 
-    # When
     await common.async_set_hvac_mode(hass, HVACMode.COOL)
     await common.async_set_temperature(hass, 20)
     setup_sensor(hass, 20.6)
     await hass.async_block_till_done()
+    await hass.async_block_till_done()
 
-    # Then
     state = hass.states.get(common.ENTITY)
+    # THEN: AC should turn off and fan should turn on
     assert len(calls) == 2
 
     call = calls[0]
@@ -2450,6 +2696,8 @@ async def test_set_target_temp_ac_on_dont_switch_to_fan_during_cycle3(
 async def test_set_target_temp_ac_on_after_fan_tolerance_2(
     hass: HomeAssistant, setup_comp_1  # noqa: F811
 ) -> None:
+    """Test AC turns on after fan when temperature exceeds fan_hot_tolerance."""
+    # GIVEN: Thermostat configured with tolerance settings
     cooler_switch = "input_boolean.test"
     fan_switch = "input_boolean.fan"
 
@@ -2489,6 +2737,7 @@ async def test_set_target_temp_ac_on_after_fan_tolerance_2(
     )
     await hass.async_block_till_done()
 
+    # WHEN: Setting HVAC mode
     await common.async_set_hvac_mode(hass, HVACMode.COOL)
     await common.async_set_temperature(hass, 20)
 
@@ -2536,6 +2785,8 @@ async def test_set_target_temp_ac_on_after_fan_tolerance_2(
 async def test_set_target_temp_ac_on_after_fan_tolerance_toggle_off(
     hass: HomeAssistant, setup_comp_1  # noqa: F811
 ) -> None:
+    """Test fan_hot_tolerance_toggle disables fan tolerance when off."""
+    # GIVEN: Thermostat configured with tolerance settings
     cooler_switch = "input_boolean.test"
     fan_switch = "input_boolean.fan"
     fan_hot_tolerance_toggle = common.ENT_FAN_HOT_TOLERNACE_TOGGLE
@@ -2583,6 +2834,7 @@ async def test_set_target_temp_ac_on_after_fan_tolerance_toggle_off(
     )
     await hass.async_block_till_done()
 
+    # WHEN: Setting HVAC mode
     await common.async_set_hvac_mode(hass, HVACMode.COOL)
     await common.async_set_temperature(hass, 20)
 
@@ -2645,6 +2897,8 @@ async def test_set_target_temp_ac_on_after_fan_tolerance_toggle_off(
 async def test_set_target_temp_ac_on_after_fan_tolerance_toggle_when_idle(
     hass: HomeAssistant, setup_comp_1  # noqa: F811
 ) -> None:
+    """Test fan_hot_tolerance_toggle has no effect when thermostat is idle."""
+    # GIVEN: Thermostat configured with tolerance settings
     cooler_switch = "input_boolean.test"
     fan_switch = "input_boolean.fan"
     fan_hot_tolerance_toggle = common.ENT_FAN_HOT_TOLERNACE_TOGGLE
@@ -2692,6 +2946,7 @@ async def test_set_target_temp_ac_on_after_fan_tolerance_toggle_when_idle(
     )
     await hass.async_block_till_done()
 
+    # WHEN: Setting HVAC mode
     await common.async_set_hvac_mode(hass, HVACMode.COOL)
     await common.async_set_temperature(hass, 20)
     setup_fan_heat_tolerance_toggle(hass, False)
@@ -2725,6 +2980,7 @@ async def test_set_target_temp_ac_on_ignore_fan_tolerance(
     ignoring fan tolerance if fan blows outside air
     that is warmer than the inside air"""
 
+    # GIVEN: Cooler with fan configured, outside sensor warmer than inside
     cooler_switch = "input_boolean.test"
     fan_switch = "input_boolean.fan"
 
@@ -2773,10 +3029,11 @@ async def test_set_target_temp_ac_on_ignore_fan_tolerance(
     )
     await hass.async_block_till_done()
 
+    # WHEN: Setting HVAC mode and target temperature
     await common.async_set_hvac_mode(hass, HVACMode.COOL)
     await common.async_set_temperature(hass, 20)
 
-    # below hot_tolerance
+    # THEN: Below hot_tolerance, both should be off
     setup_sensor(hass, 20)
     setup_outside_sensor(hass, 21)
     await hass.async_block_till_done()
@@ -2784,126 +3041,35 @@ async def test_set_target_temp_ac_on_ignore_fan_tolerance(
     assert hass.states.get(cooler_switch).state == STATE_OFF
     assert hass.states.get(fan_switch).state == STATE_OFF
 
-    # within hot_tolerance and fan_hot_tolerance
+    # WHEN: Temperature rises within fan threshold but outside air is warmer
     setup_sensor(hass, 20.2)
     await hass.async_block_till_done()
 
+    # THEN: AC should turn on (fan ignored due to warm outside air)
     assert hass.states.get(cooler_switch).state == STATE_ON
     assert hass.states.get(fan_switch).state == STATE_OFF
 
-    # within hot_tolerance and fan_hot_tolerance
+    # WHEN: Temperature continues rising
     setup_sensor(hass, 20.5)
     await hass.async_block_till_done()
 
+    # THEN: AC should remain on
     assert hass.states.get(cooler_switch).state == STATE_ON
     assert hass.states.get(fan_switch).state == STATE_OFF
 
-    # within hot_tolerance and fan_hot_tolerance
+    # WHEN: Temperature rises more
     setup_sensor(hass, 20.7)
     await hass.async_block_till_done()
 
+    # THEN: AC should remain on
     assert hass.states.get(cooler_switch).state == STATE_ON
     assert hass.states.get(fan_switch).state == STATE_OFF
 
-    # outside fan_hot_tolerance, within hot_tolerance
+    # WHEN: Temperature exceeds fan_hot_tolerance
     setup_sensor(hass, 20.8)
     await hass.async_block_till_done()
 
-    assert hass.states.get(cooler_switch).state == STATE_ON
-    assert hass.states.get(fan_switch).state == STATE_OFF
-
-
-async def test_set_target_temp_ac_on_dont_ignore_fan_tolerance(
-    hass: HomeAssistant, setup_comp_1  # noqa: F811
-) -> None:
-    """Test if target temperature turn ac on.
-    not ignoring fan tolerance if outside temp
-    is colder than target temp"""
-
-    cooler_switch = "input_boolean.test"
-    fan_switch = "input_boolean.fan"
-
-    assert await async_setup_component(
-        hass,
-        input_boolean.DOMAIN,
-        {"input_boolean": {"test": None, "fan": None}},
-    )
-
-    assert await async_setup_component(
-        hass,
-        input_number.DOMAIN,
-        {
-            "input_number": {
-                "temp": {"name": "test", "initial": 10, "min": 0, "max": 40, "step": 1},
-                "outside_temp": {
-                    "name": "test",
-                    "initial": 10,
-                    "min": 0,
-                    "max": 40,
-                    "step": 1,
-                },
-            }
-        },
-    )
-
-    assert await async_setup_component(
-        hass,
-        CLIMATE,
-        {
-            "climate": {
-                "platform": DOMAIN,
-                "name": "test",
-                "cold_tolerance": 0.2,
-                "hot_tolerance": 0.2,
-                "ac_mode": True,
-                "heater": cooler_switch,
-                "target_sensor": common.ENT_SENSOR,
-                "outside_sensor": common.ENT_OUTSIDE_SENSOR,
-                "fan": fan_switch,
-                "fan_hot_tolerance": 0.5,
-                "fan_air_outside": True,
-                "initial_hvac_mode": HVACMode.OFF,
-            }
-        },
-    )
-    await hass.async_block_till_done()
-
-    await common.async_set_hvac_mode(hass, HVACMode.COOL)
-    await common.async_set_temperature(hass, 20)
-
-    # below hot_tolerance
-    setup_sensor(hass, 20)
-    setup_outside_sensor(hass, 19)
-    await hass.async_block_till_done()
-
-    assert hass.states.get(cooler_switch).state == STATE_OFF
-    assert hass.states.get(fan_switch).state == STATE_OFF
-
-    # within hot_tolerance and fan_hot_tolerance
-    setup_sensor(hass, 20.2)
-    await hass.async_block_till_done()
-
-    assert hass.states.get(cooler_switch).state == STATE_OFF
-    assert hass.states.get(fan_switch).state == STATE_ON
-
-    # within hot_tolerance and fan_hot_tolerance
-    setup_sensor(hass, 20.5)
-    await hass.async_block_till_done()
-
-    assert hass.states.get(cooler_switch).state == STATE_OFF
-    assert hass.states.get(fan_switch).state == STATE_ON
-
-    # within hot_tolerance and fan_hot_tolerance
-    setup_sensor(hass, 20.7)
-    await hass.async_block_till_done()
-
-    assert hass.states.get(cooler_switch).state == STATE_OFF
-    assert hass.states.get(fan_switch).state == STATE_ON
-
-    # outside fan_hot_tolerance, within hot_tolerance
-    setup_sensor(hass, 20.8)
-    await hass.async_block_till_done()
-
+    # THEN: AC should remain on
     assert hass.states.get(cooler_switch).state == STATE_ON
     assert hass.states.get(fan_switch).state == STATE_OFF
 
@@ -2913,10 +3079,121 @@ async def test_set_target_temp_ac_on_dont_ignore_fan_tolerance(
 ######################
 
 
+async def test_set_target_temp_ac_on_dont_ignore_fan_tolerance(
+    hass: HomeAssistant, setup_comp_1  # noqa: F811
+) -> None:
+    """Test if target temperature turn ac on.
+    not ignoring fan tolerance if outside temp
+    is colder than target temp"""
+
+    # GIVEN: Cooler with fan configured, outside sensor colder than target
+    cooler_switch = "input_boolean.test"
+    fan_switch = "input_boolean.fan"
+
+    assert await async_setup_component(
+        hass,
+        input_boolean.DOMAIN,
+        {"input_boolean": {"test": None, "fan": None}},
+    )
+
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {"name": "test", "initial": 10, "min": 0, "max": 40, "step": 1},
+                "outside_temp": {
+                    "name": "test",
+                    "initial": 10,
+                    "min": 0,
+                    "max": 40,
+                    "step": 1,
+                },
+            }
+        },
+    )
+
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "cold_tolerance": 0.2,
+                "hot_tolerance": 0.2,
+                "ac_mode": True,
+                "heater": cooler_switch,
+                "target_sensor": common.ENT_SENSOR,
+                "outside_sensor": common.ENT_OUTSIDE_SENSOR,
+                "fan": fan_switch,
+                "fan_hot_tolerance": 0.5,
+                "fan_air_outside": True,
+                "initial_hvac_mode": HVACMode.OFF,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    # WHEN: Setting HVAC mode and target temperature
+    await common.async_set_hvac_mode(hass, HVACMode.COOL)
+    await common.async_set_temperature(hass, 20)
+
+    # THEN: Below hot_tolerance, both should be off
+    setup_sensor(hass, 20)
+    setup_outside_sensor(hass, 19)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+    assert hass.states.get(fan_switch).state == STATE_OFF
+
+    # WHEN: Temperature rises within fan threshold, outside air is cooler
+    setup_sensor(hass, 20.2)
+    await hass.async_block_till_done()
+
+    # THEN: Fan should turn on (outside air is beneficial)
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+    assert hass.states.get(fan_switch).state == STATE_ON
+
+    # WHEN: Temperature continues rising within fan threshold
+    setup_sensor(hass, 20.5)
+    await hass.async_block_till_done()
+
+    # THEN: Fan should remain on
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+    assert hass.states.get(fan_switch).state == STATE_ON
+
+    # WHEN: Temperature rises more within fan threshold
+    setup_sensor(hass, 20.7)
+    await hass.async_block_till_done()
+
+    # THEN: Fan should remain on
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+    assert hass.states.get(fan_switch).state == STATE_ON
+
+    # WHEN: Temperature exceeds fan_hot_tolerance
+    setup_sensor(hass, 20.8)
+    await hass.async_block_till_done()
+
+    # THEN: AC should turn on
+    assert hass.states.get(cooler_switch).state == STATE_ON
+    assert hass.states.get(fan_switch).state == STATE_OFF
+    await hass.async_block_till_done()
+
+    assert hass.states.get(cooler_switch).state == STATE_ON
+    assert hass.states.get(fan_switch).state == STATE_OFF
+
+
+############
+# OPENINGS #
+############
+
+
 async def test_fan_mode_opening_hvac_action_reason(
     hass: HomeAssistant, freezer: FrozenDateTimeFactory, setup_comp_1  # noqa: F811
 ) -> None:
     """Test thermostat cooler switch in cooling mode."""
+    # GIVEN: Thermostat with fan_mode configured with opening sensors
     cooler_switch = "input_boolean.test"
     opening_1 = "input_boolean.opening_1"
     opening_2 = "input_boolean.opening_2"
@@ -3043,6 +3320,7 @@ async def test_cooler_fan_mode_opening_hvac_action_reason(
     setup_comp_1,  # noqa: F811
 ) -> None:
     """Test thermostat cooler switch in cooling mode."""
+    # GIVEN: Cooler with fan configured with opening sensors
     cooler_switch = "input_boolean.test"
     fan_switch = "input_boolean.test_fan"
 
@@ -3097,6 +3375,7 @@ async def test_cooler_fan_mode_opening_hvac_action_reason(
     )
     await hass.async_block_till_done()
 
+    # THEN: Initial action reason should be NONE
     assert (
         hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_ACTION_REASON)
         == HVACActionReason.NONE
@@ -3105,75 +3384,95 @@ async def test_cooler_fan_mode_opening_hvac_action_reason(
     setup_sensor(hass, 23)
     await hass.async_block_till_done()
 
+    # WHEN: Setting target temperature
     await common.async_set_temperature(hass, 18)
     await hass.async_block_till_done()
+
+    # THEN: Action reason should be TARGET_TEMP_NOT_REACHED
     assert (
         hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_ACTION_REASON)
         == HVACActionReason.TARGET_TEMP_NOT_REACHED
     )
 
+    # WHEN: Opening 1 is opened
     setup_boolean(hass, opening_1, "open")
     await hass.async_block_till_done()
 
+    # THEN: Action reason should be OPENING
     assert (
         hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_ACTION_REASON)
         == HVACActionReason.OPENING
     )
 
+    # WHEN: Opening 1 is closed
     setup_boolean(hass, opening_1, "closed")
     await hass.async_block_till_done()
 
+    # THEN: Action reason should return to TARGET_TEMP_NOT_REACHED
     assert (
         hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_ACTION_REASON)
         == HVACActionReason.TARGET_TEMP_NOT_REACHED
     )
 
+    # WHEN: Opening 2 is opened (has timeout)
     setup_boolean(hass, opening_2, "open")
     await hass.async_block_till_done()
 
+    # THEN: Action reason should still be TARGET_TEMP_NOT_REACHED (within timeout)
     assert (
         hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_ACTION_REASON)
         == HVACActionReason.TARGET_TEMP_NOT_REACHED
     )
 
-    # wait 5 seconds
+    # WHEN: Timeout passes
     freezer.tick(timedelta(seconds=6))
     common.async_fire_time_changed(hass)
     await hass.async_block_till_done()
 
+    # THEN: Action reason should be OPENING
     assert (
         hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_ACTION_REASON)
         == HVACActionReason.OPENING
     )
 
+    # WHEN: Opening 2 is closed
     setup_boolean(hass, opening_2, "closed")
     await hass.async_block_till_done()
 
+    # THEN: Action reason should still be OPENING (within closing timeout)
     assert (
         hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_ACTION_REASON)
         == HVACActionReason.OPENING
     )
 
-    # wait openings
+    # WHEN: Closing timeout passes
     freezer.tick(timedelta(seconds=4))
     common.async_fire_time_changed(hass)
     await hass.async_block_till_done()
 
+    # THEN: Action reason should return to TARGET_TEMP_NOT_REACHED
     assert (
         hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_ACTION_REASON)
         == HVACActionReason.TARGET_TEMP_NOT_REACHED
     )
 
 
-############
-# OPENINGS #
-############
-
-
+@pytest.mark.parametrize(
+    ["hvac_mode", "oepning_scope", "switch_state", "fan_state"],
+    [
+        ([HVACMode.COOL, ["all"], STATE_OFF, STATE_OFF]),
+        ([HVACMode.COOL, [HVACMode.COOL], STATE_OFF, STATE_OFF]),
+        ([HVACMode.COOL, [HVACMode.FAN_ONLY], STATE_ON, STATE_OFF]),
+        ([HVACMode.FAN_ONLY, ["all"], STATE_OFF, STATE_OFF]),
+        ([HVACMode.FAN_ONLY, [HVACMode.COOL], STATE_OFF, STATE_ON]),
+        ([HVACMode.FAN_ONLY, [HVACMode.FAN_ONLY], STATE_OFF, STATE_OFF]),
+    ],
+)
 async def test_fan_mode_opening(
     hass: HomeAssistant, freezer: FrozenDateTimeFactory, setup_comp_1  # noqa: F811
 ) -> None:
     """Test thermostat cooler switch in cooling mode."""
+    # GIVEN: Thermostat with fan_mode configured with opening sensors
     cooler_switch = "input_boolean.test"
     opening_1 = "input_boolean.opening_1"
     opening_2 = "input_boolean.opening_2"
@@ -3275,7 +3574,8 @@ async def test_cooler_fan_mode_opening(
     hvac_mode,
     setup_comp_1,  # noqa: F811
 ) -> None:
-    """Test thermostat cooler switch in cooling mode."""
+    """Test thermostat with cooler and fan responds to opening sensors."""
+    # GIVEN: Cooler with fan configured with opening sensors
     cooler_switch = "input_boolean.test"
     fan_switch = "input_boolean.test_fan"
 
@@ -3336,8 +3636,11 @@ async def test_cooler_fan_mode_opening(
     setup_sensor(hass, 23)
     await hass.async_block_till_done()
 
+    # WHEN: Setting target temperature
     await common.async_set_temperature(hass, 18)
     await hass.async_block_till_done()
+
+    # THEN: Appropriate switch should turn on based on HVAC mode
     assert (
         hass.states.get(cooler_switch).state == STATE_ON
         if hvac_mode == HVACMode.COOL
@@ -3349,15 +3652,19 @@ async def test_cooler_fan_mode_opening(
         else STATE_ON
     )
 
+    # WHEN: Opening 1 is opened
     setup_boolean(hass, opening_1, "open")
     await hass.async_block_till_done()
 
+    # THEN: Both switches should turn off
     assert hass.states.get(cooler_switch).state == STATE_OFF
     assert hass.states.get(fan_switch).state == STATE_OFF
 
+    # WHEN: Opening 1 is closed
     setup_boolean(hass, opening_1, "closed")
     await hass.async_block_till_done()
 
+    # THEN: Appropriate switch should turn back on
     assert (
         hass.states.get(cooler_switch).state == STATE_ON
         if hvac_mode == HVACMode.COOL
@@ -3369,9 +3676,11 @@ async def test_cooler_fan_mode_opening(
         else STATE_ON
     )
 
+    # WHEN: Opening 2 is opened (has timeout)
     setup_boolean(hass, opening_2, "open")
     await hass.async_block_till_done()
 
+    # THEN: Switch should remain on (within timeout)
     assert (
         hass.states.get(cooler_switch).state == STATE_ON
         if hvac_mode == HVACMode.COOL
@@ -3383,11 +3692,12 @@ async def test_cooler_fan_mode_opening(
         else STATE_ON
     )
 
-    # wait 5 seconds
+    # WHEN: Timeout passes
     freezer.tick(timedelta(seconds=6))
     common.async_fire_time_changed(hass)
     await hass.async_block_till_done()
 
+    # THEN: Both switches should turn off
     assert hass.states.get(cooler_switch).state == STATE_OFF
     assert hass.states.get(fan_switch).state == STATE_OFF
 
@@ -3414,17 +3724,6 @@ async def test_cooler_fan_mode_opening(
     )
 
 
-@pytest.mark.parametrize(
-    ["hvac_mode", "oepning_scope", "switch_state", "fan_state"],
-    [
-        ([HVACMode.COOL, ["all"], STATE_OFF, STATE_OFF]),
-        ([HVACMode.COOL, [HVACMode.COOL], STATE_OFF, STATE_OFF]),
-        ([HVACMode.COOL, [HVACMode.FAN_ONLY], STATE_ON, STATE_OFF]),
-        ([HVACMode.FAN_ONLY, ["all"], STATE_OFF, STATE_OFF]),
-        ([HVACMode.FAN_ONLY, [HVACMode.COOL], STATE_OFF, STATE_ON]),
-        ([HVACMode.FAN_ONLY, [HVACMode.FAN_ONLY], STATE_OFF, STATE_OFF]),
-    ],
-)
 async def test_cooler_fan_mode_opening_scope(
     hass: HomeAssistant,
     hvac_mode,
@@ -3433,7 +3732,8 @@ async def test_cooler_fan_mode_opening_scope(
     fan_state,
     setup_comp_1,  # noqa: F811
 ) -> None:
-    """Test thermostat cooler switch in cooling mode."""
+    """Test thermostat opening_scope feature limits which HVAC modes respond to openings."""
+    # GIVEN: Cooler with fan configured with opening sensors and opening_scope
     cooler_switch = "input_boolean.test"
     fan_switch = "input_boolean.test_fan"
 

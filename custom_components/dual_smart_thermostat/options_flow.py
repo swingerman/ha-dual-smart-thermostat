@@ -485,8 +485,8 @@ class OptionsFlowHandler(OptionsFlow):
             )
 
         return self.async_create_entry(
-            title="",  # Empty title for options flow
-            data=updated_data,
+            title="",
+            data=updated_data,  # Empty title for options flow
         )
 
     async def async_step_dual_stage_options(

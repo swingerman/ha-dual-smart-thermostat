@@ -14,7 +14,6 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class HeaterHvacConroller(GenericHvacController):
-
     def __init__(
         self,
         hass: HomeAssistant,

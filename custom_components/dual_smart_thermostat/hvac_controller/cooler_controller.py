@@ -12,7 +12,6 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class CoolerHvacController(GenericHvacController):
-
     def __init__(
         self,
         hass: HomeAssistant,

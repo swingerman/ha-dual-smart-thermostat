@@ -628,8 +628,8 @@ async def test_simple_heater_openings_multiple_timeout_values(hass):
     result = await flow.async_step_openings_config(
         {
             "opening_scope": "heat",
-            "timeout_openings_open": 600,  # 10 minutes
-        }
+            "timeout_openings_open": 600,
+        }  # 10 minutes
     )
 
     assert result["type"] == "create_entry"

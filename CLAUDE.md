@@ -394,14 +394,53 @@ GitHub workflows will **reject** commits that fail linting.
 
 ### Test Organization
 
+**IMPORTANT**: The test suite has undergone comprehensive consolidation (Phases 1-10). See `docs/testing/TEST_ORGANIZATION.md` for complete guidance on test structure and where to add new tests.
+
 The test suite is organized by functionality with a focus on consolidation and maintainability:
 
+#### Shared Tests (`tests/shared_tests/`)
+
+**Purpose:** Consolidated test modules for behavior common across multiple HVAC modes.
+
+**Modules:**
+- `test_setup_base.py` - Setup and initialization tests (6 tests × 4 modes = 24 executions)
+- `test_preset_base.py` - Preset mode tests (6 tests × 3 modes = 18 executions)
+- `test_hvac_operations_base.py` - HVAC operations tests (3 tests × 3 modes = 9 executions)
+- `test_tolerance_base.py` - Temperature tolerance tests (4 tests × 3 modes = 12 executions)
+- `conftest.py` - MODE_CONFIGS and shared fixtures
+
+**Pattern:** These tests use `MODE_CONFIGS` parametrization and Given/When/Then structure:
+```python
+@pytest.mark.parametrize("mode_config", MODE_CONFIGS.values())
+async def test_feature(mode_config, hass, ...):
+    """Test feature for {mode}."""
+    # GIVEN - Setup
+    # WHEN - Trigger
+    # THEN - Assert
+```
+
+**When to add here:** Test duplicated across 3+ modes, < 80 lines, ~90% identical logic.
+
+#### Mode-Specific Tests (`tests/test_*_mode.py`)
+
+**Purpose:** Tests unique to a particular HVAC mode that don't fit shared test pattern.
+
+- `test_heater_mode.py` - Aux heater, floor protection, heater-specific features
+- `test_cooler_mode.py` - AC-specific behavior, cooler-specific features
+- `test_heat_pump_mode.py` - Heat pump mode switching, single switch heat/cool
+- `test_fan_mode.py` - Fan variants, keep-alive, fan-AC interactions
+- `test_dry_mode.py` - Humidity control, dryer-specific behavior
+- `test_dual_mode.py` - Range control, dual mode coordination
+
+**Also includes:** Already-parametrized tests (cycles, opening scope) that are well-optimized within mode files.
+
+**When to add here:** Mode-specific features, complex tests (>80 lines), already-parametrized tests.
+
 #### Core Functionality Tests
-- `tests/test_<mode>_mode.py` - Mode-specific functionality (heater, cooler, heat pump, fan, dry, dual)
 - `tests/presets/` - Preset functionality tests
 - `tests/openings/` - Opening detection tests
 - `tests/features/` - Feature-specific tests
-- `tests/conftest.py` - Pytest fixtures and test utilities
+- `tests/conftest.py` - Root pytest fixtures and test utilities
 
 #### Config Flow Tests (`tests/config_flow/`)
 
@@ -450,6 +489,27 @@ The test suite is organized by functionality with a focus on consolidation and m
    - `test_translations.py` - Localization support
    - `test_options_entry_helpers.py` - Helper function unit tests
 
+### Adding New Tests - Decision Tree
+
+**For detailed guidance, see:** `docs/testing/TEST_ORGANIZATION.md`
+
+**Quick Decision Tree:**
+```
+New Test Needed
+    │
+    ├─ Duplicated across 3+ modes?
+    │   └─ YES → Add to shared_tests/ (parametrize by MODE_CONFIGS)
+    │
+    ├─ Mode-specific behavior?
+    │   └─ YES → Add to mode file (test_*_mode.py)
+    │
+    ├─ Config flow related?
+    │   └─ YES → Add to consolidated config flow test
+    │
+    └─ Feature-specific?
+        └─ YES → Add to feature test directory
+```
+
 ### Adding New Config Flow Tests
 
 **Where to add your test:**
@@ -472,7 +532,33 @@ The test suite is organized by functionality with a focus on consolidation and m
 4. **New reconfigure scenario?**
    - Add to `test_reconfigure_flow.py` or system-specific reconfigure file
 
-**Pattern to follow:**
+**Test Pattern - Shared Tests:**
+```python
+@pytest.mark.parametrize("mode_config", MODE_CONFIGS.values())
+async def test_feature(mode_config, hass, ...):
+    """Test feature for {mode}."""
+    # GIVEN - Setup using mode_config
+    setup_sensor(hass, mode_config["initial_temp"])
+
+    # WHEN - Trigger behavior
+    await async_set_temperature(hass, mode_config["target_temp"])
+
+    # THEN - Assert outcome
+    assert hass.states.get(mode_config["switch"]).state == STATE_ON
+```
+
+**Test Pattern - Mode-Specific Tests:**
+```python
+async def test_heater_aux_feature(hass, ...):
+    """Test heater auxiliary heater feature.
+
+    This test verifies heater-specific behavior that doesn't
+    apply to other modes.
+    """
+    # Mode-specific implementation
+```
+
+**Test Pattern - Config Flow Tests:**
 ```python
 @pytest.mark.asyncio
 async def test_descriptive_name_of_what_youre_testing(hass):
