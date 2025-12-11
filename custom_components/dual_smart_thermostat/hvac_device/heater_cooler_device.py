@@ -125,11 +125,6 @@ class HeaterCoolerDevice(MultiHvacDevice):
         else:
             await self.async_heater_cooler_toggle(time, force)
 
-        if time is not None:
-            # The time argument is passed only in keep-alive case
-            _LOGGER.info("Keep-alive - Toggling on heater cooler")
-            await self.async_heater_cooler_toggle(time, force)
-
     async def async_heater_cooler_toggle(self, time=None, force=False) -> None:
         """Toggle heater cooler based on temp and tolarance."""
         _LOGGER.debug("async_heater_cooler_toggle time: %s, force: %s", time, force)
