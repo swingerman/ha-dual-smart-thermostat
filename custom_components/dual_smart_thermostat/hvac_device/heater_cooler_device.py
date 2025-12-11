@@ -75,21 +75,54 @@ class HeaterCoolerDevice(MultiHvacDevice):
         await super().async_control_hvac(time, force)
 
     def is_cold_or_hot(self) -> tuple[bool, bool, ToleranceDevice]:
-        """Check if the environment is too cold or too hot."""
+        """Check if the environment is too cold or too hot.
+
+        When a device is active (heater/cooler), we check if the target has been reached
+        to determine if it should turn off. When inactive, we use tolerance to determine
+        if it should turn on.
+
+        Fix for issue #10: When heater is active, check if temp >= target_temp_low
+        (without hot_tolerance) to turn off. Similarly for cooler.
+        """
 
         _LOGGER.debug("is_cold_or_hot")
         _LOGGER.debug("heater_device.is_active: %s", self.heater_device.is_active)
         _LOGGER.debug("cooler_device.is_active: %s", self.cooler_device.is_active)
 
         if self.heater_device.is_active:
+            # Heater is ON: check if we should turn it off
+            # Turn off when temperature reaches target_temp_low (without adding tolerance)
             too_cold = self.environment.is_too_cold("_target_temp_low")
-            too_hot = self.environment.is_too_hot("_target_temp_low")
+            # Check if target reached: cur_temp >= target_temp_low
+            target_reached = (
+                self.environment.cur_temp >= self.environment.target_temp_low
+            )
+            too_hot = target_reached
             tolerance_device = ToleranceDevice.HEATER
+            _LOGGER.debug(
+                "Heater active - cur_temp: %s, target_low: %s, target_reached: %s",
+                self.environment.cur_temp,
+                self.environment.target_temp_low,
+                target_reached,
+            )
         elif self.cooler_device.is_active:
-            too_cold = self.environment.is_too_cold("_target_temp_high")
+            # Cooler is ON: check if we should turn it off
+            # Turn off when temperature reaches target_temp_high (without subtracting tolerance)
             too_hot = self.environment.is_too_hot("_target_temp_high")
+            # Check if target reached: cur_temp <= target_temp_high
+            target_reached = (
+                self.environment.cur_temp <= self.environment.target_temp_high
+            )
+            too_cold = target_reached
             tolerance_device = ToleranceDevice.COOLER
+            _LOGGER.debug(
+                "Cooler active - cur_temp: %s, target_high: %s, target_reached: %s",
+                self.environment.cur_temp,
+                self.environment.target_temp_high,
+                target_reached,
+            )
         else:
+            # Neither device active: use tolerance to determine which should turn on
             too_cold = self.environment.is_too_cold("_target_temp_low")
             too_hot = self.environment.is_too_hot("_target_temp_high")
             tolerance_device = ToleranceDevice.AUTO
