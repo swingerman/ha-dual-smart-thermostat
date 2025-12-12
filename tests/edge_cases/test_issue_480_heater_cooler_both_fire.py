@@ -24,9 +24,8 @@ from homeassistant.util.unit_system import METRIC_SYSTEM, US_CUSTOMARY_SYSTEM
 import pytest
 
 from custom_components.dual_smart_thermostat.const import DOMAIN
-
-from . import common
-from .common import mock_restore_cache
+from tests import common
+from tests.common import mock_restore_cache
 
 _LOGGER = logging.getLogger(__name__)
 
