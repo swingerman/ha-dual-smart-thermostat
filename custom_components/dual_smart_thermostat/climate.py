@@ -307,17 +307,21 @@ async def async_setup_platform(
 
 
 def _normalize_config_numeric_values(config: dict[str, Any]) -> dict[str, Any]:
-    """Convert string numeric values to floats in config.
+    """Convert string numeric values to floats and time values to timedeltas in config.
 
     This is a safety net for:
     1. Existing config entries that may have string values stored
     2. Edge cases where config flow normalization wasn't applied
+    3. Time values from config flow stored as seconds (int/float) need conversion to timedelta
 
     The primary fix is in config_flow.py/_clean_config_for_storage()
     which converts values at save time.
 
     Fixes issue #468 where precision/temp_step stored as strings caused
     incorrect behavior in temperature rounding and step calculations.
+
+    Fixes issue #484 where keep_alive stored as float/int instead of timedelta
+    caused AttributeError when async_track_time_interval expected timedelta.
     """
     # Keys that might be strings from SelectSelector in config flow
     float_keys = [CONF_PRECISION, CONF_TEMP_STEP]
@@ -328,6 +332,22 @@ def _normalize_config_numeric_values(config: dict[str, Any]) -> dict[str, Any]:
                 config[key] = float(config[key])
             except (ValueError, TypeError):
                 pass  # Keep original if conversion fails
+
+    # Time-based keys that need conversion from seconds to timedelta
+    # Config flow stores these as int/float (seconds) but code expects timedelta
+    time_keys = [CONF_KEEP_ALIVE, CONF_MIN_DUR, CONF_STALE_DURATION]
+
+    for key in time_keys:
+        if key in config and config[key] is not None:
+            value = config[key]
+            # Only convert if it's not already a timedelta
+            if not isinstance(value, timedelta):
+                try:
+                    # Convert seconds (int/float) to timedelta
+                    if isinstance(value, (int, float)):
+                        config[key] = timedelta(seconds=value)
+                except (ValueError, TypeError):
+                    pass  # Keep original if conversion fails
 
     return config
 
