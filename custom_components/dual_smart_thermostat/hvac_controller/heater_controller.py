@@ -103,8 +103,12 @@ class HeaterHvacConroller(GenericHvacController):
 
         elif time is not None or any_opening_open or is_floor_hot:
             # The time argument is passed only in keep-alive case
-            _LOGGER.debug("Keep-alive - Turning off heater %s", self.entity_id)
-            await self.async_turn_off_callback()
+            # Keep-alive should only send turn_off if device is unexpectedly ON
+            if self.is_active:
+                _LOGGER.debug("Keep-alive - Turning off heater %s", self.entity_id)
+                await self.async_turn_off_callback()
+            else:
+                _LOGGER.debug("Keep-alive - Heater already off %s", self.entity_id)
 
             if is_floor_hot:
                 self._hvac_action_reason = HVACActionReason.OVERHEAT
