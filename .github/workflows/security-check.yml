@@ -62,7 +62,7 @@ jobs:
           fi
 
       - name: Upload security reports
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: security-reports
           path: |
@@ -99,7 +99,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload audit reports
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: audit-reports
           path: pip-audit-report.json
@@ -151,7 +151,7 @@ jobs:
           fi
 
       - name: Upload quality reports
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: quality-reports
           path: |
