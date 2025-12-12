@@ -2,7 +2,6 @@
 
 from datetime import timedelta
 import logging
-from tkinter import FALSE
 
 from homeassistant.components import input_boolean, input_number
 from homeassistant.components.climate import (
@@ -728,7 +727,7 @@ async def test_hvac_mode_heat(
 
     Switch turns on when temp below setpoint and mode changes.
     """
-    setup_heat_pump_cooling_status(hass, FALSE)
+    setup_heat_pump_cooling_status(hass, False)
     await common.async_set_hvac_mode(hass, HVACMode.OFF)
     await common.async_set_temperature(hass, 26)
     setup_sensor(hass, 23)

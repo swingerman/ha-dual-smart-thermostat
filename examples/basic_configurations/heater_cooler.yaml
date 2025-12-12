@@ -1,0 +1,132 @@
+# Heater + Cooler (Dual Mode) Configuration
+#
+# For systems with SEPARATE heating and cooling switches.
+# This gives you true dual-mode capability with heat/cool mode.
+#
+# Perfect for: Central HVAC with separate heat/cool, systems with furnace + AC
+#
+# Documentation: https://github.com/swingerman/ha-dual-smart-thermostat#heatcool-mode
+
+climate:
+  - platform: dual_smart_thermostat
+    name: "House Thermostat"
+
+    # Required: Separate switches for heating and cooling
+    heater: switch.furnace
+    cooler: switch.air_conditioner
+
+    # Required: Temperature sensor
+    target_sensor: sensor.house_temperature
+
+    # Optional but recommended: Enable heat_cool mode
+    # This allows maintaining a temperature range (like Nest's "Keep Between")
+    heat_cool_mode: true
+    initial_hvac_mode: "heat_cool"
+
+    # Optional: Separate tolerances for heating and cooling
+    cold_tolerance: 0.5  # Heating tolerance
+    hot_tolerance: 0.5   # Cooling tolerance
+
+    # Optional: Minimum cycle durations
+    min_cycle_duration:
+      minutes: 5
+
+# ========================================
+# Example 2: Without heat_cool mode (Simple)
+# Can only be in heat OR cool mode at a time
+# ========================================
+
+# climate:
+#   - platform: dual_smart_thermostat
+#     name: "Simple Dual Thermostat"
+#     heater: switch.heater
+#     cooler: switch.cooler
+#     target_sensor: sensor.temperature
+#     initial_hvac_mode: "heat"  # Start in heat mode
+#     cold_tolerance: 0.5
+#     hot_tolerance: 0.5
+
+# ========================================
+# Example 3: With Fan Support
+# Central HVAC systems often have separate fan control
+# ========================================
+
+# climate:
+#   - platform: dual_smart_thermostat
+#     name: "Central HVAC"
+#     heater: switch.furnace          # W wire / heating
+#     cooler: switch.ac_compressor    # Y wire / cooling
+#     fan: switch.blower              # G wire / fan
+#     fan_on_with_ac: true            # Run fan when AC is on
+#     target_sensor: sensor.house_temperature
+#     heat_cool_mode: true
+#     initial_hvac_mode: "heat_cool"
+
+# ========================================
+# Example 4: Advanced - Dual Mode with All Features
+# ========================================
+
+# climate:
+#   - platform: dual_smart_thermostat
+#     name: "Advanced Dual Thermostat"
+#
+#     # Core entities
+#     heater: switch.heater
+#     cooler: switch.cooler
+#     target_sensor: sensor.living_room_temperature
+#     heat_cool_mode: true
+#
+#     # Tolerances - use mode-specific tolerances
+#     heat_tolerance: 0.3   # Tighter control for heating
+#     cool_tolerance: 0.5   # Looser control for cooling
+#
+#     # Opening detection
+#     openings:
+#       - binary_sensor.window_1
+#       - binary_sensor.window_2
+#       - entity_id: binary_sensor.patio_door
+#         timeout: 00:05:00  # Wait 5 minutes before turning off
+#
+#     # Preset temperatures
+#     away_temp: 16
+#     away_temp_high: 28
+#     eco_temp: 18
+#     eco_temp_high: 26
+#     comfort_temp: 20
+#     comfort_temp_high: 24
+#     home_temp: 21
+#     home_temp_high: 23
+#
+#     # Floor protection (if you have floor heating/cooling)
+#     # floor_sensor: sensor.floor_temperature
+#     # max_floor_temp: 28
+#     # min_floor_temp: 20
+#
+#     # Cycle protection
+#     min_cycle_duration:
+#       minutes: 5
+#
+#     initial_hvac_mode: "heat_cool"
+
+# ========================================
+# Understanding heat_cool_mode
+# ========================================
+#
+# With heat_cool_mode: true
+# - You can set target_temp_low and target_temp_high
+# - System automatically switches between heating and cooling
+# - Maintains temperature within the range
+# - Like Nest's "Keep Between" feature
+#
+# Available HVAC modes:
+#   - heat_cool: Maintain temperature range (auto mode)
+#   - heat: Heating only
+#   - cool: Cooling only
+#   - off: System off
+#
+# Example behavior with range 68-72°F:
+#   - Temp drops to 67.5°F → Heating turns on
+#   - Temp rises to 68.5°F → Heating turns off
+#   - Temp rises to 72.5°F → Cooling turns on
+#   - Temp drops to 71.5°F → Cooling turns off
+#   - Temp between 68.5-71.5°F → Both off (within range)

@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  # Development service - for running tests, linting, and development commands
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+      args:
+        # Change this to test with specific Home Assistant versions
+        # Examples: 2025.1.0, 2025.2.0, latest
+        HA_VERSION: ${HA_VERSION:-2025.1.0}
+        PYTHON_VERSION: ${PYTHON_VERSION:-3.13}
+    image: dual-smart-thermostat:dev
+    container_name: dual_thermostat_dev
+    volumes:
+      # Mount source code for live editing
+      - .:/workspace:rw
+      # Mount config directory for Home Assistant
+      - ./config:/config:rw
+      # Cache directories to speed up subsequent runs
+      - pip-cache:/root/.cache/pip
+      - pytest-cache:/workspace/.pytest_cache
+      - mypy-cache:/workspace/.mypy_cache
+    working_dir: /workspace
+    environment:
+      - PYTHONPATH=/workspace
+      - PYTHONUNBUFFERED=1
+      # Disable pip warnings about running as root
+      - PIP_ROOT_USER_ACTION=ignore
+    # Keep container running for interactive use
+    stdin_open: true
+    tty: true
+    # Override with specific commands, e.g.:
+    # docker-compose run --rm dev pytest
+    # docker-compose run --rm dev bash scripts/lint
+    command: /bin/bash
+
+  # Optional: Home Assistant instance service for integration testing
+  homeassistant:
+    image: ghcr.io/home-assistant/home-assistant:${HA_VERSION:-2025.1}
+    container_name: dual_thermostat_homeassistant
+    volumes:
+      - ./config:/config:rw
+      # Mount the custom component directly into HA's custom_components directory
+      - ./custom_components/dual_smart_thermostat:/config/custom_components/dual_smart_thermostat:ro
+    ports:
+      - "8123:8123"
+    environment:
+      - TZ=UTC
+    restart: unless-stopped
+
+volumes:
+  # Named volumes for caching
+  pip-cache:
+    driver: local
+  pytest-cache:
+    driver: local
+  mypy-cache:
+    driver: local
+
+# Network configuration (default bridge network is sufficient for most use cases)
+networks:
+  default:
+    driver: bridge

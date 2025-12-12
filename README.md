@@ -1,8 +1,10 @@
 # Home Assistant Dual Smart Thermostat component
 
+
 The `dual_smart_thermostat` is an enhanced version of generic thermostat implemented in Home Assistant.
 
-[![hacs_badge](https://img.shields.io/badge/HACS-Default-41BDF5.svg?style=for-the-badge)](https://github.com/swingerman/ha-dual-smart-thermostat) ![Release](https://img.shields.io/github/v/release/swingerman/ha-dual-smart-thermostat?style=for-the-badge) [![Donate](https://img.shields.io/badge/Donate-PayPal-yellowgreen?style=for-the-badge&logo=paypal)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=S6NC9BYVDDJMA&source=url)
+[![hacs_badge](https://img.shields.io/badge/HACS-Default-41BDF5.svg?style=for-the-badge)](https://github.com/swingerman/ha-dual-smart-thermostat) ![Release](https://img.shields.io/github/v/release/swingerman/ha-dual-smart-thermostat?style=for-the-badge) [![Python tests](https://img.shields.io/github/actions/workflow/status/swingerman/ha-dual-smart-thermostat/tests.yaml?style=for-the-badge&label=tests)](https://github.com/swingerman/ha-dual-smart-thermostat/actions/workflows/tests.yaml) [![Coverage](https://img.shields.io/sonar/coverage/swingerman_ha-dual-smart-thermostat?server=https%3A%2F%2Fsonarcloud.io&style=for-the-badge)](https://sonarcloud.io/dashboard?id=swingerman_ha-dual-smart-thermostat) [![Donate](https://img.shields.io/badge/Donate-PayPal-yellowgreen?style=for-the-badge&logo=paypal)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=S6NC9BYVDDJMA&source=url)
+
 
 [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=swingerman&repository=ha-dual-smart-thermostat&category=Integration)
 
@@ -10,8 +12,10 @@ The `dual_smart_thermostat` is an enhanced version of generic thermostat impleme
 ## Table of contents
 
 - [Features](#features)
+- [Examples](#examples)
 - [Services](#services)
 - [Configuration variables](#configuration-variables)
+- [Troubleshooting](#troubleshooting)
 - [Installation](#installation)
 
 ## Features
@@ -30,6 +34,17 @@ The `dual_smart_thermostat` is an enhanced version of generic thermostat impleme
 | **Window/Door Sensor Integration (Openings)** | ![window-open](docs/images/window-open-custom.png)  ![window-open](docs/images/door-open-custom.png) ![chevron-right](docs/images/chevron-right-custom.png) ![timer-cog](docs/images/timer-cog-outline-custom.png)  ![chevron-right](docs/images/chevron-right-custom.png) ![hvac-off](docs/images/hvac-off-custom.png)| [docs](#openings) |
 | **Preset Modes Support** |  | [docs](#presets) |
 | **HVAC Action Reason Tracking** | | [docs](#hvac-action-reason) |
+
+## Examples
+
+Looking for ready-to-use configurations? Check out our **[examples directory](examples/)** with:
+
+- **[Basic Configurations](examples/basic_configurations/)** - Simple setups for heater-only, cooler-only, heat pumps, and dual-mode systems
+- **[Advanced Features](examples/advanced_features/)** - Floor heating limits, two-stage heating, opening detection, and presets
+- **[Integration Patterns](examples/integrations/)** - Smart scheduling and automation examples
+- **[Single-Mode Thermostat Wrapper](examples/single_mode_wrapper/)** - Create Nest-like "Keep Between" functionality on single-mode thermostats
+
+Each example includes complete YAML configurations with detailed explanations, troubleshooting tips, and best practices.
 
 ## Heat/Cool Mode
 
@@ -657,6 +672,14 @@ The internal values can be set by the component only and the external values can
 
   _(optional) (time, integer)_ Set a keep-alive interval. If set, the switch specified in the _heater_ and/or _cooler_ option will be triggered every time the interval elapses. Use with heaters and A/C units that shut off if they don't receive a signal from their remote for a while. Use also with switches that might lose state. The keep-alive call is done with the current valid climate integration state (either on or off). When `keep_alive` is set the `min_cycle_duration` option will be ignored.
 
+  _default: 300 seconds (5 minutes)_
+
+  **Note:** Some AC units (like certain Hitachi models) beep with each command they receive. If your AC beeps excessively every few minutes, the keep-alive feature may be sending redundant commands. You can disable keep-alive by setting it to `0`:
+
+  ```yaml
+  keep_alive: 0  # Disables keep-alive to prevent beeping
+  ```
+
 ### initial_hvac_mode
 
   _(optional) (string)_ Set the initial HVAC mode. Valid values are `off`, `heat`, `cool` or `heat_cool`. Value has to be double quoted. If this parameter is not set, it is preferable to set a _keep_alive_ value. This is helpful to align any discrepancies between _dual_smart_thermostat_ _heater_ and _cooler_ state.
@@ -754,6 +777,34 @@ The internal values can be set by the component only and the external values can
   _(optional) (float)_ The desired step size for setting the target temperature. Supported values are `0.1`, `0.5` and `1.0`.
 
   _default: Value used for `precision`_
+
+## Troubleshooting
+
+### AC/Heater beeping excessively
+
+**Problem:** Your air conditioner or heater beeps every few minutes (typically every 5 minutes) even when no temperature changes occur.
+
+**Root Cause:** The `keep_alive` feature defaults to 300 seconds (5 minutes) and sends periodic commands to keep devices synchronized. Some HVAC units (like certain Hitachi AC models) beep audibly with each command they receive, including these keep-alive commands.
+
+**Solution:** Disable the keep-alive feature by setting it to `0` in your configuration:
+
+```yaml
+climate:
+  - platform: dual_smart_thermostat
+    name: My Thermostat
+    heater: switch.my_heater
+    target_sensor: sensor.my_temperature
+    keep_alive: 0  # Disables keep-alive to prevent beeping
+```
+
+**When to use keep_alive:** The keep-alive feature is useful for:
+- HVAC units that turn off automatically if they don't receive commands regularly
+- Switches that might lose state over time
+- Maintaining synchronization between the thermostat and physical device
+
+If your HVAC device doesn't have these issues, you can safely disable keep-alive.
+
+**Related:** [GitHub Issue #461](https://github.com/swingerman/ha-dual-smart-thermostat/issues/461)
 
 ## Installation
 
@@ -944,22 +995,140 @@ I am happy to help the Home Assistant community but I do it in my free time at t
 
 ### Development
 
+The Dual Smart Thermostat supports two development workflows: **Docker-based** and **VS Code DevContainer**. Both approaches provide consistent, isolated development environments with Home Assistant 2025.1.0+.
+
+📚 **[Comprehensive Docker Development Guide](README-DOCKER.md)** - Complete documentation for Docker-based development, testing with multiple HA versions, and CI/CD integration.
+
+📋 **[Development Guidelines](CLAUDE.md)** - Detailed coding standards, architecture overview, and contribution requirements.
+
+#### Quick Start
+
+**Option 1: Docker Workflow (Recommended for CI/CD and version testing)**
+
+```bash
+# Build development environment with HA 2025.1.0
+docker-compose build dev
+
+# Run all tests
+./scripts/docker-test
+
+# Run linting checks
+./scripts/docker-lint
+
+# Open interactive shell
+./scripts/docker-shell
+
+# Test with different HA version
+HA_VERSION=2025.2.0 docker-compose build dev
+```
+
+**Option 2: VS Code DevContainer (Recommended for interactive development)**
+
+Open the project in VS Code and select "Reopen in Container" when prompted. The DevContainer will automatically set up the development environment.
+
 #### Testing
 
-Use pytest to run the tests:
-
+**Run all tests:**
 ```bash
 pytest
+# or with Docker:
+./scripts/docker-test
 ```
 
-**Specific test**
-
+**Run specific test file:**
 ```bash
 pytest tests/test_heater_mode.py
+# or with Docker:
+./scripts/docker-test tests/test_heater_mode.py
 ```
 
-**Log Level**
+**Run specific test function:**
+```bash
+pytest tests/test_heater_mode.py::test_heater_mode_on
+```
+
+**Run tests with pattern matching:**
+```bash
+pytest -k "heater"
+```
+
+**Run with verbose output and debug logging:**
+```bash
+pytest -v --log-cli-level=DEBUG
+```
+
+**Run with coverage report:**
+```bash
+pytest --cov --cov-report=html
+```
+
+**Run config flow tests only:**
+```bash
+pytest tests/config_flow/
+```
+
+#### Code Quality & Linting
+
+**All code must pass linting checks before committing.** The following tools are required:
 
 ```bash
-pytest --log-cli-level=DEBUG
+# Check all linting rules
+isort . --check-only --diff    # Import sorting
+black --check .                 # Code formatting
+flake8 .                        # Style/linting
+codespell                       # Spell checking
+ruff check .                    # Modern Python linter
+
+# Auto-fix issues
+isort .                         # Fix imports
+black .                         # Fix formatting
+ruff check . --fix              # Fix ruff issues
+
+# Or use Docker to run all checks
+./scripts/docker-lint           # Check all
+./scripts/docker-lint --fix     # Auto-fix
 ```
+
+**Pre-commit hooks** (automatically runs linting on commit):
+```bash
+pre-commit install              # Install hooks
+pre-commit run --all-files      # Run manually
+```
+
+#### Testing with Different Home Assistant Versions
+
+The Docker workflow makes it easy to test with different HA versions:
+
+```bash
+# Test with HA 2025.1.0 (default)
+docker-compose build dev
+./scripts/docker-test
+
+# Test with HA 2025.2.0
+HA_VERSION=2025.2.0 docker-compose build dev
+./scripts/docker-test
+
+# Test with latest HA
+HA_VERSION=latest docker-compose build dev
+./scripts/docker-test
+```
+
+#### Development Resources
+
+- **[README-DOCKER.md](README-DOCKER.md)** - Docker workflow, troubleshooting, and advanced usage
+- **[CLAUDE.md](CLAUDE.md)** - Architecture, development rules, and testing strategy
+- **[Examples Directory](examples/)** - Ready-to-use configuration examples
+- **[GitHub Issues](https://github.com/swingerman/ha-dual-smart-thermostat/issues)** - Bug reports and feature requests
+- **[Home Assistant Developer Docs](https://developers.home-assistant.io/)** - Official HA development documentation
+
+#### Contributing
+
+Before submitting a pull request:
+
+1. ✅ All tests pass: `pytest` or `./scripts/docker-test`
+2. ✅ All linting passes: `./scripts/docker-lint` or run linters individually
+3. ✅ Add tests for new features
+4. ✅ Update documentation if needed
+5. ✅ Follow the patterns in [CLAUDE.md](CLAUDE.md)
+
+**Configuration Flow Changes:** If you add or modify configuration options, you **must** integrate them into the appropriate configuration flows (config, reconfigure, or options). See [CLAUDE.md Configuration Flow Integration](CLAUDE.md#configuration-flow-integration) for detailed requirements.

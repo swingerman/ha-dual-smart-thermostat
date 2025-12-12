@@ -134,8 +134,9 @@ async def test_config_flow_with_presets(hass: HomeAssistant) -> None:
         assert result["step_id"] == "presets"
 
         # Configure the away preset temperature (preset key uses '<preset>_temp')
+        # Note: TextSelector expects string values
         result = await hass.config_entries.flow.async_configure(
-            result["flow_id"], user_input={f"{CONF_PRESETS[PRESET_AWAY]}_temp": 18.0}
+            result["flow_id"], user_input={f"{CONF_PRESETS[PRESET_AWAY]}_temp": "18"}
         )
         assert result["type"] == "create_entry"
 
@@ -143,7 +144,8 @@ async def test_config_flow_with_presets(hass: HomeAssistant) -> None:
     # For config flow, selected presets are stored as a list and temps under '<preset>_temp'
     assert "presets" in config_entry.data
     assert CONF_PRESETS[PRESET_AWAY] in config_entry.data["presets"]
-    assert config_entry.data[f"{CONF_PRESETS[PRESET_AWAY]}_temp"] == 18.0
+    # Stored as string in config
+    assert config_entry.data[f"{CONF_PRESETS[PRESET_AWAY]}_temp"] == "18"
 
 
 async def test_options_flow(hass: HomeAssistant) -> None:

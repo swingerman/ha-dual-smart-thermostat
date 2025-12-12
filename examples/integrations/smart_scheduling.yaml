@@ -1,0 +1,488 @@
+# Smart Scheduling Examples
+#
+# Automate your thermostat based on time, presence, and conditions.
+# Perfect for: Daily routines, energy savings, comfort optimization
+#
+# This file shows various automation patterns for the dual smart thermostat.
+
+# ========================================
+# Example 1: Basic Time-Based Schedule
+# Simple weekday/weekend schedule
+# ========================================
+
+automation:
+  # Weekday Morning - Wake Up
+  - alias: "Thermostat - Weekday Morning"
+    trigger:
+      - platform: time
+        at: "06:00:00"
+    condition:
+      - condition: time
+        weekday:
+          - mon
+          - tue
+          - wed
+          - thu
+          - fri
+    action:
+      - service: climate.set_temperature
+        target:
+          entity_id: climate.house_thermostat
+        data:
+          temperature: 21  # Warm for morning
+          hvac_mode: heat
+
+  # Weekday Day - Away for Work
+  - alias: "Thermostat - Weekday Away"
+    trigger:
+      - platform: time
+        at: "08:00:00"
+    condition:
+      - condition: time
+        weekday:
+          - mon
+          - tue
+          - wed
+          - thu
+          - fri
+    action:
+      - service: climate.set_preset_mode
+        target:
+          entity_id: climate.house_thermostat
+        data:
+          preset_mode: "eco"  # Energy savings while away
+
+  # Weekday Evening - Return Home
+  - alias: "Thermostat - Weekday Return"
+    trigger:
+      - platform: time
+        at: "17:00:00"
+    condition:
+      - condition: time
+        weekday:
+          - mon
+          - tue
+          - wed
+          - thu
+          - fri
+    action:
+      - service: climate.set_preset_mode
+        target:
+          entity_id: climate.house_thermostat
+        data:
+          preset_mode: "home"
+
+  # Night - Sleep Mode
+  - alias: "Thermostat - Sleep Mode"
+    trigger:
+      - platform: time
+        at: "22:00:00"
+    action:
+      - service: climate.set_preset_mode
+        target:
+          entity_id: climate.house_thermostat
+        data:
+          preset_mode: "sleep"
+
+  # Weekend Morning - Sleep In
+  - alias: "Thermostat - Weekend Morning"
+    trigger:
+      - platform: time
+        at: "08:00:00"
+    condition:
+      - condition: time
+        weekday:
+          - sat
+          - sun
+    action:
+      - service: climate.set_preset_mode
+        target:
+          entity_id: climate.house_thermostat
+        data:
+          preset_mode: "home"
+
+# ========================================
+# Example 2: Presence-Based Automation
+# Change settings based on who's home
+# ========================================
+
+automation:
+  # Nobody Home - Switch to Away
+  - alias: "Thermostat - Nobody Home"
+    trigger:
+      - platform: state
+        entity_id: zone.home
+        to: "0"
+        for:
+          minutes: 15  # Wait 15 min to avoid brief absences
+    action:
+      - service: climate.set_preset_mode
+        target:
+          entity_id: climate.house_thermostat
+        data:
+          preset_mode: "away"
+
+  # Someone Arrives - Welcome Home
+  - alias: "Thermostat - Someone Home"
+    trigger:
+      - platform: state
+        entity_id: zone.home
+        from: "0"
+    action:
+      - service: climate.set_preset_mode
+        target:
+          entity_id: climate.house_thermostat
+        data:
+          preset_mode: "home"
+
+  # Last Person Leaving Soon - Pre-cool/heat
+  - alias: "Thermostat - Leaving Soon"
+    trigger:
+      - platform: event
+        event_type: mobile_app_notification_action
+        event_data:
+          action: "leaving_home"
+    action:
+      # Pre-adjust before leaving
+      - service: climate.set_preset_mode
+        target:
+          entity_id: climate.house_thermostat
+        data:
+          preset_mode: "eco"
+      - delay:
+          minutes: 30
+      # Then switch to away if still nobody home
+      - condition: state
+        entity_id: zone.home
+        state: "0"
+      - service: climate.set_preset_mode
+        target:
+          entity_id: climate.house_thermostat
+        data:
+          preset_mode: "away"
+
+# ========================================
+# Example 3: Weather-Responsive Automation
+# Adjust based on weather conditions
+# ========================================
+
+automation:
+  # Cold Day - Boost Heating
+  - alias: "Thermostat - Cold Day Boost"
+    trigger:
+      - platform: numeric_state
+        entity_id: sensor.outdoor_temperature
+        below: 0  # Below freezing
+    action:
+      - service: climate.set_temperature
+        target:
+          entity_id: climate.house_thermostat
+        data:
+          temperature: 22  # Warmer when very cold outside
+
+  # Mild Weather - Use Eco Mode
+  - alias: "Thermostat - Mild Weather"
+    trigger:
+      - platform: numeric_state
+        entity_id: sensor.outdoor_temperature
+        above: 15
+        below: 22
+    condition:
+      - condition: time
+        after: "09:00:00"
+        before: "17:00:00"
+    action:
+      - service: climate.set_preset_mode
+        target:
+          entity_id: climate.house_thermostat
+        data:
+          preset_mode: "eco"
+
+  # Hot Day - Pre-cool Before Peak Hours
+  - alias: "Thermostat - Pre-Cool for Hot Day"
+    trigger:
+      - platform: time
+        at: "13:00:00"  # Early afternoon
+    condition:
+      - condition: numeric_state
+        entity_id: sensor.outdoor_temperature
+        above: 30  # Hot day
+    action:
+      - service: climate.set_temperature
+        target:
+          entity_id: climate.house_thermostat
+        data:
+          temperature: 22  # Cool down before peak heat
+          hvac_mode: cool
+
+# ========================================
+# Example 4: Sleep Tracking Integration
+# Use sleep sensors for optimal bedroom climate
+# ========================================
+
+automation:
+  # Bedtime Detected - Sleep Mode
+  - alias: "Thermostat - Bedtime Detected"
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.bed_occupancy
+        to: "on"
+        for:
+          minutes: 5
+    condition:
+      - condition: time
+        after: "20:00:00"
+        before: "06:00:00"
+    action:
+      - service: climate.set_preset_mode
+        target:
+          entity_id: climate.bedroom_thermostat
+        data:
+          preset_mode: "sleep"
+      - service: climate.set_temperature
+        target:
+          entity_id: climate.bedroom_thermostat
+        data:
+          temperature: 18  # Cool for sleeping
+
+  # Wake Up Detected - Comfort Mode
+  - alias: "Thermostat - Wake Up Detected"
+    trigger:
+      - platform: state
+        entity_id: binary_sensor.bed_occupancy
+        to: "off"
+        for:
+          minutes: 10
+    condition:
+      - condition: time
+        after: "05:00:00"
+        before: "10:00:00"
+    action:
+      - service: climate.set_preset_mode
+        target:
+          entity_id: climate.bedroom_thermostat
+        data:
+          preset_mode: "comfort"
+      - service: climate.set_temperature
+        target:
+          entity_id: climate.bedroom_thermostat
+        data:
+          temperature: 20  # Warmer for waking up
+
+# ========================================
+# Example 5: Energy Price Based Automation
+# Optimize for electricity pricing
+# ========================================
+
+automation:
+  # Peak Hours - Reduce Usage
+  - alias: "Thermostat - Peak Price Hours"
+    trigger:
+      - platform: time
+        at: "16:00:00"  # Peak starts at 4 PM
+    condition:
+      - condition: time
+        weekday:
+          - mon
+          - tue
+          - wed
+          - thu
+          - fri
+    action:
+      - service: climate.set_preset_mode
+        target:
+          entity_id: climate.house_thermostat
+        data:
+          preset_mode: "eco"
+
+  # Off-Peak Hours - Normal Usage
+  - alias: "Thermostat - Off Peak Hours"
+    trigger:
+      - platform: time
+        at: "21:00:00"  # Off-peak starts at 9 PM
+    action:
+      - service: climate.set_preset_mode
+        target:
+          entity_id: climate.house_thermostat
+        data:
+          preset_mode: "home"
+
+  # Pre-heat/cool During Cheap Hours
+  - alias: "Thermostat - Pre-condition on Cheap Power"
+    trigger:
+      - platform: time
+        at: "02:00:00"  # Cheapest hours
+    condition:
+      # Only if weather will be extreme
+      - condition: or
+        conditions:
+          - condition: numeric_state
+            entity_id: sensor.weather_forecast_temp_high
+            above: 30  # Hot day coming
+          - condition: numeric_state
+            entity_id: sensor.weather_forecast_temp_low
+            below: 5   # Cold day coming
+    action:
+      - service: climate.set_temperature
+        target:
+          entity_id: climate.house_thermostat
+        data:
+          temperature: >
+            {% if states('sensor.weather_forecast_temp_high')|float > 30 %}
+              20  # Pre-cool
+            {% else %}
+              23  # Pre-heat
+            {% endif %}
+
+# ========================================
+# Example 6: Vacation Mode
+# Extended away mode for vacations
+# ========================================
+
+automation:
+  # Start Vacation Mode
+  - alias: "Thermostat - Vacation Mode Start"
+    trigger:
+      - platform: state
+        entity_id: input_boolean.vacation_mode
+        to: "on"
+    action:
+      - service: climate.set_preset_mode
+        target:
+          entity_id: climate.house_thermostat
+        data:
+          preset_mode: "away"
+      - service: climate.set_temperature
+        target:
+          entity_id: climate.house_thermostat
+        data:
+          temperature: 15      # Minimal heating
+          target_temp_low: 15  # Wide range
+          target_temp_high: 30
+
+  # End Vacation Mode - Pre-condition Before Return
+  - alias: "Thermostat - Vacation Return Pre-heat"
+    trigger:
+      - platform: state
+        entity_id: calendar.vacation
+        to: "unavailable"  # Vacation event ending
+        for:
+          hours: 2  # 2 hours before return
+    action:
+      - service: climate.set_preset_mode
+        target:
+          entity_id: climate.house_thermostat
+        data:
+          preset_mode: "home"
+
+  # Actually Return Home
+  - alias: "Thermostat - Vacation Mode End"
+    trigger:
+      - platform: state
+        entity_id: input_boolean.vacation_mode
+        to: "off"
+    action:
+      - service: climate.set_preset_mode
+        target:
+          entity_id: climate.house_thermostat
+        data:
+          preset_mode: "home"
+
+# ========================================
+# Example 7: Activity-Based Automation
+# Adjust for specific activities
+# ========================================
+
+automation:
+  # Movie Night - Comfort Mode
+  - alias: "Thermostat - Movie Night"
+    trigger:
+      - platform: state
+        entity_id: media_player.tv
+        to: "playing"
+    condition:
+      - condition: time
+        after: "18:00:00"
+    action:
+      - service: climate.set_preset_mode
+        target:
+          entity_id: climate.living_room_thermostat
+        data:
+          preset_mode: "comfort"
+
+  # Working from Home - Focused Temperature
+  - alias: "Thermostat - Work Mode"
+    trigger:
+      - platform: state
+        entity_id: input_boolean.work_from_home
+        to: "on"
+    action:
+      - service: climate.set_temperature
+        target:
+          entity_id: climate.office_thermostat
+        data:
+          temperature: 21  # Optimal work temperature
+
+  # Exercise Time - Cooler Temperature
+  - alias: "Thermostat - Exercise Mode"
+    trigger:
+      - platform: state
+        entity_id: input_boolean.exercise_mode
+        to: "on"
+    action:
+      - service: climate.set_preset_mode
+        target:
+          entity_id: climate.gym_thermostat
+        data:
+          preset_mode: "activity"
+
+# ========================================
+# Helper Entities for Advanced Scheduling
+# ========================================
+# Add these to configuration.yaml:
+
+# input_boolean:
+#   vacation_mode:
+#     name: "Vacation Mode"
+#     icon: mdi:airplane
+#
+#   work_from_home:
+#     name: "Work From Home"
+#     icon: mdi:laptop
+#
+#   exercise_mode:
+#     name: "Exercise Mode"
+#     icon: mdi:run
+#
+#   guest_mode:
+#     name: "Guest Mode"
+#     icon: mdi:account-multiple
+
+# ========================================
+# Best Practices for Scheduling
+# ========================================
+#
+# 1. Use appropriate delays:
+#    - Presence: 10-15 min to avoid false triggers
+#    - Weather: Check hourly, not every minute
+#    - Time: Exact times for predictable routines
+#
+# 2. Add conditions to prevent conflicts:
+#    - Check HVAC mode before changing temps
+#    - Verify someone is home before comfort modes
+#    - Consider vacation mode in all automations
+#
+# 3. Test each automation individually:
+#    - Use Developer Tools → Services to test
+#    - Monitor for a week before full deployment
+#    - Adjust timings based on actual usage
+#
+# 4. Prioritize automations:
+#    - Manual overrides should be respected
+#    - Emergency conditions (extreme weather) override schedule
+#    - Vacation mode overrides everything
+#
+# 5. Create dashboard controls:
+#    - Toggle for "automation mode"
+#    - Manual temp adjustment
+#    - Schedule override button

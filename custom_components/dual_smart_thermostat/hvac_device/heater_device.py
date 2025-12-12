@@ -58,6 +58,26 @@ class HeaterDevice(GenericHVACDevice):
             "_target_temp_low" if self.features.is_range_mode else self._target_env_attr
         )
 
+    # override
+    def is_above_target_env_attr(self) -> bool:
+        """Check if temperature is above target.
+
+        Fix for issue #10: When heater is active IN RANGE MODE (heat/cool mode),
+        check if target is reached WITHOUT adding hot_tolerance. The heater should
+        turn off when it reaches the setpoint, not setpoint + hot_tolerance.
+
+        In standalone mode, use tolerance for hysteresis to prevent rapid cycling.
+        """
+        if self.is_active and self.features.is_range_mode:
+            # Heater is ON in heat/cool mode: turn off when target is reached
+            target_temp = getattr(self.environment, self.target_env_attr)
+            if self.environment.cur_temp is None or target_temp is None:
+                return False
+            return self.environment.cur_temp >= target_temp
+        else:
+            # Heater is OFF or in standalone mode: use tolerance
+            return self.environment.is_too_hot(self.target_env_attr)
+
     @property
     def hvac_action(self) -> HVACAction:
         _LOGGER.debug(

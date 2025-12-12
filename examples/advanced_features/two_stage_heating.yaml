@@ -1,0 +1,224 @@
+# Two-Stage (AUX/Emergency) Heating
+#
+# Automatically activates auxiliary heating when primary heat is insufficient.
+# Perfect for: Heat pumps with electric backup, dual-fuel systems, emergency heat
+#
+# Documentation: https://github.com/swingerman/ha-dual-smart-thermostat#two-stage-heating
+
+climate:
+  - platform: dual_smart_thermostat
+    name: "Heat Pump with Backup"
+
+    # Required: Primary heating source
+    heater: switch.heat_pump
+
+    # Required: Secondary/auxiliary heater
+    secondary_heater: switch.electric_backup_heat
+
+    # Required: Timeout before activating secondary heater
+    # If primary heater runs continuously for this duration, secondary activates
+    secondary_heater_timeout: 01:00:00  # 1 hour
+
+    # Required: Temperature sensor
+    target_sensor: sensor.house_temperature
+
+    # Optional: Dual mode operation (run both heaters together)
+    # Default: false (only one heater at a time)
+    secondary_heater_dual_mode: false
+
+    initial_hvac_mode: "heat"
+    cold_tolerance: 0.5
+
+# ========================================
+# How Two-Stage Heating Works
+# ========================================
+#
+# Single Mode (secondary_heater_dual_mode: false) - DEFAULT:
+# ────────────────────────────────────────────────────────────
+# 1. Temperature drops below target
+# 2. Primary heater turns ON
+# 3. If primary heater runs continuously for timeout period:
+#    - Primary heater turns OFF
+#    - Secondary heater turns ON
+# 4. System remembers secondary was needed for the rest of the day
+# 5. Next heating cycle: Secondary heater activates immediately
+# 6. Following day: Resets, starts with primary heater again
+#
+# Example timeline (timeout = 1 hour):
+#   08:00 - Temp drops, primary heater ON
+#   09:00 - Still heating, timeout reached → Switch to secondary
+#   09:30 - Target reached, secondary OFF
+#   11:00 - Temp drops again, secondary ON immediately (remembered)
+#   Next day 08:00 - Memory resets, starts with primary again
+#
+# Dual Mode (secondary_heater_dual_mode: true):
+# ────────────────────────────────────────────────
+# 1. Temperature drops below target
+# 2. Primary heater turns ON
+# 3. If primary heater runs continuously for timeout period:
+#    - Primary heater STAYS ON
+#    - Secondary heater ALSO turns ON (both running together)
+# 4. Both heaters work together to heat faster
+# 5. When target reached, both turn off
+#
+# Example timeline (timeout = 1 hour):
+#   08:00 - Temp drops, primary heater ON
+#   09:00 - Still heating, timeout reached → Secondary also turns ON
+#   09:15 - Target reached (faster!), both turn OFF
+#   11:00 - Temp drops, primary ON, secondary ON after timeout
+
+# ========================================
+# Example 2: Heat Pump with Short Timeout
+# For very cold climates where aux heat is needed quickly
+# ========================================
+
+# climate:
+#   - platform: dual_smart_thermostat
+#     name: "Cold Climate Heat Pump"
+#     heater: switch.heat_pump
+#     secondary_heater: switch.electric_strips
+#     secondary_heater_timeout: 00:15:00  # 15 minutes - quick activation
+#     target_sensor: sensor.living_room_temperature
+#     initial_hvac_mode: "heat"
+
+# ========================================
+# Example 3: Dual-Fuel System (Gas + Heat Pump)
+# Run both together for maximum efficiency
+# ========================================
+
+# climate:
+#   - platform: dual_smart_thermostat
+#     name: "Dual Fuel System"
+#     heater: switch.heat_pump
+#     secondary_heater: switch.gas_furnace
+#     secondary_heater_timeout: 00:30:00
+#     secondary_heater_dual_mode: true  # Run both together
+#     target_sensor: sensor.house_temperature
+#     initial_hvac_mode: "heat"
+
+# ========================================
+# Example 4: Advanced - Two Stage with Outside Temp Logic
+# Use secondary heat only when it's very cold outside
+# ========================================
+
+# climate:
+#   - platform: dual_smart_thermostat
+#     name: "Smart Two-Stage"
+#     heater: switch.heat_pump
+#     secondary_heater: switch.backup_heat
+#     secondary_heater_timeout: 00:45:00
+#     target_sensor: sensor.indoor_temperature
+#     outside_sensor: sensor.outdoor_temperature  # Optional but helpful
+#     initial_hvac_mode: "heat"
+#
+# Then add automation to disable secondary when outside temp is mild:
+#
+# automation:
+#   - alias: "Disable Backup Heat When Mild"
+#     trigger:
+#       - platform: numeric_state
+#         entity_id: sensor.outdoor_temperature
+#         above: 0  # Above freezing (°C)
+#     action:
+#       - service: climate.set_hvac_mode
+#         target:
+#           entity_id: climate.smart_two_stage
+#         data:
+#           hvac_mode: "heat"  # This resets the secondary heater logic
+
+# ========================================
+# Choosing the Right Timeout
+# ========================================
+#
+# Heat Pump Efficiency Considerations:
+#   - Heat pumps work best with longer run times
+#   - Switching too soon wastes heat pump efficiency
+#   - Typical: 45-90 minutes
+#
+# Comfort Considerations:
+#   - Very cold weather may need faster activation
+#   - Large temperature drops may need shorter timeout
+#   - Typical: 15-30 minutes
+#
+# Equipment Protection:
+#   - Frequent switching wears out equipment
+#   - Longer timeouts = fewer cycles = longer life
+#   - Typical: 30-60 minutes
+#
+# Cost Optimization:
+#   - Heat pumps are usually cheaper than electric/gas backup
+#   - Longer timeout saves money
+#   - Exception: Dual-fuel with cheap gas may prefer shorter
+#
+# Recommended Starting Points:
+#   - Mild climate (>40°F/5°C): 01:30:00 (90 min)
+#   - Moderate climate (20-40°F/-5 to 5°C): 01:00:00 (60 min)
+#   - Cold climate (<20°F/-5°C): 00:30:00 (30 min)
+#   - Extreme cold (<0°F/-18°C): 00:15:00 (15 min)
+
+# ========================================
+# Understanding the Daily Reset
+# ========================================
+#
+# Why does it reset daily?
+#   - Prevents secondary heater from permanently taking over
+#   - Gives primary heater chance to work efficiently
+#   - Adapts to changing weather (warmer days may not need secondary)
+#
+# What triggers the reset?
+#   - Midnight (start of new day)
+#   - Memory cleared, starts fresh with primary heater
+#
+# Can I disable the daily reset?
+#   - No, it's built into the logic for equipment protection
+#   - If you need different behavior, consider separate automations
+
+# ========================================
+# Monitoring Two-Stage Operation
+# ========================================
+#
+# Create template sensors to track usage:
+#
+# template:
+#   - sensor:
+#       - name: "Heating Stage"
+#         state: >
+#           {% if is_state('switch.heat_pump', 'on') and is_state('switch.backup_heat', 'on') %}
+#             Stage 2 (Both)
+#           {% elif is_state('switch.backup_heat', 'on') %}
+#             Stage 2 (Backup)
+#           {% elif is_state('switch.heat_pump', 'on') %}
+#             Stage 1 (Primary)
+#           {% else %}
+#             Off
+#           {% endif %}
+#
+# Use this to:
+#   - Monitor when backup heat runs (energy tracking)
+#   - Create alerts if backup runs too often
+#   - Optimize timeout settings based on usage
+
+# ========================================
+# Troubleshooting
+# ========================================
+#
+# Secondary heater never activates:
+#   - Verify secondary_heater entity is correct
+#   - Check timeout isn't too long
+#   - Ensure primary heater actually runs for full timeout period
+#   - Check logs for errors
+#
+# Secondary heater activates too often:
+#   - Increase timeout duration
+#   - Check primary heater capacity/operation
+#   - Verify sensors are accurate
+#   - Consider if primary heater is undersized
+#
+# Both heaters run in single mode:
+#   - Check secondary_heater_dual_mode setting
+#   - Should be false for alternating operation
+#
+# Heaters don't alternate properly:
+#   - Check clock/time on Home Assistant
+#   - Verify no conflicting automations
+#   - Check entity states in Developer Tools

@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# Run linting checks in Docker container
+# Usage:
+#   ./scripts/docker-lint           # Run all linting checks
+#   ./scripts/docker-lint --fix     # Run with auto-fix where possible
+
+set -e
+
+# Build image if it doesn't exist
+if ! docker images | grep -q "dual-smart-thermostat.*dev"; then
+    echo "Building Docker image..."
+    docker-compose build dev
+fi
+
+echo "Running linting checks in Docker container..."
+docker-compose run --rm dev bash -c "
+    set -e
+    echo '=== Running isort ==='
+    if [ '$1' = '--fix' ]; then
+        isort .
+    else
+        isort . --check-only --diff
+    fi
+
+    echo -e '\n=== Running black ==='
+    if [ '$1' = '--fix' ]; then
+        black .
+    else
+        black --check .
+    fi
+
+    echo -e '\n=== Running flake8 ==='
+    flake8 .
+
+    echo -e '\n=== Running codespell ==='
+    codespell
+
+    echo -e '\n=== Running ruff ==='
+    if [ '$1' = '--fix' ]; then
+        ruff check . --fix
+    else
+        ruff check .
+    fi
+
+    echo -e '\nAll linting checks passed!'
+"

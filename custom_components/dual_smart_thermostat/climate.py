@@ -137,14 +137,16 @@ from .managers.feature_manager import FeatureManager
 from .managers.hvac_power_manager import HvacPowerManager
 from .managers.opening_manager import OpeningHvacModeScope, OpeningManager
 from .managers.preset_manager import PresetManager
+from .schemas import validate_template_or_number
 
 _LOGGER = logging.getLogger(__name__)
 
+# Preset schema supports both static numbers and templates
 PRESET_SCHEMA = {
-    vol.Optional(ATTR_TEMPERATURE): vol.Coerce(float),
+    vol.Optional(ATTR_TEMPERATURE): validate_template_or_number,
     vol.Optional(ATTR_HUMIDITY): vol.Coerce(float),
-    vol.Optional(ATTR_TARGET_TEMP_LOW): vol.Coerce(float),
-    vol.Optional(ATTR_TARGET_TEMP_HIGH): vol.Coerce(float),
+    vol.Optional(ATTR_TARGET_TEMP_LOW): validate_template_or_number,
+    vol.Optional(ATTR_TARGET_TEMP_HIGH): validate_template_or_number,
     vol.Optional(CONF_MAX_FLOOR_TEMP): vol.Coerce(float),
     vol.Optional(CONF_MIN_FLOOR_TEMP): vol.Coerce(float),
 }
@@ -258,8 +260,12 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(HEAT_PUMP_SCHEMA)
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(HVAC_POWER_SCHEMA)
 
 # Add the old presets schema to avoid breaking change
+# Now supports both static numbers and templates
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
-    {vol.Optional(v): vol.Coerce(float) for (k, v) in CONF_PRESETS_OLD.items()}
+    {
+        vol.Optional(v): validate_template_or_number
+        for (k, v) in CONF_PRESETS_OLD.items()
+    }
 )
 
 
@@ -268,10 +274,19 @@ async def async_setup_entry(
     config_entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Initialize config entry."""
+    """Initialize config entry.
+
+    Merges data and options, with options taking precedence.
+    This ensures the entity can be created both after initial config flow
+    (when only data is populated) and after options flow (when both are populated).
+    """
+    # Merge data and options - options takes precedence if keys overlap
+    # This fixes issue #468 where entity wasn't created after initial config
+    config = {**config_entry.data, **config_entry.options}
+
     await _async_setup_config(
         hass,
-        config_entry.options,
+        config,
         config_entry.entry_id,
         async_add_entities,
     )
@@ -291,6 +306,32 @@ async def async_setup_platform(
     )
 
 
+def _normalize_config_numeric_values(config: dict[str, Any]) -> dict[str, Any]:
+    """Convert string numeric values to floats in config.
+
+    This is a safety net for:
+    1. Existing config entries that may have string values stored
+    2. Edge cases where config flow normalization wasn't applied
+
+    The primary fix is in config_flow.py/_clean_config_for_storage()
+    which converts values at save time.
+
+    Fixes issue #468 where precision/temp_step stored as strings caused
+    incorrect behavior in temperature rounding and step calculations.
+    """
+    # Keys that might be strings from SelectSelector in config flow
+    float_keys = [CONF_PRECISION, CONF_TEMP_STEP]
+
+    for key in float_keys:
+        if key in config and isinstance(config[key], str):
+            try:
+                config[key] = float(config[key])
+            except (ValueError, TypeError):
+                pass  # Keep original if conversion fails
+
+    return config
+
+
 async def _async_setup_config(
     hass: HomeAssistant,
     config: dict[str, Any],
@@ -298,6 +339,10 @@ async def _async_setup_config(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the smart dual thermostat platform."""
+
+    # Normalize config values from config flow (strings to proper types)
+    # This ensures consistency between YAML config and config entry setup
+    config = _normalize_config_numeric_values(config)
 
     # Validate configuration using data models for type safety
     if not validate_config_with_models(config):
@@ -498,7 +543,136 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
         self._temp_lock = asyncio.Lock()
 
+        # Template listener tracking
+        self._template_listeners: list[Callable[[], None]] = []
+        self._active_preset_entities: set[str] = set()
+
         _LOGGER.name = __name__ + "." + self.unique_id if self.unique_id else __name__
+
+    async def _setup_template_listeners(self) -> None:
+        """Set up listeners for entities referenced in active preset templates."""
+        # Remove existing listeners first
+        await self._remove_template_listeners()
+
+        # Get current preset environment
+        preset_env = self.presets._preset_env
+        if not hasattr(preset_env, "has_templates") or not preset_env.has_templates():
+            _LOGGER.debug(
+                "%s: No templates in current preset, skipping listener setup",
+                self.entity_id,
+            )
+            return
+
+        # Get entities referenced in templates
+        referenced_entities = preset_env.referenced_entities
+        if not referenced_entities:
+            _LOGGER.debug(
+                "%s: No entities referenced in preset templates", self.entity_id
+            )
+            return
+
+        _LOGGER.debug(
+            "%s: Setting up template listeners for entities: %s",
+            self.entity_id,
+            referenced_entities,
+        )
+
+        # Track entities for this preset
+        self._active_preset_entities = referenced_entities.copy()
+
+        # Set up state change listener for all referenced entities
+        @callback
+        def template_entity_state_listener(event: Event[EventStateChangedData]) -> None:
+            """Handle state changes of entities referenced in templates."""
+            self.hass.async_create_task(self._async_template_entity_changed(event))
+
+        # Register listener for all entities
+        remove_listener = async_track_state_change_event(
+            self.hass, list(referenced_entities), template_entity_state_listener
+        )
+        self._template_listeners.append(remove_listener)
+
+        _LOGGER.debug(
+            "%s: Template listeners registered for %d entities",
+            self.entity_id,
+            len(referenced_entities),
+        )
+
+    async def _remove_template_listeners(self) -> None:
+        """Remove all template entity listeners."""
+        if not self._template_listeners:
+            return
+
+        _LOGGER.debug(
+            "%s: Removing %d template listeners",
+            self.entity_id,
+            len(self._template_listeners),
+        )
+
+        for remove_listener in self._template_listeners:
+            remove_listener()
+
+        self._template_listeners.clear()
+        self._active_preset_entities.clear()
+
+    @callback
+    async def _async_template_entity_changed(
+        self, event: Event[EventStateChangedData]
+    ) -> None:
+        """Handle changes to entities referenced in preset templates."""
+        entity_id = event.data["entity_id"]
+        old_state = event.data["old_state"]
+        new_state = event.data["new_state"]
+
+        _LOGGER.debug(
+            "%s: Template entity %s changed from %s to %s",
+            self.entity_id,
+            entity_id,
+            old_state.state if old_state else None,
+            new_state.state if new_state else None,
+        )
+
+        # Re-evaluate preset temperatures
+        preset_env = self.presets._preset_env
+        if not preset_env or not hasattr(preset_env, "has_templates"):
+            return
+
+        # Get new temperature values from templates
+        if self.features.is_range_mode:
+            new_temp_low = preset_env.get_target_temp_low(self.hass)
+            new_temp_high = preset_env.get_target_temp_high(self.hass)
+
+            if new_temp_low is not None:
+                self.environment.target_temp_low = new_temp_low
+                self._target_temp_low = new_temp_low
+                _LOGGER.debug(
+                    "%s: Updated target_temp_low to %s from template",
+                    self.entity_id,
+                    new_temp_low,
+                )
+
+            if new_temp_high is not None:
+                self.environment.target_temp_high = new_temp_high
+                self._target_temp_high = new_temp_high
+                _LOGGER.debug(
+                    "%s: Updated target_temp_high to %s from template",
+                    self.entity_id,
+                    new_temp_high,
+                )
+        else:
+            new_temp = preset_env.get_temperature(self.hass)
+            if new_temp is not None:
+                self.environment.target_temp = new_temp
+                self._target_temp = new_temp
+                _LOGGER.debug(
+                    "%s: Updated target_temp to %s from template",
+                    self.entity_id,
+                    new_temp,
+                )
+
+        # Trigger control cycle to respond to new temperature
+        self.async_write_ha_state()
+        await self._async_control_climate(force=True)
 
     async def async_added_to_hass(self) -> None:
         """Run when entity about to be added."""
@@ -671,7 +845,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             self._set_support_flags()
 
             # restore previous preset mode if available
-            self.presets.apply_old_state(old_state)
+            await self.presets.apply_old_state(old_state)
             self._attr_preset_mode = self.presets.preset_mode
 
             _LOGGER.debug("restoring hvac_mode: %s", hvac_mode)
@@ -708,10 +882,16 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         if should_control_climate:
             await self._async_control_climate(force=True)
 
+        # Set up template listeners for preset temperatures
+        await self._setup_template_listeners()
+
         self.async_write_ha_state()
 
     async def async_will_remove_from_hass(self) -> None:
         """Call when entity will be removed from hass."""
+        # Remove template listeners
+        await self._remove_template_listeners()
+
         if self._remove_signal_hvac_action_reason:
             self._remove_signal_hvac_action_reason()
         if self._remove_stale_tracking:
@@ -1394,6 +1574,9 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             self.environment.set_humidity_from_preset(
                 self.presets.preset_mode, self.presets.preset_env, old_preset_mode
             )
+
+        # Update template listeners for new preset
+        await self._setup_template_listeners()
 
         await self._async_control_climate(force=True)
         self.async_write_ha_state()

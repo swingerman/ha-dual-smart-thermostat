@@ -12,7 +12,8 @@
 # upstream projects release compatible wheels.
 
 # The minimal supported Home Assistant core dependency for this integration.
-homeassistant>=2024.6.0
+# This should match the target version specified in hacs.json
+homeassistant>=2025.1.0
 # Optional Python-level pcap bindings. These may require libpcap headers (libpcap-dev)
 # Optional Python-level pcap bindings. These are development-only and may require
 # libpcap headers (`libpcap-dev`) and build tools. Move them to `requirements-dev.txt`

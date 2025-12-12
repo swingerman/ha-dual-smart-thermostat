@@ -5,7 +5,6 @@ from __future__ import annotations
 from typing import Any
 
 from homeassistant.config_entries import OptionsFlow
-from homeassistant.const import CONF_NAME
 from homeassistant.data_entry_flow import FlowResult
 
 from ..const import CONF_PRESETS
@@ -65,13 +64,22 @@ class PresetsSteps:
 
         # Attempt to include current persisted presets selection so the options
         # form pre-checks any presets that already have configuration.
-        current_config = None
-        try:
-            if hasattr(flow_instance, "_get_entry"):
-                entry = flow_instance._get_entry()
-                current_config = entry.data if entry is not None else None
-        except Exception:
-            current_config = None
+        # For reconfigure flows, collected_config already contains existing data.
+        # For options flows, we need to get it from the entry.
+        current_config = (
+            collected_config  # Start with collected_config (works for reconfigure)
+        )
+
+        # If collected_config doesn't have presets, try getting from entry (options flow)
+        if "presets" not in current_config:
+            try:
+                if hasattr(flow_instance, "_get_entry"):
+                    entry = flow_instance._get_entry()
+                    current_config = (
+                        entry.data if entry is not None else collected_config
+                    )
+            except Exception:
+                current_config = collected_config
 
         # Determine defaults: if current config contains presets (new format)
         # use those; otherwise if presets exist in data map keys, mark them.
@@ -89,23 +97,82 @@ class PresetsSteps:
     ) -> FlowResult:
         """Handle presets configuration."""
         if user_input is not None:
-            collected_config.update(user_input)
+            return await self._process_preset_config_input(
+                flow_instance, user_input, collected_config
+            )
 
-            # For config flow, this is the final step
-            if not isinstance(flow_instance, OptionsFlow):
-                return flow_instance.async_create_entry(
-                    title=collected_config[CONF_NAME],
-                    data=collected_config,
-                )
-            else:
-                # For options flow, continue (this becomes async_update_entry call)
-                return flow_instance.async_create_entry(title="", data=collected_config)
-
+        # Show preset configuration form
         schema_context = build_schema_context_from_flow(flow_instance, collected_config)
         return flow_instance.async_show_form(
             step_id="presets",
             data_schema=get_presets_schema(schema_context),
         )
+
+    async def _process_preset_config_input(
+        self, flow_instance, user_input: dict, collected_config: dict
+    ) -> FlowResult:
+        """Process and validate preset configuration input."""
+        # Validate all preset temperature fields
+        errors = self._validate_preset_temperature_fields(user_input)
+
+        # If validation errors exist, show form again with errors
+        if errors:
+            return self._show_preset_form_with_errors(flow_instance, collected_config)
+
+        # Update configuration with validated input
+        collected_config.update(user_input)
+
+        # Finish flow based on flow type (config or options)
+        return await self._finish_preset_config_flow(flow_instance, collected_config)
+
+    def _validate_preset_temperature_fields(self, user_input: dict) -> dict:
+        """Validate preset temperature fields (supports templates and numbers).
+
+        Returns dictionary of errors if validation fails, empty dict otherwise.
+        """
+        import voluptuous as vol
+
+        from ..schemas import validate_template_or_number
+
+        errors = {}
+        for key, value in user_input.items():
+            # Check if this is a preset temperature field
+            if key.endswith(("_temp", "_temp_low", "_temp_high")):
+                try:
+                    # Validate the value (handles None, empty strings, numbers, templates)
+                    validated_value = validate_template_or_number(value)
+                    if validated_value is None:
+                        # Remove empty/None values from config
+                        user_input.pop(key, None)
+                    else:
+                        user_input[key] = validated_value
+                except vol.Invalid as e:
+                    errors[key] = str(e)
+
+        return errors
+
+    def _show_preset_form_with_errors(
+        self, flow_instance, collected_config: dict
+    ) -> FlowResult:
+        """Show preset configuration form with validation errors."""
+        schema_context = build_schema_context_from_flow(flow_instance, collected_config)
+        return flow_instance.async_show_form(
+            step_id="presets",
+            data_schema=get_presets_schema(schema_context),
+            errors={"base": "invalid_template"},
+        )
+
+    async def _finish_preset_config_flow(
+        self, flow_instance, collected_config: dict
+    ) -> FlowResult:
+        """Finish preset configuration based on flow type."""
+        # For config flow, this is the final step
+        if not isinstance(flow_instance, OptionsFlow):
+            # Call _async_finish_flow to properly handle both config and reconfigure flows
+            return await flow_instance._async_finish_flow()
+        else:
+            # For options flow, continue (this becomes async_update_entry call)
+            return flow_instance.async_create_entry(title="", data=collected_config)
 
     async def async_step_options(
         self,

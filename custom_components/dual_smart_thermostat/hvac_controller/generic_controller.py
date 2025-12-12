@@ -101,11 +101,19 @@ class GenericHvacController(HvacController):
         self, active: bool, hvac_mode: HVACMode, time=None, force=False
     ) -> bool:
         """Checks if the controller needs to continue."""
-        if (not active or hvac_mode == HVACMode.OFF) and time is None:
+        # CRITICAL: Never control when HVAC mode is OFF, EXCEPT for keep-alive
+        # This prevents devices from turning on when thermostat is in OFF state,
+        # but allows keep-alive to enforce OFF state (turn devices off periodically)
+        if hvac_mode == HVACMode.OFF and time is None:
             _LOGGER.debug(
-                "Not active or hvac mode is off active: %s, _hvac_mode: %s",
-                active,
-                hvac_mode,
+                "HVAC mode is OFF and not keep-alive, skipping control (force=%s)",
+                force,
+            )
+            return False
+
+        if not active and time is None:
+            _LOGGER.debug(
+                "Device not active and time is None, skipping control",
             )
             return False
 

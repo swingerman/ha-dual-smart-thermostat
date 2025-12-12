@@ -1,0 +1,40 @@
+# Helper entities for Single-Mode Thermostat Wrapper
+#
+# These helpers are used by the dual smart thermostat and automation.
+# Add these to your configuration.yaml
+
+# Input Booleans - Act as dummy switches for the dual thermostat
+input_boolean:
+  dual_thermostat_heat_mode:
+    name: "Dual Thermostat Heat Mode"
+    icon: mdi:fire
+
+  dual_thermostat_cool_mode:
+    name: "Dual Thermostat Cool Mode"
+    icon: mdi:snowflake
+
+# Input Numbers - Track target temperatures for automation logic
+input_number:
+  dual_thermostat_minimum_temperature:
+    name: "Dual Thermostat Minimum Temperature"
+    min: 50
+    max: 90
+    step: 1
+    unit_of_measurement: "°F"
+    icon: mdi:thermometer-low
+    # Change to Celsius if needed:
+    # min: 10
+    # max: 32
+    # unit_of_measurement: "°C"
+
+  dual_thermostat_maximum_temperature:
+    name: "Dual Thermostat Maximum Temperature"
+    min: 50
+    max: 90
+    step: 1
+    unit_of_measurement: "°F"
+    icon: mdi:thermometer-high
+    # Change to Celsius if needed:
+    # min: 10
+    # max: 32
+    # unit_of_measurement: "°C"

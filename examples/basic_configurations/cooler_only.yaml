@@ -1,0 +1,80 @@
+# Cooler Only (AC) Configuration
+#
+# Air conditioning only - no heating capability.
+# Perfect for: Window AC units, portable AC, cooling-only systems
+#
+# Documentation: https://github.com/swingerman/ha-dual-smart-thermostat#cooler-only-mode
+
+climate:
+  - platform: dual_smart_thermostat
+    name: "Bedroom AC"
+
+    # Required: Switch entity that controls your AC
+    # This is called "heater" in config but represents your cooler when ac_mode=true
+    heater: switch.bedroom_ac
+
+    # Required: Set to true to indicate this is a cooling device
+    ac_mode: true
+
+    # Required: Temperature sensor for the room
+    target_sensor: sensor.bedroom_temperature
+
+    # Recommended: Start in cool mode
+    initial_hvac_mode: "cool"
+
+    # Optional: Tolerance - prevents frequent on/off cycling
+    # AC turns ON when temp >= (target + hot_tolerance)
+    # AC turns OFF when temp <= target
+    hot_tolerance: 0.5
+
+    # Optional: Minimum cycle duration - protects equipment
+    # Prevents turning on/off more frequently than this
+    min_cycle_duration:
+      minutes: 5
+
+# ========================================
+# Additional Examples
+# ========================================
+
+# Example 2: AC with separate fan control
+# Some AC units have independent fan switches that must be turned on with AC
+# (Common in central AC systems with separate Y and G wires)
+#
+# climate:
+#   - platform: dual_smart_thermostat
+#     name: "Central AC"
+#     heater: switch.ac_compressor          # "Y" wire / compressor
+#     ac_mode: true
+#     fan: switch.ac_fan                    # "G" wire / air handler
+#     fan_on_with_ac: true                  # Turn on fan when AC runs
+#     target_sensor: sensor.house_temperature
+#     initial_hvac_mode: "cool"
+
+# Example 3: AC with smart fan usage
+# Fan runs when slightly warm, AC only when hot_tolerance exceeded
+#
+# climate:
+#   - platform: dual_smart_thermostat
+#     name: "Smart AC with Fan"
+#     heater: switch.ac_compressor
+#     ac_mode: true
+#     fan: switch.standalone_fan
+#     fan_hot_tolerance: 1.0                # Fan activates at target + 1°
+#     hot_tolerance: 2.0                    # AC activates at target + 2°
+#     target_sensor: sensor.living_room_temperature
+#     initial_hvac_mode: "cool"
+
+# Example 4: AC with outside air fan (free cooling)
+# Only run fan if outside temp is cooler than inside
+#
+# climate:
+#   - platform: dual_smart_thermostat
+#     name: "AC with Outside Air"
+#     heater: switch.ac_compressor
+#     ac_mode: true
+#     fan: switch.fan
+#     fan_hot_tolerance: 1.0
+#     outside_sensor: sensor.outside_temperature
+#     fan_air_outside: true                 # Only run fan if outside is cooler
+#     target_sensor: sensor.living_room_temperature
+#     initial_hvac_mode: "cool"

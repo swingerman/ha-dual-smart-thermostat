@@ -1,0 +1,165 @@
+# Floor Heating with Temperature Limits
+#
+# Prevents floor damage and discomfort by enforcing min/max floor temperatures.
+# Critical for: Hardwood floors, tile, radiant floor heating
+#
+# Documentation: https://github.com/swingerman/ha-dual-smart-thermostat#floor-heating-temperature-control
+
+climate:
+  - platform: dual_smart_thermostat
+    name: "Bathroom Floor Heat"
+
+    # Required: Heater switch
+    heater: switch.bathroom_floor_heater
+
+    # Required: Room temperature sensor (primary control)
+    target_sensor: sensor.bathroom_temperature
+
+    # Required for floor protection: Floor temperature sensor
+    floor_sensor: sensor.bathroom_floor_temperature
+
+    # Required: Floor temperature limits
+    max_floor_temp: 28  # Maximum floor temp (°C) - prevents damage
+    min_floor_temp: 20  # Minimum floor temp (°C) - prevents cold floors
+
+    initial_hvac_mode: "heat"
+    cold_tolerance: 0.5
+
+# ========================================
+# How Floor Protection Works
+# ========================================
+#
+# The system controls based on room temperature BUT enforces floor limits:
+#
+# 1. Normal Operation:
+#    - Room temp < target → Heater turns on
+#    - Room temp >= target → Heater turns off
+#
+# 2. Floor Protection:
+#    - If floor temp >= max_floor_temp → Heater FORCED OFF (regardless of room temp)
+#    - If floor temp <= min_floor_temp → Heater FORCED ON (regardless of room temp)
+#
+# 3. Priority:
+#    - Floor limits OVERRIDE room temperature targets
+#    - Prevents damage even if room isn't at target
+#
+# Example: Target room temp is 22°C, max floor is 28°C
+#   - Room is 20°C, floor is 27°C → Heater runs normally
+#   - Room is 20°C, floor is 28°C → Heater turns OFF (floor protection)
+#   - Room is 24°C, floor is 28°C → Heater stays OFF (both conditions)
+
+# ========================================
+# Example 2: Floor Heating with Presets
+# Different floor limits for different scenarios
+# ========================================
+
+# climate:
+#   - platform: dual_smart_thermostat
+#     name: "Living Room Floor Heat"
+#     heater: switch.living_room_floor_heater
+#     target_sensor: sensor.living_room_temperature
+#     floor_sensor: sensor.living_room_floor_temperature
+#
+#     # Global floor limits (defaults)
+#     max_floor_temp: 28
+#     min_floor_temp: 20
+#
+#     # Preset modes with custom floor limits
+#     away_temp: 16
+#     away_max_floor_temp: 25      # Lower max when away (save energy)
+#     away_min_floor_temp: 18      # Higher min when away (prevent freezing)
+#
+#     eco_temp: 19
+#     eco_max_floor_temp: 26       # Moderate limits for eco mode
+#     eco_min_floor_temp: 19
+#
+#     comfort_temp: 21
+#     comfort_max_floor_temp: 30   # Higher max for comfort
+#     comfort_min_floor_temp: 22   # Higher min for comfort
+#
+#     initial_hvac_mode: "heat"
+
+# ========================================
+# Example 3: Dual Mode with Floor Protection
+# Both heating and cooling with floor limits
+# ========================================
+
+# climate:
+#   - platform: dual_smart_thermostat
+#     name: "Radiant Floor System"
+#     heater: switch.radiant_heater
+#     cooler: switch.radiant_cooler
+#     target_sensor: sensor.room_temperature
+#     floor_sensor: sensor.floor_temperature
+#     heat_cool_mode: true
+#
+#     # Floor limits apply to both heating and cooling
+#     max_floor_temp: 28  # Don't overheat floor
+#     min_floor_temp: 18  # Don't overcool floor
+#
+#     initial_hvac_mode: "heat_cool"
+
+# ========================================
+# Choosing Floor Temperature Limits
+# ========================================
+#
+# Material-Based Recommendations:
+#
+# Hardwood Floors:
+#   - Max: 27-28°C (80-82°F)
+#   - Min: 18-20°C (64-68°F)
+#
+# Tile/Stone:
+#   - Max: 29-30°C (84-86°F)
+#   - Min: 18-22°C (64-72°F)
+#
+# Laminate:
+#   - Max: 26-27°C (79-81°F)  # More sensitive!
+#   - Min: 18-20°C (64-68°F)
+#
+# Carpet:
+#   - Max: 27-28°C (81-82°F)
+#   - Min: 20-22°C (68-72°F)
+#
+# Vinyl/LVP:
+#   - Max: 26-27°C (79-81°F)
+#   - Min: 18-20°C (64-68°F)
+#
+# Always check your flooring manufacturer's specifications!
+
+# ========================================
+# Sensor Placement Tips
+# ========================================
+#
+# Floor Sensor:
+#   - Install between floor joists or in floor construction
+#   - Keep 6-12 inches from heating elements
+#   - Avoid areas with rugs or furniture
+#   - Use NTC thermistor or PT100 sensors
+#
+# Room Sensor:
+#   - Mount 4-5 feet above floor
+#   - Away from direct sunlight, drafts, heat sources
+#   - In the center of the room if possible
+#   - Not behind furniture or in corners
+
+# ========================================
+# Troubleshooting
+# ========================================
+#
+# Floor too hot despite max_floor_temp:
+#   - Check floor sensor accuracy/calibration
+#   - Verify sensor is properly located
+#   - Reduce max_floor_temp setting
+#   - Check for sensor failures (stale data)
+#
+# Room never reaches target:
+#   - Floor limit may be too restrictive
+#   - Increase max_floor_temp if safe for your flooring
+#   - Check insulation and heat loss
+#   - Consider system sizing/capacity
+#
+# Heater cycles too frequently:
+#   - Increase cold_tolerance
+#   - Increase min_cycle_duration
+#   - Check for drafts or air movement near sensors

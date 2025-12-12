@@ -22,9 +22,11 @@ from .const import (
     CONF_HEAT_PUMP_COOLING,
     CONF_HEATER,
     CONF_HUMIDITY_SENSOR,
+    CONF_PRECISION,
     CONF_PRESETS,
     CONF_SENSOR,
     CONF_SYSTEM_TYPE,
+    CONF_TEMP_STEP,
     DOMAIN,
     SYSTEM_TYPE_SIMPLE_HEATER,
     SystemType,
@@ -80,9 +82,12 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
         self.floor_steps = FloorSteps()
 
     def _clean_config_for_storage(self, config: dict[str, Any]) -> dict[str, Any]:
-        """Remove transient flow state flags before saving to config entry.
+        """Remove transient flow state flags and normalize types before saving.
 
-        These flags control flow navigation and should not be persisted.
+        This method:
+        1. Removes flow navigation flags that should not be persisted
+        2. Converts string values from select selectors to proper numeric types
+           (fixes issue #468 where precision/temp_step stored as strings)
         """
         excluded_flags = {
             "dual_stage_options_shown",
@@ -99,7 +104,19 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
             "configure_floor_heating",
             "system_type_changed",
         }
-        return {k: v for k, v in config.items() if k not in excluded_flags}
+        cleaned = {k: v for k, v in config.items() if k not in excluded_flags}
+
+        # Convert string values from select selectors to proper numeric types
+        # SelectSelector always returns strings, but these should be floats
+        float_keys = [CONF_PRECISION, CONF_TEMP_STEP]
+        for key in float_keys:
+            if key in cleaned and isinstance(cleaned[key], str):
+                try:
+                    cleaned[key] = float(cleaned[key])
+                except (ValueError, TypeError):
+                    pass  # Keep original value if conversion fails
+
+        return cleaned
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
