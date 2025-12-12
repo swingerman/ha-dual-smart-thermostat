@@ -16,6 +16,29 @@ jobs:
         with:
           # Disabling shallow clone is recommended for improving relevancy of reporting
           fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Run tests with coverage
+        run: |
+          pytest --cov-report xml:coverage.xml --cov=custom_components
+
+      - name: Verify coverage file exists
+        run: |
+          if [ -f coverage.xml ]; then
+            echo "✓ Coverage file generated successfully"
+            ls -lh coverage.xml
+          else
+            echo "✗ Coverage file not found!"
+            exit 1
+          fi
+
       - name: SonarCloud Scan
         uses: sonarsource/sonarcloud-github-action@master
         with:
