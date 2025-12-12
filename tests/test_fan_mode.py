@@ -1409,11 +1409,18 @@ async def test_time_change_fan_trigger_keep_alive(
     await hass.async_block_till_done()
 
     # keep-alive call triggered, time is enough
-    assert len(calls) == 1
-    call = calls[0]
-    assert call.domain == HASS_DOMAIN
-    assert call.service == SERVICE_TURN_ON if sw_on else SERVICE_TURN_OFF
-    assert call.data["entity_id"] == common.ENT_SWITCH
+    # When sw_on=True: keep-alive sends turn_on to maintain ON state
+    # When sw_on=False: device is already OFF, no command needed (issue #467 fix)
+    if sw_on:
+        assert len(calls) == 1
+        call = calls[0]
+        assert call.domain == HASS_DOMAIN
+        assert call.service == SERVICE_TURN_ON
+        assert call.data["entity_id"] == common.ENT_SWITCH
+    else:
+        # After fix for issue #467: keep-alive doesn't send redundant turn_off
+        # when device is already in the correct OFF state
+        assert len(calls) == 0
 
 
 @pytest.mark.parametrize("sw_on", [True, False])
