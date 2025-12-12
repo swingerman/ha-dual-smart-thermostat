@@ -118,6 +118,44 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
 
         return cleaned
 
+    def _normalize_config_from_storage(self, config: dict[str, Any]) -> dict[str, Any]:
+        """Normalize config values when loading from storage.
+
+        Home Assistant serializes certain Python objects (like timedelta) to JSON-compatible
+        formats when saving to storage. This method converts them back to their original types.
+
+        Specifically handles:
+        - timedelta objects serialized as dict: {'days': 0, 'seconds': 300, 'microseconds': 0}
+
+        Related to issue #484 where keep_alive/min_cycle_duration/stale_duration are stored
+        as dicts after HA serialization, causing AttributeError in reconfigure/options flows.
+        """
+        from datetime import timedelta
+
+        from .const import CONF_KEEP_ALIVE, CONF_MIN_DUR, CONF_STALE_DURATION
+
+        # Time-based keys that may be serialized as dicts
+        time_keys = [CONF_KEEP_ALIVE, CONF_MIN_DUR, CONF_STALE_DURATION]
+
+        for key in time_keys:
+            if key in config and config[key] is not None:
+                value = config[key]
+                # Convert dict representation back to timedelta
+                # HA storage serializes timedelta as {'days': 0, 'seconds': 300, 'microseconds': 0}
+                if isinstance(value, dict) and all(
+                    k in value for k in ["days", "seconds", "microseconds"]
+                ):
+                    try:
+                        config[key] = timedelta(
+                            days=value["days"],
+                            seconds=value["seconds"],
+                            microseconds=value["microseconds"],
+                        )
+                    except (ValueError, TypeError, KeyError):
+                        pass  # Keep original if conversion fails
+
+        return config
+
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
@@ -158,6 +196,11 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
         # Initialize collected_config with current data
         # This ensures all existing settings are preserved unless changed
         self.collected_config = dict(entry.data)
+
+        # Normalize config values from storage (convert dict timedelta back to timedelta)
+        self.collected_config = self._normalize_config_from_storage(
+            self.collected_config
+        )
 
         # IMPORTANT: Clear flow control flags so user goes through all steps again
         # These flags are set during the flow to control navigation and should
