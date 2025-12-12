@@ -332,3 +332,58 @@ async def test_stale_duration_dict_to_timedelta(hass: HomeAssistant):
     state = hass.states.get(common.ENTITY)
     assert state is not None
     assert state.state == "off"
+
+
+@pytest.mark.asyncio
+async def test_options_flow_with_dict_keep_alive(hass: HomeAssistant):
+    """Test that options flow handles dict-serialized keep_alive correctly.
+
+    This reproduces the user-reported scenario in issue #484 where:
+    1. Initial config works fine with keep_alive as float
+    2. HA converts timedelta to dict in storage after initial setup
+    3. User opens options flow to modify settings (e.g., target temp)
+    4. Options flow loads config and encounters dict-serialized keep_alive
+    5. Without fix, options flow would fail with AttributeError when trying to display keep_alive
+
+    The fix ensures options flow calls _normalize_config_from_storage()
+    to convert dict back to timedelta before building the form.
+    """
+    setup_sensor(hass, 22.0)
+    setup_switch(hass, False, common.ENT_HEATER)
+
+    # Simulate config stored by HA with dict-serialized timedelta
+    # This is what the config looks like after HA restart - keep_alive is a dict
+    config_data = {
+        "name": "test",
+        CONF_HEATER: common.ENT_HEATER,
+        CONF_SENSOR: common.ENT_SENSOR,
+        CONF_COLD_TOLERANCE: 0.5,
+        CONF_HOT_TOLERANCE: 0.5,
+        # This is how HA storage represents timedelta after serialization
+        CONF_KEEP_ALIVE: {"days": 0, "seconds": 300, "microseconds": 0},
+    }
+
+    config_entry = MockConfigEntry(
+        domain=DOMAIN,
+        data=config_data,
+        title="test",
+    )
+    config_entry.add_to_hass(hass)
+
+    # Initial setup should work (climate.py normalizes dict to timedelta)
+    await hass.config_entries.async_setup(config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    state = hass.states.get(common.ENTITY)
+    assert state is not None
+    assert state.state == "off"
+
+    # Now simulate options flow
+    # This is where the bug occurred - options flow loads dict from storage
+    # Without the fix, this would fail with AttributeError when building form
+    result = await hass.config_entries.options.async_init(config_entry.entry_id)
+
+    # Options flow should successfully load and normalize the dict keep_alive
+    # and display the initial form
+    assert result["type"] == "form"
+    assert result["step_id"] == "init"
