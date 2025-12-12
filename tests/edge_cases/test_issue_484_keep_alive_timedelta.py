@@ -221,3 +221,114 @@ async def test_mixed_numeric_and_time_normalization(hass: HomeAssistant):
     assert state.state == "off"
     # Precision should be 0.5 (from string conversion)
     assert state.attributes["target_temp_step"] == 0.5
+
+
+@pytest.mark.asyncio
+async def test_keep_alive_dict_deserialized_to_timedelta(hass: HomeAssistant):
+    """Test that keep_alive stored as dict (after HA serialization) converts to timedelta.
+
+    After the initial fix in beta10, users reported the issue persisted with a different error:
+    AttributeError: 'dict' object has no attribute 'total_seconds'
+
+    This happens because:
+    1. Config flow stores keep_alive as float (300.0)
+    2. Our fix converts it to timedelta(seconds=300)
+    3. Home Assistant serializes timedelta to storage as dict: {'days': 0, 'seconds': 300, 'microseconds': 0}
+    4. On reload, it's deserialized as dict, not timedelta
+    5. Our normalization must handle this dict format
+
+    Without this fix, beta10 would fail with dict AttributeError after HA restart.
+    """
+    setup_sensor(hass, 22.0)
+    setup_switch(hass, False, common.ENT_HEATER)
+
+    # Simulate config after Home Assistant storage deserialization
+    # When timedelta is saved and reloaded, HA deserializes it as a dict
+    config_data = {
+        "name": "test",
+        CONF_HEATER: common.ENT_HEATER,
+        CONF_SENSOR: common.ENT_SENSOR,
+        CONF_COLD_TOLERANCE: 0.5,
+        CONF_HOT_TOLERANCE: 0.5,
+        # This is how HA storage represents timedelta(seconds=300)
+        CONF_KEEP_ALIVE: {"days": 0, "seconds": 300, "microseconds": 0},
+    }
+
+    config_entry = MockConfigEntry(
+        domain=DOMAIN,
+        data=config_data,
+        title="test",
+    )
+    config_entry.add_to_hass(hass)
+
+    # This should NOT raise AttributeError: 'dict' object has no attribute 'total_seconds'
+    # The fix converts dict back to timedelta
+    await hass.config_entries.async_setup(config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    # Verify entity was created successfully
+    state = hass.states.get(common.ENTITY)
+    assert state is not None
+    assert state.state == "off"
+
+
+@pytest.mark.asyncio
+async def test_min_cycle_duration_dict_to_timedelta(hass: HomeAssistant):
+    """Test that min_cycle_duration as dict converts to timedelta correctly."""
+    setup_sensor(hass, 22.0)
+    setup_switch(hass, False, common.ENT_HEATER)
+
+    config_data = {
+        "name": "test",
+        CONF_HEATER: common.ENT_HEATER,
+        CONF_SENSOR: common.ENT_SENSOR,
+        CONF_COLD_TOLERANCE: 0.5,
+        CONF_HOT_TOLERANCE: 0.5,
+        # Dict representation from HA storage
+        CONF_MIN_DUR: {"days": 0, "seconds": 180, "microseconds": 0},
+    }
+
+    config_entry = MockConfigEntry(
+        domain=DOMAIN,
+        data=config_data,
+        title="test",
+    )
+    config_entry.add_to_hass(hass)
+
+    await hass.config_entries.async_setup(config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    state = hass.states.get(common.ENTITY)
+    assert state is not None
+    assert state.state == "off"
+
+
+@pytest.mark.asyncio
+async def test_stale_duration_dict_to_timedelta(hass: HomeAssistant):
+    """Test that stale_duration as dict converts to timedelta correctly."""
+    setup_sensor(hass, 22.0)
+    setup_switch(hass, False, common.ENT_HEATER)
+
+    config_data = {
+        "name": "test",
+        CONF_HEATER: common.ENT_HEATER,
+        CONF_SENSOR: common.ENT_SENSOR,
+        CONF_COLD_TOLERANCE: 0.5,
+        CONF_HOT_TOLERANCE: 0.5,
+        # Dict representation from HA storage
+        CONF_STALE_DURATION: {"days": 0, "seconds": 600, "microseconds": 0},
+    }
+
+    config_entry = MockConfigEntry(
+        domain=DOMAIN,
+        data=config_data,
+        title="test",
+    )
+    config_entry.add_to_hass(hass)
+
+    await hass.config_entries.async_setup(config_entry.entry_id)
+    await hass.async_block_till_done()
+
+    state = hass.states.get(common.ENTITY)
+    assert state is not None
+    assert state.state == "off"
