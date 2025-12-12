@@ -180,34 +180,57 @@ class OptionsFlowHandler(OptionsFlow):
             )
         )
 
-        schema_dict[
-            vol.Optional(CONF_TARGET_TEMP, default=current_config.get(CONF_TARGET_TEMP))
-        ] = selector.NumberSelector(
-            selector.NumberSelectorConfig(
-                mode=selector.NumberSelectorMode.BOX, unit_of_measurement=DEGREE
+        # Target temperature - use description/suggested_value pattern for optional field
+        # This ensures the field appears empty if not set, but shows stored value as hint
+        target_temp = current_config.get(CONF_TARGET_TEMP)
+        if target_temp is not None:
+            schema_dict[
+                vol.Optional(
+                    CONF_TARGET_TEMP,
+                    description={"suggested_value": target_temp},
+                )
+            ] = selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    mode=selector.NumberSelectorMode.BOX, unit_of_measurement=DEGREE
+                )
             )
-        )
+        else:
+            schema_dict[vol.Optional(CONF_TARGET_TEMP)] = selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    mode=selector.NumberSelectorMode.BOX, unit_of_measurement=DEGREE
+                )
+            )
 
         # === PRECISION AND STEP (always shown) ===
-        schema_dict[
-            vol.Optional(
-                CONF_PRECISION, default=current_config.get(CONF_PRECISION, "0.1")
-            )
-        ] = selector.SelectSelector(
-            selector.SelectSelectorConfig(
-                options=["0.1", "0.5", "1.0"],
-                mode=selector.SelectSelectorMode.DROPDOWN,
+        # Convert stored float values to strings to match dropdown options
+        # This fixes issue #484/#479 where float values don't pre-fill dropdowns
+        precision_value = current_config.get(CONF_PRECISION, 0.1)
+        if isinstance(precision_value, (int, float)):
+            precision_value = str(precision_value)
+        if precision_value not in ["0.1", "0.5", "1.0"]:
+            precision_value = "0.1"  # Fallback to default if invalid
+
+        schema_dict[vol.Optional(CONF_PRECISION, default=precision_value)] = (
+            selector.SelectSelector(
+                selector.SelectSelectorConfig(
+                    options=["0.1", "0.5", "1.0"],
+                    mode=selector.SelectSelectorMode.DROPDOWN,
+                )
             )
         )
 
-        schema_dict[
-            vol.Optional(
-                CONF_TEMP_STEP, default=current_config.get(CONF_TEMP_STEP, "1.0")
-            )
-        ] = selector.SelectSelector(
-            selector.SelectSelectorConfig(
-                options=["0.1", "0.5", "1.0"],
-                mode=selector.SelectSelectorMode.DROPDOWN,
+        temp_step_value = current_config.get(CONF_TEMP_STEP, 1.0)
+        if isinstance(temp_step_value, (int, float)):
+            temp_step_value = str(temp_step_value)
+        if temp_step_value not in ["0.1", "0.5", "1.0"]:
+            temp_step_value = "1.0"  # Fallback to default if invalid
+
+        schema_dict[vol.Optional(CONF_TEMP_STEP, default=temp_step_value)] = (
+            selector.SelectSelector(
+                selector.SelectSelectorConfig(
+                    options=["0.1", "0.5", "1.0"],
+                    mode=selector.SelectSelectorMode.DROPDOWN,
+                )
             )
         )
 

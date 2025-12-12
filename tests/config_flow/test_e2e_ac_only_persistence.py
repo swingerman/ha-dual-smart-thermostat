@@ -477,6 +477,207 @@ async def test_ac_only_fan_only_persistence(hass):
     assert "home_temp" not in created_data
 
 
+@pytest.mark.asyncio
+async def test_ac_only_repeated_options_flow_persistence(hass):
+    """Test AC_ONLY options flow repeated multiple times (issue #484, #479).
+
+    Validates that:
+    1. Config flow completes normally
+    2. First options flow works and persists changes
+    3. Second options flow shows correct pre-filled values (precision, temp_step)
+    4. Target temperature is optional, not required
+    5. Precision and temp_step fields are populated on second open
+
+    This test reproduces the bug where precision/temp_step fields may appear
+    empty on second options flow open if stored values don't match string format.
+    """
+    from custom_components.dual_smart_thermostat.config_flow import ConfigFlowHandler
+    from custom_components.dual_smart_thermostat.const import (
+        CONF_PRECISION,
+        CONF_TARGET_TEMP,
+        CONF_TEMP_STEP,
+    )
+    from custom_components.dual_smart_thermostat.options_flow import OptionsFlowHandler
+
+    # ===== STEP 1: Complete config flow =====
+    config_flow = ConfigFlowHandler()
+    config_flow.hass = hass
+
+    result = await config_flow.async_step_user({CONF_SYSTEM_TYPE: SYSTEM_TYPE_AC_ONLY})
+
+    initial_config = {
+        CONF_NAME: "AC Repeat Test",
+        CONF_SENSOR: "sensor.room_temp",
+        CONF_COOLER: "switch.ac",
+        CONF_HOT_TOLERANCE: 0.5,
+    }
+    result = await config_flow.async_step_basic_ac_only(initial_config)
+
+    # Skip features for simplicity
+    result = await config_flow.async_step_features({})
+
+    assert result["type"] == "create_entry"
+    created_data = result["data"]
+
+    # ===== STEP 2: Create MockConfigEntry =====
+    config_entry = MockConfigEntry(
+        domain=DOMAIN,
+        data=created_data,
+        options={},
+        title="AC Repeat Test",
+    )
+    config_entry.add_to_hass(hass)
+
+    # ===== STEP 3: First options flow - set target_temp, precision, temp_step =====
+    options_flow_1 = OptionsFlowHandler(config_entry)
+    options_flow_1.hass = hass
+
+    result = await options_flow_1.async_step_init()
+    assert result["type"] == "form"
+    assert result["step_id"] == "init"
+
+    # Set values in first options flow
+    result = await options_flow_1.async_step_init(
+        {
+            CONF_TARGET_TEMP: 22.0,
+            CONF_PRECISION: "0.5",
+            CONF_TEMP_STEP: "0.5",
+        }
+    )
+
+    assert result["type"] == "create_entry"
+    first_update = result["data"]
+
+    # Verify first update - values should be converted to floats
+    assert first_update[CONF_TARGET_TEMP] == 22.0
+    assert first_update[CONF_PRECISION] == 0.5  # Should be float after conversion
+    assert first_update[CONF_TEMP_STEP] == 0.5  # Should be float after conversion
+
+    # ===== STEP 4: Update config entry with options =====
+    config_entry_updated = MockConfigEntry(
+        domain=DOMAIN,
+        data=created_data,
+        options=first_update,
+        title="AC Repeat Test",
+    )
+    config_entry_updated.add_to_hass(hass)
+
+    # ===== STEP 5: Second options flow - verify fields are pre-filled =====
+    options_flow_2 = OptionsFlowHandler(config_entry_updated)
+    options_flow_2.hass = hass
+
+    result = await options_flow_2.async_step_init()
+    assert result["type"] == "form"
+    assert result["step_id"] == "init"
+
+    # Extract defaults from schema
+    init_schema = result["data_schema"].schema
+    defaults = {}
+    for key in init_schema:
+        if hasattr(key, "schema"):
+            field_name = key.schema
+            if hasattr(key, "default"):
+                default_val = key.default() if callable(key.default) else key.default
+                defaults[field_name] = default_val
+
+    # BUG #484/#479: These should be pre-filled from first options flow
+    # Target temp now uses suggested_value pattern, so should NOT be in defaults
+    # but should be in description
+    target_temp_key = None
+    for key in init_schema:
+        if hasattr(key, "schema") and key.schema == CONF_TARGET_TEMP:
+            target_temp_key = key
+            break
+
+    assert target_temp_key is not None, "Target temp field should exist in schema"
+
+    # For optional fields with suggested_value, the value is in description, not default
+    if hasattr(target_temp_key, "description") and isinstance(
+        target_temp_key.description, dict
+    ):
+        suggested_target = target_temp_key.description.get("suggested_value")
+        assert (
+            suggested_target == 22.0
+        ), f"Target temp should be suggested as 22.0! Got: {suggested_target}"
+
+    # Critical: SelectSelector expects string values, and we now convert floats to strings
+    # Issue #484/#479 fix: precision and temp_step stored as floats must be converted to
+    # strings to properly pre-fill dropdown selectors
+    precision_val = defaults.get(CONF_PRECISION)
+    assert precision_val == "0.5", (
+        f"Precision should be pre-filled as string '0.5'! Got: {precision_val} "
+        f"(type: {type(precision_val).__name__})"
+    )
+
+    temp_step_val = defaults.get(CONF_TEMP_STEP)
+    assert temp_step_val == "0.5", (
+        f"Temp step should be pre-filled as string '0.5'! Got: {temp_step_val} "
+        f"(type: {type(temp_step_val).__name__})"
+    )
+
+    # ===== STEP 6: Submit second options flow without target_temp (should be optional) =====
+    # BUG #484/#479: Target temp should be optional, not required
+    result = await options_flow_2.async_step_init(
+        {
+            # Intentionally NOT providing CONF_TARGET_TEMP - it should be optional
+            CONF_PRECISION: "0.5",
+            CONF_TEMP_STEP: "0.5",
+        }
+    )
+
+    assert result["type"] == "create_entry"
+    second_update = result["data"]
+
+    # Verify target_temp preserved from first update (not cleared)
+    assert (
+        second_update[CONF_TARGET_TEMP] == 22.0
+    ), "Target temp should be preserved from previous options flow"
+    assert second_update[CONF_PRECISION] == 0.5
+    assert second_update[CONF_TEMP_STEP] == 0.5
+
+    # ===== STEP 7: Third options flow - verify persistence again =====
+    config_entry_final = MockConfigEntry(
+        domain=DOMAIN,
+        data=created_data,
+        options=second_update,
+        title="AC Repeat Test",
+    )
+    config_entry_final.add_to_hass(hass)
+
+    options_flow_3 = OptionsFlowHandler(config_entry_final)
+    options_flow_3.hass = hass
+
+    result = await options_flow_3.async_step_init()
+    assert result["type"] == "form"
+
+    # Extract defaults again
+    init_schema_3 = result["data_schema"].schema
+    defaults_3 = {}
+    for key in init_schema_3:
+        if hasattr(key, "schema"):
+            field_name = key.schema
+            if hasattr(key, "default"):
+                default_val = key.default() if callable(key.default) else key.default
+                defaults_3[field_name] = default_val
+
+    # All values should still be pre-filled as strings for dropdowns
+    # Target temp uses suggested_value, so check description
+    target_temp_key_3 = None
+    for key in init_schema_3:
+        if hasattr(key, "schema") and key.schema == CONF_TARGET_TEMP:
+            target_temp_key_3 = key
+            break
+
+    if hasattr(target_temp_key_3, "description") and isinstance(
+        target_temp_key_3.description, dict
+    ):
+        suggested_target_3 = target_temp_key_3.description.get("suggested_value")
+        assert suggested_target_3 == 22.0
+
+    assert defaults_3.get(CONF_PRECISION) == "0.5"
+    assert defaults_3.get(CONF_TEMP_STEP) == "0.5"
+
+
 # =============================================================================
 # NOTE: Mode-specific tolerances (heat_tolerance, cool_tolerance) are only
 # applicable to dual-mode systems (heater_cooler, heat_pump). AC_ONLY is a
