@@ -31,6 +31,7 @@ from .const import (
     CONF_INITIAL_HVAC_MODE,
     CONF_KEEP_ALIVE,
     CONF_MAX_TEMP,
+    CONF_MIN_DUR,
     CONF_MIN_TEMP,
     CONF_PRECISION,
     CONF_SYSTEM_TYPE,
@@ -164,21 +165,44 @@ class OptionsFlowHandler(OptionsFlow):
         )
 
         # === TEMPERATURE LIMITS (always shown) ===
-        schema_dict[
-            vol.Optional(CONF_MIN_TEMP, default=current_config.get(CONF_MIN_TEMP, 7))
-        ] = selector.NumberSelector(
-            selector.NumberSelectorConfig(
-                mode=selector.NumberSelectorMode.BOX, unit_of_measurement=DEGREE
+        # Use suggested_value instead of default to avoid saving defaults when not changed
+        min_temp = current_config.get(CONF_MIN_TEMP)
+        if min_temp is not None:
+            schema_dict[
+                vol.Optional(
+                    CONF_MIN_TEMP,
+                    description={"suggested_value": min_temp},
+                )
+            ] = selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    mode=selector.NumberSelectorMode.BOX, unit_of_measurement=DEGREE
+                )
             )
-        )
+        else:
+            schema_dict[vol.Optional(CONF_MIN_TEMP)] = selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    mode=selector.NumberSelectorMode.BOX, unit_of_measurement=DEGREE
+                )
+            )
 
-        schema_dict[
-            vol.Optional(CONF_MAX_TEMP, default=current_config.get(CONF_MAX_TEMP, 35))
-        ] = selector.NumberSelector(
-            selector.NumberSelectorConfig(
-                mode=selector.NumberSelectorMode.BOX, unit_of_measurement=DEGREE
+        max_temp = current_config.get(CONF_MAX_TEMP)
+        if max_temp is not None:
+            schema_dict[
+                vol.Optional(
+                    CONF_MAX_TEMP,
+                    description={"suggested_value": max_temp},
+                )
+            ] = selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    mode=selector.NumberSelectorMode.BOX, unit_of_measurement=DEGREE
+                )
             )
-        )
+        else:
+            schema_dict[vol.Optional(CONF_MAX_TEMP)] = selector.NumberSelector(
+                selector.NumberSelectorConfig(
+                    mode=selector.NumberSelectorMode.BOX, unit_of_measurement=DEGREE
+                )
+            )
 
         # Target temperature - use description/suggested_value pattern for optional field
         # This ensures the field appears empty if not set, but shows stored value as hint
@@ -204,46 +228,91 @@ class OptionsFlowHandler(OptionsFlow):
         # === PRECISION AND STEP (always shown) ===
         # Convert stored float values to strings to match dropdown options
         # This fixes issue #484/#479 where float values don't pre-fill dropdowns
-        precision_value = current_config.get(CONF_PRECISION, 0.1)
-        if isinstance(precision_value, (int, float)):
-            precision_value = str(precision_value)
-        if precision_value not in ["0.1", "0.5", "1.0"]:
-            precision_value = "0.1"  # Fallback to default if invalid
-
-        schema_dict[vol.Optional(CONF_PRECISION, default=precision_value)] = (
-            selector.SelectSelector(
+        # Only set default if value exists in config to avoid saving unwanted defaults
+        precision_raw = current_config.get(CONF_PRECISION)
+        if precision_raw is not None:
+            precision_value = (
+                str(precision_raw)
+                if isinstance(precision_raw, (int, float))
+                else precision_raw
+            )
+            if precision_value not in ["0.1", "0.5", "1.0"]:
+                precision_value = "0.1"  # Fallback to default if invalid
+            schema_dict[vol.Optional(CONF_PRECISION, default=precision_value)] = (
+                selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=["0.1", "0.5", "1.0"],
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                )
+            )
+        else:
+            # No precision configured, show field without default
+            schema_dict[vol.Optional(CONF_PRECISION)] = selector.SelectSelector(
                 selector.SelectSelectorConfig(
                     options=["0.1", "0.5", "1.0"],
                     mode=selector.SelectSelectorMode.DROPDOWN,
                 )
             )
-        )
 
-        temp_step_value = current_config.get(CONF_TEMP_STEP, 1.0)
-        if isinstance(temp_step_value, (int, float)):
-            temp_step_value = str(temp_step_value)
-        if temp_step_value not in ["0.1", "0.5", "1.0"]:
-            temp_step_value = "1.0"  # Fallback to default if invalid
-
-        schema_dict[vol.Optional(CONF_TEMP_STEP, default=temp_step_value)] = (
-            selector.SelectSelector(
+        temp_step_raw = current_config.get(CONF_TEMP_STEP)
+        if temp_step_raw is not None:
+            temp_step_value = (
+                str(temp_step_raw)
+                if isinstance(temp_step_raw, (int, float))
+                else temp_step_raw
+            )
+            if temp_step_value not in ["0.1", "0.5", "1.0"]:
+                temp_step_value = "1.0"  # Fallback to default if invalid
+            schema_dict[vol.Optional(CONF_TEMP_STEP, default=temp_step_value)] = (
+                selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=["0.1", "0.5", "1.0"],
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                )
+            )
+        else:
+            # No temp_step configured, show field without default
+            schema_dict[vol.Optional(CONF_TEMP_STEP)] = selector.SelectSelector(
                 selector.SelectSelectorConfig(
                     options=["0.1", "0.5", "1.0"],
                     mode=selector.SelectSelectorMode.DROPDOWN,
                 )
             )
-        )
 
         # === ADVANCED SETTINGS (collapsible section) ===
         advanced_dict: dict[Any, Any] = {}
 
-        # Keep alive
-        if current_config.get(CONF_KEEP_ALIVE):
+        # Min cycle duration (always shown)
+        min_dur = current_config.get(CONF_MIN_DUR)
+        if min_dur is not None:
             advanced_dict[
                 vol.Optional(
-                    CONF_KEEP_ALIVE, default=current_config.get(CONF_KEEP_ALIVE)
+                    CONF_MIN_DUR,
+                    description={"suggested_value": min_dur},
                 )
             ] = selector.DurationSelector(
+                selector.DurationSelectorConfig(allow_negative=False)
+            )
+        else:
+            advanced_dict[vol.Optional(CONF_MIN_DUR)] = selector.DurationSelector(
+                selector.DurationSelectorConfig(allow_negative=False)
+            )
+
+        # Keep alive (always shown)
+        keep_alive = current_config.get(CONF_KEEP_ALIVE)
+        if keep_alive is not None:
+            advanced_dict[
+                vol.Optional(
+                    CONF_KEEP_ALIVE,
+                    description={"suggested_value": keep_alive},
+                )
+            ] = selector.DurationSelector(
+                selector.DurationSelectorConfig(allow_negative=False)
+            )
+        else:
+            advanced_dict[vol.Optional(CONF_KEEP_ALIVE)] = selector.DurationSelector(
                 selector.DurationSelectorConfig(allow_negative=False)
             )
 

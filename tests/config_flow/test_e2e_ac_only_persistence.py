@@ -314,11 +314,11 @@ async def test_ac_only_all_features_persistence(hass):
         o.get("entity_id") == "binary_sensor.door_1" for o in created_data["openings"]
     )
 
-    # Verify presets
-    assert "away_temp" in created_data
-    assert created_data["away_temp"] == 26
-    assert "home_temp" in created_data
-    assert created_data["home_temp"] == 22
+    # Verify presets (new format)
+    assert "away" in created_data
+    assert created_data["away"]["temperature"] == 26
+    assert "home" in created_data
+    assert created_data["home"]["temperature"] == 22
 
     # ===== STEP 3: Create MockConfigEntry =====
     config_entry = MockConfigEntry(
@@ -395,8 +395,20 @@ async def test_ac_only_all_features_persistence(hass):
     # Openings list preserved
     assert "openings" in updated_data
     assert len(updated_data["openings"]) == 2
-    assert updated_data["away_temp"] == 26  # Original preset value
-    assert updated_data["home_temp"] == 22  # Original preset value
+    assert updated_data["away"]["temperature"] == 26  # Original preset value
+    assert updated_data["home"]["temperature"] == 22  # Original preset value
+
+    # Verify old format preset fields are NOT saved
+    assert "away_temp" not in updated_data  # Old format should not be present
+    assert "home_temp" not in updated_data  # Old format should not be present
+
+    # Verify unwanted default values are NOT saved
+    assert "min_temp" not in updated_data  # Should only be saved if explicitly set
+    assert "max_temp" not in updated_data  # Should only be saved if explicitly set
+    assert "precision" not in updated_data  # Should only be saved if explicitly set
+    assert (
+        "target_temp_step" not in updated_data
+    )  # Should only be saved if explicitly set
 
     # Verify preserved system info
     assert updated_data[CONF_NAME] == "AC Only All Features Test"
@@ -473,8 +485,8 @@ async def test_ac_only_fan_only_persistence(hass):
     assert "selected_openings" not in created_data or not created_data.get(
         "selected_openings"
     )
-    assert "away_temp" not in created_data  # No presets configured
-    assert "home_temp" not in created_data
+    assert "away" not in created_data  # No presets configured
+    assert "home" not in created_data
 
 
 @pytest.mark.asyncio

@@ -627,7 +627,7 @@
                     "max_temp": "Maximum temperature",
                     "target_temp": "Target temperature",
                     "precision": "Temperature precision",
-                    "temp_step": "Temperature step"
+                    "target_temp_step": "Temperature step"
                 },
                 "data_description": {
                     "cold_tolerance": "Minimum temperature difference below target before activating heating. Lower values make heating more responsive (default: 0.3°C).",
@@ -636,13 +636,14 @@
                     "max_temp": "Maximum allowed temperature setting. Sets the upper bound for target temperature adjustments.",
                     "target_temp": "Default target temperature when no preset is active.",
                     "precision": "Temperature precision for display and control. Determines the decimal precision for temperature values (0.1, 0.5, or 1.0 degrees).",
-                    "temp_step": "Temperature step size for adjustments. Controls how much the target temperature changes with each adjustment."
+                    "target_temp_step": "Temperature step size for adjustments. Controls how much the target temperature changes with each adjustment."
                 },
                 "sections": {
                     "advanced_settings": {
                         "name": "Advanced Settings",
                         "description": "Optional advanced settings for fine-tuning thermostat behavior.",
                         "data": {
+                            "min_cycle_duration": "Minimum cycle duration",
                             "keep_alive": "Keep alive interval",
                             "initial_hvac_mode": "Initial HVAC mode",
                             "target_temp_high": "Target temperature (high)",
@@ -652,6 +653,7 @@
                             "cool_tolerance": "Cool tolerance"
                         },
                         "data_description": {
+                            "min_cycle_duration": "Minimum time equipment must run before switching off. Prevents rapid on/off cycling and protects equipment from damage (default: 5 minutes).",
                             "keep_alive": "Keep alive duration for periodic switching. Set this if your switch needs a heartbeat to keep it 'alive'.",
                             "initial_hvac_mode": "Initial HVAC mode when starting Home Assistant. Sets the default operation mode on startup.",
                             "target_temp_high": "Upper target temperature for dual-temperature systems (heat/cool mode).",

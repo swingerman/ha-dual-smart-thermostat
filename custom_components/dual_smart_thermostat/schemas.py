@@ -71,6 +71,7 @@ from .schema_utils import (
     get_temperature_selector,
     get_text_selector,
     get_time_selector,
+    seconds_to_duration,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -272,14 +273,17 @@ def get_timing_fields_for_section(
     defaults = defaults or {}
     schema_dict = {}
 
+    # Convert seconds to duration dict format for DurationSelector
     min_dur_value = defaults.get(CONF_MIN_DUR, 300)
-    schema_dict[vol.Optional(CONF_MIN_DUR, default=min_dur_value)] = get_time_selector(
-        min_value=0, max_value=3600
+    min_dur_default = seconds_to_duration(min_dur_value)
+    schema_dict[vol.Optional(CONF_MIN_DUR, default=min_dur_default)] = (
+        get_time_selector(min_value=0, max_value=3600)
     )
 
     if include_keep_alive:
         keep_alive_value = defaults.get(CONF_KEEP_ALIVE, 300)
-        schema_dict[vol.Optional(CONF_KEEP_ALIVE, default=keep_alive_value)] = (
+        keep_alive_default = seconds_to_duration(keep_alive_value)
+        schema_dict[vol.Optional(CONF_KEEP_ALIVE, default=keep_alive_default)] = (
             get_time_selector(min_value=0, max_value=3600)
         )
 
@@ -809,9 +813,18 @@ def get_core_schema(
             default=defaults.get(CONF_HOT_TOLERANCE, DEFAULT_TOLERANCE),
         )
     ] = get_percentage_selector()
-    schema_dict[vol.Optional(CONF_MIN_DUR, default=defaults.get(CONF_MIN_DUR))] = (
-        get_time_selector()
+    # Convert seconds to duration dict format for DurationSelector
+    min_dur_default = (
+        seconds_to_duration(defaults.get(CONF_MIN_DUR))
+        if defaults.get(CONF_MIN_DUR)
+        else None
     )
+    if min_dur_default:
+        schema_dict[vol.Optional(CONF_MIN_DUR, default=min_dur_default)] = (
+            get_time_selector()
+        )
+    else:
+        schema_dict[vol.Optional(CONF_MIN_DUR)] = get_time_selector()
 
     return vol.Schema(schema_dict)
 
@@ -992,12 +1005,13 @@ def get_advanced_settings_schema():
             vol.Optional(
                 CONF_COOL_TOLERANCE, default=DEFAULT_TOLERANCE
             ): get_temperature_selector(min_value=0.05, max_value=5.0, step=0.05),
-            vol.Optional(CONF_MIN_DUR, default=300): get_time_selector(
-                min_value=0, max_value=3600
-            ),
-            vol.Optional(CONF_KEEP_ALIVE, default=300): get_time_selector(
-                min_value=0, max_value=3600
-            ),
+            # Convert seconds to duration dict format for DurationSelector
+            vol.Optional(
+                CONF_MIN_DUR, default=seconds_to_duration(300)
+            ): get_time_selector(min_value=0, max_value=3600),
+            vol.Optional(
+                CONF_KEEP_ALIVE, default=seconds_to_duration(300)
+            ): get_time_selector(min_value=0, max_value=3600),
             vol.Optional(CONF_PRECISION, default=0.1): get_select_selector(
                 options=[
                     {"value": "0.1", "label": "0.1"},
@@ -1126,14 +1140,18 @@ def get_presets_schema(user_input: dict[str, Any]) -> vol.Schema:
 
     for preset in selected_presets:
         if preset in CONF_PRESETS:
+            # Get the normalized preset name (lowercase with underscores)
+            # e.g., "Anti Freeze" -> "anti_freeze", "Home" -> "home"
+            preset_key = CONF_PRESETS[preset]
+
             # When heat_cool_mode is enabled, render dual fields (low/high)
             if heat_cool_enabled:
                 # Use TextSelector to accept both numbers and template strings
                 # Note: Validation happens in the flow handler, not in schema
                 # Defaults must be strings to match TextSelector type
                 # Extract existing values from user_input, or use fallback defaults
-                existing_temp_low = user_input.get(f"{preset}_temp_low", "20")
-                existing_temp_high = user_input.get(f"{preset}_temp_high", "24")
+                existing_temp_low = user_input.get(f"{preset_key}_temp_low", "20")
+                existing_temp_high = user_input.get(f"{preset_key}_temp_high", "24")
                 # Ensure defaults are strings
                 if not isinstance(existing_temp_low, str):
                     existing_temp_low = str(existing_temp_low)
@@ -1141,7 +1159,7 @@ def get_presets_schema(user_input: dict[str, Any]) -> vol.Schema:
                     existing_temp_high = str(existing_temp_high)
 
                 schema_dict[
-                    vol.Optional(f"{preset}_temp_low", default=existing_temp_low)
+                    vol.Optional(f"{preset_key}_temp_low", default=existing_temp_low)
                 ] = selector.TextSelector(
                     selector.TextSelectorConfig(
                         multiline=False,
@@ -1149,7 +1167,7 @@ def get_presets_schema(user_input: dict[str, Any]) -> vol.Schema:
                     )
                 )
                 schema_dict[
-                    vol.Optional(f"{preset}_temp_high", default=existing_temp_high)
+                    vol.Optional(f"{preset_key}_temp_high", default=existing_temp_high)
                 ] = selector.TextSelector(
                     selector.TextSelectorConfig(
                         multiline=False,
@@ -1162,17 +1180,17 @@ def get_presets_schema(user_input: dict[str, Any]) -> vol.Schema:
                 # Note: Validation happens in the flow handler, not in schema
                 # Defaults must be strings to match TextSelector type
                 # Extract existing value from user_input, or use fallback default
-                existing_temp = user_input.get(f"{preset}_temp", "20")
+                existing_temp = user_input.get(f"{preset_key}_temp", "20")
                 # Ensure default is a string
                 if not isinstance(existing_temp, str):
                     existing_temp = str(existing_temp)
 
-                schema_dict[vol.Optional(f"{preset}_temp", default=existing_temp)] = (
-                    selector.TextSelector(
-                        selector.TextSelectorConfig(
-                            multiline=False,
-                            type=selector.TextSelectorType.TEXT,
-                        )
+                schema_dict[
+                    vol.Optional(f"{preset_key}_temp", default=existing_temp)
+                ] = selector.TextSelector(
+                    selector.TextSelectorConfig(
+                        multiline=False,
+                        type=selector.TextSelectorType.TEXT,
                     )
                 )
 
