@@ -34,6 +34,7 @@ from .const import (
     CONF_MIN_DUR,
     CONF_MIN_TEMP,
     CONF_PRECISION,
+    CONF_STALE_DURATION,
     CONF_SYSTEM_TYPE,
     CONF_TARGET_TEMP,
     CONF_TARGET_TEMP_HIGH,
@@ -102,6 +103,42 @@ class OptionsFlowHandler(OptionsFlow):
             "system_type_changed",
         }
 
+    def _normalize_config_from_storage(self, config: dict[str, Any]) -> dict[str, Any]:
+        """Normalize config values when loading from storage.
+
+        Home Assistant serializes certain Python objects (like timedelta) to JSON-compatible
+        formats when saving to storage. This method converts them back to their original types.
+
+        Specifically handles:
+        - timedelta objects serialized as dict: {'days': 0, 'seconds': 300, 'microseconds': 0}
+
+        Related to issue #484 where keep_alive/min_cycle_duration/stale_duration are stored
+        as dicts after HA serialization, causing AttributeError in reconfigure/options flows.
+        """
+        from datetime import timedelta
+
+        # Time-based keys that may be serialized as dicts
+        time_keys = [CONF_KEEP_ALIVE, CONF_MIN_DUR, CONF_STALE_DURATION]
+
+        for key in time_keys:
+            if key in config and config[key] is not None:
+                value = config[key]
+                # Convert dict representation back to timedelta
+                # HA storage serializes timedelta as {'days': 0, 'seconds': 300, 'microseconds': 0}
+                if isinstance(value, dict) and all(
+                    k in value for k in ["days", "seconds", "microseconds"]
+                ):
+                    try:
+                        config[key] = timedelta(
+                            days=value["days"],
+                            seconds=value["seconds"],
+                            microseconds=value["microseconds"],
+                        )
+                    except (ValueError, TypeError, KeyError):
+                        pass  # Keep original if conversion fails
+
+        return config
+
     def _get_current_config(self) -> dict[str, Any]:
         """Get current configuration merging data and options.
 
@@ -121,7 +158,11 @@ class OptionsFlowHandler(OptionsFlow):
             options = dict(options) if options else {}
         except (TypeError, AttributeError):
             options = options if isinstance(options, dict) else {}
-        return {**data, **options}
+
+        merged_config = {**data, **options}
+
+        # Normalize config values from storage (convert dict timedelta back to timedelta)
+        return self._normalize_config_from_storage(merged_config)
 
     def _build_options_schema(self, current_config: dict[str, Any]) -> vol.Schema:
         """Build schema for options flow with runtime tuning parameters.
