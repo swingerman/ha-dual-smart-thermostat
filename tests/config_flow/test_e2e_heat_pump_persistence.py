@@ -377,12 +377,12 @@ async def test_heat_pump_all_features_full_persistence(hass):
         o.get("entity_id") == "binary_sensor.door_1" for o in created_data["openings"]
     )
 
-    # Verify presets
-    # Note: Presets are stored as temp values, not in a "presets" list
-    assert "away_temp" in created_data
-    assert created_data["away_temp"] == 16
-    assert "home_temp" in created_data
-    assert created_data["home_temp"] == 21
+    # Verify presets (new format)
+    # Note: Presets are stored as nested dicts, not flat temp values
+    assert "away" in created_data
+    assert created_data["away"]["temperature"] == 16
+    assert "home" in created_data
+    assert created_data["home"]["temperature"] == 21
 
     # ===== STEP 3: Create MockConfigEntry =====
     config_entry = MockConfigEntry(
@@ -455,8 +455,20 @@ async def test_heat_pump_all_features_full_persistence(hass):
     # Openings list preserved
     assert "openings" in updated_data
     assert len(updated_data["openings"]) == 2
-    assert updated_data["away_temp"] == 16  # Original preset value
-    assert updated_data["home_temp"] == 21  # Original preset value
+    assert updated_data["away"]["temperature"] == 16  # Original preset value
+    assert updated_data["home"]["temperature"] == 21  # Original preset value
+
+    # Verify old format preset fields are NOT saved
+    assert "away_temp" not in updated_data  # Old format should not be present
+    assert "home_temp" not in updated_data  # Old format should not be present
+
+    # Verify unwanted default values are NOT saved
+    assert "min_temp" not in updated_data  # Should only be saved if explicitly set
+    assert "max_temp" not in updated_data  # Should only be saved if explicitly set
+    assert "precision" not in updated_data  # Should only be saved if explicitly set
+    assert (
+        "target_temp_step" not in updated_data
+    )  # Should only be saved if explicitly set
 
     # Verify preserved system info
     assert updated_data[CONF_NAME] == "Heat Pump All Features Test"
@@ -541,8 +553,8 @@ async def test_heat_pump_floor_heating_only_persistence(hass):
     assert "selected_openings" not in created_data or not created_data.get(
         "selected_openings"
     )
-    assert "away_temp" not in created_data  # No presets configured
-    assert "home_temp" not in created_data
+    assert "away" not in created_data  # No presets configured
+    assert "home" not in created_data
 
 
 @pytest.mark.asyncio

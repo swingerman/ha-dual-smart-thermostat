@@ -33,6 +33,36 @@ from .models import (
 _LOGGER = logging.getLogger(__name__)
 
 
+def _duration_to_seconds(value: Any) -> int:
+    """Convert duration value to seconds.
+
+    Handles multiple input formats:
+    - int/float: Already in seconds, return as-is
+    - dict with hours/minutes/seconds: From DurationSelector
+    - dict with days/seconds/microseconds: From deserialized timedelta
+
+    Args:
+        value: Duration value in various formats
+
+    Returns:
+        Duration in seconds as integer
+    """
+    if isinstance(value, (int, float)):
+        return int(value)
+    if isinstance(value, dict):
+        # DurationSelector format: {'hours': 0, 'minutes': 5, 'seconds': 0}
+        if any(k in value for k in ["hours", "minutes"]):
+            return (
+                value.get("hours", 0) * 3600
+                + value.get("minutes", 0) * 60
+                + value.get("seconds", 0)
+            )
+        # Deserialized timedelta format: {'days': 0, 'seconds': 300, 'microseconds': 0}
+        if "days" in value and "seconds" in value:
+            return value["days"] * 86400 + value["seconds"]
+    return 300  # Default fallback
+
+
 def validate_config_with_models(config: dict[str, Any]) -> bool:
     """Validate configuration using data models.
 
@@ -73,7 +103,7 @@ def _config_dict_to_model(config: dict[str, Any]) -> ThermostatConfig:
             heater=config.get(CONF_HEATER),
             cold_tolerance=config.get(CONF_COLD_TOLERANCE, 0.3),
             hot_tolerance=config.get(CONF_HOT_TOLERANCE, 0.3),
-            min_cycle_duration=config.get(CONF_MIN_DUR, 300),
+            min_cycle_duration=_duration_to_seconds(config.get(CONF_MIN_DUR, 300)),
         )
     elif system_type == SYSTEM_TYPE_AC_ONLY:
         core_settings = ACOnlyCoreSettings(
@@ -82,7 +112,7 @@ def _config_dict_to_model(config: dict[str, Any]) -> ThermostatConfig:
             ac_mode=config.get(CONF_AC_MODE, True),
             cold_tolerance=config.get(CONF_COLD_TOLERANCE, 0.3),
             hot_tolerance=config.get(CONF_HOT_TOLERANCE, 0.3),
-            min_cycle_duration=config.get(CONF_MIN_DUR, 300),
+            min_cycle_duration=_duration_to_seconds(config.get(CONF_MIN_DUR, 300)),
         )
     elif system_type == SYSTEM_TYPE_HEATER_COOLER:
         core_settings = HeaterCoolerCoreSettings(
@@ -92,7 +122,7 @@ def _config_dict_to_model(config: dict[str, Any]) -> ThermostatConfig:
             heat_cool_mode=config.get(CONF_HEAT_COOL_MODE, False),
             cold_tolerance=config.get(CONF_COLD_TOLERANCE, 0.3),
             hot_tolerance=config.get(CONF_HOT_TOLERANCE, 0.3),
-            min_cycle_duration=config.get(CONF_MIN_DUR, 300),
+            min_cycle_duration=_duration_to_seconds(config.get(CONF_MIN_DUR, 300)),
         )
     elif system_type == SYSTEM_TYPE_HEAT_PUMP:
         core_settings = HeatPumpCoreSettings(
@@ -101,7 +131,7 @@ def _config_dict_to_model(config: dict[str, Any]) -> ThermostatConfig:
             heat_pump_cooling=config.get(CONF_HEAT_PUMP_COOLING),
             cold_tolerance=config.get(CONF_COLD_TOLERANCE, 0.3),
             hot_tolerance=config.get(CONF_HOT_TOLERANCE, 0.3),
-            min_cycle_duration=config.get(CONF_MIN_DUR, 300),
+            min_cycle_duration=_duration_to_seconds(config.get(CONF_MIN_DUR, 300)),
         )
     else:
         raise ValueError(f"Unknown system type: {system_type}")

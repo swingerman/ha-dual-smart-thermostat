@@ -313,6 +313,7 @@ def _normalize_config_numeric_values(config: dict[str, Any]) -> dict[str, Any]:
     1. Existing config entries that may have string values stored
     2. Edge cases where config flow normalization wasn't applied
     3. Time values from config flow stored as seconds (int/float) need conversion to timedelta
+    4. DurationSelector values stored as dict (hours/minutes/seconds) need conversion to timedelta
 
     The primary fix is in config_flow.py/_clean_config_for_storage()
     which converts values at save time.
@@ -322,6 +323,9 @@ def _normalize_config_numeric_values(config: dict[str, Any]) -> dict[str, Any]:
 
     Fixes issue #484 where keep_alive stored as float/int instead of timedelta
     caused AttributeError when async_track_time_interval expected timedelta.
+
+    Handles DurationSelector format from config/options flows which returns
+    {'hours': 0, 'minutes': 5, 'seconds': 0} and converts to timedelta.
     """
     # Keys that might be strings from SelectSelector in config flow
     float_keys = [CONF_PRECISION, CONF_TEMP_STEP]
@@ -347,6 +351,17 @@ def _normalize_config_numeric_values(config: dict[str, Any]) -> dict[str, Any]:
                     # Convert seconds (int/float) to timedelta
                     if isinstance(value, (int, float)):
                         config[key] = timedelta(seconds=value)
+                    # Convert dict from DurationSelector to timedelta
+                    # DurationSelector returns {'hours': 0, 'minutes': 5, 'seconds': 0}
+                    elif isinstance(value, dict) and any(
+                        k in value for k in ["hours", "minutes"]
+                    ):
+                        total_seconds = (
+                            value.get("hours", 0) * 3600
+                            + value.get("minutes", 0) * 60
+                            + value.get("seconds", 0)
+                        )
+                        config[key] = timedelta(seconds=total_seconds)
                     # Convert dict (deserialized timedelta) back to timedelta
                     # Home Assistant storage serializes timedelta as {'days': 0, 'seconds': 300, 'microseconds': 0}
                     elif isinstance(value, dict) and all(
