@@ -68,7 +68,15 @@ class TestACOnlyAdvancedSettings:
 
     @pytest.mark.asyncio
     async def test_options_flow_init_step_ac_only(self):
-        """Test that options flow init step correctly handles AC-only system."""
+        """Test that options flow init step correctly handles AC-only system.
+
+        After moving keep_alive and min_cycle_duration out of advanced_settings,
+        AC-only systems may not have an advanced_settings section since they don't
+        have heat_tolerance/cool_tolerance fields (only for dual-mode systems).
+
+        This test now verifies that keep_alive and min_cycle_duration are present
+        in the main schema fields, not in an advanced section.
+        """
         # Mock config entry
         mock_entry = Mock(spec=ConfigEntry)
         mock_entry.data = {
@@ -78,7 +86,7 @@ class TestACOnlyAdvancedSettings:
             "name": "Test Thermostat",
             CONF_COLD_TOLERANCE: 0.3,
             CONF_HOT_TOLERANCE: 0.3,
-            CONF_KEEP_ALIVE: 300,  # Add this so advanced_settings appears
+            CONF_KEEP_ALIVE: 300,  # Should appear in main fields, not advanced section
         }
         mock_entry.options = {}
 
@@ -101,17 +109,25 @@ class TestACOnlyAdvancedSettings:
         assert result["type"] == "form"
         assert result["step_id"] == "init"
 
-        # Check that the schema has advanced settings section
+        # Check that keep_alive and min_cycle_duration are in the main schema fields
         schema_dict = result["data_schema"].schema
-        advanced_field_found = False
+        keep_alive_found = False
+        min_dur_found = False
+
         for key in schema_dict.keys():
-            if hasattr(key, "schema") and "advanced_settings" in str(key.schema):
-                advanced_field_found = True
-                break
+            if hasattr(key, "schema"):
+                # Check if this is the keep_alive or min_cycle_duration field
+                if "keep_alive" in str(key):
+                    keep_alive_found = True
+                if "min_cycle_duration" in str(key):
+                    min_dur_found = True
 
         assert (
-            advanced_field_found
-        ), "Advanced settings section not found in options flow AC-only init step"
+            keep_alive_found
+        ), "keep_alive field not found in options flow AC-only init step main fields"
+        assert (
+            min_dur_found
+        ), "min_cycle_duration field not found in options flow AC-only init step main fields"
 
 
 if __name__ == "__main__":

@@ -322,13 +322,11 @@ class OptionsFlowHandler(OptionsFlow):
                 )
             )
 
-        # === ADVANCED SETTINGS (collapsible section) ===
-        advanced_dict: dict[Any, Any] = {}
-
-        # Min cycle duration (always shown)
+        # === TIME-BASED SETTINGS ===
+        # Min cycle duration (always shown, moved out of section for pre-population support)
         min_dur = current_config.get(CONF_MIN_DUR)
         if min_dur is not None:
-            advanced_dict[
+            schema_dict[
                 vol.Optional(
                     CONF_MIN_DUR,
                     description={"suggested_value": min_dur},
@@ -337,14 +335,14 @@ class OptionsFlowHandler(OptionsFlow):
                 selector.DurationSelectorConfig(allow_negative=False)
             )
         else:
-            advanced_dict[vol.Optional(CONF_MIN_DUR)] = selector.DurationSelector(
+            schema_dict[vol.Optional(CONF_MIN_DUR)] = selector.DurationSelector(
                 selector.DurationSelectorConfig(allow_negative=False)
             )
 
-        # Keep alive (always shown)
+        # Keep alive (always shown, moved out of section for pre-population support)
         keep_alive = current_config.get(CONF_KEEP_ALIVE)
         if keep_alive is not None:
-            advanced_dict[
+            schema_dict[
                 vol.Optional(
                     CONF_KEEP_ALIVE,
                     description={"suggested_value": keep_alive},
@@ -353,9 +351,12 @@ class OptionsFlowHandler(OptionsFlow):
                 selector.DurationSelectorConfig(allow_negative=False)
             )
         else:
-            advanced_dict[vol.Optional(CONF_KEEP_ALIVE)] = selector.DurationSelector(
+            schema_dict[vol.Optional(CONF_KEEP_ALIVE)] = selector.DurationSelector(
                 selector.DurationSelectorConfig(allow_negative=False)
             )
+
+        # === ADVANCED SETTINGS (collapsible section) ===
+        advanced_dict: dict[Any, Any] = {}
 
         # Initial HVAC mode
         system_type = current_config.get(CONF_SYSTEM_TYPE, SYSTEM_TYPE_SIMPLE_HEATER)
