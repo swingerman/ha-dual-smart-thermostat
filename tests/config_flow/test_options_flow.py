@@ -30,6 +30,7 @@ from custom_components.dual_smart_thermostat.const import (
     CONF_HEATER,
     CONF_HOT_TOLERANCE,
     CONF_HUMIDITY_SENSOR,
+    CONF_KEEP_ALIVE,
     CONF_MIN_DUR,
     CONF_OPENINGS,
     CONF_OPENINGS_SCOPE,
@@ -1064,3 +1065,60 @@ async def test_ac_only_options_flow_with_fan_and_humidity_enabled(mock_hass):
 # Tests for mode-specific tolerances should be added to dual-mode system test
 # files (e.g., test_e2e_heater_cooler_persistence.py, test_e2e_heat_pump_persistence.py)
 # ============================================================================
+
+
+@pytest.mark.asyncio
+async def test_keep_alive_and_min_cycle_always_available_in_options(hass):
+    """Test that keep_alive and min_cycle_duration are always available in options flow.
+
+    This verifies the fix for the issue where these fields only appeared if they
+    were already configured, preventing users from adding them later.
+
+    Instead of trying to inspect the schema structure (which is complex with sections),
+    we test by submitting values for these fields and verifying they are accepted.
+    """
+    # Create a minimal configuration without keep_alive or min_cycle_duration
+    config_entry_data = {
+        CONF_NAME: "Test Thermostat",
+        CONF_HEATER: "switch.heater",
+        CONF_SENSOR: "sensor.temp",
+        CONF_SYSTEM_TYPE: SYSTEM_TYPE_SIMPLE_HEATER,
+        # Explicitly NOT including CONF_KEEP_ALIVE or CONF_MIN_DUR
+    }
+
+    # Mock config entry
+    mock_entry = Mock()
+    mock_entry.data = config_entry_data
+    mock_entry.options = {}
+    type(mock_entry).entry_id = PropertyMock(return_value="test_entry_id")
+
+    # Create options flow handler
+    flow = OptionsFlowHandler(mock_entry)
+    flow.hass = hass
+
+    # Start the options flow
+    result = await flow.async_step_init()
+
+    # Should show the init form
+    assert result["type"] == FlowResultType.FORM
+    assert result["step_id"] == "init"
+
+    # Submit values for keep_alive and min_cycle_duration in advanced_settings
+    # If these fields are available, they should be accepted
+    user_input = {
+        "advanced_settings": {
+            CONF_KEEP_ALIVE: {"hours": 0, "minutes": 5, "seconds": 0},
+            CONF_MIN_DUR: {"hours": 0, "minutes": 3, "seconds": 0},
+        }
+    }
+
+    # Submit the form with the values
+    result2 = await flow.async_step_init(user_input)
+
+    # The flow should accept the input and create the entry
+    # (or proceed to next step if there are more steps)
+    assert result2["type"] in (FlowResultType.CREATE_ENTRY, FlowResultType.FORM)
+
+    # Verify the values were saved in collected_config
+    assert flow.collected_config.get(CONF_KEEP_ALIVE) is not None
+    assert flow.collected_config.get(CONF_MIN_DUR) is not None

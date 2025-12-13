@@ -141,11 +141,12 @@ async def test_config_flow_with_presets(hass: HomeAssistant) -> None:
         assert result["type"] == "create_entry"
 
     config_entry = hass.config_entries.async_entries(DOMAIN)[0]
-    # For config flow, selected presets are stored as a list and temps under '<preset>_temp'
+    # For config flow, selected presets are stored as a list
     assert "presets" in config_entry.data
     assert CONF_PRESETS[PRESET_AWAY] in config_entry.data["presets"]
-    # Stored as string in config
-    assert config_entry.data[f"{CONF_PRESETS[PRESET_AWAY]}_temp"] == "18"
+    # Preset temperatures are now stored in new format: away: {temperature: "18"}
+    assert CONF_PRESETS[PRESET_AWAY] in config_entry.data
+    assert config_entry.data[CONF_PRESETS[PRESET_AWAY]]["temperature"] == "18"
 
 
 async def test_options_flow(hass: HomeAssistant) -> None:

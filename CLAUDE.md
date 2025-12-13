@@ -700,3 +700,4 @@ This repository supports **two development approaches**:
 - Use **Docker Compose** for testing, CI/CD, and multi-version testing
 - Use **DevContainer** for daily development with VS Code
 - Both can be used together for different tasks
+- The core config registry is actually stored at config/.storage/core.config_entries. Useful to test/debug config flow issues
