@@ -71,6 +71,7 @@ from .schema_utils import (
     get_temperature_selector,
     get_text_selector,
     get_time_selector,
+    seconds_to_duration,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -196,9 +197,102 @@ def get_base_schema():
     )
 
 
+def get_tolerance_fields(
+    defaults: dict[str, Any] | None = None,
+    include_heat_cool_tolerance: bool = False,
+) -> dict[Any, Any]:
+    """Get tolerance fields to be placed OUTSIDE sections (for UI pre-fill to work).
+
+    Due to a Home Assistant frontend limitation, fields inside collapsible sections
+    don't get pre-filled with default values. Tolerance fields are moved outside
+    sections so users can see the default values.
+
+    Args:
+        defaults: Optional dict with default values to pre-fill the form
+        include_heat_cool_tolerance: Whether to include heat/cool tolerance fields
+            (True for heater_cooler and heat_pump, False for ac_only and simple_heater)
+
+    Returns:
+        Dictionary of tolerance schema fields
+    """
+    defaults = defaults or {}
+    schema_dict = {}
+
+    # Common tolerance fields (present in all system types)
+    cold_tol_value = defaults.get(CONF_COLD_TOLERANCE, DEFAULT_TOLERANCE)
+    hot_tol_value = defaults.get(CONF_HOT_TOLERANCE, DEFAULT_TOLERANCE)
+
+    schema_dict[vol.Optional(CONF_COLD_TOLERANCE, default=cold_tol_value)] = (
+        get_temperature_selector(min_value=0.05, max_value=10, step=0.05)
+    )
+
+    schema_dict[vol.Optional(CONF_HOT_TOLERANCE, default=hot_tol_value)] = (
+        get_temperature_selector(min_value=0.05, max_value=10, step=0.05)
+    )
+
+    # Heat/Cool tolerance fields (only for heater_cooler and heat_pump)
+    # These are optional overrides - only show default if user has set them
+    if include_heat_cool_tolerance:
+        heat_tol_value = defaults.get(CONF_HEAT_TOLERANCE)
+        cool_tol_value = defaults.get(CONF_COOL_TOLERANCE)
+
+        schema_dict[
+            vol.Optional(
+                CONF_HEAT_TOLERANCE,
+                default=heat_tol_value if heat_tol_value is not None else vol.UNDEFINED,
+            )
+        ] = get_temperature_selector(min_value=0.05, max_value=5.0, step=0.05)
+
+        schema_dict[
+            vol.Optional(
+                CONF_COOL_TOLERANCE,
+                default=cool_tol_value if cool_tol_value is not None else vol.UNDEFINED,
+            )
+        ] = get_temperature_selector(min_value=0.05, max_value=5.0, step=0.05)
+
+    return schema_dict
+
+
+def get_timing_fields_for_section(
+    defaults: dict[str, Any] | None = None,
+    include_keep_alive: bool = True,
+) -> dict[Any, Any]:
+    """Get timing fields to be placed INSIDE the advanced section.
+
+    These fields (min_cycle_duration, keep_alive) are less commonly changed,
+    so they stay in the collapsible section. The default values still work
+    when submitting, they just won't be visually pre-filled.
+
+    Args:
+        defaults: Optional dict with default values
+        include_keep_alive: Whether to include keep_alive field
+
+    Returns:
+        Dictionary of timing schema fields for use in a section
+    """
+    defaults = defaults or {}
+    schema_dict = {}
+
+    # Convert seconds to duration dict format for DurationSelector
+    min_dur_value = defaults.get(CONF_MIN_DUR, 300)
+    min_dur_default = seconds_to_duration(min_dur_value)
+    schema_dict[vol.Optional(CONF_MIN_DUR, default=min_dur_default)] = (
+        get_time_selector(min_value=0, max_value=3600)
+    )
+
+    if include_keep_alive:
+        keep_alive_value = defaults.get(CONF_KEEP_ALIVE, 300)
+        keep_alive_default = seconds_to_duration(keep_alive_value)
+        schema_dict[vol.Optional(CONF_KEEP_ALIVE, default=keep_alive_default)] = (
+            get_time_selector(min_value=0, max_value=3600)
+        )
+
+    return schema_dict
+
+
 def get_basic_ac_schema(defaults=None, include_name=True):
     """Get AC-only configuration schema with advanced settings in collapsible section."""
-    # Core AC configuration
+    defaults = defaults or {}
     core_schema = {}
 
     # Add name field if requested (for config flow, not options flow)
@@ -226,42 +320,26 @@ def get_basic_ac_schema(defaults=None, include_name=True):
         )
     ] = get_entity_selector(SWITCH_DOMAIN)
 
-    # Advanced settings in collapsible section
-    advanced_section_schema = vol.Schema(
-        {
-            vol.Optional(
-                CONF_COLD_TOLERANCE,
-                default=(
-                    defaults.get(CONF_COLD_TOLERANCE) if defaults else DEFAULT_TOLERANCE
-                ),
-            ): get_temperature_selector(min_value=0.1, max_value=10, step=0.1),
-            vol.Optional(
-                CONF_HOT_TOLERANCE,
-                default=(
-                    defaults.get(CONF_HOT_TOLERANCE) if defaults else DEFAULT_TOLERANCE
-                ),
-            ): get_temperature_selector(min_value=0.1, max_value=10, step=0.1),
-            vol.Optional(
-                CONF_MIN_DUR, default=defaults.get(CONF_MIN_DUR) if defaults else 300
-            ): get_time_selector(min_value=0, max_value=3600),
-            vol.Optional(
-                CONF_KEEP_ALIVE,
-                default=defaults.get(CONF_KEEP_ALIVE) if defaults else 300,
-            ): get_time_selector(min_value=0, max_value=3600),
-        }
+    # Tolerance fields OUTSIDE section (so defaults are pre-filled in UI)
+    core_schema.update(
+        get_tolerance_fields(defaults=defaults, include_heat_cool_tolerance=False)
     )
 
-    # Add advanced settings as a collapsible section
-    core_schema[vol.Optional("advanced_settings")] = section(
-        advanced_section_schema, {"collapsed": True}
+    # Timing fields in collapsible section (less commonly changed)
+    timing_fields = get_timing_fields_for_section(
+        defaults=defaults, include_keep_alive=True
     )
+    if timing_fields:
+        core_schema[vol.Optional("advanced_settings")] = section(
+            vol.Schema(timing_fields), {"collapsed": True}
+        )
 
     return vol.Schema(core_schema)
 
 
 def get_simple_heater_schema(defaults=None, include_name=True):
     """Get simple heater configuration schema with advanced settings in collapsible section."""
-    # Core heater configuration
+    defaults = defaults or {}
     core_schema = {}
 
     if include_name:
@@ -289,39 +367,27 @@ def get_simple_heater_schema(defaults=None, include_name=True):
         )
     ] = get_entity_selector(SWITCH_DOMAIN)
 
-    # Advanced settings in collapsible section
-    advanced_section_schema = vol.Schema(
-        {
-            vol.Optional(
-                CONF_COLD_TOLERANCE,
-                default=(
-                    defaults.get(CONF_COLD_TOLERANCE) if defaults else DEFAULT_TOLERANCE
-                ),
-            ): get_temperature_selector(min_value=0.1, max_value=10, step=0.1),
-            vol.Optional(
-                CONF_HOT_TOLERANCE,
-                default=(
-                    defaults.get(CONF_HOT_TOLERANCE) if defaults else DEFAULT_TOLERANCE
-                ),
-            ): get_temperature_selector(min_value=0.1, max_value=10, step=0.1),
-            vol.Optional(
-                CONF_MIN_DUR,
-                default=defaults.get(CONF_MIN_DUR) if defaults else 300,
-            ): get_time_selector(min_value=0, max_value=3600),
-        }
+    # Tolerance fields OUTSIDE section (so defaults are pre-filled in UI)
+    core_schema.update(
+        get_tolerance_fields(defaults=defaults, include_heat_cool_tolerance=False)
     )
 
-    # Add advanced settings as a collapsible section
-    core_schema[vol.Optional("advanced_settings")] = section(
-        advanced_section_schema, {"collapsed": True}
+    # Timing fields in collapsible section (less commonly changed)
+    # Simple heater doesn't have keep_alive
+    timing_fields = get_timing_fields_for_section(
+        defaults=defaults, include_keep_alive=False
     )
+    if timing_fields:
+        core_schema[vol.Optional("advanced_settings")] = section(
+            vol.Schema(timing_fields), {"collapsed": True}
+        )
 
     return vol.Schema(core_schema)
 
 
 def get_heater_cooler_schema(defaults=None, include_name=True):
     """Get heater + cooler configuration schema with advanced settings in collapsible section."""
-    # Core heater + cooler configuration
+    defaults = defaults or {}
     core_schema = {}
 
     if include_name:
@@ -365,44 +431,21 @@ def get_heater_cooler_schema(defaults=None, include_name=True):
         )
     ] = get_boolean_selector()
 
-    # Advanced settings in collapsible section
-    advanced_section_schema = vol.Schema(
-        {
-            vol.Optional(
-                CONF_COLD_TOLERANCE,
-                default=(
-                    defaults.get(CONF_COLD_TOLERANCE) if defaults else DEFAULT_TOLERANCE
-                ),
-            ): get_temperature_selector(min_value=0.1, max_value=10, step=0.1),
-            vol.Optional(
-                CONF_HOT_TOLERANCE,
-                default=(
-                    defaults.get(CONF_HOT_TOLERANCE) if defaults else DEFAULT_TOLERANCE
-                ),
-            ): get_temperature_selector(min_value=0.1, max_value=10, step=0.1),
-            vol.Optional(
-                CONF_HEAT_TOLERANCE,
-                default=(
-                    defaults.get(CONF_HEAT_TOLERANCE) if defaults else vol.UNDEFINED
-                ),
-            ): get_temperature_selector(min_value=0.1, max_value=5.0, step=0.1),
-            vol.Optional(
-                CONF_COOL_TOLERANCE,
-                default=(
-                    defaults.get(CONF_COOL_TOLERANCE) if defaults else vol.UNDEFINED
-                ),
-            ): get_temperature_selector(min_value=0.1, max_value=5.0, step=0.1),
-            vol.Optional(
-                CONF_MIN_DUR,
-                default=defaults.get(CONF_MIN_DUR) if defaults else 300,
-            ): get_time_selector(min_value=0, max_value=3600),
-        }
+    # Tolerance fields OUTSIDE section (so defaults are pre-filled in UI)
+    # Heater+cooler includes heat/cool tolerance overrides
+    core_schema.update(
+        get_tolerance_fields(defaults=defaults, include_heat_cool_tolerance=True)
     )
 
-    # Add advanced settings as a collapsible section
-    core_schema[vol.Optional("advanced_settings")] = section(
-        advanced_section_schema, {"collapsed": True}
+    # Timing fields in collapsible section (less commonly changed)
+    # Heater+cooler doesn't have keep_alive
+    timing_fields = get_timing_fields_for_section(
+        defaults=defaults, include_keep_alive=False
     )
+    if timing_fields:
+        core_schema[vol.Optional("advanced_settings")] = section(
+            vol.Schema(timing_fields), {"collapsed": True}
+        )
 
     return vol.Schema(core_schema)
 
@@ -422,7 +465,7 @@ def get_heat_pump_schema(defaults=None, include_name=True):
     Returns:
         vol.Schema with heat pump configuration fields
     """
-    # Core heat pump configuration
+    defaults = defaults or {}
     core_schema = {}
 
     if include_name:
@@ -461,44 +504,21 @@ def get_heat_pump_schema(defaults=None, include_name=True):
         )
     ] = get_entity_selector([SENSOR_DOMAIN, BINARY_SENSOR_DOMAIN, INPUT_BOOLEAN_DOMAIN])
 
-    # Advanced settings in collapsible section
-    advanced_section_schema = vol.Schema(
-        {
-            vol.Optional(
-                CONF_COLD_TOLERANCE,
-                default=(
-                    defaults.get(CONF_COLD_TOLERANCE) if defaults else DEFAULT_TOLERANCE
-                ),
-            ): get_temperature_selector(min_value=0.1, max_value=10, step=0.1),
-            vol.Optional(
-                CONF_HOT_TOLERANCE,
-                default=(
-                    defaults.get(CONF_HOT_TOLERANCE) if defaults else DEFAULT_TOLERANCE
-                ),
-            ): get_temperature_selector(min_value=0.1, max_value=10, step=0.1),
-            vol.Optional(
-                CONF_HEAT_TOLERANCE,
-                default=(
-                    defaults.get(CONF_HEAT_TOLERANCE) if defaults else vol.UNDEFINED
-                ),
-            ): get_temperature_selector(min_value=0.1, max_value=5.0, step=0.1),
-            vol.Optional(
-                CONF_COOL_TOLERANCE,
-                default=(
-                    defaults.get(CONF_COOL_TOLERANCE) if defaults else vol.UNDEFINED
-                ),
-            ): get_temperature_selector(min_value=0.1, max_value=5.0, step=0.1),
-            vol.Optional(
-                CONF_MIN_DUR,
-                default=defaults.get(CONF_MIN_DUR) if defaults else 300,
-            ): get_time_selector(min_value=0, max_value=3600),
-        }
+    # Tolerance fields OUTSIDE section (so defaults are pre-filled in UI)
+    # Heat pump includes heat/cool tolerance overrides
+    core_schema.update(
+        get_tolerance_fields(defaults=defaults, include_heat_cool_tolerance=True)
     )
 
-    # Add advanced settings as a collapsible section
-    core_schema[vol.Optional("advanced_settings")] = section(
-        advanced_section_schema, {"collapsed": True}
+    # Timing fields in collapsible section (less commonly changed)
+    # Heat pump doesn't have keep_alive
+    timing_fields = get_timing_fields_for_section(
+        defaults=defaults, include_keep_alive=False
     )
+    if timing_fields:
+        core_schema[vol.Optional("advanced_settings")] = section(
+            vol.Schema(timing_fields), {"collapsed": True}
+        )
 
     return vol.Schema(core_schema)
 
@@ -793,9 +813,18 @@ def get_core_schema(
             default=defaults.get(CONF_HOT_TOLERANCE, DEFAULT_TOLERANCE),
         )
     ] = get_percentage_selector()
-    schema_dict[vol.Optional(CONF_MIN_DUR, default=defaults.get(CONF_MIN_DUR))] = (
-        get_time_selector()
+    # Convert seconds to duration dict format for DurationSelector
+    min_dur_default = (
+        seconds_to_duration(defaults.get(CONF_MIN_DUR))
+        if defaults.get(CONF_MIN_DUR)
+        else None
     )
+    if min_dur_default:
+        schema_dict[vol.Optional(CONF_MIN_DUR, default=min_dur_default)] = (
+            get_time_selector()
+        )
+    else:
+        schema_dict[vol.Optional(CONF_MIN_DUR)] = get_time_selector()
 
     return vol.Schema(schema_dict)
 
@@ -884,7 +913,7 @@ def get_fan_schema(defaults: dict[str, Any] | None = None):
             vol.Optional(
                 CONF_FAN_HOT_TOLERANCE,
                 default=defaults.get(CONF_FAN_HOT_TOLERANCE, 0.5),
-            ): get_temperature_selector(min_value=0.0, max_value=10.0, step=0.1),
+            ): get_temperature_selector(min_value=0.0, max_value=10.0, step=0.05),
             vol.Optional(
                 CONF_FAN_HOT_TOLERANCE_TOGGLE,
                 default=defaults.get(CONF_FAN_HOT_TOLERANCE_TOGGLE, vol.UNDEFINED),
@@ -966,22 +995,23 @@ def get_advanced_settings_schema():
             ),
             vol.Optional(
                 CONF_COLD_TOLERANCE, default=DEFAULT_TOLERANCE
-            ): get_temperature_selector(min_value=0.1, max_value=10, step=0.1),
+            ): get_temperature_selector(min_value=0.05, max_value=10, step=0.05),
             vol.Optional(
                 CONF_HOT_TOLERANCE, default=DEFAULT_TOLERANCE
-            ): get_temperature_selector(min_value=0.1, max_value=10, step=0.1),
-            vol.Optional(CONF_HEAT_TOLERANCE): get_temperature_selector(
-                min_value=0.1, max_value=5.0, step=0.1
-            ),
-            vol.Optional(CONF_COOL_TOLERANCE): get_temperature_selector(
-                min_value=0.1, max_value=5.0, step=0.1
-            ),
-            vol.Optional(CONF_MIN_DUR, default=300): get_time_selector(
-                min_value=0, max_value=3600
-            ),
-            vol.Optional(CONF_KEEP_ALIVE, default=300): get_time_selector(
-                min_value=0, max_value=3600
-            ),
+            ): get_temperature_selector(min_value=0.05, max_value=10, step=0.05),
+            vol.Optional(
+                CONF_HEAT_TOLERANCE, default=DEFAULT_TOLERANCE
+            ): get_temperature_selector(min_value=0.05, max_value=5.0, step=0.05),
+            vol.Optional(
+                CONF_COOL_TOLERANCE, default=DEFAULT_TOLERANCE
+            ): get_temperature_selector(min_value=0.05, max_value=5.0, step=0.05),
+            # Convert seconds to duration dict format for DurationSelector
+            vol.Optional(
+                CONF_MIN_DUR, default=seconds_to_duration(300)
+            ): get_time_selector(min_value=0, max_value=3600),
+            vol.Optional(
+                CONF_KEEP_ALIVE, default=seconds_to_duration(300)
+            ): get_time_selector(min_value=0, max_value=3600),
             vol.Optional(CONF_PRECISION, default=0.1): get_select_selector(
                 options=[
                     {"value": "0.1", "label": "0.1"},
@@ -1110,14 +1140,18 @@ def get_presets_schema(user_input: dict[str, Any]) -> vol.Schema:
 
     for preset in selected_presets:
         if preset in CONF_PRESETS:
+            # Get the normalized preset name (lowercase with underscores)
+            # e.g., "Anti Freeze" -> "anti_freeze", "Home" -> "home"
+            preset_key = CONF_PRESETS[preset]
+
             # When heat_cool_mode is enabled, render dual fields (low/high)
             if heat_cool_enabled:
                 # Use TextSelector to accept both numbers and template strings
                 # Note: Validation happens in the flow handler, not in schema
                 # Defaults must be strings to match TextSelector type
                 # Extract existing values from user_input, or use fallback defaults
-                existing_temp_low = user_input.get(f"{preset}_temp_low", "20")
-                existing_temp_high = user_input.get(f"{preset}_temp_high", "24")
+                existing_temp_low = user_input.get(f"{preset_key}_temp_low", "20")
+                existing_temp_high = user_input.get(f"{preset_key}_temp_high", "24")
                 # Ensure defaults are strings
                 if not isinstance(existing_temp_low, str):
                     existing_temp_low = str(existing_temp_low)
@@ -1125,7 +1159,7 @@ def get_presets_schema(user_input: dict[str, Any]) -> vol.Schema:
                     existing_temp_high = str(existing_temp_high)
 
                 schema_dict[
-                    vol.Optional(f"{preset}_temp_low", default=existing_temp_low)
+                    vol.Optional(f"{preset_key}_temp_low", default=existing_temp_low)
                 ] = selector.TextSelector(
                     selector.TextSelectorConfig(
                         multiline=False,
@@ -1133,7 +1167,7 @@ def get_presets_schema(user_input: dict[str, Any]) -> vol.Schema:
                     )
                 )
                 schema_dict[
-                    vol.Optional(f"{preset}_temp_high", default=existing_temp_high)
+                    vol.Optional(f"{preset_key}_temp_high", default=existing_temp_high)
                 ] = selector.TextSelector(
                     selector.TextSelectorConfig(
                         multiline=False,
@@ -1146,17 +1180,17 @@ def get_presets_schema(user_input: dict[str, Any]) -> vol.Schema:
                 # Note: Validation happens in the flow handler, not in schema
                 # Defaults must be strings to match TextSelector type
                 # Extract existing value from user_input, or use fallback default
-                existing_temp = user_input.get(f"{preset}_temp", "20")
+                existing_temp = user_input.get(f"{preset_key}_temp", "20")
                 # Ensure default is a string
                 if not isinstance(existing_temp, str):
                     existing_temp = str(existing_temp)
 
-                schema_dict[vol.Optional(f"{preset}_temp", default=existing_temp)] = (
-                    selector.TextSelector(
-                        selector.TextSelectorConfig(
-                            multiline=False,
-                            type=selector.TextSelectorType.TEXT,
-                        )
+                schema_dict[
+                    vol.Optional(f"{preset_key}_temp", default=existing_temp)
+                ] = selector.TextSelector(
+                    selector.TextSelectorConfig(
+                        multiline=False,
+                        type=selector.TextSelectorType.TEXT,
                     )
                 )
 

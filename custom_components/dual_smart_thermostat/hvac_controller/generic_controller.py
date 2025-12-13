@@ -200,8 +200,12 @@ class GenericHvacController(HvacController):
 
         elif time is not None:
             # The time argument is passed only in keep-alive case
-            _LOGGER.info("Keep-alive - Turning off entity %s", self.entity_id)
-            await self.async_turn_off_callback()
+            # Keep-alive should only send turn_off if device is unexpectedly ON
+            if self.is_active:
+                _LOGGER.info("Keep-alive - Turning off entity %s", self.entity_id)
+                await self.async_turn_off_callback()
+            else:
+                _LOGGER.debug("Keep-alive - Entity already off %s", self.entity_id)
 
             if any_opening_open:
                 self._hvac_action_reason = HVACActionReason.OPENING

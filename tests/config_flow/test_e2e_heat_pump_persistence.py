@@ -377,12 +377,12 @@ async def test_heat_pump_all_features_full_persistence(hass):
         o.get("entity_id") == "binary_sensor.door_1" for o in created_data["openings"]
     )
 
-    # Verify presets
-    # Note: Presets are stored as temp values, not in a "presets" list
-    assert "away_temp" in created_data
-    assert created_data["away_temp"] == 16
-    assert "home_temp" in created_data
-    assert created_data["home_temp"] == 21
+    # Verify presets (new format)
+    # Note: Presets are stored as nested dicts, not flat temp values
+    assert "away" in created_data
+    assert created_data["away"]["temperature"] == 16
+    assert "home" in created_data
+    assert created_data["home"]["temperature"] == 21
 
     # ===== STEP 3: Create MockConfigEntry =====
     config_entry = MockConfigEntry(
@@ -455,8 +455,20 @@ async def test_heat_pump_all_features_full_persistence(hass):
     # Openings list preserved
     assert "openings" in updated_data
     assert len(updated_data["openings"]) == 2
-    assert updated_data["away_temp"] == 16  # Original preset value
-    assert updated_data["home_temp"] == 21  # Original preset value
+    assert updated_data["away"]["temperature"] == 16  # Original preset value
+    assert updated_data["home"]["temperature"] == 21  # Original preset value
+
+    # Verify old format preset fields are NOT saved
+    assert "away_temp" not in updated_data  # Old format should not be present
+    assert "home_temp" not in updated_data  # Old format should not be present
+
+    # Verify unwanted default values are NOT saved
+    assert "min_temp" not in updated_data  # Should only be saved if explicitly set
+    assert "max_temp" not in updated_data  # Should only be saved if explicitly set
+    assert "precision" not in updated_data  # Should only be saved if explicitly set
+    assert (
+        "target_temp_step" not in updated_data
+    )  # Should only be saved if explicitly set
 
     # Verify preserved system info
     assert updated_data[CONF_NAME] == "Heat Pump All Features Test"
@@ -541,8 +553,8 @@ async def test_heat_pump_floor_heating_only_persistence(hass):
     assert "selected_openings" not in created_data or not created_data.get(
         "selected_openings"
     )
-    assert "away_temp" not in created_data  # No presets configured
-    assert "home_temp" not in created_data
+    assert "away" not in created_data  # No presets configured
+    assert "home" not in created_data
 
 
 @pytest.mark.asyncio
@@ -979,3 +991,150 @@ class TestHeatPumpMixedTolerancesPersistence:
         assert config_entry_after.data[CONF_HOT_TOLERANCE] == 0.5
         assert config_entry_after.data[CONF_COOL_TOLERANCE] == 1.8
         assert CONF_HEAT_TOLERANCE not in config_entry_after.data  # Still not present
+
+
+@pytest.mark.asyncio
+async def test_heat_pump_repeated_options_flow_precision_persistence(hass):
+    """Test HEAT_PUMP options flow repeated multiple times (issue #484, #479).
+
+    Validates that:
+    1. Config flow completes normally
+    2. First options flow works and persists changes
+    3. Second options flow shows correct pre-filled values (precision, temp_step)
+    4. Target temperature is optional, not required
+    5. Precision and temp_step fields are populated on second open
+
+    This test validates the fix applies to heat_pump system type.
+    """
+    from custom_components.dual_smart_thermostat.config_flow import ConfigFlowHandler
+    from custom_components.dual_smart_thermostat.const import (
+        CONF_PRECISION,
+        CONF_TARGET_TEMP,
+        CONF_TEMP_STEP,
+    )
+    from custom_components.dual_smart_thermostat.options_flow import OptionsFlowHandler
+
+    # ===== STEP 1: Complete config flow =====
+    config_flow = ConfigFlowHandler()
+    config_flow.hass = hass
+
+    # Start: Select heat_pump
+    result = await config_flow.async_step_user(
+        {CONF_SYSTEM_TYPE: SYSTEM_TYPE_HEAT_PUMP}
+    )
+
+    # Basic heat pump config
+    initial_config = {
+        CONF_NAME: "Heat Pump Precision Test",
+        CONF_SENSOR: "sensor.temp",
+        CONF_HEATER: "switch.heat_pump",
+        CONF_HEAT_PUMP_COOLING: "binary_sensor.cooling_mode",
+    }
+    result = await config_flow.async_step_heat_pump(initial_config)
+
+    # Disable all features (minimal config)
+    result = await config_flow.async_step_features({})
+
+    # Config flow should complete
+    assert result["type"] == "create_entry"
+
+    created_data = result["data"]
+
+    # ===== STEP 2: Create MockConfigEntry =====
+    config_entry = MockConfigEntry(
+        domain=DOMAIN,
+        data=created_data,
+        options={},
+        title="Heat Pump Precision Test",
+    )
+    config_entry.add_to_hass(hass)
+
+    # ===== STEP 3: First options flow - set precision and temp_step =====
+    options_flow = OptionsFlowHandler(config_entry)
+    options_flow.hass = hass
+
+    result = await options_flow.async_step_init()
+    assert result["type"] == "form"
+    assert result["step_id"] == "init"
+
+    # Set precision="0.5" and temp_step="0.5" (as strings for dropdown)
+    first_options_input = {
+        CONF_PRECISION: "0.5",
+        CONF_TEMP_STEP: "0.5",
+        CONF_TARGET_TEMP: 21.0,  # Optional field
+    }
+    result = await options_flow.async_step_init(first_options_input)
+
+    # No features configured, should complete
+    assert result["type"] == "create_entry"
+
+    # ===== STEP 4: Verify values stored correctly (as floats) =====
+    first_update_data = result["data"]
+    assert first_update_data[CONF_PRECISION] == 0.5  # Stored as float
+    assert first_update_data[CONF_TEMP_STEP] == 0.5  # Stored as float
+    assert first_update_data[CONF_TARGET_TEMP] == 21.0
+
+    # ===== STEP 5: Update mock entry to simulate persistence =====
+    config_entry_updated = MockConfigEntry(
+        domain=DOMAIN,
+        data=created_data,  # Original
+        options=first_update_data,  # Options from first flow
+        title="Heat Pump Precision Test",
+    )
+    config_entry_updated.add_to_hass(hass)
+
+    # ===== STEP 6: Second options flow - verify pre-filled values =====
+    options_flow2 = OptionsFlowHandler(config_entry_updated)
+    options_flow2.hass = hass
+
+    result = await options_flow2.async_step_init()
+    assert result["type"] == "form"
+    assert result["step_id"] == "init"
+
+    # ===== STEP 7: Extract and verify defaults for precision/temp_step =====
+    # These should be pre-filled as strings for the dropdown selectors
+    init_schema = result["data_schema"].schema
+
+    precision_default = None
+    temp_step_default = None
+    target_temp_suggested = None
+
+    for key in init_schema:
+        if hasattr(key, "schema"):
+            if key.schema == CONF_PRECISION:
+                precision_default = (
+                    key.default() if callable(key.default) else key.default
+                )
+            elif key.schema == CONF_TEMP_STEP:
+                temp_step_default = (
+                    key.default() if callable(key.default) else key.default
+                )
+            elif key.schema == CONF_TARGET_TEMP:
+                # Target temp should use suggested_value pattern
+                if hasattr(key, "description") and key.description:
+                    target_temp_suggested = key.description.get("suggested_value")
+
+    # Verify precision and temp_step are pre-filled as STRINGS (for dropdowns)
+    assert precision_default == "0.5", "Precision should be pre-filled as string!"
+    assert temp_step_default == "0.5", "Temp step should be pre-filled as string!"
+
+    # Verify target_temp uses suggested_value (optional field pattern)
+    assert (
+        target_temp_suggested == 21.0
+    ), "Target temp should be suggested, not required!"
+
+    # ===== STEP 8: Third options flow - change values again =====
+    third_options_input = {
+        CONF_PRECISION: "1.0",  # Change to 1.0
+        CONF_TEMP_STEP: "0.1",  # Change to 0.1
+        # No target_temp - verify optional behavior
+    }
+    result = await options_flow2.async_step_init(third_options_input)
+
+    assert result["type"] == "create_entry"
+
+    third_update_data = result["data"]
+    assert third_update_data[CONF_PRECISION] == 1.0  # Stored as float
+    assert third_update_data[CONF_TEMP_STEP] == 0.1  # Stored as float
+    # target_temp should be preserved from previous
+    assert third_update_data[CONF_TARGET_TEMP] == 21.0

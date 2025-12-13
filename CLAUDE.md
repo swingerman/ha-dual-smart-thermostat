@@ -11,102 +11,84 @@ Home Assistant Dual Smart Thermostat - An enhanced thermostat component supporti
 
 ## Essential Commands
 
-### Testing
+### Development with Docker (Recommended)
+
+**IMPORTANT: For Claude Code development, always use Docker scripts for testing and linting to ensure consistent environment and avoid local Python dependency issues.**
+
+The project provides convenient Docker scripts in the `scripts/` folder:
+
 ```bash
-# Run all tests
-pytest
+# Testing - Use docker-test for all test runs
+./scripts/docker-test                              # Run all tests
+./scripts/docker-test tests/test_heater_mode.py    # Run specific test file
+./scripts/docker-test -k "heater"                  # Run tests matching pattern
+./scripts/docker-test --cov                        # Run with coverage report
+./scripts/docker-test --log-cli-level=DEBUG        # Run with debug logging
 
-# Run specific test file
-pytest tests/test_heater_mode.py
+# Linting - Use docker-lint for all code quality checks (REQUIRED before commit)
+./scripts/docker-lint                              # Check all linting (isort, black, flake8, codespell, ruff)
+./scripts/docker-lint --fix                        # Auto-fix linting issues
 
-# Run tests with debug output
-pytest --log-cli-level=DEBUG
-
-# Run tests for specific feature
-pytest tests/config_flow/
-pytest tests/presets/
+# Interactive Shell - For debugging and exploration
+./scripts/docker-shell                             # Open bash shell in container
+./scripts/docker-shell python                      # Open Python REPL in container
 ```
 
-### Code Quality (Required Before Commit)
-```bash
-# Check all linting (DO NOT commit if any fail)
-isort . --recursive --diff    # Import sorting
-black --check .               # Code formatting
-flake8 .                      # Style/linting
-codespell                     # Spell checking
+**Why use Docker scripts:**
+- Guaranteed consistent Python 3.13 + HA 2025.1.0+ environment
+- No local dependency conflicts or version mismatches
+- Same environment as CI/CD pipeline
+- Automatic image building if needed
+- Live source code mounting (changes reflected immediately)
 
-# Auto-fix linting issues
-isort .                       # Fix imports
-black .                       # Fix formatting
+### Local Development (Alternative)
 
-# Run all pre-commit hooks
-pre-commit run --all-files
-```
+If you prefer local development without Docker:
 
-### Development Setup
-
-**Local Development:**
 ```bash
 # Install dependencies
 pip install -r requirements-dev.txt
-
-# Install pre-commit hooks
 pre-commit install
+
+# Testing (local alternative)
+pytest                                    # Run all tests
+pytest tests/test_heater_mode.py          # Run specific test file
+pytest --log-cli-level=DEBUG              # Run with debug logging
+
+# Linting (local alternative - ALL must pass before commit)
+isort . --check-only --diff               # Import sorting
+black --check .                           # Code formatting
+flake8 .                                  # Style/linting
+codespell                                 # Spell checking
+ruff check .                              # Additional linting
+
+# Auto-fix linting issues (local)
+isort .
+black .
+ruff check . --fix
 ```
 
-**Docker Development (Recommended for CI/CD and version testing):**
-
-The project includes a complete Docker-based development workflow. See [README-DOCKER.md](README-DOCKER.md) for comprehensive documentation.
+### Advanced Docker Usage
 
 ```bash
-# Build development environment with HA 2025.1.0 (default)
-docker-compose build dev
-
-# Build with specific HA version
+# Build with specific Home Assistant version
 HA_VERSION=2025.2.0 docker-compose build dev
-
-# Build with latest HA
 HA_VERSION=latest docker-compose build dev
 
-# Run all tests
-./scripts/docker-test
-
-# Run specific tests
-./scripts/docker-test tests/test_heater_mode.py
-./scripts/docker-test -k "heater"
-
-# Run linting checks
-./scripts/docker-lint
-
-# Auto-fix linting issues
-./scripts/docker-lint --fix
-
-# Open interactive shell
-./scripts/docker-shell
-
-# Run any command in container
+# Run custom commands in container
 docker-compose run --rm dev <command>
 ```
 
-**When to use Docker vs Local:**
-- **Use Docker when:**
-  - Running CI/CD pipelines
-  - Testing with different HA versions
-  - Need consistent environment across team
-  - Want isolated dependencies
-  - Debugging version-specific issues
+### Code Quality Requirements
 
-- **Use Local/DevContainer when:**
-  - Doing interactive development
-  - Want faster iteration (no container overhead)
-  - Using VS Code with DevContainer features
-  - Debugging with IDE integration
+**ALL code MUST pass linting checks before commit:**
+- `isort` - Import sorting
+- `black` - Code formatting (88 character line length)
+- `flake8` - Style/linting
+- `codespell` - Spell checking
+- `ruff` - Additional linting
 
-**Important Docker Notes:**
-- The `/config` directory is mounted at `./config` for Home Assistant configuration
-- Source code is live-mounted, so changes are immediately reflected (no rebuild needed)
-- Docker caches pip, pytest, and mypy for faster subsequent runs
-- All linting and testing commands work identically in Docker and locally
+**Run `./scripts/docker-lint` before committing. GitHub workflows will reject failing commits.**
 
 ## Architecture Overview
 
@@ -387,6 +369,9 @@ See `docs/config_flow/step_ordering.md` for detailed rules.
 - `black` - Code formatting (88 character line length)
 - `flake8` - Style/linting (ignores configured in `setup.cfg`)
 - `codespell` - Spell checking
+- `ruff` - Additional linting checks
+
+**Use `./scripts/docker-lint` to check all linting** (or `./scripts/docker-lint --fix` to auto-fix).
 
 GitHub workflows will **reject** commits that fail linting.
 
@@ -492,21 +477,34 @@ async def test_descriptive_name_of_what_youre_testing(hass):
 - **Consolidate related tests** - avoid creating many small test files
 
 ### Running Tests
+
+**Use Docker scripts for all testing** (recommended):
+
 ```bash
 # All tests
-pytest
+./scripts/docker-test
 
 # Config flow tests only
-pytest tests/config_flow/
+./scripts/docker-test tests/config_flow/
 
 # Single test file
-pytest tests/config_flow/test_e2e_simple_heater_persistence.py
+./scripts/docker-test tests/config_flow/test_e2e_simple_heater_persistence.py
 
 # Single test function
-pytest tests/config_flow/test_options_flow.py::test_options_flow_fan_settings_prefilled
+./scripts/docker-test tests/config_flow/test_options_flow.py::test_options_flow_fan_settings_prefilled
 
 # With debug logging
-pytest --log-cli-level=DEBUG tests/test_heater_mode.py
+./scripts/docker-test --log-cli-level=DEBUG tests/test_heater_mode.py
+
+# With coverage report
+./scripts/docker-test --cov
+```
+
+**Local alternative** (if not using Docker):
+```bash
+pytest                           # All tests
+pytest tests/config_flow/        # Specific directory
+pytest --log-cli-level=DEBUG     # With debug logging
 ```
 
 Configuration: `pytest.ini` sets asyncio mode and test discovery patterns.
@@ -544,10 +542,11 @@ Configuration: `pytest.ini` sets asyncio mode and test discovery patterns.
    - Cover success and failure cases
    - Test feature interactions
 
-5. **Code quality**:
-   - Run linting: `isort .`, `black .`, `flake8 .`, `codespell`
-   - Run tests: `pytest`
-   - Run pre-commit: `pre-commit run --all-files`
+5. **Code quality** (use Docker scripts):
+   - Run linting: `./scripts/docker-lint` (checks all linters)
+   - Auto-fix linting: `./scripts/docker-lint --fix`
+   - Run tests: `./scripts/docker-test`
+   - Run specific tests: `./scripts/docker-test tests/features/`
 
 ### Modifying Existing Features
 
@@ -555,7 +554,10 @@ Configuration: `pytest.ini` sets asyncio mode and test discovery patterns.
 2. **Check dependencies**: Identify which components are affected
 3. **Update tests first**: Modify tests to reflect new behavior
 4. **Implement changes**: Make minimal changes following existing patterns
-5. **Verify**: Run affected tests and full test suite
+5. **Verify** (use Docker scripts):
+   - Run affected tests: `./scripts/docker-test tests/test_heater_mode.py`
+   - Run full test suite: `./scripts/docker-test`
+   - Check linting: `./scripts/docker-lint`
 
 ### Debugging HVAC Logic
 
@@ -636,13 +638,31 @@ Window/door sensors pause HVAC operation. Supports timeout and closing_timeout f
 ### Preset Modes
 Temperature/humidity presets depend on all other configuration. Must be configured last in flow.
 
-### Development rules
+### Development Rules for Claude Code
 
-- Always use context7 when I need code generation, setup or configuration steps, or
-library/API documentation. This means you should automatically use the Context7 MCP
-tools to resolve library id and get library docs without me having to explicitly ask.
+**CRITICAL - Testing and Linting Workflow:**
 
-- Always lint your code before sending it to me. Use `isort`, `black`, `flake8`, and `codespell` to ensure your code meets quality standards.
+1. **Always use Docker scripts** for testing and linting:
+   - `./scripts/docker-test` - Run tests (all or specific)
+   - `./scripts/docker-lint` - Check all linting
+   - `./scripts/docker-lint --fix` - Auto-fix linting issues
+   - `./scripts/docker-shell` - Interactive debugging
+
+2. **Before submitting code:**
+   - Run `./scripts/docker-lint` to check all linting
+   - Run `./scripts/docker-test` to verify tests pass
+   - Fix any failures before showing code to user
+   - Docker ensures consistent Python 3.13 + HA 2025.1.0+ environment
+
+3. **Library documentation:**
+   - Use context7 MCP tools for library/API documentation when needed
+   - Automatically resolve library IDs and get docs without explicit user request
+
+**Why Docker scripts are mandatory for Claude Code:**
+- Consistent environment across all development sessions
+- No local Python dependency conflicts
+- Same environment as CI/CD pipeline
+- Automatic dependency installation and caching
 
 ## Active Technologies
 - Python 3.13 + Home Assistant 2025.1.0+, voluptuous (schema validation) (002-separate-tolerances)
@@ -680,3 +700,4 @@ This repository supports **two development approaches**:
 - Use **Docker Compose** for testing, CI/CD, and multi-version testing
 - Use **DevContainer** for daily development with VS Code
 - Both can be used together for different tasks
+- The core config registry is actually stored at config/.storage/core.config_entries. Useful to test/debug config flow issues

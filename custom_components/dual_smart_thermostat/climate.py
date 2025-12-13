@@ -307,17 +307,25 @@ async def async_setup_platform(
 
 
 def _normalize_config_numeric_values(config: dict[str, Any]) -> dict[str, Any]:
-    """Convert string numeric values to floats in config.
+    """Convert string numeric values to floats and time values to timedeltas in config.
 
     This is a safety net for:
     1. Existing config entries that may have string values stored
     2. Edge cases where config flow normalization wasn't applied
+    3. Time values from config flow stored as seconds (int/float) need conversion to timedelta
+    4. DurationSelector values stored as dict (hours/minutes/seconds) need conversion to timedelta
 
     The primary fix is in config_flow.py/_clean_config_for_storage()
     which converts values at save time.
 
     Fixes issue #468 where precision/temp_step stored as strings caused
     incorrect behavior in temperature rounding and step calculations.
+
+    Fixes issue #484 where keep_alive stored as float/int instead of timedelta
+    caused AttributeError when async_track_time_interval expected timedelta.
+
+    Handles DurationSelector format from config/options flows which returns
+    {'hours': 0, 'minutes': 5, 'seconds': 0} and converts to timedelta.
     """
     # Keys that might be strings from SelectSelector in config flow
     float_keys = [CONF_PRECISION, CONF_TEMP_STEP]
@@ -328,6 +336,44 @@ def _normalize_config_numeric_values(config: dict[str, Any]) -> dict[str, Any]:
                 config[key] = float(config[key])
             except (ValueError, TypeError):
                 pass  # Keep original if conversion fails
+
+    # Time-based keys that need conversion from seconds to timedelta
+    # Config flow stores these as int/float (seconds) but code expects timedelta
+    # After storage, Home Assistant may deserialize timedelta as dict with days/seconds/microseconds
+    time_keys = [CONF_KEEP_ALIVE, CONF_MIN_DUR, CONF_STALE_DURATION]
+
+    for key in time_keys:
+        if key in config and config[key] is not None:
+            value = config[key]
+            # Only convert if it's not already a timedelta
+            if not isinstance(value, timedelta):
+                try:
+                    # Convert seconds (int/float) to timedelta
+                    if isinstance(value, (int, float)):
+                        config[key] = timedelta(seconds=value)
+                    # Convert dict from DurationSelector to timedelta
+                    # DurationSelector returns {'hours': 0, 'minutes': 5, 'seconds': 0}
+                    elif isinstance(value, dict) and any(
+                        k in value for k in ["hours", "minutes"]
+                    ):
+                        total_seconds = (
+                            value.get("hours", 0) * 3600
+                            + value.get("minutes", 0) * 60
+                            + value.get("seconds", 0)
+                        )
+                        config[key] = timedelta(seconds=total_seconds)
+                    # Convert dict (deserialized timedelta) back to timedelta
+                    # Home Assistant storage serializes timedelta as {'days': 0, 'seconds': 300, 'microseconds': 0}
+                    elif isinstance(value, dict) and all(
+                        k in value for k in ["days", "seconds", "microseconds"]
+                    ):
+                        config[key] = timedelta(
+                            days=value["days"],
+                            seconds=value["seconds"],
+                            microseconds=value["microseconds"],
+                        )
+                except (ValueError, TypeError, KeyError):
+                    pass  # Keep original if conversion fails
 
     return config
 

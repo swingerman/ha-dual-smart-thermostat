@@ -746,3 +746,110 @@ class TestSimpleHeaterLegacyTolerancesPersistence:
         assert config_entry_after.data[CONF_HOT_TOLERANCE] == 0.6
         assert CONF_HEAT_TOLERANCE not in config_entry_after.data
         assert CONF_COOL_TOLERANCE not in config_entry_after.data
+
+
+@pytest.mark.asyncio
+async def test_simple_heater_repeated_options_flow_precision_persistence(hass):
+    """Test simple_heater options flow repeated multiple times (related to issue #484/#479).
+
+    Validates that precision and temp_step persist correctly across multiple
+    options flow invocations for simple_heater system type.
+
+    This test ensures the fix for AC only (issue #484/#479) also works for
+    simple_heater since they share the same OptionsFlowHandler.
+    """
+    from custom_components.dual_smart_thermostat.config_flow import ConfigFlowHandler
+    from custom_components.dual_smart_thermostat.const import (
+        CONF_PRECISION,
+        CONF_TEMP_STEP,
+    )
+    from custom_components.dual_smart_thermostat.options_flow import OptionsFlowHandler
+
+    # ===== STEP 1: Complete config flow =====
+    config_flow = ConfigFlowHandler()
+    config_flow.hass = hass
+
+    result = await config_flow.async_step_user(
+        {CONF_SYSTEM_TYPE: SYSTEM_TYPE_SIMPLE_HEATER}
+    )
+
+    initial_config = {
+        CONF_NAME: "Simple Heater Precision Test",
+        CONF_SENSOR: "sensor.room_temp",
+        CONF_HEATER: "switch.heater",
+        CONF_COLD_TOLERANCE: 0.5,
+    }
+    result = await config_flow.async_step_basic(initial_config)
+
+    # Skip features for simplicity
+    result = await config_flow.async_step_features({})
+
+    assert result["type"] == "create_entry"
+    created_data = result["data"]
+
+    # ===== STEP 2: Create MockConfigEntry =====
+    config_entry = MockConfigEntry(
+        domain=DOMAIN,
+        data=created_data,
+        options={},
+        title="Simple Heater Precision Test",
+    )
+    config_entry.add_to_hass(hass)
+
+    # ===== STEP 3: First options flow - set precision and temp_step =====
+    options_flow_1 = OptionsFlowHandler(config_entry)
+    options_flow_1.hass = hass
+
+    result = await options_flow_1.async_step_init()
+    assert result["type"] == "form"
+    assert result["step_id"] == "init"
+
+    # Set precision and temp_step values
+    result = await options_flow_1.async_step_init(
+        {
+            CONF_PRECISION: "0.5",
+            CONF_TEMP_STEP: "0.5",
+        }
+    )
+
+    assert result["type"] == "create_entry"
+    first_update = result["data"]
+
+    # Verify values are converted to floats
+    assert first_update[CONF_PRECISION] == 0.5
+    assert first_update[CONF_TEMP_STEP] == 0.5
+
+    # ===== STEP 4: Update config entry with options =====
+    config_entry_updated = MockConfigEntry(
+        domain=DOMAIN,
+        data=created_data,
+        options=first_update,
+        title="Simple Heater Precision Test",
+    )
+    config_entry_updated.add_to_hass(hass)
+
+    # ===== STEP 5: Second options flow - verify fields are pre-filled =====
+    options_flow_2 = OptionsFlowHandler(config_entry_updated)
+    options_flow_2.hass = hass
+
+    result = await options_flow_2.async_step_init()
+    assert result["type"] == "form"
+    assert result["step_id"] == "init"
+
+    # Extract defaults from schema
+    init_schema = result["data_schema"].schema
+    defaults = {}
+    for key in init_schema:
+        if hasattr(key, "schema"):
+            field_name = key.schema
+            if hasattr(key, "default"):
+                default_val = key.default() if callable(key.default) else key.default
+                defaults[field_name] = default_val
+
+    # Verify precision and temp_step are pre-filled as strings
+    assert (
+        defaults.get(CONF_PRECISION) == "0.5"
+    ), f"Precision should be '0.5'! Got: {defaults.get(CONF_PRECISION)}"
+    assert (
+        defaults.get(CONF_TEMP_STEP) == "0.5"
+    ), f"Temp step should be '0.5'! Got: {defaults.get(CONF_TEMP_STEP)}"
