@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
 import json
 import logging
 from pathlib import Path
@@ -274,15 +275,30 @@ def get_timing_fields_for_section(
     schema_dict = {}
 
     # Convert seconds to duration dict format for DurationSelector
+    # Handle both integer (seconds) and dict (already in duration format) values
     min_dur_value = defaults.get(CONF_MIN_DUR, 300)
-    min_dur_default = seconds_to_duration(min_dur_value)
+    if isinstance(min_dur_value, dict):
+        # Already in duration format (from storage deserialization)
+        min_dur_default = min_dur_value
+    else:
+        # Convert from seconds or timedelta to duration dict
+        if isinstance(min_dur_value, timedelta):
+            min_dur_value = int(min_dur_value.total_seconds())
+        min_dur_default = seconds_to_duration(min_dur_value)
     schema_dict[vol.Optional(CONF_MIN_DUR, default=min_dur_default)] = (
         get_time_selector(min_value=0, max_value=3600)
     )
 
     if include_keep_alive:
         keep_alive_value = defaults.get(CONF_KEEP_ALIVE, 300)
-        keep_alive_default = seconds_to_duration(keep_alive_value)
+        if isinstance(keep_alive_value, dict):
+            # Already in duration format (from storage deserialization)
+            keep_alive_default = keep_alive_value
+        else:
+            # Convert from seconds or timedelta to duration dict
+            if isinstance(keep_alive_value, timedelta):
+                keep_alive_value = int(keep_alive_value.total_seconds())
+            keep_alive_default = seconds_to_duration(keep_alive_value)
         schema_dict[vol.Optional(CONF_KEEP_ALIVE, default=keep_alive_default)] = (
             get_time_selector(min_value=0, max_value=3600)
         )
@@ -1080,10 +1096,11 @@ def get_preset_selection_schema(defaults: list[str] | None = None):
         labels = {}
 
     options = []
-    for k, _v in CONF_PRESETS.items():
-        # Use translation label if available, fall back to a title-cased key
-        label = labels.get(k, k.replace("_", " ").title())
-        options.append({"value": k, "label": label})
+    for display_name, config_key in CONF_PRESETS.items():
+        # Use translation label if available, fall back to a title-cased display name
+        label = labels.get(display_name, display_name.replace("_", " ").title())
+        # Use config_key as value (e.g., "anti_freeze") so defaults matching works correctly
+        options.append({"value": config_key, "label": label})
 
     return vol.Schema(
         {
@@ -1139,59 +1156,67 @@ def get_presets_schema(user_input: dict[str, Any]) -> vol.Schema:
         heat_cool_enabled = False
 
     for preset in selected_presets:
+        # Handle both display names (keys) and config keys (values) from CONF_PRESETS
+        # The multi-select now returns config keys, but old code may still use display names
         if preset in CONF_PRESETS:
-            # Get the normalized preset name (lowercase with underscores)
-            # e.g., "Anti Freeze" -> "anti_freeze", "Home" -> "home"
+            # preset is a display name (e.g., "Anti Freeze")
+            # Get the normalized config key (e.g., "anti_freeze")
             preset_key = CONF_PRESETS[preset]
+        elif preset in CONF_PRESETS.values():
+            # preset is already a config key (e.g., "anti_freeze")
+            preset_key = preset
+        else:
+            # Unknown preset, skip it
+            continue
 
-            # When heat_cool_mode is enabled, render dual fields (low/high)
-            if heat_cool_enabled:
-                # Use TextSelector to accept both numbers and template strings
-                # Note: Validation happens in the flow handler, not in schema
-                # Defaults must be strings to match TextSelector type
-                # Extract existing values from user_input, or use fallback defaults
-                existing_temp_low = user_input.get(f"{preset_key}_temp_low", "20")
-                existing_temp_high = user_input.get(f"{preset_key}_temp_high", "24")
-                # Ensure defaults are strings
-                if not isinstance(existing_temp_low, str):
-                    existing_temp_low = str(existing_temp_low)
-                if not isinstance(existing_temp_high, str):
-                    existing_temp_high = str(existing_temp_high)
+        # When heat_cool_mode is enabled, render dual fields (low/high)
+        if heat_cool_enabled:
+            # Use TextSelector to accept both numbers and template strings
+            # Note: Validation happens in the flow handler, not in schema
+            # Defaults must be strings to match TextSelector type
+            # Extract existing values from user_input, or use fallback defaults
+            existing_temp_low = user_input.get(f"{preset_key}_temp_low", "20")
+            existing_temp_high = user_input.get(f"{preset_key}_temp_high", "24")
+            # Ensure defaults are strings
+            if not isinstance(existing_temp_low, str):
+                existing_temp_low = str(existing_temp_low)
+            if not isinstance(existing_temp_high, str):
+                existing_temp_high = str(existing_temp_high)
 
-                schema_dict[
-                    vol.Optional(f"{preset_key}_temp_low", default=existing_temp_low)
-                ] = selector.TextSelector(
+            schema_dict[
+                vol.Optional(f"{preset_key}_temp_low", default=existing_temp_low)
+            ] = selector.TextSelector(
+                selector.TextSelectorConfig(
+                    multiline=False,
+                    type=selector.TextSelectorType.TEXT,
+                )
+            )
+            schema_dict[
+                vol.Optional(f"{preset_key}_temp_high", default=existing_temp_high)
+            ] = selector.TextSelector(
+                selector.TextSelectorConfig(
+                    multiline=False,
+                    type=selector.TextSelectorType.TEXT,
+                )
+            )
+        else:
+            # Backwards compatible single-temp field
+            # Use TextSelector to accept both numbers and template strings
+            # Note: Validation happens in the flow handler, not in schema
+            # Defaults must be strings to match TextSelector type
+            # Extract existing value from user_input, or use fallback default
+            existing_temp = user_input.get(f"{preset_key}_temp", "20")
+            # Ensure default is a string
+            if not isinstance(existing_temp, str):
+                existing_temp = str(existing_temp)
+
+            schema_dict[vol.Optional(f"{preset_key}_temp", default=existing_temp)] = (
+                selector.TextSelector(
                     selector.TextSelectorConfig(
                         multiline=False,
                         type=selector.TextSelectorType.TEXT,
                     )
                 )
-                schema_dict[
-                    vol.Optional(f"{preset_key}_temp_high", default=existing_temp_high)
-                ] = selector.TextSelector(
-                    selector.TextSelectorConfig(
-                        multiline=False,
-                        type=selector.TextSelectorType.TEXT,
-                    )
-                )
-            else:
-                # Backwards compatible single-temp field
-                # Use TextSelector to accept both numbers and template strings
-                # Note: Validation happens in the flow handler, not in schema
-                # Defaults must be strings to match TextSelector type
-                # Extract existing value from user_input, or use fallback default
-                existing_temp = user_input.get(f"{preset_key}_temp", "20")
-                # Ensure default is a string
-                if not isinstance(existing_temp, str):
-                    existing_temp = str(existing_temp)
-
-                schema_dict[
-                    vol.Optional(f"{preset_key}_temp", default=existing_temp)
-                ] = selector.TextSelector(
-                    selector.TextSelectorConfig(
-                        multiline=False,
-                        type=selector.TextSelectorType.TEXT,
-                    )
-                )
+            )
 
     return vol.Schema(schema_dict)

@@ -957,6 +957,111 @@ async def test_preset_toggle_checked_when_presets_configured(
     assert result["step_id"] == "preset_selection"
 
 
+@pytest.mark.asyncio
+async def test_deselected_presets_are_cleaned_up(mock_hass):
+    """Test that deselected preset configuration is removed from storage.
+
+    Solution 1: When a user deselects a preset in options flow, the preset's
+    configuration data should be removed from storage to keep it clean.
+    """
+    # Create config entry WITH presets configured
+    config_entry = Mock()
+    config_entry.data = {
+        CONF_SYSTEM_TYPE: SYSTEM_TYPE_SIMPLE_HEATER,
+        "name": "Test Thermostat",
+        CONF_HEATER: "switch.heater",
+        CONF_SENSOR: "sensor.temperature",
+        "cold_tolerance": 0.3,
+        "hot_tolerance": 0.3,
+        # Presets are configured
+        "presets": ["away", "home", "sleep"],
+        "away": {"temperature": "18"},
+        "home": {"temperature": "21"},
+        "sleep": {"temperature": "19"},
+    }
+    config_entry.options = {}
+    config_entry.entry_id = "test_entry"
+
+    # Create options flow
+    flow = OptionsFlowHandler(config_entry)
+    flow.hass = mock_hass
+    type(flow).config_entry = PropertyMock(return_value=config_entry)
+
+    # Start options flow
+    result = await flow.async_step_init()
+    assert result["step_id"] == "init"
+
+    # Submit init step
+    result = await flow.async_step_init({})
+    assert result["step_id"] == "preset_selection"
+
+    # User deselects "away" preset, keeps only "home" and "sleep"
+    result = await flow.async_step_preset_selection({"presets": ["home", "sleep"]})
+
+    # Should proceed to presets configuration
+    assert result["step_id"] == "presets"
+
+    # Submit preset configuration (keeping existing values)
+    result = await flow.async_step_presets({"home_temp": "21", "sleep_temp": "19"})
+
+    # Should create entry
+    assert result["type"] == FlowResultType.CREATE_ENTRY
+
+    # Verify that "away" preset data was removed from the final config
+    final_config = result["data"]
+    assert "away" not in final_config
+    assert "home" in final_config
+    assert "sleep" in final_config
+
+
+@pytest.mark.asyncio
+async def test_all_presets_deselected_cleans_all_preset_data(mock_hass):
+    """Test that deselecting all presets removes all preset configuration data.
+
+    Solution 1: When a user deselects all presets, all preset configuration
+    should be cleaned up from storage.
+    """
+    # Create config entry WITH presets configured
+    config_entry = Mock()
+    config_entry.data = {
+        CONF_SYSTEM_TYPE: SYSTEM_TYPE_SIMPLE_HEATER,
+        "name": "Test Thermostat",
+        CONF_HEATER: "switch.heater",
+        CONF_SENSOR: "sensor.temperature",
+        "cold_tolerance": 0.3,
+        "hot_tolerance": 0.3,
+        # Presets are configured
+        "presets": ["away", "home"],
+        "away": {"temperature": "18"},
+        "home": {"temperature": "21"},
+    }
+    config_entry.options = {}
+    config_entry.entry_id = "test_entry"
+
+    # Create options flow
+    flow = OptionsFlowHandler(config_entry)
+    flow.hass = mock_hass
+    type(flow).config_entry = PropertyMock(return_value=config_entry)
+
+    # Start options flow
+    result = await flow.async_step_init()
+    result = await flow.async_step_init({})
+    assert result["step_id"] == "preset_selection"
+
+    # User deselects all presets
+    result = await flow.async_step_preset_selection({"presets": []})
+
+    # Should skip preset configuration and create entry
+    assert result["type"] == FlowResultType.CREATE_ENTRY
+
+    # Verify that all preset data was removed
+    final_config = result["data"]
+    assert "presets" in final_config  # The empty list should remain
+    assert final_config["presets"] == []
+    assert "away" not in final_config
+    assert "home" not in final_config
+
+
 # ============================================================================
 # COMPLETE FLOW INTEGRATION TEST
 # ============================================================================

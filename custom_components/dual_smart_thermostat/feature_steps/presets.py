@@ -48,6 +48,14 @@ class PresetsSteps:
                     for preset_key in CONF_PRESETS.values()
                 )
 
+            # Clean up deselected presets BEFORE showing preset configuration form
+            # This prevents old preset data from persisting when presets are deselected
+            if isinstance(flow_instance, OptionsFlow):
+                for preset_key in CONF_PRESETS.values():
+                    if preset_key not in selected_presets:
+                        # Remove preset configuration if it's been deselected
+                        collected_config.pop(preset_key, None)
+
             if any_preset_enabled:
                 # At least one preset is enabled, proceed to configuration
                 if isinstance(flow_instance, OptionsFlow):
@@ -301,6 +309,18 @@ class PresetsSteps:
                 current_config = entry.data if entry is not None else None
         except Exception:
             current_config = None
+
+        # Clean up deselected presets from current_config before using it
+        # This prevents old preset data from being shown in the form when presets have been deselected
+        if current_config:
+            selected_presets = collected_config.get("presets", [])
+            current_config = dict(
+                current_config
+            )  # Make a copy to avoid modifying entry.data
+            for preset_key in CONF_PRESETS.values():
+                if preset_key not in selected_presets:
+                    # Remove preset configuration from current_config if it's been deselected
+                    current_config.pop(preset_key, None)
 
         schema_context = build_schema_context_from_flow(
             flow_instance, collected_config, current_config
