@@ -45,6 +45,7 @@ from .schemas import (
     get_basic_ac_schema,
     get_dual_stage_schema,
     get_fan_schema,
+    get_fan_with_cooler_schema,
     get_features_schema,
     get_grouped_schema,
     get_heat_cool_mode_schema,
@@ -290,6 +291,8 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
             return await self.async_step_dual_stage()
         elif system_type == SystemType.FLOOR_HEATING:
             return await self.async_step_floor_heating()
+        elif system_type == SystemType.FAN_WITH_COOLER:
+            return await self.async_step_fan_with_cooler()
         else:  # advanced
             return await self.async_step_basic()
 
@@ -473,6 +476,39 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(
             step_id="heat_pump",
+            data_schema=schema,
+            errors=errors,
+        )
+
+    async def async_step_fan_with_cooler(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle Fan with Cooler configuration."""
+        errors = {}
+
+        if user_input is not None:
+            # Extract advanced settings from section and flatten to top level
+            if "advanced_settings" in user_input:
+                advanced_settings = user_input.pop("advanced_settings")
+                if advanced_settings:
+                    user_input.update(advanced_settings)
+
+            if not await self._validate_basic_config(user_input):
+                errors = EntityValidator.get_validation_errors(user_input)
+            else:
+                user_input[CONF_AC_MODE] = True
+
+                self.collected_config.update(user_input)
+                return await self._determine_next_step()
+
+        # Use specific Fan with Cooler schema
+        # Pass collected_config as defaults to prepopulate form with current values
+        schema = get_fan_with_cooler_schema(
+            defaults=self.collected_config, include_name=True
+        )
+
+        return self.async_show_form(
+            step_id="fan_with_cooler",
             data_schema=schema,
             errors=errors,
         )

@@ -523,6 +523,98 @@ def get_heat_pump_schema(defaults=None, include_name=True):
     return vol.Schema(core_schema)
 
 
+def get_fan_with_cooler_schema(defaults=None, include_name=True):
+    """Get Fan with Cooler configuration schema.
+
+    Combines AC-only schema with detailed Fan configuration.
+    """
+    defaults = defaults or {}
+    core_schema = {}
+
+    # 1. Basic Information & Thermostat Sensors (from AC-only schema)
+    if include_name:
+        core_schema[
+            vol.Required(
+                CONF_NAME,
+                default=defaults.get(CONF_NAME) if defaults else vol.UNDEFINED,
+            )
+        ] = get_text_selector()
+
+    core_schema[
+        vol.Required(
+            CONF_SENSOR,
+            default=defaults.get(CONF_SENSOR) if defaults else vol.UNDEFINED,
+        )
+    ] = get_entity_selector(SENSOR_DOMAIN)
+
+    # 2. Cooler Switch (using HEATER constant as is standard for AC-only mode)
+    core_schema[
+        vol.Required(
+            CONF_HEATER,
+            default=defaults.get(CONF_HEATER) if defaults else vol.UNDEFINED,
+        )
+    ] = get_entity_selector(SWITCH_DOMAIN)
+
+    # 3. Fan Configuration (Explicitly included)
+    core_schema[
+        vol.Required(CONF_FAN, default=defaults.get(CONF_FAN))
+    ] = get_entity_selector(SWITCH_DOMAIN)
+
+    core_schema[
+        vol.Optional(CONF_FAN_MODE, default=defaults.get(CONF_FAN_MODE, True))
+    ] = get_boolean_selector()
+
+    core_schema[
+        vol.Optional(
+            CONF_FAN_ON_WITH_AC, default=defaults.get(CONF_FAN_ON_WITH_AC, True)
+        )
+    ] = get_boolean_selector()
+
+    core_schema[
+        vol.Optional(
+            CONF_FAN_HOT_TOLERANCE,
+            default=defaults.get(CONF_FAN_HOT_TOLERANCE, 0.5),
+        )
+    ] = get_temperature_selector(min_value=0.0, max_value=10.0, step=0.05)
+
+    core_schema[
+        vol.Optional(
+            CONF_FAN_HOT_TOLERANCE_TOGGLE,
+            default=defaults.get(CONF_FAN_HOT_TOLERANCE_TOGGLE, vol.UNDEFINED),
+        )
+    ] = get_entity_selector([INPUT_BOOLEAN_DOMAIN, BINARY_SENSOR_DOMAIN])
+
+    # 4. Tolerance fields OUTSIDE section
+    core_schema.update(
+        get_tolerance_fields(defaults=defaults, include_heat_cool_tolerance=False)
+    )
+
+    # 5. Timing & Temperature fields in collapsible section
+    timing_fields = get_timing_fields_for_section(
+        defaults=defaults, include_keep_alive=True
+    )
+    
+    # Add Temperature Limits (Min/Max/Target)
+    timing_fields[
+        vol.Optional(CONF_MIN_TEMP, default=defaults.get(CONF_MIN_TEMP, 7))
+    ] = get_temperature_selector(min_value=5, max_value=35)
+
+    timing_fields[
+        vol.Optional(CONF_MAX_TEMP, default=defaults.get(CONF_MAX_TEMP, 35))
+    ] = get_temperature_selector(min_value=5, max_value=50)
+
+    timing_fields[
+        vol.Optional(CONF_TARGET_TEMP, default=defaults.get(CONF_TARGET_TEMP, 20))
+    ] = get_temperature_selector(min_value=5, max_value=35)
+
+    if timing_fields:
+        core_schema[vol.Optional("advanced_settings")] = section(
+            vol.Schema(timing_fields), {"collapsed": True}
+        )
+
+    return vol.Schema(core_schema)
+
+
 def get_grouped_schema(
     system_type: str,
     show_heater: bool = True,
@@ -678,6 +770,7 @@ def get_features_schema(
             "presets",
         ],
         SystemType.DUAL_STAGE: ["floor_heating", "openings", "presets"],
+        SystemType.FAN_WITH_COOLER: ["floor_heating", "humidity", "openings", "presets"],
     }
 
     # Get available features for this system type

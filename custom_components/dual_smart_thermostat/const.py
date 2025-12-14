@@ -36,6 +36,7 @@ class SystemType(enum.StrEnum):
     HEAT_PUMP = "heat_pump"
     DUAL_STAGE = "dual_stage"
     FLOOR_HEATING = "floor_heating"
+    FAN_WITH_COOLER = "fan_with_cooler"
 
 
 # Legacy constants for backward compatibility
@@ -52,6 +53,7 @@ SYSTEM_TYPES = {
     SystemType.AC_ONLY: "Air Conditioning Only",
     SystemType.HEATER_COOLER: "Heater with Cooler",
     SystemType.HEAT_PUMP: "Heat Pump",
+    SystemType.FAN_WITH_COOLER: "Fan with Cooler",
 }
 
 CONF_HEATER = "heater"
