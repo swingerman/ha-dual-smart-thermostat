@@ -675,9 +675,17 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
             # No presets enabled, skip configuration and finish
             return await self._async_finish_flow()
 
+        # Get currently configured presets to pre-select them in the form
+        # This is especially important for reconfigure flow
+        defaults = []
+        if self.collected_config and isinstance(
+            self.collected_config.get("presets"), list
+        ):
+            defaults = self.collected_config.get("presets", [])
+
         return self.async_show_form(
             step_id="preset_selection",
-            data_schema=get_preset_selection_schema(),
+            data_schema=get_preset_selection_schema(defaults=defaults),
         )
 
     async def async_step_presets(
