@@ -124,12 +124,20 @@ async def test_simple_heater_minimal_config_persistence(hass):
     hot_tolerance_default = None
     for key in init_schema:
         if hasattr(key, "schema") and key.schema == CONF_COLD_TOLERANCE:
-            if hasattr(key, "default"):
+            # Check for suggested_value in description (new pattern for handling 0 values)
+            if hasattr(key, "description") and isinstance(key.description, dict):
+                cold_tolerance_default = key.description.get("suggested_value")
+            # Fallback to old default pattern
+            elif hasattr(key, "default"):
                 cold_tolerance_default = (
                     key.default() if callable(key.default) else key.default
                 )
         if hasattr(key, "schema") and key.schema == CONF_HOT_TOLERANCE:
-            if hasattr(key, "default"):
+            # Check for suggested_value in description (new pattern for handling 0 values)
+            if hasattr(key, "description") and isinstance(key.description, dict):
+                hot_tolerance_default = key.description.get("suggested_value")
+            # Fallback to old default pattern
+            elif hasattr(key, "default"):
                 hot_tolerance_default = (
                     key.default() if callable(key.default) else key.default
                 )
@@ -195,12 +203,20 @@ async def test_simple_heater_minimal_config_persistence(hass):
     hot_tolerance_default2 = None
     for key in init_schema2:
         if hasattr(key, "schema") and key.schema == CONF_COLD_TOLERANCE:
-            if hasattr(key, "default"):
+            # Check for suggested_value in description (new pattern for handling 0 values)
+            if hasattr(key, "description") and isinstance(key.description, dict):
+                cold_tolerance_default2 = key.description.get("suggested_value")
+            # Fallback to old default pattern
+            elif hasattr(key, "default"):
                 cold_tolerance_default2 = (
                     key.default() if callable(key.default) else key.default
                 )
         if hasattr(key, "schema") and key.schema == CONF_HOT_TOLERANCE:
-            if hasattr(key, "default"):
+            # Check for suggested_value in description (new pattern for handling 0 values)
+            if hasattr(key, "description") and isinstance(key.description, dict):
+                hot_tolerance_default2 = key.description.get("suggested_value")
+            # Fallback to old default pattern
+            elif hasattr(key, "default"):
                 hot_tolerance_default2 = (
                     key.default() if callable(key.default) else key.default
                 )

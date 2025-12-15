@@ -55,6 +55,7 @@ from .feature_steps import (
     OpeningsSteps,
     PresetsSteps,
 )
+from .schema_utils import get_temperature_selector
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -162,6 +163,14 @@ class OptionsFlowHandler(OptionsFlow):
 
         merged_config = {**data, **options}
 
+        _LOGGER.debug(
+            "_get_current_config - entry.title=%s, data cold_tol=%s, options cold_tol=%s, merged cold_tol=%s",
+            getattr(entry, "title", "unknown"),
+            data.get(CONF_COLD_TOLERANCE),
+            options.get(CONF_COLD_TOLERANCE),
+            merged_config.get(CONF_COLD_TOLERANCE),
+        )
+
         # Normalize config values from storage (convert dict timedelta back to timedelta)
         return self._normalize_config_from_storage(merged_config)
 
@@ -180,31 +189,33 @@ class OptionsFlowHandler(OptionsFlow):
         schema_dict: dict[Any, Any] = {}
 
         # === BASIC TOLERANCES (always shown) ===
+        # Use description with suggested_value to properly handle 0 values
+        cold_tol = current_config.get(CONF_COLD_TOLERANCE, 0.3)
+        _LOGGER.debug(
+            "Options flow schema - cold_tol=%s, type=%s, current_config keys=%s",
+            cold_tol,
+            type(cold_tol),
+            list(current_config.keys()),
+        )
         schema_dict[
             vol.Optional(
                 CONF_COLD_TOLERANCE,
-                default=current_config.get(CONF_COLD_TOLERANCE, 0.3),
+                description={"suggested_value": cold_tol},
             )
-        ] = selector.NumberSelector(
-            selector.NumberSelectorConfig(
-                mode=selector.NumberSelectorMode.BOX,
-                step=0.1,
-                unit_of_measurement=DEGREE,
-            )
-        )
+        ] = get_temperature_selector(min_value=0, max_value=10, step=0.1)
 
+        hot_tol = current_config.get(CONF_HOT_TOLERANCE, 0.3)
+        _LOGGER.debug(
+            "Options flow schema - hot_tol=%s, type=%s",
+            hot_tol,
+            type(hot_tol),
+        )
         schema_dict[
             vol.Optional(
                 CONF_HOT_TOLERANCE,
-                default=current_config.get(CONF_HOT_TOLERANCE, 0.3),
+                description={"suggested_value": hot_tol},
             )
-        ] = selector.NumberSelector(
-            selector.NumberSelectorConfig(
-                mode=selector.NumberSelectorMode.BOX,
-                step=0.1,
-                unit_of_measurement=DEGREE,
-            )
-        )
+        ] = get_temperature_selector(min_value=0, max_value=10, step=0.1)
 
         # === TEMPERATURE LIMITS (always shown) ===
         # Use suggested_value instead of default to avoid saving defaults when not changed
@@ -426,15 +437,7 @@ class OptionsFlowHandler(OptionsFlow):
                         "suggested_value": current_config.get(CONF_HEAT_TOLERANCE)
                     },
                 )
-            ] = selector.NumberSelector(
-                selector.NumberSelectorConfig(
-                    mode=selector.NumberSelectorMode.BOX,
-                    min=0.1,
-                    max=5.0,
-                    step=0.1,
-                    unit_of_measurement=DEGREE,
-                )
-            )
+            ] = get_temperature_selector(min_value=0, max_value=5.0, step=0.1)
 
             advanced_dict[
                 vol.Optional(
@@ -443,15 +446,7 @@ class OptionsFlowHandler(OptionsFlow):
                         "suggested_value": current_config.get(CONF_COOL_TOLERANCE)
                     },
                 )
-            ] = selector.NumberSelector(
-                selector.NumberSelectorConfig(
-                    mode=selector.NumberSelectorMode.BOX,
-                    min=0.1,
-                    max=5.0,
-                    step=0.1,
-                    unit_of_measurement=DEGREE,
-                )
-            )
+            ] = get_temperature_selector(min_value=0, max_value=5.0, step=0.1)
 
         # Add advanced settings section if there are any fields
         if advanced_dict:

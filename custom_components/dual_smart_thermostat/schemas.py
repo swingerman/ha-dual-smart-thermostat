@@ -224,11 +224,11 @@ def get_tolerance_fields(
     hot_tol_value = defaults.get(CONF_HOT_TOLERANCE, DEFAULT_TOLERANCE)
 
     schema_dict[vol.Optional(CONF_COLD_TOLERANCE, default=cold_tol_value)] = (
-        get_temperature_selector(min_value=0.05, max_value=10, step=0.05)
+        get_temperature_selector(min_value=0, max_value=10, step=0.05)
     )
 
     schema_dict[vol.Optional(CONF_HOT_TOLERANCE, default=hot_tol_value)] = (
-        get_temperature_selector(min_value=0.05, max_value=10, step=0.05)
+        get_temperature_selector(min_value=0, max_value=10, step=0.05)
     )
 
     # Heat/Cool tolerance fields (only for heater_cooler and heat_pump)
@@ -242,14 +242,14 @@ def get_tolerance_fields(
                 CONF_HEAT_TOLERANCE,
                 default=heat_tol_value if heat_tol_value is not None else vol.UNDEFINED,
             )
-        ] = get_temperature_selector(min_value=0.05, max_value=5.0, step=0.05)
+        ] = get_temperature_selector(min_value=0, max_value=5.0, step=0.05)
 
         schema_dict[
             vol.Optional(
                 CONF_COOL_TOLERANCE,
                 default=cool_tol_value if cool_tol_value is not None else vol.UNDEFINED,
             )
-        ] = get_temperature_selector(min_value=0.05, max_value=5.0, step=0.05)
+        ] = get_temperature_selector(min_value=0, max_value=5.0, step=0.05)
 
     return schema_dict
 
@@ -1011,16 +1011,16 @@ def get_advanced_settings_schema():
             ),
             vol.Optional(
                 CONF_COLD_TOLERANCE, default=DEFAULT_TOLERANCE
-            ): get_temperature_selector(min_value=0.05, max_value=10, step=0.05),
+            ): get_temperature_selector(min_value=0, max_value=10, step=0.05),
             vol.Optional(
                 CONF_HOT_TOLERANCE, default=DEFAULT_TOLERANCE
-            ): get_temperature_selector(min_value=0.05, max_value=10, step=0.05),
+            ): get_temperature_selector(min_value=0, max_value=10, step=0.05),
             vol.Optional(
                 CONF_HEAT_TOLERANCE, default=DEFAULT_TOLERANCE
-            ): get_temperature_selector(min_value=0.05, max_value=5.0, step=0.05),
+            ): get_temperature_selector(min_value=0, max_value=5.0, step=0.05),
             vol.Optional(
                 CONF_COOL_TOLERANCE, default=DEFAULT_TOLERANCE
-            ): get_temperature_selector(min_value=0.05, max_value=5.0, step=0.05),
+            ): get_temperature_selector(min_value=0, max_value=5.0, step=0.05),
             # Convert seconds to duration dict format for DurationSelector
             vol.Optional(
                 CONF_MIN_DUR, default=seconds_to_duration(300)
