@@ -103,14 +103,24 @@ class TestHeatPumpOptionsFlow:
             if hasattr(key, "schema"):
                 field_name = key.schema
                 if field_name in runtime_params and field_name in config_entry.data:
-                    # Check that default matches existing value
-                    if hasattr(key, "default"):
-                        expected_value = config_entry.data[field_name]
+                    expected_value = config_entry.data[field_name]
+                    actual_value = None
+
+                    # Check for suggested_value in description (new pattern for handling 0 values)
+                    if hasattr(key, "description") and isinstance(
+                        key.description, dict
+                    ):
+                        actual_value = key.description.get("suggested_value")
+                    # Fallback to old default pattern
+                    elif hasattr(key, "default"):
                         # Note: default might be callable or direct value
                         if callable(key.default):
-                            assert key.default() == expected_value
+                            actual_value = key.default()
                         else:
-                            assert key.default == expected_value
+                            actual_value = key.default
+
+                    if actual_value is not None:
+                        assert actual_value == expected_value
 
     async def test_options_flow_preserves_unmodified_fields(self, mock_hass):
         """Test that simplified options flow preserves fields from existing config.

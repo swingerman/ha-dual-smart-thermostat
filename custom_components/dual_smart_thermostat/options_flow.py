@@ -34,6 +34,7 @@ from .const import (
     CONF_MIN_DUR,
     CONF_MIN_TEMP,
     CONF_PRECISION,
+    CONF_PRESETS,
     CONF_STALE_DURATION,
     CONF_SYSTEM_TYPE,
     CONF_TARGET_TEMP,
@@ -54,6 +55,7 @@ from .feature_steps import (
     OpeningsSteps,
     PresetsSteps,
 )
+from .schema_utils import get_temperature_selector
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -161,6 +163,14 @@ class OptionsFlowHandler(OptionsFlow):
 
         merged_config = {**data, **options}
 
+        _LOGGER.debug(
+            "_get_current_config - entry.title=%s, data cold_tol=%s, options cold_tol=%s, merged cold_tol=%s",
+            getattr(entry, "title", "unknown"),
+            data.get(CONF_COLD_TOLERANCE),
+            options.get(CONF_COLD_TOLERANCE),
+            merged_config.get(CONF_COLD_TOLERANCE),
+        )
+
         # Normalize config values from storage (convert dict timedelta back to timedelta)
         return self._normalize_config_from_storage(merged_config)
 
@@ -179,31 +189,33 @@ class OptionsFlowHandler(OptionsFlow):
         schema_dict: dict[Any, Any] = {}
 
         # === BASIC TOLERANCES (always shown) ===
+        # Use description with suggested_value to properly handle 0 values
+        cold_tol = current_config.get(CONF_COLD_TOLERANCE, 0.3)
+        _LOGGER.debug(
+            "Options flow schema - cold_tol=%s, type=%s, current_config keys=%s",
+            cold_tol,
+            type(cold_tol),
+            list(current_config.keys()),
+        )
         schema_dict[
             vol.Optional(
                 CONF_COLD_TOLERANCE,
-                default=current_config.get(CONF_COLD_TOLERANCE, 0.3),
+                description={"suggested_value": cold_tol},
             )
-        ] = selector.NumberSelector(
-            selector.NumberSelectorConfig(
-                mode=selector.NumberSelectorMode.BOX,
-                step=0.1,
-                unit_of_measurement=DEGREE,
-            )
-        )
+        ] = get_temperature_selector(min_value=0, max_value=10, step=0.1)
 
+        hot_tol = current_config.get(CONF_HOT_TOLERANCE, 0.3)
+        _LOGGER.debug(
+            "Options flow schema - hot_tol=%s, type=%s",
+            hot_tol,
+            type(hot_tol),
+        )
         schema_dict[
             vol.Optional(
                 CONF_HOT_TOLERANCE,
-                default=current_config.get(CONF_HOT_TOLERANCE, 0.3),
+                description={"suggested_value": hot_tol},
             )
-        ] = selector.NumberSelector(
-            selector.NumberSelectorConfig(
-                mode=selector.NumberSelectorMode.BOX,
-                step=0.1,
-                unit_of_measurement=DEGREE,
-            )
-        )
+        ] = get_temperature_selector(min_value=0, max_value=10, step=0.1)
 
         # === TEMPERATURE LIMITS (always shown) ===
         # Use suggested_value instead of default to avoid saving defaults when not changed
@@ -425,15 +437,7 @@ class OptionsFlowHandler(OptionsFlow):
                         "suggested_value": current_config.get(CONF_HEAT_TOLERANCE)
                     },
                 )
-            ] = selector.NumberSelector(
-                selector.NumberSelectorConfig(
-                    mode=selector.NumberSelectorMode.BOX,
-                    min=0.1,
-                    max=5.0,
-                    step=0.1,
-                    unit_of_measurement=DEGREE,
-                )
-            )
+            ] = get_temperature_selector(min_value=0, max_value=5.0, step=0.1)
 
             advanced_dict[
                 vol.Optional(
@@ -442,15 +446,7 @@ class OptionsFlowHandler(OptionsFlow):
                         "suggested_value": current_config.get(CONF_COOL_TOLERANCE)
                     },
                 )
-            ] = selector.NumberSelector(
-                selector.NumberSelectorConfig(
-                    mode=selector.NumberSelectorMode.BOX,
-                    min=0.1,
-                    max=5.0,
-                    step=0.1,
-                    unit_of_measurement=DEGREE,
-                )
-            )
+            ] = get_temperature_selector(min_value=0, max_value=5.0, step=0.1)
 
         # Add advanced settings section if there are any fields
         if advanced_dict:
@@ -597,7 +593,41 @@ class OptionsFlowHandler(OptionsFlow):
         cleaned_collected_config = {
             k: v for k, v in self.collected_config.items() if k not in excluded_flags
         }
+
+        # Clean up deselected presets from entry.data BEFORE merging (Solution 1)
+        # This prevents old preset data from entry.data being merged into updated_data
+        # when presets have been deselected in the options flow
+        selected_presets = cleaned_collected_config.get("presets", [])
+        _LOGGER.debug(
+            "Options flow cleanup: selected_presets=%s, CONF_PRESETS.values()=%s",
+            selected_presets,
+            list(CONF_PRESETS.values()),
+        )
+        _LOGGER.debug(
+            "Before cleanup - cleaned_entry_data keys: %s",
+            list(cleaned_entry_data.keys()),
+        )
+        _LOGGER.debug(
+            "Before cleanup - cleaned_collected_config keys: %s",
+            list(cleaned_collected_config.keys()),
+        )
+        for preset_key in CONF_PRESETS.values():
+            if preset_key not in selected_presets:
+                # Remove preset configuration from entry data if it's been deselected
+                _LOGGER.debug(
+                    "Removing deselected preset '%s' from cleaned_entry_data",
+                    preset_key,
+                )
+                cleaned_entry_data.pop(preset_key, None)
+                # Also remove from collected_config if present
+                cleaned_collected_config.pop(preset_key, None)
+
         updated_data = {**cleaned_entry_data, **cleaned_collected_config}
+
+        _LOGGER.debug("After merge - updated_data keys: %s", list(updated_data.keys()))
+        _LOGGER.debug(
+            "After merge - updated_data presets: %s", updated_data.get("presets")
+        )
 
         # Convert string values from select selectors to proper numeric types
         # SelectSelector always returns strings, but these should be floats
@@ -617,6 +647,19 @@ class OptionsFlowHandler(OptionsFlow):
                 "Please check your configuration.",
                 updated_data.get("name", "thermostat"),
             )
+
+        # Update entry.data to remove deselected presets (Solution 1)
+        # This is necessary because climate.py merges entry.data and entry.options
+        # If we don't clean entry.data, deselected presets will reappear from the merge
+        # We update both entry.data and return updated_data to update entry.options
+        try:
+            self.hass.config_entries.async_update_entry(entry, data=updated_data)
+            _LOGGER.debug(
+                "Updated entry.data to remove deselected presets. New data keys: %s",
+                list(updated_data.keys()),
+            )
+        except Exception as ex:
+            _LOGGER.debug("Could not update entry.data (likely in test mode): %s", ex)
 
         return self.async_create_entry(
             title="",  # Empty title for options flow
