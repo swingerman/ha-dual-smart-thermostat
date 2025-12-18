@@ -130,6 +130,7 @@ class MultiHvacDevice(HVACDevice, ControlableHVACDevice):
         )
         if self._hvac_mode == HVACMode.OFF:
             await self.async_turn_off_all(time)
+            return
 
         if self._hvac_mode not in self.hvac_modes and self._hvac_mode is not None:
             _LOGGER.warning("Invalid HVAC mode: %s", self._hvac_mode)
