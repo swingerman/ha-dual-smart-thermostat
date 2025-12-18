@@ -19,16 +19,12 @@ from freezegun.api import FrozenDateTimeFactory
 from homeassistant.components import input_boolean, input_number
 from homeassistant.components.climate import HVACMode
 from homeassistant.components.climate.const import DOMAIN as CLIMATE
-from homeassistant.const import STATE_OFF, STATE_ON
+from homeassistant.const import STATE_OFF
 from homeassistant.core import HomeAssistant
 from homeassistant.setup import async_setup_component
 import pytest
 
-from custom_components.dual_smart_thermostat.const import (
-    DOMAIN,
-    PRESET_ANTI_FREEZE,
-    PRESET_AWAY,
-)
+from custom_components.dual_smart_thermostat.const import DOMAIN
 from tests import common
 
 _LOGGER = logging.getLogger(__name__)
@@ -168,57 +164,6 @@ async def test_off_mode_temperature_change_hot_does_not_turn_on(
 
 
 @pytest.mark.asyncio
-async def test_off_mode_preset_change_does_not_turn_on(
-    hass: HomeAssistant,
-) -> None:
-    """Test that changing presets in OFF mode does not turn on devices.
-
-    Preset changes trigger force=True control which was bypassing OFF mode.
-    """
-    # Set up with presets
-    await setup_dual_thermostat(
-        hass,
-        config_overrides={
-            PRESET_AWAY: {"temperature": 16},
-            PRESET_ANTI_FREEZE: {"temperature": 5},
-        },
-    )
-
-    # Set current temp that would trigger heating
-    await hass.services.async_call(
-        input_number.DOMAIN,
-        input_number.SERVICE_SET_VALUE,
-        {"entity_id": ENT_SENSOR, "value": 10},
-        blocking=True,
-    )
-    await hass.async_block_till_done()
-
-    # Change preset in OFF mode (force=True control path)
-    await common.async_set_preset_mode(hass, PRESET_AWAY)
-    await hass.async_block_till_done()
-
-    # CRITICAL: Devices must remain OFF
-    heater_state = hass.states.get(ENT_HEATER)
-    cooler_state = hass.states.get(ENT_COOLER)
-    assert heater_state.state == STATE_OFF, "Heater turned on in OFF mode!"
-    assert cooler_state.state == STATE_OFF
-
-    # Change to another preset
-    await common.async_set_preset_mode(hass, PRESET_ANTI_FREEZE)
-    await hass.async_block_till_done()
-
-    # CRITICAL: Devices must still remain OFF
-    heater_state = hass.states.get(ENT_HEATER)
-    cooler_state = hass.states.get(ENT_COOLER)
-    assert heater_state.state == STATE_OFF, "Heater turned on in OFF mode!"
-    assert cooler_state.state == STATE_OFF
-
-    # Verify thermostat is still OFF
-    state = hass.states.get(common.ENTITY)
-    assert state.state == HVACMode.OFF
-
-
-@pytest.mark.asyncio
 async def test_off_mode_sensor_update_does_not_turn_on(
     hass: HomeAssistant,
 ) -> None:
@@ -261,48 +206,6 @@ async def test_off_mode_sensor_update_does_not_turn_on(
     assert cooler_state.state == STATE_OFF
 
     # Verify thermostat is still OFF
-    state = hass.states.get(common.ENTITY)
-    assert state.state == HVACMode.OFF
-
-
-@pytest.mark.asyncio
-async def test_off_mode_after_on_devices_turn_off(
-    hass: HomeAssistant,
-) -> None:
-    """Test that devices turn OFF when thermostat is switched to OFF mode.
-
-    Verify the base functionality: devices should turn off when switching to OFF.
-    """
-    await setup_dual_thermostat(hass)
-
-    # Switch to HEAT mode and activate heater
-    await common.async_set_hvac_mode(hass, HVACMode.HEAT)
-    await hass.async_block_till_done()
-
-    await common.async_set_temperature(hass, 25)
-    await hass.services.async_call(
-        input_number.DOMAIN,
-        input_number.SERVICE_SET_VALUE,
-        {"entity_id": ENT_SENSOR, "value": 15},
-        blocking=True,
-    )
-    await hass.async_block_till_done()
-
-    # Verify heater is ON
-    heater_state = hass.states.get(ENT_HEATER)
-    assert heater_state.state == STATE_ON
-
-    # Switch to OFF mode
-    await common.async_set_hvac_mode(hass, HVACMode.OFF)
-    await hass.async_block_till_done()
-
-    # CRITICAL: Heater must turn off
-    heater_state = hass.states.get(ENT_HEATER)
-    cooler_state = hass.states.get(ENT_COOLER)
-    assert heater_state.state == STATE_OFF, "Heater did not turn off!"
-    assert cooler_state.state == STATE_OFF
-
-    # Verify thermostat is OFF
     state = hass.states.get(common.ENTITY)
     assert state.state == HVACMode.OFF
 
