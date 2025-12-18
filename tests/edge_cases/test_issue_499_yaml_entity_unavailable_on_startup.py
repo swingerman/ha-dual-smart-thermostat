@@ -346,3 +346,125 @@ async def test_yaml_multiple_thermostats_unavailable_entities(hass: HomeAssistan
     assert (
         len(unavailable_thermostats) == 0
     ), f"These thermostats became unavailable: {unavailable_thermostats}"
+
+
+@pytest.mark.asyncio
+async def test_yaml_heater_cooler_none_temperature_on_startup(hass: HomeAssistant):
+    """Test YAML-configured heater_cooler thermostat when temperature sensor returns None during startup.
+
+    This tests the specific error from issue #499 user logs:
+    TypeError: '>=' not supported between instances of 'NoneType' and 'float'
+
+    The error occurred because:
+    1. Thermostat was restored in heat_cool mode
+    2. Temperature sensor hadn't provided a value yet (cur_temp was None)
+    3. is_cold_or_hot() in heater_cooler_device.py compared None >= target_temp
+    """
+    _LOGGER.info("=== Testing YAML setup with None temperature on startup ===")
+
+    # Set up heater and cooler as OFF (available)
+    hass.states.async_set("switch.computer_room_heater", STATE_OFF)
+    hass.states.async_set("input_boolean.computer_room_cooler", STATE_OFF)
+
+    # Set up temperature sensor but with None/unavailable value
+    # This simulates sensor not ready during HA startup
+    hass.states.async_set("sensor.computer_room_temperature", STATE_UNAVAILABLE)
+
+    _LOGGER.info("Initial entity states:")
+    _LOGGER.info(
+        "  Temperature sensor: %s",
+        hass.states.get("sensor.computer_room_temperature").state,
+    )
+    _LOGGER.info("  Heater: %s", hass.states.get("switch.computer_room_heater").state)
+    _LOGGER.info(
+        "  Cooler: %s", hass.states.get("input_boolean.computer_room_cooler").state
+    )
+
+    # Configure thermostat via YAML (matching Computer Room from issue #499)
+    config = {
+        CLIMATE_DOMAIN: {
+            "platform": "dual_smart_thermostat",
+            "name": "Computer Room Thermostat",
+            "unique_id": "computer_room_yaml_none_temp",
+            "heater": "input_boolean.computer_room_heater",
+            "secondary_heater": "switch.computer_room_heater",
+            "secondary_heater_timeout": 600,
+            "secondary_heater_dual_mode": False,
+            "cooler": "input_boolean.computer_room_cooler",
+            "target_sensor": "sensor.computer_room_temperature",
+            "initial_hvac_mode": "heat_cool",
+            "heat_cool_mode": True,
+            "hot_tolerance": 0.3,
+            "cold_tolerance": 0.3,
+            "min_temp": 62,
+            "max_temp": 80,
+        }
+    }
+
+    # Set up via YAML - this should NOT crash even with None temperature
+    result = await async_setup_component(hass, CLIMATE_DOMAIN, config)
+    assert result, "Climate platform should set up successfully"
+    await hass.async_block_till_done()
+
+    # Check thermostat state
+    entity_id = "climate.computer_room_thermostat"
+    state = hass.states.get(entity_id)
+
+    _LOGGER.info(
+        "Thermostat state after setup: %s", state.state if state else "NOT FOUND"
+    )
+    if state:
+        _LOGGER.info("Thermostat attributes: %s", state.attributes)
+
+    # Thermostat should exist even with None temperature
+    assert state is not None, "Thermostat entity should be created"
+
+    # It should not crash - this was the bug in issue #499
+    assert (
+        state.state != STATE_UNAVAILABLE
+    ), f"Thermostat should not be unavailable. State: {state.state}"
+
+    # Now simulate temperature sensor becoming available with a value
+    _LOGGER.info("=== Temperature sensor becomes available ===")
+    hass.states.async_set(
+        "sensor.computer_room_temperature", "70.0", {"unit_of_measurement": "°F"}
+    )
+    await hass.async_block_till_done()
+
+    # Check thermostat state after temperature becomes available
+    state_after = hass.states.get(entity_id)
+    _LOGGER.info("Thermostat state after temperature available: %s", state_after.state)
+    _LOGGER.info("Thermostat attributes: %s", state_after.attributes)
+
+    # Now thermostat should be fully functional
+    assert state_after is not None, "Thermostat should still exist"
+    assert (
+        state_after.state != STATE_UNAVAILABLE
+    ), f"Thermostat should not be unavailable. State: {state_after.state}"
+    assert (
+        state_after.state != STATE_UNKNOWN
+    ), f"Thermostat should not be unknown. State: {state_after.state}"
+
+    # Verify thermostat is functional by setting temperature and checking control logic
+    await hass.services.async_call(
+        "climate",
+        "set_temperature",
+        {
+            "entity_id": entity_id,
+            "target_temp_low": 68.0,
+            "target_temp_high": 72.0,
+        },
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+
+    state_final = hass.states.get(entity_id)
+    _LOGGER.info("Thermostat state after set_temperature: %s", state_final.state)
+    assert state_final.attributes.get("target_temp_low") == 68.0
+    assert state_final.attributes.get("target_temp_high") == 72.0
+
+    # Current temp is 70, target is 68-72, so HVAC should be idle (within range)
+    # This verifies the is_cold_or_hot() logic works correctly with the None checks
+    assert (
+        state_final.attributes.get("hvac_action") == "idle"
+    ), "HVAC should be idle when temperature is within range"
