@@ -195,8 +195,6 @@ async def test_yaml_secondary_heater_cooler_unavailable_on_startup(hass: HomeAss
             "target_sensor": "sensor.master_bedroom_temperature",
             "initial_hvac_mode": "heat_cool",
             "heat_cool_mode": True,
-            "min_cycle_duration": 180,  # 3 minutes
-            "keep_alive": 300,  # 5 minutes
             "heat_tolerance": 1.0,
             "cool_tolerance": 1.0,
             "min_temp": 62,
