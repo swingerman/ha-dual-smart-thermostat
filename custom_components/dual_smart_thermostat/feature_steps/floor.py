@@ -89,7 +89,8 @@ class FloorSteps:
             return await next_step_handler()
 
         return flow_instance.async_show_form(
-            step_id="floor_config", data_schema=get_floor_heating_schema()
+            step_id="floor_config",
+            data_schema=get_floor_heating_schema(hass=flow_instance.hass),
         )
 
     async def async_step_options(
@@ -130,5 +131,8 @@ class FloorSteps:
             defaults[CONF_MIN_FLOOR_TEMP] = entry_data.get(CONF_MIN_FLOOR_TEMP)
 
         return flow_instance.async_show_form(
-            step_id="floor_options", data_schema=get_floor_heating_schema(defaults)
+            step_id="floor_options",
+            data_schema=get_floor_heating_schema(
+                hass=flow_instance.hass, defaults=defaults
+            ),
         )

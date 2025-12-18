@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
-from homeassistant.const import DEGREE, PERCENTAGE
+from homeassistant.const import DEGREE, PERCENTAGE, UnitOfTemperature
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers import selector
+from homeassistant.util.unit_conversion import TemperatureConverter
 
 
 def seconds_to_duration(seconds: int) -> dict[str, int]:
@@ -27,18 +29,51 @@ def seconds_to_duration(seconds: int) -> dict[str, int]:
 
 
 def get_temperature_selector(
+    hass: HomeAssistant | None = None,
     min_value: float = 5.0,
     max_value: float = 35.0,
     step: float = 0.1,
-    unit_of_measurement: str = DEGREE,
+    unit_of_measurement: str | None = None,
 ) -> selector.NumberSelector:
-    """Get a standardized temperature selector."""
+    """Get a temperature selector that respects user's unit preference.
+
+    Args:
+        hass: HomeAssistant instance to get user's temperature unit preference
+        min_value: Minimum value in Celsius (will be converted if needed)
+        max_value: Maximum value in Celsius (will be converted if needed)
+        step: Step value (will be adjusted for Fahrenheit)
+        unit_of_measurement: Optional override for unit symbol
+
+    Returns:
+        NumberSelector configured with appropriate temperature unit
+    """
+    # Determine temperature unit and symbol
+    if hass is not None and unit_of_measurement is None:
+        temp_unit = hass.config.units.temperature_unit
+
+        # Convert ranges if user prefers Fahrenheit
+        if temp_unit == UnitOfTemperature.FAHRENHEIT:
+            min_value = TemperatureConverter.convert(
+                min_value, UnitOfTemperature.CELSIUS, UnitOfTemperature.FAHRENHEIT
+            )
+            max_value = TemperatureConverter.convert(
+                max_value, UnitOfTemperature.CELSIUS, UnitOfTemperature.FAHRENHEIT
+            )
+            # Adjust step for Fahrenheit (Celsius step * 1.8)
+            step = round(step * 1.8, 1)
+            unit_symbol = "°F"
+        else:
+            unit_symbol = "°C"
+    else:
+        # Fallback to generic degree symbol if hass not provided
+        unit_symbol = unit_of_measurement or DEGREE
+
     return selector.NumberSelector(
         selector.NumberSelectorConfig(
             min=min_value,
             max=max_value,
             step=step,
-            unit_of_measurement=unit_of_measurement,
+            unit_of_measurement=unit_symbol,
             mode=selector.NumberSelectorMode.BOX,
         )
     )

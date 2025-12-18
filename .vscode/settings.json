@@ -15,5 +15,9 @@
         "projectKey": "swingerman_ha-dual-smart-thermostat"
     },
     "cursorpyright.analysis.autoImportCompletions": true,
-    "cursorpyright.analysis.diagnosticSeverityOverrides": {}
+    "cursorpyright.analysis.diagnosticSeverityOverrides": {},
+    "cSpell.words": [
+        "fromlist",
+        "hass"
+    ]
 }

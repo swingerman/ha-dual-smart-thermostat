@@ -199,6 +199,7 @@ def get_base_schema():
 
 
 def get_tolerance_fields(
+    hass=None,
     defaults: dict[str, Any] | None = None,
     include_heat_cool_tolerance: bool = False,
 ) -> dict[Any, Any]:
@@ -209,6 +210,7 @@ def get_tolerance_fields(
     sections so users can see the default values.
 
     Args:
+        hass: HomeAssistant instance for temperature unit detection
         defaults: Optional dict with default values to pre-fill the form
         include_heat_cool_tolerance: Whether to include heat/cool tolerance fields
             (True for heater_cooler and heat_pump, False for ac_only and simple_heater)
@@ -224,11 +226,11 @@ def get_tolerance_fields(
     hot_tol_value = defaults.get(CONF_HOT_TOLERANCE, DEFAULT_TOLERANCE)
 
     schema_dict[vol.Optional(CONF_COLD_TOLERANCE, default=cold_tol_value)] = (
-        get_temperature_selector(min_value=0, max_value=10, step=0.05)
+        get_temperature_selector(hass=hass, min_value=0, max_value=10, step=0.05)
     )
 
     schema_dict[vol.Optional(CONF_HOT_TOLERANCE, default=hot_tol_value)] = (
-        get_temperature_selector(min_value=0, max_value=10, step=0.05)
+        get_temperature_selector(hass=hass, min_value=0, max_value=10, step=0.05)
     )
 
     # Heat/Cool tolerance fields (only for heater_cooler and heat_pump)
@@ -242,14 +244,14 @@ def get_tolerance_fields(
                 CONF_HEAT_TOLERANCE,
                 default=heat_tol_value if heat_tol_value is not None else vol.UNDEFINED,
             )
-        ] = get_temperature_selector(min_value=0, max_value=5.0, step=0.05)
+        ] = get_temperature_selector(hass=hass, min_value=0, max_value=5.0, step=0.05)
 
         schema_dict[
             vol.Optional(
                 CONF_COOL_TOLERANCE,
                 default=cool_tol_value if cool_tol_value is not None else vol.UNDEFINED,
             )
-        ] = get_temperature_selector(min_value=0, max_value=5.0, step=0.05)
+        ] = get_temperature_selector(hass=hass, min_value=0, max_value=5.0, step=0.05)
 
     return schema_dict
 
@@ -306,7 +308,7 @@ def get_timing_fields_for_section(
     return schema_dict
 
 
-def get_basic_ac_schema(defaults=None, include_name=True):
+def get_basic_ac_schema(hass=None, defaults=None, include_name=True):
     """Get AC-only configuration schema with advanced settings in collapsible section."""
     defaults = defaults or {}
     core_schema = {}
@@ -338,7 +340,9 @@ def get_basic_ac_schema(defaults=None, include_name=True):
 
     # Tolerance fields OUTSIDE section (so defaults are pre-filled in UI)
     core_schema.update(
-        get_tolerance_fields(defaults=defaults, include_heat_cool_tolerance=False)
+        get_tolerance_fields(
+            hass=hass, defaults=defaults, include_heat_cool_tolerance=False
+        )
     )
 
     # Timing fields in collapsible section (less commonly changed)
@@ -353,7 +357,7 @@ def get_basic_ac_schema(defaults=None, include_name=True):
     return vol.Schema(core_schema)
 
 
-def get_simple_heater_schema(defaults=None, include_name=True):
+def get_simple_heater_schema(hass=None, defaults=None, include_name=True):
     """Get simple heater configuration schema with advanced settings in collapsible section."""
     defaults = defaults or {}
     core_schema = {}
@@ -385,7 +389,9 @@ def get_simple_heater_schema(defaults=None, include_name=True):
 
     # Tolerance fields OUTSIDE section (so defaults are pre-filled in UI)
     core_schema.update(
-        get_tolerance_fields(defaults=defaults, include_heat_cool_tolerance=False)
+        get_tolerance_fields(
+            hass=hass, defaults=defaults, include_heat_cool_tolerance=False
+        )
     )
 
     # Timing fields in collapsible section (less commonly changed)
@@ -401,7 +407,7 @@ def get_simple_heater_schema(defaults=None, include_name=True):
     return vol.Schema(core_schema)
 
 
-def get_heater_cooler_schema(defaults=None, include_name=True):
+def get_heater_cooler_schema(hass=None, defaults=None, include_name=True):
     """Get heater + cooler configuration schema with advanced settings in collapsible section."""
     defaults = defaults or {}
     core_schema = {}
@@ -450,7 +456,9 @@ def get_heater_cooler_schema(defaults=None, include_name=True):
     # Tolerance fields OUTSIDE section (so defaults are pre-filled in UI)
     # Heater+cooler includes heat/cool tolerance overrides
     core_schema.update(
-        get_tolerance_fields(defaults=defaults, include_heat_cool_tolerance=True)
+        get_tolerance_fields(
+            hass=hass, defaults=defaults, include_heat_cool_tolerance=True
+        )
     )
 
     # Timing fields in collapsible section (less commonly changed)
@@ -466,7 +474,7 @@ def get_heater_cooler_schema(defaults=None, include_name=True):
     return vol.Schema(core_schema)
 
 
-def get_heat_pump_schema(defaults=None, include_name=True):
+def get_heat_pump_schema(hass=None, defaults=None, include_name=True):
     """Get heat pump configuration schema with advanced settings in collapsible section.
 
     Heat pump uses a single heater switch for both heating and cooling modes.
@@ -475,6 +483,7 @@ def get_heat_pump_schema(defaults=None, include_name=True):
     This allows the system to dynamically check if cooling is available.
 
     Args:
+        hass: HomeAssistant instance for temperature unit detection
         defaults: Optional dict with default values to pre-fill the form
         include_name: Whether to include the name field (True for config flow, False for options flow)
 
@@ -523,7 +532,9 @@ def get_heat_pump_schema(defaults=None, include_name=True):
     # Tolerance fields OUTSIDE section (so defaults are pre-filled in UI)
     # Heat pump includes heat/cool tolerance overrides
     core_schema.update(
-        get_tolerance_fields(defaults=defaults, include_heat_cool_tolerance=True)
+        get_tolerance_fields(
+            hass=hass, defaults=defaults, include_heat_cool_tolerance=True
+        )
     )
 
     # Timing fields in collapsible section (less commonly changed)
@@ -636,7 +647,7 @@ def get_dual_stage_schema():
     )
 
 
-def get_floor_heating_schema(defaults: dict[str, Any] | None = None):
+def get_floor_heating_schema(hass=None, defaults: dict[str, Any] | None = None):
     """Get floor heating configuration schema.
 
     Accepts an optional `defaults` mapping to pre-populate selectors (used by
@@ -650,10 +661,10 @@ def get_floor_heating_schema(defaults: dict[str, Any] | None = None):
             ): get_entity_selector(SENSOR_DOMAIN),
             vol.Optional(
                 CONF_MAX_FLOOR_TEMP, default=defaults.get(CONF_MAX_FLOOR_TEMP, 28)
-            ): get_temperature_selector(min_value=5, max_value=35),
+            ): get_temperature_selector(hass=hass, min_value=5, max_value=35),
             vol.Optional(
                 CONF_MIN_FLOOR_TEMP, default=defaults.get(CONF_MIN_FLOOR_TEMP, 5)
-            ): get_temperature_selector(min_value=5, max_value=35),
+            ): get_temperature_selector(hass=hass, min_value=5, max_value=35),
         }
     )
 
@@ -917,10 +928,11 @@ def get_openings_schema(selected_entities: list[str]):
     return vol.Schema(schema_dict)
 
 
-def get_fan_schema(defaults: dict[str, Any] | None = None):
+def get_fan_schema(hass=None, defaults: dict[str, Any] | None = None):
     """Get fan configuration schema.
 
     Args:
+        hass: HomeAssistant instance for temperature unit detection
         defaults: Optional defaults dict to pre-populate selectors (used by options flow)
 
     Returns:
@@ -953,7 +965,9 @@ def get_fan_schema(defaults: dict[str, Any] | None = None):
             vol.Optional(
                 CONF_FAN_HOT_TOLERANCE,
                 default=defaults.get(CONF_FAN_HOT_TOLERANCE, 0.5),
-            ): get_temperature_selector(min_value=0.0, max_value=10.0, step=0.05),
+            ): get_temperature_selector(
+                hass=hass, min_value=0.0, max_value=10.0, step=0.05
+            ),
             vol.Optional(
                 CONF_FAN_HOT_TOLERANCE_TOGGLE,
                 default=defaults.get(CONF_FAN_HOT_TOLERANCE_TOGGLE, vol.UNDEFINED),
@@ -1014,37 +1028,45 @@ def get_heat_cool_mode_schema():
     )
 
 
-def get_advanced_settings_schema():
+def get_advanced_settings_schema(hass=None):
     """Get advanced settings configuration schema."""
     return vol.Schema(
         {
             vol.Optional(CONF_MIN_TEMP, default=7): get_temperature_selector(
-                min_value=5, max_value=35
+                hass=hass, min_value=5, max_value=35
             ),
             vol.Optional(CONF_MAX_TEMP, default=35): get_temperature_selector(
-                min_value=5, max_value=50
+                hass=hass, min_value=5, max_value=50
             ),
             vol.Optional(CONF_TARGET_TEMP, default=20): get_temperature_selector(
-                min_value=5, max_value=35
+                hass=hass, min_value=5, max_value=35
             ),
             vol.Optional(CONF_TARGET_TEMP_HIGH, default=26): get_temperature_selector(
-                min_value=5, max_value=35
+                hass=hass, min_value=5, max_value=35
             ),
             vol.Optional(CONF_TARGET_TEMP_LOW, default=21): get_temperature_selector(
-                min_value=5, max_value=35
+                hass=hass, min_value=5, max_value=35
             ),
             vol.Optional(
                 CONF_COLD_TOLERANCE, default=DEFAULT_TOLERANCE
-            ): get_temperature_selector(min_value=0, max_value=10, step=0.05),
+            ): get_temperature_selector(
+                hass=hass, min_value=0, max_value=10, step=0.05
+            ),
             vol.Optional(
                 CONF_HOT_TOLERANCE, default=DEFAULT_TOLERANCE
-            ): get_temperature_selector(min_value=0, max_value=10, step=0.05),
+            ): get_temperature_selector(
+                hass=hass, min_value=0, max_value=10, step=0.05
+            ),
             vol.Optional(
                 CONF_HEAT_TOLERANCE, default=DEFAULT_TOLERANCE
-            ): get_temperature_selector(min_value=0, max_value=5.0, step=0.05),
+            ): get_temperature_selector(
+                hass=hass, min_value=0, max_value=5.0, step=0.05
+            ),
             vol.Optional(
                 CONF_COOL_TOLERANCE, default=DEFAULT_TOLERANCE
-            ): get_temperature_selector(min_value=0, max_value=5.0, step=0.05),
+            ): get_temperature_selector(
+                hass=hass, min_value=0, max_value=5.0, step=0.05
+            ),
             # Convert seconds to duration dict format for DurationSelector
             vol.Optional(
                 CONF_MIN_DUR, default=seconds_to_duration(300)

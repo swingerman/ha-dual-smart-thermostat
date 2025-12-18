@@ -325,7 +325,7 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
         # Pass collected_config as defaults to prepopulate form with current values
         if system_type == SystemType.SIMPLE_HEATER:
             schema = get_simple_heater_schema(
-                defaults=self.collected_config, include_name=True
+                hass=self.hass, defaults=self.collected_config, include_name=True
             )
         else:
             schema = __import__(
@@ -360,7 +360,9 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
 
         # Use AC-only specific schema with dedicated translations
         # Pass collected_config as defaults to prepopulate form with current values
-        schema = get_basic_ac_schema(defaults=self.collected_config, include_name=True)
+        schema = get_basic_ac_schema(
+            hass=self.hass, defaults=self.collected_config, include_name=True
+        )
 
         return self.async_show_form(
             step_id="basic_ac_only", data_schema=schema, errors=errors
@@ -435,7 +437,7 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
         # Use dedicated heater+cooler schema with advanced settings in collapsible section
         # Pass collected_config as defaults to prepopulate form with current values
         schema = get_heater_cooler_schema(
-            defaults=self.collected_config, include_name=True
+            hass=self.hass, defaults=self.collected_config, include_name=True
         )
 
         return self.async_show_form(
@@ -469,7 +471,9 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
 
         # Use dedicated heat pump schema with advanced settings in collapsible section
         # Pass collected_config as defaults to prepopulate form with current values
-        schema = get_heat_pump_schema(defaults=self.collected_config, include_name=True)
+        schema = get_heat_pump_schema(
+            hass=self.hass, defaults=self.collected_config, include_name=True
+        )
 
         return self.async_show_form(
             step_id="heat_pump",
@@ -615,7 +619,7 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(
             step_id="fan",
-            data_schema=get_fan_schema(),
+            data_schema=get_fan_schema(hass=self.hass),
         )
 
     async def async_step_humidity(
