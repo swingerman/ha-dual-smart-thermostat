@@ -10,7 +10,6 @@ from homeassistant.const import (
     SERVICE_OPEN_VALVE,
     SERVICE_TURN_OFF,
     SERVICE_TURN_ON,
-    STATE_OFF,
     STATE_ON,
     STATE_UNAVAILABLE,
     STATE_UNKNOWN,
@@ -283,9 +282,12 @@ class GenericHVACDevice(
             "%s. Turning on entity %s", self.__class__.__name__, self.entity_id
         )
 
-        # Skip service call if entity is unavailable or already in desired state
+        # Skip service call only if entity is unavailable
         # This prevents blocking calls during startup when entities may be unavailable
         # Fixes issue #499 where thermostats became unavailable after restart
+        # Note: We intentionally allow calls when entity is already ON because:
+        # 1. Keep-alive functionality needs to send periodic turn_on calls
+        # 2. Some integrations need the service call to maintain connection
         if self.entity_id is not None:
             entity_state = self.hass.states.get(self.entity_id)
             if entity_state is None or entity_state.state in (
@@ -295,9 +297,6 @@ class GenericHVACDevice(
                 _LOGGER.debug(
                     "Skipping turn_on for unavailable entity %s", self.entity_id
                 )
-                return
-            if entity_state.state == STATE_ON:
-                _LOGGER.debug("Entity %s already on, skipping turn_on", self.entity_id)
                 return
 
         try:
@@ -317,7 +316,7 @@ class GenericHVACDevice(
             "%s. Turning off entity %s", self.__class__.__name__, self.entity_id
         )
 
-        # Skip service call if entity is unavailable or already in desired state
+        # Skip service call only if entity is unavailable
         # This prevents blocking calls during startup when entities may be unavailable
         # Fixes issue #499 where thermostats became unavailable after restart
         if self.entity_id is not None:
@@ -328,11 +327,6 @@ class GenericHVACDevice(
             ):
                 _LOGGER.debug(
                     "Skipping turn_off for unavailable entity %s", self.entity_id
-                )
-                return
-            if entity_state.state == STATE_OFF:
-                _LOGGER.debug(
-                    "Entity %s already off, skipping turn_off", self.entity_id
                 )
                 return
 
