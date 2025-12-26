@@ -701,3 +701,7 @@ This repository supports **two development approaches**:
 - Use **DevContainer** for daily development with VS Code
 - Both can be used together for different tasks
 - The core config registry is actually stored at config/.storage/core.config_entries. Useful to test/debug config flow issues
+
+## Releases
+
+While writing releases, focus on user value and key changes. Avoid technical jargon unless necessary.

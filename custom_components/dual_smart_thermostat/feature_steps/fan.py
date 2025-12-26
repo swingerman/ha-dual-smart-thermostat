@@ -62,7 +62,7 @@ class FanSteps:
         _LOGGER.debug("Fan config - Showing form with no defaults (new config)")
         return flow_instance.async_show_form(
             step_id="fan",
-            data_schema=get_fan_schema(),
+            data_schema=get_fan_schema(hass=flow_instance.hass),
         )
 
     async def async_step_options(
@@ -102,5 +102,7 @@ class FanSteps:
         )
         return flow_instance.async_show_form(
             step_id="fan_options",
-            data_schema=get_fan_schema(defaults=current_config),
+            data_schema=get_fan_schema(
+                hass=flow_instance.hass, defaults=current_config
+            ),
         )
