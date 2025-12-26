@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
 import json
 import logging
 from pathlib import Path
@@ -198,6 +199,7 @@ def get_base_schema():
 
 
 def get_tolerance_fields(
+    hass=None,
     defaults: dict[str, Any] | None = None,
     include_heat_cool_tolerance: bool = False,
 ) -> dict[Any, Any]:
@@ -208,6 +210,7 @@ def get_tolerance_fields(
     sections so users can see the default values.
 
     Args:
+        hass: HomeAssistant instance for temperature unit detection
         defaults: Optional dict with default values to pre-fill the form
         include_heat_cool_tolerance: Whether to include heat/cool tolerance fields
             (True for heater_cooler and heat_pump, False for ac_only and simple_heater)
@@ -223,11 +226,11 @@ def get_tolerance_fields(
     hot_tol_value = defaults.get(CONF_HOT_TOLERANCE, DEFAULT_TOLERANCE)
 
     schema_dict[vol.Optional(CONF_COLD_TOLERANCE, default=cold_tol_value)] = (
-        get_temperature_selector(min_value=0.05, max_value=10, step=0.05)
+        get_temperature_selector(hass=hass, min_value=0, max_value=10, step=0.05)
     )
 
     schema_dict[vol.Optional(CONF_HOT_TOLERANCE, default=hot_tol_value)] = (
-        get_temperature_selector(min_value=0.05, max_value=10, step=0.05)
+        get_temperature_selector(hass=hass, min_value=0, max_value=10, step=0.05)
     )
 
     # Heat/Cool tolerance fields (only for heater_cooler and heat_pump)
@@ -241,14 +244,14 @@ def get_tolerance_fields(
                 CONF_HEAT_TOLERANCE,
                 default=heat_tol_value if heat_tol_value is not None else vol.UNDEFINED,
             )
-        ] = get_temperature_selector(min_value=0.05, max_value=5.0, step=0.05)
+        ] = get_temperature_selector(hass=hass, min_value=0, max_value=5.0, step=0.05)
 
         schema_dict[
             vol.Optional(
                 CONF_COOL_TOLERANCE,
                 default=cool_tol_value if cool_tol_value is not None else vol.UNDEFINED,
             )
-        ] = get_temperature_selector(min_value=0.05, max_value=5.0, step=0.05)
+        ] = get_temperature_selector(hass=hass, min_value=0, max_value=5.0, step=0.05)
 
     return schema_dict
 
@@ -274,15 +277,30 @@ def get_timing_fields_for_section(
     schema_dict = {}
 
     # Convert seconds to duration dict format for DurationSelector
+    # Handle both integer (seconds) and dict (already in duration format) values
     min_dur_value = defaults.get(CONF_MIN_DUR, 300)
-    min_dur_default = seconds_to_duration(min_dur_value)
+    if isinstance(min_dur_value, dict):
+        # Already in duration format (from storage deserialization)
+        min_dur_default = min_dur_value
+    else:
+        # Convert from seconds or timedelta to duration dict
+        if isinstance(min_dur_value, timedelta):
+            min_dur_value = int(min_dur_value.total_seconds())
+        min_dur_default = seconds_to_duration(min_dur_value)
     schema_dict[vol.Optional(CONF_MIN_DUR, default=min_dur_default)] = (
         get_time_selector(min_value=0, max_value=3600)
     )
 
     if include_keep_alive:
         keep_alive_value = defaults.get(CONF_KEEP_ALIVE, 300)
-        keep_alive_default = seconds_to_duration(keep_alive_value)
+        if isinstance(keep_alive_value, dict):
+            # Already in duration format (from storage deserialization)
+            keep_alive_default = keep_alive_value
+        else:
+            # Convert from seconds or timedelta to duration dict
+            if isinstance(keep_alive_value, timedelta):
+                keep_alive_value = int(keep_alive_value.total_seconds())
+            keep_alive_default = seconds_to_duration(keep_alive_value)
         schema_dict[vol.Optional(CONF_KEEP_ALIVE, default=keep_alive_default)] = (
             get_time_selector(min_value=0, max_value=3600)
         )
@@ -290,7 +308,7 @@ def get_timing_fields_for_section(
     return schema_dict
 
 
-def get_basic_ac_schema(defaults=None, include_name=True):
+def get_basic_ac_schema(hass=None, defaults=None, include_name=True):
     """Get AC-only configuration schema with advanced settings in collapsible section."""
     defaults = defaults or {}
     core_schema = {}
@@ -318,11 +336,13 @@ def get_basic_ac_schema(defaults=None, include_name=True):
             CONF_HEATER,
             default=defaults.get(CONF_HEATER) if defaults else vol.UNDEFINED,
         )
-    ] = get_entity_selector(SWITCH_DOMAIN)
+    ] = get_entity_selector([SWITCH_DOMAIN, INPUT_BOOLEAN_DOMAIN])
 
     # Tolerance fields OUTSIDE section (so defaults are pre-filled in UI)
     core_schema.update(
-        get_tolerance_fields(defaults=defaults, include_heat_cool_tolerance=False)
+        get_tolerance_fields(
+            hass=hass, defaults=defaults, include_heat_cool_tolerance=False
+        )
     )
 
     # Timing fields in collapsible section (less commonly changed)
@@ -337,7 +357,7 @@ def get_basic_ac_schema(defaults=None, include_name=True):
     return vol.Schema(core_schema)
 
 
-def get_simple_heater_schema(defaults=None, include_name=True):
+def get_simple_heater_schema(hass=None, defaults=None, include_name=True):
     """Get simple heater configuration schema with advanced settings in collapsible section."""
     defaults = defaults or {}
     core_schema = {}
@@ -365,11 +385,13 @@ def get_simple_heater_schema(defaults=None, include_name=True):
             CONF_HEATER,
             default=defaults.get(CONF_HEATER) if defaults else vol.UNDEFINED,
         )
-    ] = get_entity_selector(SWITCH_DOMAIN)
+    ] = get_entity_selector([SWITCH_DOMAIN, INPUT_BOOLEAN_DOMAIN])
 
     # Tolerance fields OUTSIDE section (so defaults are pre-filled in UI)
     core_schema.update(
-        get_tolerance_fields(defaults=defaults, include_heat_cool_tolerance=False)
+        get_tolerance_fields(
+            hass=hass, defaults=defaults, include_heat_cool_tolerance=False
+        )
     )
 
     # Timing fields in collapsible section (less commonly changed)
@@ -385,7 +407,7 @@ def get_simple_heater_schema(defaults=None, include_name=True):
     return vol.Schema(core_schema)
 
 
-def get_heater_cooler_schema(defaults=None, include_name=True):
+def get_heater_cooler_schema(hass=None, defaults=None, include_name=True):
     """Get heater + cooler configuration schema with advanced settings in collapsible section."""
     defaults = defaults or {}
     core_schema = {}
@@ -413,7 +435,7 @@ def get_heater_cooler_schema(defaults=None, include_name=True):
             CONF_HEATER,
             default=defaults.get(CONF_HEATER) if defaults else vol.UNDEFINED,
         )
-    ] = get_entity_selector(SWITCH_DOMAIN)
+    ] = get_entity_selector([SWITCH_DOMAIN, INPUT_BOOLEAN_DOMAIN])
 
     # Cooler switch
     core_schema[
@@ -421,7 +443,7 @@ def get_heater_cooler_schema(defaults=None, include_name=True):
             CONF_COOLER,
             default=defaults.get(CONF_COOLER) if defaults else vol.UNDEFINED,
         )
-    ] = get_entity_selector(SWITCH_DOMAIN)
+    ] = get_entity_selector([SWITCH_DOMAIN, INPUT_BOOLEAN_DOMAIN])
 
     # Heat/Cool mode toggle
     core_schema[
@@ -434,7 +456,9 @@ def get_heater_cooler_schema(defaults=None, include_name=True):
     # Tolerance fields OUTSIDE section (so defaults are pre-filled in UI)
     # Heater+cooler includes heat/cool tolerance overrides
     core_schema.update(
-        get_tolerance_fields(defaults=defaults, include_heat_cool_tolerance=True)
+        get_tolerance_fields(
+            hass=hass, defaults=defaults, include_heat_cool_tolerance=True
+        )
     )
 
     # Timing fields in collapsible section (less commonly changed)
@@ -450,7 +474,7 @@ def get_heater_cooler_schema(defaults=None, include_name=True):
     return vol.Schema(core_schema)
 
 
-def get_heat_pump_schema(defaults=None, include_name=True):
+def get_heat_pump_schema(hass=None, defaults=None, include_name=True):
     """Get heat pump configuration schema with advanced settings in collapsible section.
 
     Heat pump uses a single heater switch for both heating and cooling modes.
@@ -459,6 +483,7 @@ def get_heat_pump_schema(defaults=None, include_name=True):
     This allows the system to dynamically check if cooling is available.
 
     Args:
+        hass: HomeAssistant instance for temperature unit detection
         defaults: Optional dict with default values to pre-fill the form
         include_name: Whether to include the name field (True for config flow, False for options flow)
 
@@ -491,7 +516,7 @@ def get_heat_pump_schema(defaults=None, include_name=True):
             CONF_HEATER,
             default=defaults.get(CONF_HEATER) if defaults else vol.UNDEFINED,
         )
-    ] = get_entity_selector(SWITCH_DOMAIN)
+    ] = get_entity_selector([SWITCH_DOMAIN, INPUT_BOOLEAN_DOMAIN])
 
     # Heat pump cooling mode sensor - entity_id of a sensor that indicates cooling state
     # The sensor's state should be 'on' (cooling) or 'off' (heating)
@@ -507,7 +532,9 @@ def get_heat_pump_schema(defaults=None, include_name=True):
     # Tolerance fields OUTSIDE section (so defaults are pre-filled in UI)
     # Heat pump includes heat/cool tolerance overrides
     core_schema.update(
-        get_tolerance_fields(defaults=defaults, include_heat_cool_tolerance=True)
+        get_tolerance_fields(
+            hass=hass, defaults=defaults, include_heat_cool_tolerance=True
+        )
     )
 
     # Timing fields in collapsible section (less commonly changed)
@@ -539,16 +566,24 @@ def get_grouped_schema(
 
     # Core entities based on system type
     if show_heater:
-        schema_dict[vol.Required(CONF_HEATER)] = get_entity_selector(SWITCH_DOMAIN)
+        schema_dict[vol.Required(CONF_HEATER)] = get_entity_selector(
+            [SWITCH_DOMAIN, INPUT_BOOLEAN_DOMAIN]
+        )
 
     if show_cooler:
-        schema_dict[vol.Required(CONF_COOLER)] = get_entity_selector(SWITCH_DOMAIN)
+        schema_dict[vol.Required(CONF_COOLER)] = get_entity_selector(
+            [SWITCH_DOMAIN, INPUT_BOOLEAN_DOMAIN]
+        )
 
     if show_aux_heater:
-        schema_dict[vol.Optional(CONF_AUX_HEATER)] = get_entity_selector(SWITCH_DOMAIN)
+        schema_dict[vol.Optional(CONF_AUX_HEATER)] = get_entity_selector(
+            [SWITCH_DOMAIN, INPUT_BOOLEAN_DOMAIN]
+        )
 
     if show_dryer:
-        schema_dict[vol.Required(CONF_DRYER)] = get_entity_selector(SWITCH_DOMAIN)
+        schema_dict[vol.Required(CONF_DRYER)] = get_entity_selector(
+            [SWITCH_DOMAIN, INPUT_BOOLEAN_DOMAIN]
+        )
 
     # Special modes
     if show_dual_stage:
@@ -572,20 +607,36 @@ def get_grouped_schema(
 
 def get_heating_schema():
     """Get heating-specific configuration schema."""
-    return vol.Schema({vol.Required(CONF_HEATER): get_entity_selector(SWITCH_DOMAIN)})
+    return vol.Schema(
+        {
+            vol.Required(CONF_HEATER): get_entity_selector(
+                [SWITCH_DOMAIN, INPUT_BOOLEAN_DOMAIN]
+            )
+        }
+    )
 
 
 def get_cooling_schema():
     """Get cooling-specific configuration schema."""
-    return vol.Schema({vol.Required(CONF_COOLER): get_entity_selector(SWITCH_DOMAIN)})
+    return vol.Schema(
+        {
+            vol.Required(CONF_COOLER): get_entity_selector(
+                [SWITCH_DOMAIN, INPUT_BOOLEAN_DOMAIN]
+            )
+        }
+    )
 
 
 def get_dual_stage_schema():
     """Get dual stage heating configuration schema."""
     return vol.Schema(
         {
-            vol.Required(CONF_HEATER): get_entity_selector(SWITCH_DOMAIN),
-            vol.Optional(CONF_AUX_HEATER): get_entity_selector(SWITCH_DOMAIN),
+            vol.Required(CONF_HEATER): get_entity_selector(
+                [SWITCH_DOMAIN, INPUT_BOOLEAN_DOMAIN]
+            ),
+            vol.Optional(CONF_AUX_HEATER): get_entity_selector(
+                [SWITCH_DOMAIN, INPUT_BOOLEAN_DOMAIN]
+            ),
             vol.Optional(
                 CONF_AUX_HEATING_DUAL_MODE, default=False
             ): get_boolean_selector(),
@@ -596,7 +647,7 @@ def get_dual_stage_schema():
     )
 
 
-def get_floor_heating_schema(defaults: dict[str, Any] | None = None):
+def get_floor_heating_schema(hass=None, defaults: dict[str, Any] | None = None):
     """Get floor heating configuration schema.
 
     Accepts an optional `defaults` mapping to pre-populate selectors (used by
@@ -610,10 +661,10 @@ def get_floor_heating_schema(defaults: dict[str, Any] | None = None):
             ): get_entity_selector(SENSOR_DOMAIN),
             vol.Optional(
                 CONF_MAX_FLOOR_TEMP, default=defaults.get(CONF_MAX_FLOOR_TEMP, 28)
-            ): get_temperature_selector(min_value=5, max_value=35),
+            ): get_temperature_selector(hass=hass, min_value=5, max_value=35),
             vol.Optional(
                 CONF_MIN_FLOOR_TEMP, default=defaults.get(CONF_MIN_FLOOR_TEMP, 5)
-            ): get_temperature_selector(min_value=5, max_value=35),
+            ): get_temperature_selector(hass=hass, min_value=5, max_value=35),
         }
     )
 
@@ -759,18 +810,18 @@ def get_core_schema(
                 CONF_HEATER,
                 default=defaults.get(CONF_HEATER) or defaults.get(CONF_COOLER),
             )
-        ] = get_entity_selector(SWITCH_DOMAIN)
+        ] = get_entity_selector([SWITCH_DOMAIN, INPUT_BOOLEAN_DOMAIN])
     else:
         # Heater is required unless system explicitly hides it
         schema_dict[vol.Required(CONF_HEATER, default=defaults.get(CONF_HEATER))] = (
-            get_entity_selector(SWITCH_DOMAIN)
+            get_entity_selector([SWITCH_DOMAIN, INPUT_BOOLEAN_DOMAIN])
         )
 
         # Show cooler for systems that have separate cooler
         if system_type == "heater_cooler":
             schema_dict[
                 vol.Optional(CONF_COOLER, default=defaults.get(CONF_COOLER))
-            ] = get_entity_selector(SWITCH_DOMAIN)
+            ] = get_entity_selector([SWITCH_DOMAIN, INPUT_BOOLEAN_DOMAIN])
 
             # Expose heat/cool mode toggle when using the core schema for
             # heater+cooler combinations so the options flow (which often
@@ -877,10 +928,11 @@ def get_openings_schema(selected_entities: list[str]):
     return vol.Schema(schema_dict)
 
 
-def get_fan_schema(defaults: dict[str, Any] | None = None):
+def get_fan_schema(hass=None, defaults: dict[str, Any] | None = None):
     """Get fan configuration schema.
 
     Args:
+        hass: HomeAssistant instance for temperature unit detection
         defaults: Optional defaults dict to pre-populate selectors (used by options flow)
 
     Returns:
@@ -899,7 +951,7 @@ def get_fan_schema(defaults: dict[str, Any] | None = None):
     return vol.Schema(
         {
             vol.Required(CONF_FAN, default=defaults.get(CONF_FAN)): get_entity_selector(
-                SWITCH_DOMAIN
+                [SWITCH_DOMAIN, INPUT_BOOLEAN_DOMAIN]
             ),
             vol.Optional(
                 CONF_FAN_MODE, default=defaults.get(CONF_FAN_MODE, False)
@@ -913,7 +965,9 @@ def get_fan_schema(defaults: dict[str, Any] | None = None):
             vol.Optional(
                 CONF_FAN_HOT_TOLERANCE,
                 default=defaults.get(CONF_FAN_HOT_TOLERANCE, 0.5),
-            ): get_temperature_selector(min_value=0.0, max_value=10.0, step=0.05),
+            ): get_temperature_selector(
+                hass=hass, min_value=0.0, max_value=10.0, step=0.05
+            ),
             vol.Optional(
                 CONF_FAN_HOT_TOLERANCE_TOGGLE,
                 default=defaults.get(CONF_FAN_HOT_TOLERANCE_TOGGLE, vol.UNDEFINED),
@@ -940,7 +994,7 @@ def get_humidity_schema(defaults: dict[str, Any] | None = None):
             ): get_entity_selector(SENSOR_DOMAIN),
             vol.Optional(
                 CONF_DRYER, default=defaults.get(CONF_DRYER)
-            ): get_entity_selector(SWITCH_DOMAIN),
+            ): get_entity_selector([SWITCH_DOMAIN, INPUT_BOOLEAN_DOMAIN]),
             vol.Optional(
                 CONF_TARGET_HUMIDITY, default=defaults.get(CONF_TARGET_HUMIDITY, 50)
             ): get_percentage_selector(),
@@ -974,37 +1028,45 @@ def get_heat_cool_mode_schema():
     )
 
 
-def get_advanced_settings_schema():
+def get_advanced_settings_schema(hass=None):
     """Get advanced settings configuration schema."""
     return vol.Schema(
         {
             vol.Optional(CONF_MIN_TEMP, default=7): get_temperature_selector(
-                min_value=5, max_value=35
+                hass=hass, min_value=5, max_value=35
             ),
             vol.Optional(CONF_MAX_TEMP, default=35): get_temperature_selector(
-                min_value=5, max_value=50
+                hass=hass, min_value=5, max_value=50
             ),
             vol.Optional(CONF_TARGET_TEMP, default=20): get_temperature_selector(
-                min_value=5, max_value=35
+                hass=hass, min_value=5, max_value=35
             ),
             vol.Optional(CONF_TARGET_TEMP_HIGH, default=26): get_temperature_selector(
-                min_value=5, max_value=35
+                hass=hass, min_value=5, max_value=35
             ),
             vol.Optional(CONF_TARGET_TEMP_LOW, default=21): get_temperature_selector(
-                min_value=5, max_value=35
+                hass=hass, min_value=5, max_value=35
             ),
             vol.Optional(
                 CONF_COLD_TOLERANCE, default=DEFAULT_TOLERANCE
-            ): get_temperature_selector(min_value=0.05, max_value=10, step=0.05),
+            ): get_temperature_selector(
+                hass=hass, min_value=0, max_value=10, step=0.05
+            ),
             vol.Optional(
                 CONF_HOT_TOLERANCE, default=DEFAULT_TOLERANCE
-            ): get_temperature_selector(min_value=0.05, max_value=10, step=0.05),
+            ): get_temperature_selector(
+                hass=hass, min_value=0, max_value=10, step=0.05
+            ),
             vol.Optional(
                 CONF_HEAT_TOLERANCE, default=DEFAULT_TOLERANCE
-            ): get_temperature_selector(min_value=0.05, max_value=5.0, step=0.05),
+            ): get_temperature_selector(
+                hass=hass, min_value=0, max_value=5.0, step=0.05
+            ),
             vol.Optional(
                 CONF_COOL_TOLERANCE, default=DEFAULT_TOLERANCE
-            ): get_temperature_selector(min_value=0.05, max_value=5.0, step=0.05),
+            ): get_temperature_selector(
+                hass=hass, min_value=0, max_value=5.0, step=0.05
+            ),
             # Convert seconds to duration dict format for DurationSelector
             vol.Optional(
                 CONF_MIN_DUR, default=seconds_to_duration(300)
@@ -1080,10 +1142,11 @@ def get_preset_selection_schema(defaults: list[str] | None = None):
         labels = {}
 
     options = []
-    for k, _v in CONF_PRESETS.items():
-        # Use translation label if available, fall back to a title-cased key
-        label = labels.get(k, k.replace("_", " ").title())
-        options.append({"value": k, "label": label})
+    for display_name, config_key in CONF_PRESETS.items():
+        # Use translation label if available, fall back to a title-cased display name
+        label = labels.get(display_name, display_name.replace("_", " ").title())
+        # Use config_key as value (e.g., "anti_freeze") so defaults matching works correctly
+        options.append({"value": config_key, "label": label})
 
     return vol.Schema(
         {
@@ -1139,59 +1202,67 @@ def get_presets_schema(user_input: dict[str, Any]) -> vol.Schema:
         heat_cool_enabled = False
 
     for preset in selected_presets:
+        # Handle both display names (keys) and config keys (values) from CONF_PRESETS
+        # The multi-select now returns config keys, but old code may still use display names
         if preset in CONF_PRESETS:
-            # Get the normalized preset name (lowercase with underscores)
-            # e.g., "Anti Freeze" -> "anti_freeze", "Home" -> "home"
+            # preset is a display name (e.g., "Anti Freeze")
+            # Get the normalized config key (e.g., "anti_freeze")
             preset_key = CONF_PRESETS[preset]
+        elif preset in CONF_PRESETS.values():
+            # preset is already a config key (e.g., "anti_freeze")
+            preset_key = preset
+        else:
+            # Unknown preset, skip it
+            continue
 
-            # When heat_cool_mode is enabled, render dual fields (low/high)
-            if heat_cool_enabled:
-                # Use TextSelector to accept both numbers and template strings
-                # Note: Validation happens in the flow handler, not in schema
-                # Defaults must be strings to match TextSelector type
-                # Extract existing values from user_input, or use fallback defaults
-                existing_temp_low = user_input.get(f"{preset_key}_temp_low", "20")
-                existing_temp_high = user_input.get(f"{preset_key}_temp_high", "24")
-                # Ensure defaults are strings
-                if not isinstance(existing_temp_low, str):
-                    existing_temp_low = str(existing_temp_low)
-                if not isinstance(existing_temp_high, str):
-                    existing_temp_high = str(existing_temp_high)
+        # When heat_cool_mode is enabled, render dual fields (low/high)
+        if heat_cool_enabled:
+            # Use TextSelector to accept both numbers and template strings
+            # Note: Validation happens in the flow handler, not in schema
+            # Defaults must be strings to match TextSelector type
+            # Extract existing values from user_input, or use fallback defaults
+            existing_temp_low = user_input.get(f"{preset_key}_temp_low", "20")
+            existing_temp_high = user_input.get(f"{preset_key}_temp_high", "24")
+            # Ensure defaults are strings
+            if not isinstance(existing_temp_low, str):
+                existing_temp_low = str(existing_temp_low)
+            if not isinstance(existing_temp_high, str):
+                existing_temp_high = str(existing_temp_high)
 
-                schema_dict[
-                    vol.Optional(f"{preset_key}_temp_low", default=existing_temp_low)
-                ] = selector.TextSelector(
+            schema_dict[
+                vol.Optional(f"{preset_key}_temp_low", default=existing_temp_low)
+            ] = selector.TextSelector(
+                selector.TextSelectorConfig(
+                    multiline=False,
+                    type=selector.TextSelectorType.TEXT,
+                )
+            )
+            schema_dict[
+                vol.Optional(f"{preset_key}_temp_high", default=existing_temp_high)
+            ] = selector.TextSelector(
+                selector.TextSelectorConfig(
+                    multiline=False,
+                    type=selector.TextSelectorType.TEXT,
+                )
+            )
+        else:
+            # Backwards compatible single-temp field
+            # Use TextSelector to accept both numbers and template strings
+            # Note: Validation happens in the flow handler, not in schema
+            # Defaults must be strings to match TextSelector type
+            # Extract existing value from user_input, or use fallback default
+            existing_temp = user_input.get(f"{preset_key}_temp", "20")
+            # Ensure default is a string
+            if not isinstance(existing_temp, str):
+                existing_temp = str(existing_temp)
+
+            schema_dict[vol.Optional(f"{preset_key}_temp", default=existing_temp)] = (
+                selector.TextSelector(
                     selector.TextSelectorConfig(
                         multiline=False,
                         type=selector.TextSelectorType.TEXT,
                     )
                 )
-                schema_dict[
-                    vol.Optional(f"{preset_key}_temp_high", default=existing_temp_high)
-                ] = selector.TextSelector(
-                    selector.TextSelectorConfig(
-                        multiline=False,
-                        type=selector.TextSelectorType.TEXT,
-                    )
-                )
-            else:
-                # Backwards compatible single-temp field
-                # Use TextSelector to accept both numbers and template strings
-                # Note: Validation happens in the flow handler, not in schema
-                # Defaults must be strings to match TextSelector type
-                # Extract existing value from user_input, or use fallback default
-                existing_temp = user_input.get(f"{preset_key}_temp", "20")
-                # Ensure default is a string
-                if not isinstance(existing_temp, str):
-                    existing_temp = str(existing_temp)
-
-                schema_dict[
-                    vol.Optional(f"{preset_key}_temp", default=existing_temp)
-                ] = selector.TextSelector(
-                    selector.TextSelectorConfig(
-                        multiline=False,
-                        type=selector.TextSelectorType.TEXT,
-                    )
-                )
+            )
 
     return vol.Schema(schema_dict)

@@ -94,9 +94,16 @@ class HeaterCoolerDevice(MultiHvacDevice):
             # Turn off when temperature reaches target_temp_low (without adding tolerance)
             too_cold = self.environment.is_too_cold("_target_temp_low")
             # Check if target reached: cur_temp >= target_temp_low
-            target_reached = (
-                self.environment.cur_temp >= self.environment.target_temp_low
-            )
+            # Guard against None values during startup (issue #499)
+            if (
+                self.environment.cur_temp is None
+                or self.environment.target_temp_low is None
+            ):
+                target_reached = False
+            else:
+                target_reached = (
+                    self.environment.cur_temp >= self.environment.target_temp_low
+                )
             too_hot = target_reached
             tolerance_device = ToleranceDevice.HEATER
             _LOGGER.debug(
@@ -110,9 +117,16 @@ class HeaterCoolerDevice(MultiHvacDevice):
             # Turn off when temperature reaches target_temp_high (without subtracting tolerance)
             too_hot = self.environment.is_too_hot("_target_temp_high")
             # Check if target reached: cur_temp <= target_temp_high
-            target_reached = (
-                self.environment.cur_temp <= self.environment.target_temp_high
-            )
+            # Guard against None values during startup (issue #499)
+            if (
+                self.environment.cur_temp is None
+                or self.environment.target_temp_high is None
+            ):
+                target_reached = False
+            else:
+                target_reached = (
+                    self.environment.cur_temp <= self.environment.target_temp_high
+                )
             too_cold = target_reached
             tolerance_device = ToleranceDevice.COOLER
             _LOGGER.debug(
