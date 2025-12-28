@@ -464,7 +464,7 @@ class EnvironmentManager(StateManager):
             self._cur_temp,
             cold_tolerance,
         )
-        return target_temp >= self._cur_temp + cold_tolerance
+        return self._cur_temp <= target_temp - cold_tolerance
 
     def is_too_hot(self, target_attr="_target_temp") -> bool:
         """Checks if the current temperature is above target."""
