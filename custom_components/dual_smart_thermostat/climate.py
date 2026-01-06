@@ -593,8 +593,6 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self._template_listeners: list[Callable[[], None]] = []
         self._active_preset_entities: set[str] = set()
 
-        _LOGGER.name = __name__ + "." + self.unique_id if self.unique_id else __name__
-
     async def _setup_template_listeners(self) -> None:
         """Set up listeners for entities referenced in active preset templates."""
         # Remove existing listeners first
@@ -1136,16 +1134,18 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self, hvac_mode: HVACMode, is_restore: bool = False
     ) -> None:
         """Call climate mode based on current mode."""
-        _LOGGER.info("Setting hvac mode: %s", hvac_mode)
+        _LOGGER.info("%s: Setting hvac mode: %s", self.entity_id, hvac_mode)
 
         if hvac_mode not in self.hvac_modes:
-            _LOGGER.debug("Unrecognized hvac mode: %s", hvac_mode)
+            _LOGGER.debug("%s: Unrecognized hvac mode: %s", self.entity_id, hvac_mode)
             return
 
         if hvac_mode == HVACMode.OFF:
             self._last_hvac_mode = self.hvac_device.hvac_mode
             _LOGGER.info(
-                "Turning off with saving last hvac mode: %s", self._last_hvac_mode
+                "%s: Turning off with saving last hvac mode: %s",
+                self.entity_id,
+                self._last_hvac_mode,
             )
 
         self._hvac_mode = hvac_mode
