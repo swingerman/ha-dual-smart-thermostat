@@ -91,49 +91,29 @@ class HeaterCoolerDevice(MultiHvacDevice):
 
         if self.heater_device.is_active:
             # Heater is ON: check if we should turn it off
-            # Turn off when temperature reaches target_temp_low (without adding tolerance)
+            # Turn off when temperature reaches target + hot_tolerance (issue #518)
             too_cold = self.environment.is_too_cold("_target_temp_low")
-            # Check if target reached: cur_temp >= target_temp_low
-            # Guard against None values during startup (issue #499)
-            if (
-                self.environment.cur_temp is None
-                or self.environment.target_temp_low is None
-            ):
-                target_reached = False
-            else:
-                target_reached = (
-                    self.environment.cur_temp >= self.environment.target_temp_low
-                )
-            too_hot = target_reached
+            too_hot = self.environment.is_too_hot("_target_temp_low")
             tolerance_device = ToleranceDevice.HEATER
             _LOGGER.debug(
-                "Heater active - cur_temp: %s, target_low: %s, target_reached: %s",
+                "Heater active - cur_temp: %s, target_low: %s, too_cold: %s, too_hot: %s",
                 self.environment.cur_temp,
                 self.environment.target_temp_low,
-                target_reached,
+                too_cold,
+                too_hot,
             )
         elif self.cooler_device.is_active:
             # Cooler is ON: check if we should turn it off
-            # Turn off when temperature reaches target_temp_high (without subtracting tolerance)
+            # Turn off when temperature reaches target - cold_tolerance (issue #518)
             too_hot = self.environment.is_too_hot("_target_temp_high")
-            # Check if target reached: cur_temp <= target_temp_high
-            # Guard against None values during startup (issue #499)
-            if (
-                self.environment.cur_temp is None
-                or self.environment.target_temp_high is None
-            ):
-                target_reached = False
-            else:
-                target_reached = (
-                    self.environment.cur_temp <= self.environment.target_temp_high
-                )
-            too_cold = target_reached
+            too_cold = self.environment.is_too_cold("_target_temp_high")
             tolerance_device = ToleranceDevice.COOLER
             _LOGGER.debug(
-                "Cooler active - cur_temp: %s, target_high: %s, target_reached: %s",
+                "Cooler active - cur_temp: %s, target_high: %s, too_cold: %s, too_hot: %s",
                 self.environment.cur_temp,
                 self.environment.target_temp_high,
-                target_reached,
+                too_cold,
+                too_hot,
             )
         else:
             # Neither device active: use tolerance to determine which should turn on
