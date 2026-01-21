@@ -92,8 +92,8 @@ class FanDevice(CoolerDevice):
                     "Fan entity %s supports percentage-based speed control",
                     self.entity_id,
                 )
-                # Set initial mode based on percentage
-                self._current_fan_mode = "auto"  # Default
+                # Default to auto mode for percentage-based control
+                self._current_fan_mode = "auto"
                 return
 
         _LOGGER.debug("Fan entity %s does not support speed control", self.entity_id)

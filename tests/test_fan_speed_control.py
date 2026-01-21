@@ -98,6 +98,7 @@ async def test_fan_device_detects_preset_modes(hass: HomeAssistant):
     assert fan_device.supports_fan_mode is True
     assert fan_device.fan_modes == ["auto", "low", "medium", "high"]
     assert fan_device.uses_preset_modes is True
+    assert fan_device.current_fan_mode == "auto"
 
 
 @pytest.mark.asyncio
@@ -147,6 +148,30 @@ async def test_fan_device_switch_no_speed_control(hass: HomeAssistant):
     fan_device = FanDevice(
         hass,
         "switch.test_fan",
+        timedelta(seconds=5),
+        HVACMode.FAN_ONLY,
+        environment,
+        openings,
+        features,
+        hvac_power,
+    )
+
+    assert fan_device.supports_fan_mode is False
+    assert fan_device.fan_modes == []
+
+
+@pytest.mark.asyncio
+async def test_fan_device_missing_entity_no_speed_control(hass: HomeAssistant):
+    """Test that missing entities gracefully fall back to no speed control."""
+    # Don't create any entity - hass.states.get will return None
+    environment = MagicMock(spec=EnvironmentManager)
+    openings = MagicMock(spec=OpeningManager)
+    features = MagicMock(spec=FeatureManager)
+    hvac_power = MagicMock(spec=HvacPowerManager)
+
+    fan_device = FanDevice(
+        hass,
+        "fan.nonexistent",
         timedelta(seconds=5),
         HVACMode.FAN_ONLY,
         environment,
