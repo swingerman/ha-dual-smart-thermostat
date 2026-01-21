@@ -182,3 +182,71 @@ async def test_fan_device_missing_entity_no_speed_control(hass: HomeAssistant):
 
     assert fan_device.supports_fan_mode is False
     assert fan_device.fan_modes == []
+
+
+@pytest.mark.asyncio
+async def test_set_fan_mode_invalid_mode(hass: HomeAssistant):
+    """Test setting an invalid fan mode."""
+    # Setup mock fan entity
+    hass.states.async_set(
+        "fan.test_fan",
+        "on",
+        {
+            "preset_modes": ["auto", "low", "medium", "high"],
+            "preset_mode": "auto",
+        },
+    )
+
+    environment = MagicMock(spec=EnvironmentManager)
+    openings = MagicMock(spec=OpeningManager)
+    features = MagicMock(spec=FeatureManager)
+    hvac_power = MagicMock(spec=HvacPowerManager)
+
+    fan_device = FanDevice(
+        hass,
+        "fan.test_fan",
+        timedelta(seconds=5),
+        HVACMode.FAN_ONLY,
+        environment,
+        openings,
+        features,
+        hvac_power,
+    )
+
+    # Try to set invalid mode
+    await fan_device.async_set_fan_mode("invalid")
+
+    # State should not change
+    assert fan_device.current_fan_mode == "auto"  # Still the initial mode
+
+
+@pytest.mark.asyncio
+async def test_set_fan_mode_unsupported_device(hass: HomeAssistant):
+    """Test setting fan mode on unsupported device (switch)."""
+    # Setup switch entity
+    hass.states.async_set("switch.test_fan", "off")
+
+    environment = MagicMock(spec=EnvironmentManager)
+    openings = MagicMock(spec=OpeningManager)
+    features = MagicMock(spec=FeatureManager)
+    hvac_power = MagicMock(spec=HvacPowerManager)
+
+    fan_device = FanDevice(
+        hass,
+        "switch.test_fan",
+        timedelta(seconds=5),
+        HVACMode.FAN_ONLY,
+        environment,
+        openings,
+        features,
+        hvac_power,
+    )
+
+    # Device should not support fan mode
+    assert fan_device.supports_fan_mode is False
+
+    # Try to set fan mode - should do nothing
+    await fan_device.async_set_fan_mode("low")
+
+    # State should remain None
+    assert fan_device.current_fan_mode is None

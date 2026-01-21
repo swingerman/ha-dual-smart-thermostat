@@ -118,6 +118,52 @@ class FanDevice(CoolerDevice):
         """Return current fan mode."""
         return self._current_fan_mode
 
+    async def async_set_fan_mode(self, fan_mode: str) -> None:
+        """Set the fan speed mode."""
+        if not self._supports_fan_mode:
+            _LOGGER.warning(
+                "Fan entity %s does not support speed control", self.entity_id
+            )
+            return
+
+        if fan_mode not in self._fan_modes:
+            _LOGGER.warning(
+                "Invalid fan mode %s for entity %s. Available modes: %s",
+                fan_mode,
+                self.entity_id,
+                self._fan_modes,
+            )
+            return
+
+        _LOGGER.debug("Setting fan mode to %s for entity %s", fan_mode, self.entity_id)
+
+        if self._uses_preset_modes:
+            # Use preset_mode service
+            await self.hass.services.async_call(
+                "fan",
+                "set_preset_mode",
+                {"entity_id": self.entity_id, "preset_mode": fan_mode},
+                blocking=True,
+            )
+        else:
+            # Use percentage service
+            from ..const import FAN_MODE_TO_PERCENTAGE
+
+            percentage = FAN_MODE_TO_PERCENTAGE.get(fan_mode)
+            if percentage is None:
+                _LOGGER.error("No percentage mapping for fan mode %s", fan_mode)
+                return
+
+            await self.hass.services.async_call(
+                "fan",
+                "set_percentage",
+                {"entity_id": self.entity_id, "percentage": percentage},
+                blocking=True,
+            )
+
+        self._current_fan_mode = fan_mode
+        _LOGGER.info("Fan mode set to %s for entity %s", fan_mode, self.entity_id)
+
     @property
     def hvac_action(self) -> HVACAction:
         if self.hvac_mode == HVACMode.OFF:
