@@ -590,3 +590,156 @@ async def test_turn_on_handles_fan_mode_service_failure_percentage(
         "Failed to apply fan mode" in record.message and "low" in record.message
         for record in caplog.records
     )
+
+
+# Task 5: FeatureManager fan mode properties tests
+
+
+@pytest.mark.asyncio
+async def test_feature_manager_supports_fan_mode_with_preset_modes(hass: HomeAssistant):
+    """Test that FeatureManager correctly reports fan mode support for preset-based fans."""
+    # Setup mock fan entity with preset_modes
+    hass.states.async_set(
+        "fan.test_fan",
+        "off",
+        {
+            "preset_modes": ["auto", "low", "medium", "high"],
+            "preset_mode": "auto",
+        },
+    )
+
+    # Create configuration with fan
+    config = {
+        "heater": "switch.heater",
+        "target_sensor": "sensor.temp",
+        "fan": "fan.test_fan",
+    }
+
+    # Create managers
+    environment = EnvironmentManager(hass, config)
+    features = FeatureManager(hass, config, environment)
+    openings = MagicMock(spec=OpeningManager)
+    hvac_power = MagicMock(spec=HvacPowerManager)
+
+    # Create a FanDevice
+    fan_device = FanDevice(
+        hass,
+        "fan.test_fan",
+        timedelta(seconds=5),
+        HVACMode.FAN_ONLY,
+        environment,
+        openings,
+        features,
+        hvac_power,
+    )
+
+    # Set the fan_device on FeatureManager (simulating what the device factory would do)
+    features.set_fan_device(fan_device)
+
+    # Check that FeatureManager reports support
+    assert features.supports_fan_mode is True
+    assert features.fan_modes == ["auto", "low", "medium", "high"]
+
+
+@pytest.mark.asyncio
+async def test_feature_manager_supports_fan_mode_with_percentage(hass: HomeAssistant):
+    """Test that FeatureManager correctly reports fan mode support for percentage-based fans."""
+    # Setup mock fan entity with percentage
+    hass.states.async_set(
+        "fan.test_fan",
+        "off",
+        {
+            "percentage": 50,
+        },
+    )
+
+    # Create configuration with fan
+    config = {
+        "heater": "switch.heater",
+        "target_sensor": "sensor.temp",
+        "fan": "fan.test_fan",
+    }
+
+    # Create managers
+    environment = EnvironmentManager(hass, config)
+    features = FeatureManager(hass, config, environment)
+    openings = MagicMock(spec=OpeningManager)
+    hvac_power = MagicMock(spec=HvacPowerManager)
+
+    # Create a FanDevice
+    fan_device = FanDevice(
+        hass,
+        "fan.test_fan",
+        timedelta(seconds=5),
+        HVACMode.FAN_ONLY,
+        environment,
+        openings,
+        features,
+        hvac_power,
+    )
+
+    # Set the fan_device on FeatureManager
+    features.set_fan_device(fan_device)
+
+    # Check that FeatureManager reports support
+    assert features.supports_fan_mode is True
+    assert features.fan_modes == ["auto", "low", "medium", "high"]
+
+
+@pytest.mark.asyncio
+async def test_feature_manager_no_fan_mode_support_switch(hass: HomeAssistant):
+    """Test that FeatureManager correctly reports no fan mode support for switches."""
+    # Setup mock switch entity
+    hass.states.async_set("switch.test_fan", "off")
+
+    # Create configuration with switch as fan
+    config = {
+        "heater": "switch.heater",
+        "target_sensor": "sensor.temp",
+        "fan": "switch.test_fan",
+    }
+
+    # Create managers
+    environment = EnvironmentManager(hass, config)
+    features = FeatureManager(hass, config, environment)
+    openings = MagicMock(spec=OpeningManager)
+    hvac_power = MagicMock(spec=HvacPowerManager)
+
+    # Create a FanDevice with switch
+    fan_device = FanDevice(
+        hass,
+        "switch.test_fan",
+        timedelta(seconds=5),
+        HVACMode.FAN_ONLY,
+        environment,
+        openings,
+        features,
+        hvac_power,
+    )
+
+    # Set the fan_device on FeatureManager
+    features.set_fan_device(fan_device)
+
+    # Check that FeatureManager reports no support
+    assert features.supports_fan_mode is False
+    assert features.fan_modes == []
+
+
+@pytest.mark.asyncio
+async def test_feature_manager_fan_device_none(hass: HomeAssistant):
+    """Test that FeatureManager safely handles when fan_device is None."""
+    # Create configuration without fan
+    config = {
+        "heater": "switch.heater",
+        "target_sensor": "sensor.temp",
+    }
+
+    # Create managers
+    environment = EnvironmentManager(hass, config)
+    features = FeatureManager(hass, config, environment)
+
+    # Don't set any fan_device (fan_device remains None)
+
+    # Check safe defaults
+    assert features.supports_fan_mode is False
+    assert features.fan_modes == []

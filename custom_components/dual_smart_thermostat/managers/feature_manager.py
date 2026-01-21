@@ -74,6 +74,9 @@ class FeatureManager(StateManager):
         self._hvac_power_levels = config.get(CONF_HVAC_POWER_LEVELS)
         self._hvac_power_tolerance = config.get(CONF_HVAC_POWER_TOLERANCE)
 
+        # Fan device reference for speed control
+        self._fan_device = None
+
     @property
     def heat_pump_cooling_entity_id(self) -> str:
         return self._heat_pump_cooling_entity_id
@@ -281,3 +284,21 @@ class FeatureManager(StateManager):
         return (
             HVACMode.COOL in hvac_modes or HVACMode.FAN_ONLY in hvac_modes
         ) and HVACMode.HEAT in hvac_modes
+
+    def set_fan_device(self, fan_device) -> None:
+        """Set the fan device reference for speed control access."""
+        self._fan_device = fan_device
+
+    @property
+    def supports_fan_mode(self) -> bool:
+        """Return if fan supports speed control."""
+        if self._fan_device is None:
+            return False
+        return self._fan_device.supports_fan_mode
+
+    @property
+    def fan_modes(self) -> list[str]:
+        """Return list of available fan modes."""
+        if self._fan_device is None:
+            return []
+        return self._fan_device.fan_modes
