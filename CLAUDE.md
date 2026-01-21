@@ -638,6 +638,171 @@ Window/door sensors pause HVAC operation. Supports timeout and closing_timeout f
 ### Preset Modes
 Temperature/humidity presets depend on all other configuration. Must be configured last in flow.
 
+### Fan Speed Control
+
+Native fan speed control provides variable speed operation for fan-only mode. The implementation uses automatic capability detection to support different fan entity types.
+
+#### Architecture
+
+**Capability Detection Pattern** (`hvac_device/fan_device.py`):
+
+The `FanDevice` class automatically detects fan speed capabilities during initialization using a three-tier detection strategy:
+
+1. **Domain Check**: Only `fan` domain entities support speed control (not `switch` domain)
+2. **Preset Mode Detection**: Check for `preset_modes` attribute (most specific control)
+3. **Percentage Detection**: Check for `percentage` attribute (fallback to percentage-based control)
+
+Implementation in `FanDevice.__init__()` and `_detect_fan_capabilities()`:
+```python
+def _detect_fan_capabilities(self) -> None:
+    """Detect if fan entity supports speed control."""
+    fan_state = self.hass.states.get(self.entity_id)
+
+    # Domain check
+    if fan_state.domain == "switch":
+        return  # No speed control for switches
+
+    # Check for preset_modes (native fan control)
+    if fan_state.attributes.get("preset_modes"):
+        self._supports_fan_mode = True
+        self._fan_modes = list(preset_modes)
+        self._uses_preset_modes = True
+
+    # Check for percentage (fallback control)
+    elif fan_state.attributes.get("percentage") is not None:
+        self._supports_fan_mode = True
+        self._fan_modes = ["auto", "low", "medium", "high"]
+        self._uses_preset_modes = False
+```
+
+**Properties Exposed**:
+- `supports_fan_mode` - Boolean flag indicating speed control capability
+- `fan_modes` - List of available modes (from entity or default)
+- `uses_preset_modes` - Boolean indicating control method (preset vs percentage)
+- `current_fan_mode` - Current selected mode
+
+**Service Call Routing** (`FanDevice.async_set_fan_mode()`):
+- Preset mode fans → `fan.set_preset_mode` service
+- Percentage fans → `fan.set_percentage` service (with mapping via `FAN_MODE_TO_PERCENTAGE`)
+
+#### Feature Manager Integration
+
+The `FeatureManager` (`managers/feature_manager.py`) provides access to fan speed control capabilities:
+
+```python
+@property
+def supports_fan_mode(self) -> bool:
+    """Dynamically check if fan device supports speed control."""
+    return self._fan_device.supports_fan_mode
+
+@property
+def fan_modes(self) -> list[str]:
+    """Return available fan modes from device."""
+    return self._fan_device.fan_modes
+```
+
+Support flag is set dynamically in `set_support_flags()`:
+```python
+if self.supports_fan_mode:
+    self._supported_features |= ClimateEntityFeature.FAN_MODE
+```
+
+#### Climate Entity Integration
+
+The `DualSmartThermostat` climate entity (`climate.py`) exposes fan speed control through standard Home Assistant interfaces:
+
+**Properties**:
+- `fan_mode` → Returns `fan_device.current_fan_mode`
+- `fan_modes` → Returns `features.fan_modes`
+- `supported_features` → Includes `ClimateEntityFeature.FAN_MODE` if supported
+
+**Service Method**:
+```python
+async def async_set_fan_mode(self, fan_mode: str) -> None:
+    """Set fan speed mode."""
+    fan_device = self.hvac_device_manager.get_device(HVACMode.FAN_ONLY)
+    await fan_device.async_set_fan_mode(fan_mode)
+```
+
+#### State Persistence
+
+Fan mode state is persisted through Home Assistant's state machine:
+
+**Saving State** (`climate.py` - `extra_state_attributes`):
+```python
+if self.features.supports_fan_mode and self.fan_mode is not None:
+    attributes[ATTR_FAN_MODE] = self.fan_mode
+```
+
+**Restoring State** (`FeatureManager._restore_fan_mode()`):
+```python
+old_fan_mode = old_state.attributes.get(ATTR_FAN_MODE)
+if old_fan_mode is not None:
+    self._fan_device.restore_fan_mode(old_fan_mode)
+```
+
+The `restore_fan_mode()` method in `FanDevice` validates the restored mode against current capabilities:
+```python
+def restore_fan_mode(self, fan_mode: str) -> None:
+    """Restore fan mode from persisted state with validation."""
+    if fan_mode in self._fan_modes:
+        self._current_fan_mode = fan_mode
+    else:
+        _LOGGER.warning("Cannot restore invalid fan mode %s", fan_mode)
+```
+
+#### Mode Application
+
+When fan is turned on, the selected mode is automatically applied:
+
+```python
+async def async_turn_on(self):
+    """Turn on fan and apply selected mode."""
+    await super().async_turn_on()  # Turn on device
+
+    if self._supports_fan_mode and self._current_fan_mode is not None:
+        await self.async_set_fan_mode(self._current_fan_mode)
+```
+
+This ensures the fan always operates at the user-selected speed, even after power cycles or restarts.
+
+#### Design Trade-offs
+
+1. **Automatic Detection vs Configuration**: Detection is automatic to reduce configuration complexity. Trade-off: Cannot manually override detected capabilities.
+
+2. **Fallback to Percentage**: Default modes (`["auto", "low", "medium", "high"]`) used for percentage-based fans. Trade-off: Less precise than native preset modes, but provides consistent UX.
+
+3. **Runtime Capability Check**: Capabilities detected at startup only. Trade-off: If fan entity capabilities change at runtime, requires restart to detect.
+
+4. **Switch Domain Exclusion**: Switch-based fans cannot use speed control. Trade-off: Simpler implementation, but requires users to use fan domain entities for speed control.
+
+#### Testing Patterns
+
+Test fan speed control using these patterns (see `tests/test_fan_mode.py`):
+
+```python
+# Test capability detection
+async def test_fan_speed_control_preset_modes(hass):
+    """Test detection of preset mode capability."""
+    # Mock fan entity with preset_modes attribute
+    # Verify supports_fan_mode = True
+    # Verify fan_modes matches entity preset_modes
+
+# Test state persistence
+async def test_fan_mode_persistence(hass):
+    """Test fan mode is persisted and restored."""
+    # Set fan mode
+    # Restart thermostat
+    # Verify mode restored from extra_state_attributes
+
+# Test mode application
+async def test_fan_mode_applied_on_turn_on(hass):
+    """Test fan mode is applied when fan turns on."""
+    # Set fan mode
+    # Turn on fan
+    # Verify correct service call (set_preset_mode or set_percentage)
+```
+
 ### Development Rules for Claude Code
 
 **CRITICAL - Testing and Linting Workflow:**

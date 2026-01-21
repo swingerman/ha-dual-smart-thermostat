@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 import logging
+from typing import TYPE_CHECKING
 
 from homeassistant.components.climate.const import (
     PRESET_NONE,
@@ -9,7 +12,11 @@ from homeassistant.const import ATTR_SUPPORTED_FEATURES
 from homeassistant.core import HomeAssistant, State
 from homeassistant.helpers.typing import ConfigType
 
+if TYPE_CHECKING:
+    from ..hvac_device.fan_device import FanDevice
+
 from ..const import (
+    ATTR_FAN_MODE,
     CONF_AC_MODE,
     CONF_AUX_HEATER,
     CONF_AUX_HEATING_DUAL_MODE,
@@ -73,6 +80,9 @@ class FeatureManager(StateManager):
 
         self._hvac_power_levels = config.get(CONF_HVAC_POWER_LEVELS)
         self._hvac_power_tolerance = config.get(CONF_HVAC_POWER_TOLERANCE)
+
+        # Fan device reference for speed control
+        self._fan_device = None
 
     @property
     def heat_pump_cooling_entity_id(self) -> str:
@@ -250,6 +260,10 @@ class FeatureManager(StateManager):
         if self.is_configured_for_dryer_mode:
             self._supported_features |= ClimateEntityFeature.TARGET_HUMIDITY
 
+        # Add FAN_MODE feature if fan device supports speed control
+        if self.supports_fan_mode:
+            self._supported_features |= ClimateEntityFeature.FAN_MODE
+
     def apply_old_state(
         self, old_state: State | None, hvac_mode: HVACMode | None = None, presets=[]
     ) -> None:
@@ -277,7 +291,55 @@ class FeatureManager(StateManager):
                 self._default_support_flags | ClimateEntityFeature.TARGET_TEMPERATURE
             )
 
+        # Restore fan mode if supported
+        self._restore_fan_mode(old_state)
+
     def hvac_modes_support_range_temp(self, hvac_modes: list[HVACMode]) -> bool:
         return (
             HVACMode.COOL in hvac_modes or HVACMode.FAN_ONLY in hvac_modes
         ) and HVACMode.HEAT in hvac_modes
+
+    def set_fan_device(self, fan_device: FanDevice | None) -> None:
+        """Set the fan device reference for speed control access."""
+        self._fan_device = fan_device
+
+    @property
+    def fan_device(self) -> FanDevice | None:
+        """Return the fan device if available."""
+        return self._fan_device
+
+    @property
+    def supports_fan_mode(self) -> bool:
+        """Return if fan supports speed control."""
+        if self._fan_device is None:
+            return False
+        return self._fan_device.supports_fan_mode
+
+    @property
+    def fan_modes(self) -> list[str]:
+        """Return list of available fan modes."""
+        if self._fan_device is None:
+            return []
+        return self._fan_device.fan_modes
+
+    def _restore_fan_mode(self, old_state: State) -> None:
+        """Restore fan mode from old state."""
+        if not self.supports_fan_mode:
+            _LOGGER.debug(
+                "Fan mode restoration skipped: device does not support speed control"
+            )
+            return
+
+        if self._fan_device is None:
+            _LOGGER.debug("Fan mode restoration skipped: no fan device")
+            return
+
+        old_fan_mode = old_state.attributes.get(ATTR_FAN_MODE)
+        if old_fan_mode is None:
+            _LOGGER.debug("No fan mode found in old state, skipping restoration")
+            return
+
+        _LOGGER.info("Restoring fan mode: %s", old_fan_mode)
+        # Restore the fan mode using the public method
+        # This validates the mode and logs appropriately
+        self._fan_device.restore_fan_mode(old_fan_mode)

@@ -61,6 +61,7 @@ from . import DOMAIN, PLATFORMS
 from .config_validation import validate_config_with_models
 from .const import (
     ATTR_CLOSING_TIMEOUT,
+    ATTR_FAN_MODE,
     ATTR_HVAC_ACTION_REASON,
     ATTR_HVAC_POWER_LEVEL,
     ATTR_HVAC_POWER_PERCENT,
@@ -1046,6 +1047,24 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         return super().max_humidity
 
     @property
+    def fan_mode(self) -> str | None:
+        """Return the current fan mode."""
+        if not self.features.supports_fan_mode:
+            return None
+        # Access fan device through the feature manager
+        fan_device = self.features.fan_device
+        if fan_device is None:
+            return None
+        return fan_device.current_fan_mode
+
+    @property
+    def fan_modes(self) -> list[str] | None:
+        """Return the list of available fan modes."""
+        if not self.features.supports_fan_mode:
+            return None
+        return self.features.fan_modes
+
+    @property
     def extra_state_attributes(self) -> dict:
         """Return entity specific state attributes to be saved."""
 
@@ -1065,6 +1084,10 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         attributes[ATTR_HVAC_ACTION_REASON] = (
             self._hvac_action_reason or HVACActionReason.NONE
         )
+
+        # Add fan mode to state attributes for persistence
+        if self.features.supports_fan_mode and self.fan_mode is not None:
+            attributes[ATTR_FAN_MODE] = self.fan_mode
 
         # TODO: set these only if configured to avoid unnecessary DB writes
         if self.features.is_configured_for_hvac_power_levels:
@@ -1218,6 +1241,25 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         await self._check_auto_preset_selection()
 
         await self._async_control_climate(force=True)
+        self.async_write_ha_state()
+
+    async def async_set_fan_mode(self, fan_mode: str) -> None:
+        """Set new fan mode."""
+        if not self.features.supports_fan_mode:
+            _LOGGER.warning(
+                "Cannot set fan mode: fan device does not support speed control"
+            )
+            return
+
+        _LOGGER.info("Setting fan mode: %s", fan_mode)
+
+        # Access fan device through the feature manager
+        fan_device = self.features.fan_device
+        if fan_device is None:
+            _LOGGER.warning("Cannot set fan mode: fan device not found")
+            return
+
+        await fan_device.async_set_fan_mode(fan_mode)
         self.async_write_ha_state()
 
     def _set_temperatures_dual_mode(self, temperatures: TargetTemperatures) -> None:

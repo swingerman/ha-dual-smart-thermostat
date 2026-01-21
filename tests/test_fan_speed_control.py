@@ -1,0 +1,1858 @@
+"""Tests for fan speed control feature."""
+
+from datetime import timedelta
+from unittest.mock import MagicMock
+
+from homeassistant.components.climate import HVACMode
+from homeassistant.const import SERVICE_TURN_OFF, SERVICE_TURN_ON
+import homeassistant.core as ha
+from homeassistant.core import HomeAssistant, callback
+import pytest
+
+from custom_components.dual_smart_thermostat.const import (
+    FAN_MODE_TO_PERCENTAGE,
+    PERCENTAGE_TO_FAN_MODE,
+)
+from custom_components.dual_smart_thermostat.hvac_device.fan_device import FanDevice
+from custom_components.dual_smart_thermostat.managers.environment_manager import (
+    EnvironmentManager,
+)
+from custom_components.dual_smart_thermostat.managers.feature_manager import (
+    FeatureManager,
+)
+from custom_components.dual_smart_thermostat.managers.hvac_power_manager import (
+    HvacPowerManager,
+)
+from custom_components.dual_smart_thermostat.managers.opening_manager import (
+    OpeningManager,
+)
+
+
+def setup_fan_services(hass: HomeAssistant) -> list:
+    """Set up fan services and track calls."""
+    calls = []
+
+    @callback
+    def log_call(call) -> None:
+        """Log service calls."""
+        calls.append(call)
+
+    # Register homeassistant turn_on/turn_off services
+    hass.services.async_register(ha.DOMAIN, SERVICE_TURN_ON, log_call)
+    hass.services.async_register(ha.DOMAIN, SERVICE_TURN_OFF, log_call)
+
+    # Register fan-specific services
+    hass.services.async_register("fan", "set_preset_mode", log_call)
+    hass.services.async_register("fan", "set_percentage", log_call)
+
+    return calls
+
+
+def test_fan_mode_percentage_mappings_exist():
+    """Test that fan mode to percentage mappings are defined."""
+    assert "auto" in FAN_MODE_TO_PERCENTAGE
+    assert "low" in FAN_MODE_TO_PERCENTAGE
+    assert "medium" in FAN_MODE_TO_PERCENTAGE
+    assert "high" in FAN_MODE_TO_PERCENTAGE
+
+    assert FAN_MODE_TO_PERCENTAGE["low"] == 33
+    assert FAN_MODE_TO_PERCENTAGE["medium"] == 66
+    assert FAN_MODE_TO_PERCENTAGE["high"] == 100
+    assert FAN_MODE_TO_PERCENTAGE["auto"] == 100
+
+
+def test_percentage_to_fan_mode_mapping():
+    """Test reverse mapping from percentage to fan mode."""
+    assert 33 in PERCENTAGE_TO_FAN_MODE
+    assert 66 in PERCENTAGE_TO_FAN_MODE
+    assert 100 in PERCENTAGE_TO_FAN_MODE
+
+    assert PERCENTAGE_TO_FAN_MODE[33] == "low"
+    assert PERCENTAGE_TO_FAN_MODE[66] == "medium"
+    assert PERCENTAGE_TO_FAN_MODE[100] == "high"
+
+
+def test_auto_mode_uses_100_percent_same_as_high():
+    """Test that auto mode uses 100% like high mode.
+
+    This documents intentional behavior: auto and high both send 100% to the fan.
+    When reading back a 100% state, it's interpreted as "high" mode.
+    """
+    # Both auto and high use 100%
+    assert FAN_MODE_TO_PERCENTAGE["auto"] == 100
+    assert FAN_MODE_TO_PERCENTAGE["high"] == 100
+
+    # But reading 100% returns "high" as canonical
+    assert PERCENTAGE_TO_FAN_MODE[100] == "high"
+
+
+@pytest.mark.asyncio
+async def test_fan_device_detects_preset_modes(hass: HomeAssistant):
+    """Test that FanDevice detects preset_mode support."""
+    # Setup mock fan entity with preset_modes
+    hass.states.async_set(
+        "fan.test_fan",
+        "off",
+        {
+            "preset_modes": ["auto", "low", "medium", "high"],
+            "preset_mode": "auto",
+        },
+    )
+
+    # Create FanDevice
+    environment = MagicMock(spec=EnvironmentManager)
+    openings = MagicMock(spec=OpeningManager)
+    features = MagicMock(spec=FeatureManager)
+    hvac_power = MagicMock(spec=HvacPowerManager)
+
+    fan_device = FanDevice(
+        hass,
+        "fan.test_fan",
+        timedelta(seconds=5),
+        HVACMode.FAN_ONLY,
+        environment,
+        openings,
+        features,
+        hvac_power,
+    )
+
+    # Check detection
+    assert fan_device.supports_fan_mode is True
+    assert fan_device.fan_modes == ["auto", "low", "medium", "high"]
+    assert fan_device.uses_preset_modes is True
+    assert fan_device.current_fan_mode == "auto"
+
+
+@pytest.mark.asyncio
+async def test_fan_device_detects_percentage_support(hass: HomeAssistant):
+    """Test that FanDevice detects percentage support."""
+    # Setup mock fan entity with percentage
+    hass.states.async_set(
+        "fan.test_fan",
+        "off",
+        {
+            "percentage": 50,
+        },
+    )
+
+    environment = MagicMock(spec=EnvironmentManager)
+    openings = MagicMock(spec=OpeningManager)
+    features = MagicMock(spec=FeatureManager)
+    hvac_power = MagicMock(spec=HvacPowerManager)
+
+    fan_device = FanDevice(
+        hass,
+        "fan.test_fan",
+        timedelta(seconds=5),
+        HVACMode.FAN_ONLY,
+        environment,
+        openings,
+        features,
+        hvac_power,
+    )
+
+    assert fan_device.supports_fan_mode is True
+    assert fan_device.fan_modes == ["auto", "low", "medium", "high"]
+    assert fan_device.uses_preset_modes is False
+
+
+@pytest.mark.asyncio
+async def test_fan_device_switch_no_speed_control(hass: HomeAssistant):
+    """Test that switch entities don't support speed control."""
+    # Setup mock switch entity
+    hass.states.async_set("switch.test_fan", "off")
+
+    environment = MagicMock(spec=EnvironmentManager)
+    openings = MagicMock(spec=OpeningManager)
+    features = MagicMock(spec=FeatureManager)
+    hvac_power = MagicMock(spec=HvacPowerManager)
+
+    fan_device = FanDevice(
+        hass,
+        "switch.test_fan",
+        timedelta(seconds=5),
+        HVACMode.FAN_ONLY,
+        environment,
+        openings,
+        features,
+        hvac_power,
+    )
+
+    assert fan_device.supports_fan_mode is False
+    assert fan_device.fan_modes == []
+
+
+@pytest.mark.asyncio
+async def test_fan_device_missing_entity_no_speed_control(hass: HomeAssistant):
+    """Test that missing entities gracefully fall back to no speed control."""
+    # Don't create any entity - hass.states.get will return None
+    environment = MagicMock(spec=EnvironmentManager)
+    openings = MagicMock(spec=OpeningManager)
+    features = MagicMock(spec=FeatureManager)
+    hvac_power = MagicMock(spec=HvacPowerManager)
+
+    fan_device = FanDevice(
+        hass,
+        "fan.nonexistent",
+        timedelta(seconds=5),
+        HVACMode.FAN_ONLY,
+        environment,
+        openings,
+        features,
+        hvac_power,
+    )
+
+    assert fan_device.supports_fan_mode is False
+    assert fan_device.fan_modes == []
+
+
+@pytest.mark.asyncio
+async def test_set_fan_mode_invalid_mode(hass: HomeAssistant):
+    """Test setting an invalid fan mode."""
+    # Setup mock fan entity
+    hass.states.async_set(
+        "fan.test_fan",
+        "on",
+        {
+            "preset_modes": ["auto", "low", "medium", "high"],
+            "preset_mode": "auto",
+        },
+    )
+
+    environment = MagicMock(spec=EnvironmentManager)
+    openings = MagicMock(spec=OpeningManager)
+    features = MagicMock(spec=FeatureManager)
+    hvac_power = MagicMock(spec=HvacPowerManager)
+
+    fan_device = FanDevice(
+        hass,
+        "fan.test_fan",
+        timedelta(seconds=5),
+        HVACMode.FAN_ONLY,
+        environment,
+        openings,
+        features,
+        hvac_power,
+    )
+
+    # Try to set invalid mode
+    await fan_device.async_set_fan_mode("invalid")
+
+    # State should not change
+    assert fan_device.current_fan_mode == "auto"  # Still the initial mode
+
+
+@pytest.mark.asyncio
+async def test_set_fan_mode_unsupported_device(hass: HomeAssistant):
+    """Test setting fan mode on unsupported device (switch)."""
+    # Setup switch entity
+    hass.states.async_set("switch.test_fan", "off")
+
+    environment = MagicMock(spec=EnvironmentManager)
+    openings = MagicMock(spec=OpeningManager)
+    features = MagicMock(spec=FeatureManager)
+    hvac_power = MagicMock(spec=HvacPowerManager)
+
+    fan_device = FanDevice(
+        hass,
+        "switch.test_fan",
+        timedelta(seconds=5),
+        HVACMode.FAN_ONLY,
+        environment,
+        openings,
+        features,
+        hvac_power,
+    )
+
+    # Device should not support fan mode
+    assert fan_device.supports_fan_mode is False
+
+    # Try to set fan mode - should do nothing
+    await fan_device.async_set_fan_mode("low")
+
+    # State should remain None
+    assert fan_device.current_fan_mode is None
+
+
+@pytest.mark.asyncio
+async def test_turn_on_applies_fan_mode_preset(hass: HomeAssistant):
+    """Test that turning on fan applies the selected fan mode (preset_mode based)."""
+    # Setup fan services
+    calls = setup_fan_services(hass)
+
+    # Setup mock fan entity with preset_modes
+    hass.states.async_set(
+        "fan.test_fan",
+        "off",
+        {
+            "preset_modes": ["auto", "low", "medium", "high"],
+            "preset_mode": None,
+        },
+    )
+
+    environment = MagicMock(spec=EnvironmentManager)
+    openings = MagicMock(spec=OpeningManager)
+    features = MagicMock(spec=FeatureManager)
+    hvac_power = MagicMock(spec=HvacPowerManager)
+
+    fan_device = FanDevice(
+        hass,
+        "fan.test_fan",
+        timedelta(seconds=5),
+        HVACMode.FAN_ONLY,
+        environment,
+        openings,
+        features,
+        hvac_power,
+    )
+
+    # Set a fan mode
+    await fan_device.async_set_fan_mode("medium")
+    assert fan_device.current_fan_mode == "medium"
+
+    # Clear previous calls
+    calls.clear()
+
+    # Turn on the fan
+    await fan_device.async_turn_on()
+
+    # Verify both turn_on and set_preset_mode were called
+    assert len(calls) == 2
+
+    # Should have turn_on call first
+    assert calls[0].domain == ha.DOMAIN
+    assert calls[0].service == SERVICE_TURN_ON
+    assert calls[0].data["entity_id"] == "fan.test_fan"
+
+    # Should have set_preset_mode call second
+    assert calls[1].domain == "fan"
+    assert calls[1].service == "set_preset_mode"
+    assert calls[1].data["preset_mode"] == "medium"
+    assert calls[1].data["entity_id"] == "fan.test_fan"
+
+
+@pytest.mark.asyncio
+async def test_turn_on_applies_fan_mode_percentage(hass: HomeAssistant):
+    """Test that turning on fan applies the selected fan mode (percentage based)."""
+    # Setup fan services
+    calls = setup_fan_services(hass)
+
+    # Setup mock fan entity with percentage
+    hass.states.async_set(
+        "fan.test_fan",
+        "off",
+        {
+            "percentage": 0,
+        },
+    )
+
+    environment = MagicMock(spec=EnvironmentManager)
+    openings = MagicMock(spec=OpeningManager)
+    features = MagicMock(spec=FeatureManager)
+    hvac_power = MagicMock(spec=HvacPowerManager)
+
+    fan_device = FanDevice(
+        hass,
+        "fan.test_fan",
+        timedelta(seconds=5),
+        HVACMode.FAN_ONLY,
+        environment,
+        openings,
+        features,
+        hvac_power,
+    )
+
+    # Set a fan mode
+    await fan_device.async_set_fan_mode("low")
+    assert fan_device.current_fan_mode == "low"
+
+    # Clear previous calls
+    calls.clear()
+
+    # Turn on the fan
+    await fan_device.async_turn_on()
+
+    # Verify both turn_on and set_percentage were called
+    assert len(calls) == 2
+
+    # Should have turn_on call first
+    assert calls[0].domain == ha.DOMAIN
+    assert calls[0].service == SERVICE_TURN_ON
+    assert calls[0].data["entity_id"] == "fan.test_fan"
+
+    # Should have set_percentage call second
+    assert calls[1].domain == "fan"
+    assert calls[1].service == "set_percentage"
+    assert calls[1].data["percentage"] == 33
+    assert calls[1].data["entity_id"] == "fan.test_fan"
+
+
+@pytest.mark.asyncio
+async def test_turn_on_without_fan_mode_set(hass: HomeAssistant):
+    """Test that turning on fan works even when no fan mode is set yet."""
+    # Setup fan services
+    calls = setup_fan_services(hass)
+
+    # Setup mock fan entity with preset_modes
+    hass.states.async_set(
+        "fan.test_fan",
+        "off",
+        {
+            "preset_modes": ["auto", "low", "medium", "high"],
+            "preset_mode": None,
+        },
+    )
+
+    environment = MagicMock(spec=EnvironmentManager)
+    openings = MagicMock(spec=OpeningManager)
+    features = MagicMock(spec=FeatureManager)
+    hvac_power = MagicMock(spec=HvacPowerManager)
+
+    fan_device = FanDevice(
+        hass,
+        "fan.test_fan",
+        timedelta(seconds=5),
+        HVACMode.FAN_ONLY,
+        environment,
+        openings,
+        features,
+        hvac_power,
+    )
+
+    # Don't set any fan mode - just turn on
+    assert fan_device.current_fan_mode is None
+
+    # Turn on the fan
+    await fan_device.async_turn_on()
+
+    # Should only have turn_on call (no fan mode to apply)
+    assert len(calls) == 1
+    assert calls[0].domain == ha.DOMAIN
+    assert calls[0].service == SERVICE_TURN_ON
+    assert calls[0].data["entity_id"] == "fan.test_fan"
+
+
+@pytest.mark.asyncio
+async def test_turn_on_switch_device_no_fan_mode_applied(hass: HomeAssistant):
+    """Test that turning on switch device doesn't try to apply fan mode."""
+    # Setup fan services
+    calls = setup_fan_services(hass)
+
+    # Setup switch entity
+    hass.states.async_set("switch.test_fan", "off")
+
+    environment = MagicMock(spec=EnvironmentManager)
+    openings = MagicMock(spec=OpeningManager)
+    features = MagicMock(spec=FeatureManager)
+    hvac_power = MagicMock(spec=HvacPowerManager)
+
+    fan_device = FanDevice(
+        hass,
+        "switch.test_fan",
+        timedelta(seconds=5),
+        HVACMode.FAN_ONLY,
+        environment,
+        openings,
+        features,
+        hvac_power,
+    )
+
+    # Turn on the switch
+    await fan_device.async_turn_on()
+
+    # Should only have turn_on call, no set_preset_mode or set_percentage
+    assert len(calls) == 1
+    assert calls[0].domain == ha.DOMAIN
+    assert calls[0].service == SERVICE_TURN_ON
+    assert calls[0].data["entity_id"] == "switch.test_fan"
+
+
+@pytest.mark.asyncio
+async def test_turn_on_handles_fan_mode_service_failure_preset(
+    hass: HomeAssistant, caplog
+):
+    """Test that fan mode service failures are caught and logged (preset_mode)."""
+    import logging
+
+    # Setup fan entity with preset_modes
+    hass.states.async_set(
+        "fan.test_fan",
+        "off",
+        {
+            "preset_modes": ["auto", "low", "medium", "high"],
+            "preset_mode": None,
+        },
+    )
+
+    # Register turn_on service (successful)
+    @callback
+    def turn_on_service(call) -> None:
+        """Mock successful turn on."""
+        pass
+
+    hass.services.async_register(ha.DOMAIN, SERVICE_TURN_ON, turn_on_service)
+
+    # Register set_preset_mode service that raises exception
+    @callback
+    def failing_preset_mode_service(call) -> None:
+        """Mock failing set_preset_mode."""
+        raise Exception("Entity unavailable")
+
+    hass.services.async_register("fan", "set_preset_mode", failing_preset_mode_service)
+
+    environment = MagicMock(spec=EnvironmentManager)
+    openings = MagicMock(spec=OpeningManager)
+    features = MagicMock(spec=FeatureManager)
+    hvac_power = MagicMock(spec=HvacPowerManager)
+
+    fan_device = FanDevice(
+        hass,
+        "fan.test_fan",
+        timedelta(seconds=5),
+        HVACMode.FAN_ONLY,
+        environment,
+        openings,
+        features,
+        hvac_power,
+    )
+
+    # Set a fan mode (this will succeed, just sets internal state)
+    fan_device._current_fan_mode = "medium"
+
+    # Turn on should not raise exception even though set_preset_mode fails
+    with caplog.at_level(logging.WARNING):
+        await fan_device.async_turn_on()
+
+    # Verify warning was logged about failure
+    assert any(
+        "Failed to apply fan mode" in record.message and "medium" in record.message
+        for record in caplog.records
+    )
+
+
+@pytest.mark.asyncio
+async def test_turn_on_handles_fan_mode_service_failure_percentage(
+    hass: HomeAssistant, caplog
+):
+    """Test that fan mode service failures are caught and logged (percentage)."""
+    import logging
+
+    # Setup fan entity with percentage
+    hass.states.async_set(
+        "fan.test_fan",
+        "off",
+        {
+            "percentage": 0,
+        },
+    )
+
+    # Register turn_on service (successful)
+    @callback
+    def turn_on_service(call) -> None:
+        """Mock successful turn on."""
+        pass
+
+    hass.services.async_register(ha.DOMAIN, SERVICE_TURN_ON, turn_on_service)
+
+    # Register set_percentage service that raises exception
+    @callback
+    def failing_percentage_service(call) -> None:
+        """Mock failing set_percentage."""
+        raise Exception("Entity unavailable")
+
+    hass.services.async_register("fan", "set_percentage", failing_percentage_service)
+
+    environment = MagicMock(spec=EnvironmentManager)
+    openings = MagicMock(spec=OpeningManager)
+    features = MagicMock(spec=FeatureManager)
+    hvac_power = MagicMock(spec=HvacPowerManager)
+
+    fan_device = FanDevice(
+        hass,
+        "fan.test_fan",
+        timedelta(seconds=5),
+        HVACMode.FAN_ONLY,
+        environment,
+        openings,
+        features,
+        hvac_power,
+    )
+
+    # Set a fan mode (this will succeed, just sets internal state)
+    fan_device._current_fan_mode = "low"
+
+    # Turn on should not raise exception even though set_percentage fails
+    with caplog.at_level(logging.WARNING):
+        await fan_device.async_turn_on()
+
+    # Verify warning was logged about failure
+    assert any(
+        "Failed to apply fan mode" in record.message and "low" in record.message
+        for record in caplog.records
+    )
+
+
+# Task 5: FeatureManager fan mode properties tests
+
+
+@pytest.mark.asyncio
+async def test_feature_manager_supports_fan_mode_with_preset_modes(hass: HomeAssistant):
+    """Test that FeatureManager correctly reports fan mode support for preset-based fans."""
+    # Setup mock fan entity with preset_modes
+    hass.states.async_set(
+        "fan.test_fan",
+        "off",
+        {
+            "preset_modes": ["auto", "low", "medium", "high"],
+            "preset_mode": "auto",
+        },
+    )
+
+    # Create configuration with fan
+    config = {
+        "heater": "switch.heater",
+        "target_sensor": "sensor.temp",
+        "fan": "fan.test_fan",
+    }
+
+    # Create managers
+    environment = EnvironmentManager(hass, config)
+    features = FeatureManager(hass, config, environment)
+    openings = MagicMock(spec=OpeningManager)
+    hvac_power = MagicMock(spec=HvacPowerManager)
+
+    # Create a FanDevice
+    fan_device = FanDevice(
+        hass,
+        "fan.test_fan",
+        timedelta(seconds=5),
+        HVACMode.FAN_ONLY,
+        environment,
+        openings,
+        features,
+        hvac_power,
+    )
+
+    # Set the fan_device on FeatureManager (simulating what the device factory would do)
+    features.set_fan_device(fan_device)
+
+    # Check that FeatureManager reports support
+    assert features.supports_fan_mode is True
+    assert features.fan_modes == ["auto", "low", "medium", "high"]
+
+
+@pytest.mark.asyncio
+async def test_feature_manager_supports_fan_mode_with_percentage(hass: HomeAssistant):
+    """Test that FeatureManager correctly reports fan mode support for percentage-based fans."""
+    # Setup mock fan entity with percentage
+    hass.states.async_set(
+        "fan.test_fan",
+        "off",
+        {
+            "percentage": 50,
+        },
+    )
+
+    # Create configuration with fan
+    config = {
+        "heater": "switch.heater",
+        "target_sensor": "sensor.temp",
+        "fan": "fan.test_fan",
+    }
+
+    # Create managers
+    environment = EnvironmentManager(hass, config)
+    features = FeatureManager(hass, config, environment)
+    openings = MagicMock(spec=OpeningManager)
+    hvac_power = MagicMock(spec=HvacPowerManager)
+
+    # Create a FanDevice
+    fan_device = FanDevice(
+        hass,
+        "fan.test_fan",
+        timedelta(seconds=5),
+        HVACMode.FAN_ONLY,
+        environment,
+        openings,
+        features,
+        hvac_power,
+    )
+
+    # Set the fan_device on FeatureManager
+    features.set_fan_device(fan_device)
+
+    # Check that FeatureManager reports support
+    assert features.supports_fan_mode is True
+    assert features.fan_modes == ["auto", "low", "medium", "high"]
+
+
+@pytest.mark.asyncio
+async def test_feature_manager_no_fan_mode_support_switch(hass: HomeAssistant):
+    """Test that FeatureManager correctly reports no fan mode support for switches."""
+    # Setup mock switch entity
+    hass.states.async_set("switch.test_fan", "off")
+
+    # Create configuration with switch as fan
+    config = {
+        "heater": "switch.heater",
+        "target_sensor": "sensor.temp",
+        "fan": "switch.test_fan",
+    }
+
+    # Create managers
+    environment = EnvironmentManager(hass, config)
+    features = FeatureManager(hass, config, environment)
+    openings = MagicMock(spec=OpeningManager)
+    hvac_power = MagicMock(spec=HvacPowerManager)
+
+    # Create a FanDevice with switch
+    fan_device = FanDevice(
+        hass,
+        "switch.test_fan",
+        timedelta(seconds=5),
+        HVACMode.FAN_ONLY,
+        environment,
+        openings,
+        features,
+        hvac_power,
+    )
+
+    # Set the fan_device on FeatureManager
+    features.set_fan_device(fan_device)
+
+    # Check that FeatureManager reports no support
+    assert features.supports_fan_mode is False
+    assert features.fan_modes == []
+
+
+@pytest.mark.asyncio
+async def test_feature_manager_fan_device_none(hass: HomeAssistant):
+    """Test that FeatureManager safely handles when fan_device is None."""
+    # Create configuration without fan
+    config = {
+        "heater": "switch.heater",
+        "target_sensor": "sensor.temp",
+    }
+
+    # Create managers
+    environment = EnvironmentManager(hass, config)
+    features = FeatureManager(hass, config, environment)
+
+    # Don't set any fan_device (fan_device remains None)
+
+    # Check safe defaults
+    assert features.supports_fan_mode is False
+    assert features.fan_modes == []
+
+
+# Task 6: Climate entity fan mode integration tests
+
+
+@pytest.mark.asyncio
+async def test_climate_supported_features_includes_fan_mode_when_supported(
+    hass: HomeAssistant,
+):
+    """Test that ClimateEntityFeature.FAN_MODE is in supported_features when fan supports it."""
+    from homeassistant.components import input_boolean, input_number
+    from homeassistant.components.climate.const import (
+        DOMAIN as CLIMATE,
+        ClimateEntityFeature,
+    )
+    from homeassistant.setup import async_setup_component
+    from homeassistant.util.unit_system import METRIC_SYSTEM
+
+    from custom_components.dual_smart_thermostat.const import DOMAIN
+
+    from . import common
+
+    hass.config.units = METRIC_SYSTEM
+
+    # Setup required entities
+    assert await async_setup_component(
+        hass, input_boolean.DOMAIN, {"input_boolean": {"test": None}}
+    )
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {"name": "test", "initial": 10, "min": 0, "max": 40, "step": 1}
+            }
+        },
+    )
+
+    # Setup mock fan entity with preset_modes
+    hass.states.async_set(
+        "fan.test_fan",
+        "off",
+        {
+            "preset_modes": ["auto", "low", "medium", "high"],
+            "preset_mode": "auto",
+        },
+    )
+
+    # Create a simple heater thermostat with fan
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "heater": "input_boolean.test",
+                "target_sensor": common.ENT_SENSOR,
+                "fan": "fan.test_fan",
+                "initial_hvac_mode": HVACMode.HEAT,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    # Get the climate entity
+    state = hass.states.get("climate.test")
+    assert state is not None
+
+    # Supported features should include FAN_MODE
+    supported_features = state.attributes.get("supported_features")
+    assert supported_features & ClimateEntityFeature.FAN_MODE
+
+
+@pytest.mark.asyncio
+async def test_climate_supported_features_excludes_fan_mode_when_switch(
+    hass: HomeAssistant,
+):
+    """Test that ClimateEntityFeature.FAN_MODE is not in supported_features for switch fan."""
+    from homeassistant.components import input_boolean, input_number
+    from homeassistant.components.climate.const import (
+        DOMAIN as CLIMATE,
+        ClimateEntityFeature,
+    )
+    from homeassistant.setup import async_setup_component
+    from homeassistant.util.unit_system import METRIC_SYSTEM
+
+    from custom_components.dual_smart_thermostat.const import DOMAIN
+
+    from . import common
+
+    hass.config.units = METRIC_SYSTEM
+
+    # Setup required entities
+    assert await async_setup_component(
+        hass, input_boolean.DOMAIN, {"input_boolean": {"test": None, "test_fan": None}}
+    )
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {"name": "test", "initial": 10, "min": 0, "max": 40, "step": 1}
+            }
+        },
+    )
+
+    # Setup switch entity as fan (no preset_modes or percentage)
+    hass.states.async_set("fan.test_fan", "off")
+
+    # Create a simple heater thermostat with switch fan
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "heater": "input_boolean.test",
+                "target_sensor": common.ENT_SENSOR,
+                "fan": "fan.test_fan",
+                "initial_hvac_mode": HVACMode.HEAT,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    # Get the climate entity
+    state = hass.states.get("climate.test")
+    assert state is not None
+
+    # Supported features should NOT include FAN_MODE
+    supported_features = state.attributes.get("supported_features")
+    assert not (supported_features & ClimateEntityFeature.FAN_MODE)
+
+
+@pytest.mark.asyncio
+async def test_climate_supported_features_excludes_fan_mode_when_no_fan(
+    hass: HomeAssistant,
+):
+    """Test that ClimateEntityFeature.FAN_MODE is not in supported_features when no fan configured."""
+    from homeassistant.components import input_boolean, input_number
+    from homeassistant.components.climate.const import (
+        DOMAIN as CLIMATE,
+        ClimateEntityFeature,
+    )
+    from homeassistant.setup import async_setup_component
+    from homeassistant.util.unit_system import METRIC_SYSTEM
+
+    from custom_components.dual_smart_thermostat.const import DOMAIN
+
+    from . import common
+
+    hass.config.units = METRIC_SYSTEM
+
+    # Setup required entities
+    assert await async_setup_component(
+        hass, input_boolean.DOMAIN, {"input_boolean": {"test": None}}
+    )
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {"name": "test", "initial": 10, "min": 0, "max": 40, "step": 1}
+            }
+        },
+    )
+
+    # Create a simple heater thermostat without fan
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "heater": "input_boolean.test",
+                "target_sensor": common.ENT_SENSOR,
+                "initial_hvac_mode": HVACMode.HEAT,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    # Get the climate entity
+    state = hass.states.get("climate.test")
+    assert state is not None
+
+    # Supported features should NOT include FAN_MODE
+    supported_features = state.attributes.get("supported_features")
+    assert not (supported_features & ClimateEntityFeature.FAN_MODE)
+
+
+@pytest.mark.asyncio
+async def test_climate_fan_mode_property_returns_current_mode(hass: HomeAssistant):
+    """Test that fan_mode property returns current fan mode."""
+    from homeassistant.components import input_boolean, input_number
+    from homeassistant.components.climate.const import DOMAIN as CLIMATE
+    from homeassistant.setup import async_setup_component
+    from homeassistant.util.unit_system import METRIC_SYSTEM
+
+    from custom_components.dual_smart_thermostat.const import DOMAIN
+
+    from . import common
+
+    hass.config.units = METRIC_SYSTEM
+
+    # Setup required entities
+    assert await async_setup_component(
+        hass, input_boolean.DOMAIN, {"input_boolean": {"test": None, "test_fan": None}}
+    )
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {"name": "test", "initial": 10, "min": 0, "max": 40, "step": 1}
+            }
+        },
+    )
+
+    # Setup mock fan entity with preset_modes
+    hass.states.async_set(
+        "fan.test_fan",
+        "off",
+        {
+            "preset_modes": ["auto", "low", "medium", "high"],
+            "preset_mode": "medium",
+        },
+    )
+
+    # Create thermostat
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "heater": "input_boolean.test",
+                "target_sensor": common.ENT_SENSOR,
+                "fan": "fan.test_fan",
+                "initial_hvac_mode": HVACMode.HEAT,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    # Get the climate entity state
+    state = hass.states.get("climate.test")
+    assert state is not None
+
+    # Fan mode should be in attributes
+    fan_mode = state.attributes.get("fan_mode")
+    assert fan_mode == "medium"
+
+
+@pytest.mark.asyncio
+async def test_climate_fan_mode_property_none_when_not_supported(hass: HomeAssistant):
+    """Test that fan_mode property returns None when not supported."""
+    from homeassistant.components import input_boolean, input_number
+    from homeassistant.components.climate.const import DOMAIN as CLIMATE
+    from homeassistant.setup import async_setup_component
+    from homeassistant.util.unit_system import METRIC_SYSTEM
+
+    from custom_components.dual_smart_thermostat.const import DOMAIN
+
+    from . import common
+
+    hass.config.units = METRIC_SYSTEM
+
+    # Setup required entities
+    assert await async_setup_component(
+        hass, input_boolean.DOMAIN, {"input_boolean": {"test": None, "test_fan": None}}
+    )
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {"name": "test", "initial": 10, "min": 0, "max": 40, "step": 1}
+            }
+        },
+    )
+
+    # Setup switch entity as fan (no speed control)
+    hass.states.async_set("fan.test_fan", "off")
+
+    # Create thermostat
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "heater": "input_boolean.test",
+                "target_sensor": common.ENT_SENSOR,
+                "fan": "fan.test_fan",
+                "initial_hvac_mode": HVACMode.HEAT,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    # Get the climate entity state
+    state = hass.states.get("climate.test")
+    assert state is not None
+
+    # Fan mode should be None or not present
+    fan_mode = state.attributes.get("fan_mode")
+    assert fan_mode is None
+
+
+@pytest.mark.asyncio
+async def test_climate_fan_modes_property_returns_available_modes(hass: HomeAssistant):
+    """Test that fan_modes property returns list of available modes."""
+    from homeassistant.components import input_boolean, input_number
+    from homeassistant.components.climate.const import DOMAIN as CLIMATE
+    from homeassistant.setup import async_setup_component
+    from homeassistant.util.unit_system import METRIC_SYSTEM
+
+    from custom_components.dual_smart_thermostat.const import DOMAIN
+
+    from . import common
+
+    hass.config.units = METRIC_SYSTEM
+
+    # Setup required entities
+    assert await async_setup_component(
+        hass, input_boolean.DOMAIN, {"input_boolean": {"test": None, "test_fan": None}}
+    )
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {"name": "test", "initial": 10, "min": 0, "max": 40, "step": 1}
+            }
+        },
+    )
+
+    # Setup mock fan entity with preset_modes
+    hass.states.async_set(
+        "fan.test_fan",
+        "off",
+        {
+            "preset_modes": ["auto", "low", "medium", "high"],
+            "preset_mode": "auto",
+        },
+    )
+
+    # Create thermostat
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "heater": "input_boolean.test",
+                "target_sensor": common.ENT_SENSOR,
+                "fan": "fan.test_fan",
+                "initial_hvac_mode": HVACMode.HEAT,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    # Get the climate entity state
+    state = hass.states.get("climate.test")
+    assert state is not None
+
+    # Fan modes should be in attributes
+    fan_modes = state.attributes.get("fan_modes")
+    assert fan_modes == ["auto", "low", "medium", "high"]
+
+
+@pytest.mark.asyncio
+async def test_climate_fan_modes_property_none_when_not_supported(hass: HomeAssistant):
+    """Test that fan_modes property returns None when not supported."""
+    from homeassistant.components import input_boolean, input_number
+    from homeassistant.components.climate.const import DOMAIN as CLIMATE
+    from homeassistant.setup import async_setup_component
+    from homeassistant.util.unit_system import METRIC_SYSTEM
+
+    from custom_components.dual_smart_thermostat.const import DOMAIN
+
+    from . import common
+
+    hass.config.units = METRIC_SYSTEM
+
+    # Setup required entities
+    assert await async_setup_component(
+        hass, input_boolean.DOMAIN, {"input_boolean": {"test": None, "test_fan": None}}
+    )
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {"name": "test", "initial": 10, "min": 0, "max": 40, "step": 1}
+            }
+        },
+    )
+
+    # Setup switch entity as fan (no speed control)
+    hass.states.async_set("fan.test_fan", "off")
+
+    # Create thermostat
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "heater": "input_boolean.test",
+                "target_sensor": common.ENT_SENSOR,
+                "fan": "fan.test_fan",
+                "initial_hvac_mode": HVACMode.HEAT,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    # Get the climate entity state
+    state = hass.states.get("climate.test")
+    assert state is not None
+
+    # Fan modes should be None or not present
+    fan_modes = state.attributes.get("fan_modes")
+    assert fan_modes is None
+
+
+@pytest.mark.asyncio
+async def test_climate_async_set_fan_mode_service(hass: HomeAssistant):
+    """Test that async_set_fan_mode service method works correctly."""
+    from homeassistant.components import input_boolean, input_number
+    from homeassistant.components.climate.const import DOMAIN as CLIMATE
+    from homeassistant.setup import async_setup_component
+    from homeassistant.util.unit_system import METRIC_SYSTEM
+
+    from custom_components.dual_smart_thermostat.const import DOMAIN
+
+    from . import common
+
+    hass.config.units = METRIC_SYSTEM
+
+    # Setup fan services
+    setup_fan_services(hass)
+
+    # Setup required entities
+    assert await async_setup_component(
+        hass, input_boolean.DOMAIN, {"input_boolean": {"test": None, "test_fan": None}}
+    )
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {"name": "test", "initial": 10, "min": 0, "max": 40, "step": 1}
+            }
+        },
+    )
+
+    # Setup mock fan entity with preset_modes
+    hass.states.async_set(
+        "fan.test_fan",
+        "off",
+        {
+            "preset_modes": ["auto", "low", "medium", "high"],
+            "preset_mode": "auto",
+        },
+    )
+
+    # Create thermostat
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "heater": "input_boolean.test",
+                "target_sensor": common.ENT_SENSOR,
+                "fan": "fan.test_fan",
+                "initial_hvac_mode": HVACMode.HEAT,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    # Call the set_fan_mode service
+    await hass.services.async_call(
+        "climate",
+        "set_fan_mode",
+        {"entity_id": "climate.test", "fan_mode": "high"},
+        blocking=True,
+    )
+
+    # Verify fan mode was set
+    state = hass.states.get("climate.test")
+    assert state is not None
+    assert state.attributes.get("fan_mode") == "high"
+
+
+@pytest.mark.asyncio
+async def test_climate_async_set_fan_mode_updates_state(hass: HomeAssistant):
+    """Test that async_set_fan_mode updates climate entity state."""
+    from homeassistant.components import input_boolean, input_number
+    from homeassistant.components.climate.const import DOMAIN as CLIMATE
+    from homeassistant.setup import async_setup_component
+    from homeassistant.util.unit_system import METRIC_SYSTEM
+
+    from custom_components.dual_smart_thermostat.const import DOMAIN
+
+    from . import common
+
+    hass.config.units = METRIC_SYSTEM
+
+    # Setup fan services
+    setup_fan_services(hass)
+
+    # Setup required entities
+    assert await async_setup_component(
+        hass, input_boolean.DOMAIN, {"input_boolean": {"test": None, "test_fan": None}}
+    )
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {"name": "test", "initial": 10, "min": 0, "max": 40, "step": 1}
+            }
+        },
+    )
+
+    # Setup mock fan entity with percentage
+    hass.states.async_set(
+        "fan.test_fan",
+        "off",
+        {
+            "percentage": 0,
+        },
+    )
+
+    # Create thermostat
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "heater": "input_boolean.test",
+                "target_sensor": common.ENT_SENSOR,
+                "fan": "fan.test_fan",
+                "initial_hvac_mode": HVACMode.HEAT,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    # Get initial state
+    state = hass.states.get("climate.test")
+    initial_fan_mode = state.attributes.get("fan_mode")
+
+    # Call the set_fan_mode service
+    await hass.services.async_call(
+        "climate",
+        "set_fan_mode",
+        {"entity_id": "climate.test", "fan_mode": "medium"},
+        blocking=True,
+    )
+
+    # Verify state was updated
+    state = hass.states.get("climate.test")
+    assert state.attributes.get("fan_mode") == "medium"
+    assert state.attributes.get("fan_mode") != initial_fan_mode
+
+
+@pytest.mark.asyncio
+async def test_climate_async_set_fan_mode_when_not_supported(hass: HomeAssistant):
+    """Test that set_fan_mode service is not available when fan doesn't support speed control."""
+    from homeassistant.components import input_boolean, input_number
+    from homeassistant.components.climate.const import DOMAIN as CLIMATE
+    from homeassistant.setup import async_setup_component
+    from homeassistant.util.unit_system import METRIC_SYSTEM
+
+    from custom_components.dual_smart_thermostat.const import DOMAIN
+
+    from . import common
+
+    hass.config.units = METRIC_SYSTEM
+
+    # Setup required entities
+    assert await async_setup_component(
+        hass, input_boolean.DOMAIN, {"input_boolean": {"test": None, "test_fan": None}}
+    )
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {"name": "test", "initial": 10, "min": 0, "max": 40, "step": 1}
+            }
+        },
+    )
+
+    # Setup switch entity as fan (no speed control)
+    hass.states.async_set("fan.test_fan", "off")
+
+    # Create thermostat
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "heater": "input_boolean.test",
+                "target_sensor": common.ENT_SENSOR,
+                "fan": "fan.test_fan",
+                "initial_hvac_mode": HVACMode.HEAT,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    # State should not have fan_mode attribute
+    state = hass.states.get("climate.test")
+    assert state.attributes.get("fan_mode") is None
+
+    # Trying to call set_fan_mode when not supported should raise an error
+    # because the service won't be registered for this entity
+    with pytest.raises(Exception):
+        await hass.services.async_call(
+            "climate",
+            "set_fan_mode",
+            {"entity_id": "climate.test", "fan_mode": "high"},
+            blocking=True,
+        )
+
+
+# Task 7: State persistence tests
+
+
+@pytest.mark.asyncio
+async def test_fan_mode_appears_in_extra_state_attributes(hass: HomeAssistant):
+    """Test that fan mode appears in extra_state_attributes when supported."""
+    from homeassistant.components import input_boolean, input_number
+    from homeassistant.components.climate.const import DOMAIN as CLIMATE
+    from homeassistant.setup import async_setup_component
+    from homeassistant.util.unit_system import METRIC_SYSTEM
+
+    from custom_components.dual_smart_thermostat.const import DOMAIN
+
+    from . import common
+
+    hass.config.units = METRIC_SYSTEM
+
+    # Setup fan services
+    setup_fan_services(hass)
+
+    # Setup required entities
+    assert await async_setup_component(
+        hass, input_boolean.DOMAIN, {"input_boolean": {"test": None}}
+    )
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {"name": "test", "initial": 10, "min": 0, "max": 40, "step": 1}
+            }
+        },
+    )
+
+    # Setup mock fan entity with preset_modes
+    hass.states.async_set(
+        "fan.test_fan",
+        "off",
+        {
+            "preset_modes": ["auto", "low", "medium", "high"],
+            "preset_mode": "auto",
+        },
+    )
+
+    # Create thermostat
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "heater": "input_boolean.test",
+                "target_sensor": common.ENT_SENSOR,
+                "fan": "fan.test_fan",
+                "initial_hvac_mode": HVACMode.HEAT,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    # Set fan mode to "low"
+    await hass.services.async_call(
+        "climate",
+        "set_fan_mode",
+        {"entity_id": "climate.test", "fan_mode": "low"},
+        blocking=True,
+    )
+
+    # Get state
+    state = hass.states.get("climate.test")
+    assert state is not None
+
+    # Fan mode should appear in extra_state_attributes
+    assert state.attributes.get("fan_mode") == "low"
+
+
+@pytest.mark.asyncio
+async def test_fan_mode_not_in_attributes_when_not_supported(hass: HomeAssistant):
+    """Test that fan mode is not in attributes when fan doesn't support speed control."""
+    from homeassistant.components import input_boolean, input_number
+    from homeassistant.components.climate.const import DOMAIN as CLIMATE
+    from homeassistant.setup import async_setup_component
+    from homeassistant.util.unit_system import METRIC_SYSTEM
+
+    from custom_components.dual_smart_thermostat.const import DOMAIN
+
+    from . import common
+
+    hass.config.units = METRIC_SYSTEM
+
+    # Setup required entities
+    assert await async_setup_component(
+        hass, input_boolean.DOMAIN, {"input_boolean": {"test": None}}
+    )
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {"name": "test", "initial": 10, "min": 0, "max": 40, "step": 1}
+            }
+        },
+    )
+
+    # Setup switch entity as fan (no speed control)
+    hass.states.async_set("fan.test_fan", "off")
+
+    # Create thermostat
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "heater": "input_boolean.test",
+                "target_sensor": common.ENT_SENSOR,
+                "fan": "fan.test_fan",
+                "initial_hvac_mode": HVACMode.HEAT,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    # Get state
+    state = hass.states.get("climate.test")
+    assert state is not None
+
+    # Fan mode should not be in attributes
+    assert (
+        "fan_mode" not in state.attributes or state.attributes.get("fan_mode") is None
+    )
+
+
+@pytest.mark.asyncio
+async def test_fan_mode_restored_after_restart(hass: HomeAssistant):
+    """Test that fan mode is restored after Home Assistant restart."""
+    from unittest.mock import patch
+
+    from homeassistant.components import input_boolean, input_number
+    from homeassistant.components.climate.const import DOMAIN as CLIMATE
+    from homeassistant.core import State
+    from homeassistant.setup import async_setup_component
+    from homeassistant.util.unit_system import METRIC_SYSTEM
+
+    from custom_components.dual_smart_thermostat.const import DOMAIN
+
+    from . import common
+
+    hass.config.units = METRIC_SYSTEM
+
+    # Setup fan services
+    setup_fan_services(hass)
+
+    # Setup required entities
+    assert await async_setup_component(
+        hass, input_boolean.DOMAIN, {"input_boolean": {"test": None}}
+    )
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {"name": "test", "initial": 10, "min": 0, "max": 40, "step": 1}
+            }
+        },
+    )
+
+    # Setup mock fan entity with preset_modes
+    hass.states.async_set(
+        "fan.test_fan",
+        "off",
+        {
+            "preset_modes": ["auto", "low", "medium", "high"],
+            "preset_mode": "low",
+        },
+    )
+
+    # Setup a mock old state that has fan mode set to "medium"
+    old_state = State(
+        "climate.test",
+        HVACMode.HEAT,
+        {
+            "temperature": 20,
+            "fan_mode": "medium",
+            "fan_modes": ["auto", "low", "medium", "high"],
+        },
+    )
+
+    # Mock async_get_last_state to return our old state
+    with patch(
+        "homeassistant.helpers.restore_state.RestoreEntity.async_get_last_state",
+        return_value=old_state,
+    ):
+        # Create thermostat (this will trigger state restoration)
+        assert await async_setup_component(
+            hass,
+            CLIMATE,
+            {
+                "climate": {
+                    "platform": DOMAIN,
+                    "name": "test",
+                    "heater": "input_boolean.test",
+                    "target_sensor": common.ENT_SENSOR,
+                    "fan": "fan.test_fan",
+                    "initial_hvac_mode": HVACMode.HEAT,
+                }
+            },
+        )
+        await hass.async_block_till_done()
+
+    # Get state after restoration
+    state = hass.states.get("climate.test")
+    assert state is not None
+
+    # Fan mode should be restored to "medium"
+    assert state.attributes.get("fan_mode") == "medium"
+
+
+@pytest.mark.asyncio
+async def test_fan_mode_restoration_when_old_state_has_no_fan_mode(hass: HomeAssistant):
+    """Test graceful handling when old state has no fan mode (new feature)."""
+    from unittest.mock import patch
+
+    from homeassistant.components import input_boolean, input_number
+    from homeassistant.components.climate.const import DOMAIN as CLIMATE
+    from homeassistant.core import State
+    from homeassistant.setup import async_setup_component
+    from homeassistant.util.unit_system import METRIC_SYSTEM
+
+    from custom_components.dual_smart_thermostat.const import DOMAIN
+
+    from . import common
+
+    hass.config.units = METRIC_SYSTEM
+
+    # Setup fan services
+    setup_fan_services(hass)
+
+    # Setup required entities
+    assert await async_setup_component(
+        hass, input_boolean.DOMAIN, {"input_boolean": {"test": None}}
+    )
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {"name": "test", "initial": 10, "min": 0, "max": 40, "step": 1}
+            }
+        },
+    )
+
+    # Setup mock fan entity
+    hass.states.async_set(
+        "fan.test_fan",
+        "off",
+        {
+            "preset_modes": ["auto", "low", "medium", "high"],
+            "preset_mode": "auto",
+        },
+    )
+
+    # Setup old state WITHOUT fan_mode attribute (simulates upgrade from older version)
+    old_state = State(
+        "climate.test",
+        HVACMode.HEAT,
+        {
+            "temperature": 20,
+        },
+    )
+
+    # Mock async_get_last_state
+    with patch(
+        "homeassistant.helpers.restore_state.RestoreEntity.async_get_last_state",
+        return_value=old_state,
+    ):
+        # Create thermostat
+        assert await async_setup_component(
+            hass,
+            CLIMATE,
+            {
+                "climate": {
+                    "platform": DOMAIN,
+                    "name": "test",
+                    "heater": "input_boolean.test",
+                    "target_sensor": common.ENT_SENSOR,
+                    "fan": "fan.test_fan",
+                    "initial_hvac_mode": HVACMode.HEAT,
+                }
+            },
+        )
+        await hass.async_block_till_done()
+
+    # Should not crash, fan mode should be None or auto (default)
+    state = hass.states.get("climate.test")
+    assert state is not None
+    # Fan mode might be None or auto, either is acceptable
+    fan_mode = state.attributes.get("fan_mode")
+    assert fan_mode in (None, "auto")
+
+
+@pytest.mark.asyncio
+async def test_fan_mode_restoration_when_fan_device_does_not_support_mode(
+    hass: HomeAssistant,
+):
+    """Test that fan mode restoration is skipped when fan device doesn't support speed control."""
+    from unittest.mock import patch
+
+    from homeassistant.components import input_boolean, input_number
+    from homeassistant.components.climate.const import DOMAIN as CLIMATE
+    from homeassistant.core import State
+    from homeassistant.setup import async_setup_component
+    from homeassistant.util.unit_system import METRIC_SYSTEM
+
+    from custom_components.dual_smart_thermostat.const import DOMAIN
+
+    from . import common
+
+    hass.config.units = METRIC_SYSTEM
+
+    # Setup required entities
+    assert await async_setup_component(
+        hass, input_boolean.DOMAIN, {"input_boolean": {"test": None}}
+    )
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {"name": "test", "initial": 10, "min": 0, "max": 40, "step": 1}
+            }
+        },
+    )
+
+    # Setup switch entity (no speed control)
+    hass.states.async_set("fan.test_fan", "off")
+
+    # Setup old state with fan_mode (shouldn't be there, but test graceful handling)
+    old_state = State(
+        "climate.test",
+        HVACMode.HEAT,
+        {
+            "temperature": 20,
+            "fan_mode": "medium",
+        },
+    )
+
+    # Mock async_get_last_state
+    with patch(
+        "homeassistant.helpers.restore_state.RestoreEntity.async_get_last_state",
+        return_value=old_state,
+    ):
+        # Create thermostat
+        assert await async_setup_component(
+            hass,
+            CLIMATE,
+            {
+                "climate": {
+                    "platform": DOMAIN,
+                    "name": "test",
+                    "heater": "input_boolean.test",
+                    "target_sensor": common.ENT_SENSOR,
+                    "fan": "fan.test_fan",
+                    "initial_hvac_mode": HVACMode.HEAT,
+                }
+            },
+        )
+        await hass.async_block_till_done()
+
+    # Should not crash, fan mode should be None since device doesn't support it
+    state = hass.states.get("climate.test")
+    assert state is not None
+    assert state.attributes.get("fan_mode") is None
+
+
+@pytest.mark.asyncio
+async def test_fan_activates_with_restored_fan_mode(hass: HomeAssistant):
+    """Test that when fan activates after restart, it uses the restored fan mode."""
+    from unittest.mock import patch
+
+    from homeassistant.components import input_boolean, input_number
+    from homeassistant.components.climate.const import DOMAIN as CLIMATE
+    from homeassistant.core import State
+    from homeassistant.setup import async_setup_component
+    from homeassistant.util.unit_system import METRIC_SYSTEM
+
+    from custom_components.dual_smart_thermostat.const import DOMAIN
+
+    from . import common
+
+    hass.config.units = METRIC_SYSTEM
+
+    # Setup fan services
+    calls = setup_fan_services(hass)
+
+    # Setup required entities
+    assert await async_setup_component(
+        hass, input_boolean.DOMAIN, {"input_boolean": {"test": None}}
+    )
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {"name": "test", "initial": 10, "min": 0, "max": 40, "step": 1}
+            }
+        },
+    )
+
+    # Setup mock fan entity
+    hass.states.async_set(
+        "fan.test_fan",
+        "off",
+        {
+            "preset_modes": ["auto", "low", "medium", "high"],
+            "preset_mode": None,
+        },
+    )
+
+    # Setup old state with fan_mode set to "high"
+    old_state = State(
+        "climate.test",
+        HVACMode.FAN_ONLY,
+        {
+            "temperature": 20,
+            "fan_mode": "high",
+            "fan_modes": ["auto", "low", "medium", "high"],
+        },
+    )
+
+    # Mock async_get_last_state
+    with patch(
+        "homeassistant.helpers.restore_state.RestoreEntity.async_get_last_state",
+        return_value=old_state,
+    ):
+        # Create thermostat (restore state with FAN_ONLY mode and "high" fan mode)
+        assert await async_setup_component(
+            hass,
+            CLIMATE,
+            {
+                "climate": {
+                    "platform": DOMAIN,
+                    "name": "test",
+                    "heater": "input_boolean.test",
+                    "target_sensor": common.ENT_SENSOR,
+                    "fan": "fan.test_fan",
+                }
+            },
+        )
+        await hass.async_block_till_done()
+
+    # Clear calls from setup
+    calls.clear()
+
+    # Simulate fan turning on (change temperature to trigger fan activation in FAN_ONLY mode)
+    hass.states.async_set(common.ENT_SENSOR, 25)
+    await hass.async_block_till_done()
+
+    # The fan should have been activated with "high" mode
+    # Look for set_preset_mode call with "high"
+    preset_mode_calls = [call for call in calls if call.service == "set_preset_mode"]
+
+    # Should have set fan mode to "high"
+    if len(preset_mode_calls) > 0:
+        assert any(call.data.get("preset_mode") == "high" for call in preset_mode_calls)

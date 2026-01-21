@@ -28,6 +28,7 @@ The `dual_smart_thermostat` is an enhanced version of generic thermostat impleme
 | **Two Stage (AUX) Heating Mode** | ![heating](/docs/images/fire-custom.png) ![heating](/docs/images/radiator-custom.png) | [docs](#two-stage-heating) |
 | **Fan Only Mode** | ![fan](/docs/images/fan-custom.png) | [docs](#fan-only-mode) |
 | **Fan With Cooler Mode** | ![fan](/docs/images/fan-custom.png)  ![cool](/docs/images/snowflake-custom.png) | [docs](#fan-with-cooler-mode) |
+| **Fan Speed Control** | ![fan](/docs/images/fan-custom.png) | [docs](#fan-speed-control) |
 | **Dry Mode (Humidity Control)** | ![humidity](docs/images/water-percent-custom.png) | [docs](#dry-mode) |
 | **Heat Pump Mode** | ![heat/cool](docs/images/sun-snowflake-custom.png) | [docs](#heat-pump-one-switch-heatcool-mode) |
 | **Floor Temperature Control** | ![heating-coil](docs/images/heating-coil-custom.png) ![snowflake-thermometer](docs/images/snowflake-thermometer-custom.png)  ![thermometer-alert](docs/images/thermometer-alert-custom.png) | [docs](#floor-heating-temperature-control) |
@@ -121,6 +122,240 @@ fan_hot_tolerance: 0.5
 #### Outside Temperature And Fan Hot Tolerance
 
 If you set the [`fan_hot_tolerance`](#fan_hot_tolerance), [`outside_sensor`](#outside_sensor)  and the [`fan_air_outside`](#fan_air_outside) the fan will turn on only if the outside temperature is colder than the inside temperature and the fan_hot_tolerance is not reached. If the outside temperature is colder than the inside temperature and the fan_hot_tolerance is reached the AC will turn on.
+
+## Fan Speed Control
+
+The `dual_smart_thermostat` automatically detects and enables fan speed control when you configure a `fan` entity that supports speed capabilities. This allows you to control your HVAC fan speeds (low, medium, high, auto) directly from the thermostat interface, just like built-in thermostats.
+
+### Automatic Detection
+
+The thermostat automatically detects whether your fan entity supports speed control based on its capabilities:
+
+- **Native fan entities** (`fan` domain) with `preset_mode` or `percentage` attributes → Fan speed control enabled automatically
+- **Switch entities** (`switch` domain) → Traditional on/off control (backward compatible)
+
+**No configuration changes required** - the thermostat detects capabilities at runtime.
+
+### Fan Speed Control Example
+
+```yaml
+climate:
+  - platform: dual_smart_thermostat
+    name: My Thermostat
+    heater: switch.study_heater
+    fan: fan.hvac_fan  # Native fan entity - speeds automatically detected
+    target_sensor: sensor.study_temperature
+```
+
+With this configuration, you'll see fan speed controls in the thermostat UI allowing you to select speeds like "auto", "low", "medium", "high" depending on what your fan entity supports.
+
+### Backward Compatibility
+
+Existing configurations using switch entities continue working unchanged:
+
+```yaml
+climate:
+  - platform: dual_smart_thermostat
+    name: My Thermostat
+    heater: switch.study_heater
+    fan: switch.fan_relay  # Switch entity - on/off only (no speed control)
+    target_sensor: sensor.study_temperature
+```
+
+### Integration with Existing Features
+
+Fan speed control works seamlessly with all existing fan-related features:
+
+- **FAN_ONLY Mode**: Fan runs at selected speed in fan-only mode
+- **Fan with AC** (`fan_on_with_ac`): Fan runs at selected speed when AC is active
+- **Fan Hot Tolerance**: Fan activates at selected speed when temperature tolerance is exceeded
+- **Heat Pump Mode**: Fan speed applies to both heating and cooling operations
+
+Your fan speed selection persists across heating/cooling cycles and restarts.
+
+### Upgrading Switch-Based Fans
+
+If you currently use a `switch` entity for your fan but want speed control, you can create a template fan entity that wraps your switch. Here are several examples:
+
+#### Template Fan with Input Select (Preset Modes)
+
+This example uses an input_select helper to provide speed presets:
+
+```yaml
+# Helper for fan speed selection
+input_select:
+  hvac_fan_speed:
+    name: HVAC Fan Speed
+    options:
+      - "auto"
+      - "low"
+      - "medium"
+      - "high"
+    initial: "auto"
+
+# Template fan wrapping switch + speed control
+fan:
+  - platform: template
+    fans:
+      hvac_fan:
+        friendly_name: "HVAC Fan"
+        value_template: "{{ is_state('switch.fan_relay', 'on') }}"
+        preset_mode_template: "{{ states('input_select.hvac_fan_speed') }}"
+        preset_modes:
+          - "auto"
+          - "low"
+          - "medium"
+          - "high"
+        turn_on:
+          service: switch.turn_on
+          target:
+            entity_id: switch.fan_relay
+        turn_off:
+          service: switch.turn_off
+          target:
+            entity_id: switch.fan_relay
+        set_preset_mode:
+          service: input_select.select_option
+          target:
+            entity_id: input_select.hvac_fan_speed
+          data:
+            option: "{{ preset_mode }}"
+
+# Use in thermostat
+climate:
+  - platform: dual_smart_thermostat
+    name: My Thermostat
+    heater: switch.study_heater
+    fan: fan.hvac_fan  # Uses template fan with speed control
+    target_sensor: sensor.study_temperature
+```
+
+#### Template Fan with Percentage Control
+
+This example uses an input_number helper for percentage-based speed control:
+
+```yaml
+# Helper for fan percentage
+input_number:
+  hvac_fan_speed:
+    name: HVAC Fan Speed
+    min: 0
+    max: 100
+    step: 1
+    unit_of_measurement: "%"
+
+# Template fan with percentage support
+fan:
+  - platform: template
+    fans:
+      hvac_fan:
+        friendly_name: "HVAC Fan"
+        value_template: "{{ is_state('switch.fan_relay', 'on') }}"
+        percentage_template: "{{ states('input_number.hvac_fan_speed') | int }}"
+        turn_on:
+          service: switch.turn_on
+          target:
+            entity_id: switch.fan_relay
+        turn_off:
+          service: switch.turn_off
+          target:
+            entity_id: switch.fan_relay
+        set_percentage:
+          - service: input_number.set_value
+            target:
+              entity_id: input_number.hvac_fan_speed
+            data:
+              value: "{{ percentage }}"
+
+# Use in thermostat
+climate:
+  - platform: dual_smart_thermostat
+    name: My Thermostat
+    heater: switch.study_heater
+    fan: fan.hvac_fan  # Percentage-based speed control
+    target_sensor: sensor.study_temperature
+```
+
+#### Template Fan for IR/RF Controlled Fans
+
+For fans controlled via Broadlink, IR blaster, or RF remote:
+
+```yaml
+# Helpers to track state
+input_boolean:
+  fan_state:
+    name: Fan State
+
+input_select:
+  hvac_fan_speed:
+    name: HVAC Fan Speed
+    options:
+      - "low"
+      - "medium"
+      - "high"
+    initial: "low"
+
+# Template fan for IR/RF control
+fan:
+  - platform: template
+    fans:
+      hvac_fan:
+        friendly_name: "HVAC Fan"
+        value_template: "{{ is_state('input_boolean.fan_state', 'on') }}"
+        preset_mode_template: "{{ states('input_select.hvac_fan_speed') }}"
+        preset_modes:
+          - "low"
+          - "medium"
+          - "high"
+        turn_on:
+          - service: input_boolean.turn_on
+            target:
+              entity_id: input_boolean.fan_state
+          - service: remote.send_command
+            target:
+              entity_id: remote.living_room
+            data:
+              command: "fan_on"
+        turn_off:
+          - service: input_boolean.turn_off
+            target:
+              entity_id: input_boolean.fan_state
+          - service: remote.send_command
+            target:
+              entity_id: remote.living_room
+            data:
+              command: "fan_off"
+        set_preset_mode:
+          - service: input_select.select_option
+            target:
+              entity_id: input_select.hvac_fan_speed
+            data:
+              option: "{{ preset_mode }}"
+          - service: remote.send_command
+            target:
+              entity_id: remote.living_room
+            data:
+              command: "fan_{{ preset_mode }}"
+
+# Use in thermostat
+climate:
+  - platform: dual_smart_thermostat
+    name: My Thermostat
+    heater: switch.study_heater
+    fan: fan.hvac_fan  # IR/RF controlled with speed support
+    target_sensor: sensor.study_temperature
+```
+
+**Benefits of Template Fans:**
+- Use existing switch hardware without buying new devices
+- Add speed control functionality to any fan
+- Automatic detection by the thermostat
+- Full UI integration with speed controls
+- Works with IR/RF remotes, relays, or any controllable device
+
+**Reference:** [Home Assistant Template Fan Documentation](https://www.home-assistant.io/integrations/fan.template/)
+
+[all features ⤴️](#features)
 
 ## AC With Fan Switch Support
 
