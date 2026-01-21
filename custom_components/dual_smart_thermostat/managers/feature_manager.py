@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from ..hvac_device.fan_device import FanDevice
 
 from ..const import (
+    ATTR_FAN_MODE,
     CONF_AC_MODE,
     CONF_AUX_HEATER,
     CONF_AUX_HEATING_DUAL_MODE,
@@ -290,6 +291,9 @@ class FeatureManager(StateManager):
                 self._default_support_flags | ClimateEntityFeature.TARGET_TEMPERATURE
             )
 
+        # Restore fan mode if supported
+        self._restore_fan_mode(old_state)
+
     def hvac_modes_support_range_temp(self, hvac_modes: list[HVACMode]) -> bool:
         return (
             HVACMode.COOL in hvac_modes or HVACMode.FAN_ONLY in hvac_modes
@@ -317,3 +321,26 @@ class FeatureManager(StateManager):
         if self._fan_device is None:
             return []
         return self._fan_device.fan_modes
+
+    def _restore_fan_mode(self, old_state: State) -> None:
+        """Restore fan mode from old state."""
+        if not self.supports_fan_mode:
+            _LOGGER.debug(
+                "Fan mode restoration skipped: device does not support speed control"
+            )
+            return
+
+        if self._fan_device is None:
+            _LOGGER.debug("Fan mode restoration skipped: no fan device")
+            return
+
+        old_fan_mode = old_state.attributes.get(ATTR_FAN_MODE)
+        if old_fan_mode is None:
+            _LOGGER.debug("No fan mode found in old state, skipping restoration")
+            return
+
+        _LOGGER.info("Restoring fan mode: %s", old_fan_mode)
+        # Set the fan mode directly on the fan device
+        # We don't use async here because apply_old_state is not async
+        # The fan mode will be applied when the fan is next turned on
+        self._fan_device._current_fan_mode = old_fan_mode
