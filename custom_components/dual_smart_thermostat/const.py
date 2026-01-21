@@ -79,7 +79,8 @@ CONF_FAN_AIR_OUTSIDE = "fan_air_outside"
 ATTR_FAN_MODE = "fan_mode"
 ATTR_FAN_MODES = "fan_modes"
 
-# Fan mode to percentage mappings for percentage-based fans
+# Fan mode to percentage mappings for percentage-based fan entities (using fan.set_percentage service)
+# Note: Both "auto" and "high" map to 100%. Reading 100% returns "high" as the canonical mode.
 FAN_MODE_TO_PERCENTAGE = {
     "auto": 100,
     "low": 33,

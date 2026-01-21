@@ -28,3 +28,17 @@ def test_percentage_to_fan_mode_mapping():
     assert PERCENTAGE_TO_FAN_MODE[33] == "low"
     assert PERCENTAGE_TO_FAN_MODE[66] == "medium"
     assert PERCENTAGE_TO_FAN_MODE[100] == "high"
+
+
+def test_auto_mode_uses_100_percent_same_as_high():
+    """Test that auto mode uses 100% like high mode.
+
+    This documents intentional behavior: auto and high both send 100% to the fan.
+    When reading back a 100% state, it's interpreted as "high" mode.
+    """
+    # Both auto and high use 100%
+    assert FAN_MODE_TO_PERCENTAGE["auto"] == 100
+    assert FAN_MODE_TO_PERCENTAGE["high"] == 100
+
+    # But reading 100% returns "high" as canonical
+    assert PERCENTAGE_TO_FAN_MODE[100] == "high"
