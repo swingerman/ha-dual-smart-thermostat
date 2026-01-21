@@ -164,6 +164,20 @@ class FanDevice(CoolerDevice):
         self._current_fan_mode = fan_mode
         _LOGGER.info("Fan mode set to %s for entity %s", fan_mode, self.entity_id)
 
+    async def async_turn_on(self):
+        """Turn on the fan and apply the selected fan mode."""
+        # First turn on the fan using parent class logic
+        await super().async_turn_on()
+
+        # Then apply fan mode if supported and a mode is set
+        if self._supports_fan_mode and self._current_fan_mode is not None:
+            _LOGGER.debug(
+                "Applying fan mode %s after turning on %s",
+                self._current_fan_mode,
+                self.entity_id,
+            )
+            await self.async_set_fan_mode(self._current_fan_mode)
+
     @property
     def hvac_action(self) -> HVACAction:
         if self.hvac_mode == HVACMode.OFF:
