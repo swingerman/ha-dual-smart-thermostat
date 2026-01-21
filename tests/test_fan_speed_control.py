@@ -465,3 +465,128 @@ async def test_turn_on_switch_device_no_fan_mode_applied(hass: HomeAssistant):
     assert calls[0].domain == ha.DOMAIN
     assert calls[0].service == SERVICE_TURN_ON
     assert calls[0].data["entity_id"] == "switch.test_fan"
+
+
+@pytest.mark.asyncio
+async def test_turn_on_handles_fan_mode_service_failure_preset(
+    hass: HomeAssistant, caplog
+):
+    """Test that fan mode service failures are caught and logged (preset_mode)."""
+    import logging
+
+    # Setup fan entity with preset_modes
+    hass.states.async_set(
+        "fan.test_fan",
+        "off",
+        {
+            "preset_modes": ["auto", "low", "medium", "high"],
+            "preset_mode": None,
+        },
+    )
+
+    # Register turn_on service (successful)
+    @callback
+    def turn_on_service(call) -> None:
+        """Mock successful turn on."""
+        pass
+
+    hass.services.async_register(ha.DOMAIN, SERVICE_TURN_ON, turn_on_service)
+
+    # Register set_preset_mode service that raises exception
+    @callback
+    def failing_preset_mode_service(call) -> None:
+        """Mock failing set_preset_mode."""
+        raise Exception("Entity unavailable")
+
+    hass.services.async_register("fan", "set_preset_mode", failing_preset_mode_service)
+
+    environment = MagicMock(spec=EnvironmentManager)
+    openings = MagicMock(spec=OpeningManager)
+    features = MagicMock(spec=FeatureManager)
+    hvac_power = MagicMock(spec=HvacPowerManager)
+
+    fan_device = FanDevice(
+        hass,
+        "fan.test_fan",
+        timedelta(seconds=5),
+        HVACMode.FAN_ONLY,
+        environment,
+        openings,
+        features,
+        hvac_power,
+    )
+
+    # Set a fan mode (this will succeed, just sets internal state)
+    fan_device._current_fan_mode = "medium"
+
+    # Turn on should not raise exception even though set_preset_mode fails
+    with caplog.at_level(logging.WARNING):
+        await fan_device.async_turn_on()
+
+    # Verify warning was logged about failure
+    assert any(
+        "Failed to apply fan mode" in record.message and "medium" in record.message
+        for record in caplog.records
+    )
+
+
+@pytest.mark.asyncio
+async def test_turn_on_handles_fan_mode_service_failure_percentage(
+    hass: HomeAssistant, caplog
+):
+    """Test that fan mode service failures are caught and logged (percentage)."""
+    import logging
+
+    # Setup fan entity with percentage
+    hass.states.async_set(
+        "fan.test_fan",
+        "off",
+        {
+            "percentage": 0,
+        },
+    )
+
+    # Register turn_on service (successful)
+    @callback
+    def turn_on_service(call) -> None:
+        """Mock successful turn on."""
+        pass
+
+    hass.services.async_register(ha.DOMAIN, SERVICE_TURN_ON, turn_on_service)
+
+    # Register set_percentage service that raises exception
+    @callback
+    def failing_percentage_service(call) -> None:
+        """Mock failing set_percentage."""
+        raise Exception("Entity unavailable")
+
+    hass.services.async_register("fan", "set_percentage", failing_percentage_service)
+
+    environment = MagicMock(spec=EnvironmentManager)
+    openings = MagicMock(spec=OpeningManager)
+    features = MagicMock(spec=FeatureManager)
+    hvac_power = MagicMock(spec=HvacPowerManager)
+
+    fan_device = FanDevice(
+        hass,
+        "fan.test_fan",
+        timedelta(seconds=5),
+        HVACMode.FAN_ONLY,
+        environment,
+        openings,
+        features,
+        hvac_power,
+    )
+
+    # Set a fan mode (this will succeed, just sets internal state)
+    fan_device._current_fan_mode = "low"
+
+    # Turn on should not raise exception even though set_percentage fails
+    with caplog.at_level(logging.WARNING):
+        await fan_device.async_turn_on()
+
+    # Verify warning was logged about failure
+    assert any(
+        "Failed to apply fan mode" in record.message and "low" in record.message
+        for record in caplog.records
+    )

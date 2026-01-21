@@ -176,7 +176,15 @@ class FanDevice(CoolerDevice):
                 self._current_fan_mode,
                 self.entity_id,
             )
-            await self.async_set_fan_mode(self._current_fan_mode)
+            try:
+                await self.async_set_fan_mode(self._current_fan_mode)
+            except Exception as e:
+                _LOGGER.warning(
+                    "Failed to apply fan mode %s after turning on %s: %s",
+                    self._current_fan_mode,
+                    self.entity_id,
+                    e,
+                )
 
     @property
     def hvac_action(self) -> HVACAction:
