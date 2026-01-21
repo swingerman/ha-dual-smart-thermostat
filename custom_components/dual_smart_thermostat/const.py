@@ -74,6 +74,26 @@ CONF_FAN_ON_WITH_AC = "fan_on_with_ac"
 CONF_FAN_HOT_TOLERANCE = "fan_hot_tolerance"
 CONF_FAN_HOT_TOLERANCE_TOGGLE = "fan_hot_tolerance_toggle"
 CONF_FAN_AIR_OUTSIDE = "fan_air_outside"
+
+# Fan speed control
+ATTR_FAN_MODE = "fan_mode"
+ATTR_FAN_MODES = "fan_modes"
+
+# Fan mode to percentage mappings for percentage-based fans
+FAN_MODE_TO_PERCENTAGE = {
+    "auto": 100,
+    "low": 33,
+    "medium": 66,
+    "high": 100,
+}
+
+# Reverse mapping for reading current fan percentage
+PERCENTAGE_TO_FAN_MODE = {
+    33: "low",
+    66: "medium",
+    100: "high",
+}
+
 CONF_SENSOR = "target_sensor"
 CONF_STALE_DURATION = "sensor_stale_duration"
 CONF_FLOOR_SENSOR = "floor_sensor"
