@@ -340,7 +340,6 @@ class FeatureManager(StateManager):
             return
 
         _LOGGER.info("Restoring fan mode: %s", old_fan_mode)
-        # Set the fan mode directly on the fan device
-        # We don't use async here because apply_old_state is not async
-        # The fan mode will be applied when the fan is next turned on
-        self._fan_device._current_fan_mode = old_fan_mode
+        # Restore the fan mode using the public method
+        # This validates the mode and logs appropriately
+        self._fan_device.restore_fan_mode(old_fan_mode)

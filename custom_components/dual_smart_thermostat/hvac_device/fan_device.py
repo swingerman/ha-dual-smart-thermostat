@@ -119,6 +119,26 @@ class FanDevice(CoolerDevice):
         """Return current fan mode."""
         return self._current_fan_mode
 
+    def restore_fan_mode(self, fan_mode: str) -> None:
+        """Restore fan mode from persisted state.
+
+        Args:
+            fan_mode: The fan mode to restore
+
+        This method validates that the fan mode is valid for the current
+        fan device before restoring it. Invalid modes are logged and ignored.
+        """
+        if fan_mode in self._fan_modes:
+            self._current_fan_mode = fan_mode
+            _LOGGER.info("Restored fan mode %s for entity %s", fan_mode, self.entity_id)
+        else:
+            _LOGGER.warning(
+                "Cannot restore invalid fan mode %s for entity %s. Available modes: %s",
+                fan_mode,
+                self.entity_id,
+                self._fan_modes,
+            )
+
     async def async_set_fan_mode(self, fan_mode: str) -> None:
         """Set the fan speed mode."""
         if not self._supports_fan_mode:
