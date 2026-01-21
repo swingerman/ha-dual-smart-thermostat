@@ -61,6 +61,7 @@ from . import DOMAIN, PLATFORMS
 from .config_validation import validate_config_with_models
 from .const import (
     ATTR_CLOSING_TIMEOUT,
+    ATTR_FAN_MODE,
     ATTR_HVAC_ACTION_REASON,
     ATTR_HVAC_POWER_LEVEL,
     ATTR_HVAC_POWER_PERCENT,
@@ -1083,6 +1084,10 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         attributes[ATTR_HVAC_ACTION_REASON] = (
             self._hvac_action_reason or HVACActionReason.NONE
         )
+
+        # Add fan mode to state attributes for persistence
+        if self.features.supports_fan_mode and self.fan_mode is not None:
+            attributes[ATTR_FAN_MODE] = self.fan_mode
 
         # TODO: set these only if configured to avoid unnecessary DB writes
         if self.features.is_configured_for_hvac_power_levels:
