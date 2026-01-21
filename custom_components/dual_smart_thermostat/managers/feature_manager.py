@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 import logging
+from typing import TYPE_CHECKING
 
 from homeassistant.components.climate.const import (
     PRESET_NONE,
@@ -8,6 +11,9 @@ from homeassistant.components.climate.const import (
 from homeassistant.const import ATTR_SUPPORTED_FEATURES
 from homeassistant.core import HomeAssistant, State
 from homeassistant.helpers.typing import ConfigType
+
+if TYPE_CHECKING:
+    from ..hvac_device.fan_device import FanDevice
 
 from ..const import (
     CONF_AC_MODE,
@@ -285,7 +291,7 @@ class FeatureManager(StateManager):
             HVACMode.COOL in hvac_modes or HVACMode.FAN_ONLY in hvac_modes
         ) and HVACMode.HEAT in hvac_modes
 
-    def set_fan_device(self, fan_device) -> None:
+    def set_fan_device(self, fan_device: FanDevice | None) -> None:
         """Set the fan device reference for speed control access."""
         self._fan_device = fan_device
 
