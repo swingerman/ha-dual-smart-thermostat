@@ -300,6 +300,11 @@ class FeatureManager(StateManager):
         self._fan_device = fan_device
 
     @property
+    def fan_device(self) -> FanDevice | None:
+        """Return the fan device if available."""
+        return self._fan_device
+
+    @property
     def supports_fan_mode(self) -> bool:
         """Return if fan supports speed control."""
         if self._fan_device is None:

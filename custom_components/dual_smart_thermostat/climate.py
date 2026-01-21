@@ -1051,7 +1051,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         if not self.features.supports_fan_mode:
             return None
         # Access fan device through the feature manager
-        fan_device = self.features._fan_device
+        fan_device = self.features.fan_device
         if fan_device is None:
             return None
         return fan_device.current_fan_mode
@@ -1249,7 +1249,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         _LOGGER.info("Setting fan mode: %s", fan_mode)
 
         # Access fan device through the feature manager
-        fan_device = self.features._fan_device
+        fan_device = self.features.fan_device
         if fan_device is None:
             _LOGGER.warning("Cannot set fan mode: fan device not found")
             return

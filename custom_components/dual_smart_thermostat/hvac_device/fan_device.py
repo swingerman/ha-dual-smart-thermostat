@@ -4,6 +4,7 @@ import logging
 from homeassistant.components.climate import HVACAction, HVACMode
 from homeassistant.core import HomeAssistant
 
+from ..const import FAN_MODE_TO_PERCENTAGE
 from ..hvac_device.cooler_device import CoolerDevice
 from ..managers.environment_manager import EnvironmentManager
 from ..managers.feature_manager import FeatureManager
@@ -147,8 +148,6 @@ class FanDevice(CoolerDevice):
             )
         else:
             # Use percentage service
-            from ..const import FAN_MODE_TO_PERCENTAGE
-
             percentage = FAN_MODE_TO_PERCENTAGE.get(fan_mode)
             if percentage is None:
                 _LOGGER.error("No percentage mapping for fan mode %s", fan_mode)
