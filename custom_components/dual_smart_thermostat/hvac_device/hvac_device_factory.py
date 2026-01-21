@@ -189,6 +189,11 @@ class HVACDeviceFactory:
             "heater_device: %s, cooler_device: %s", heater_device, cooler_device
         )
 
+        # Set fan device on feature manager for speed control access
+        # This must be done before returning any device
+        if fan_device:
+            self._features.set_fan_device(fan_device)
+
         if heater_device is not None and cooler_device is not None:
             _LOGGER.info("Creating heater cooler device")
             heater_cooler_device = HeaterCoolerDevice(

@@ -259,6 +259,10 @@ class FeatureManager(StateManager):
         if self.is_configured_for_dryer_mode:
             self._supported_features |= ClimateEntityFeature.TARGET_HUMIDITY
 
+        # Add FAN_MODE feature if fan device supports speed control
+        if self.supports_fan_mode:
+            self._supported_features |= ClimateEntityFeature.FAN_MODE
+
     def apply_old_state(
         self, old_state: State | None, hvac_mode: HVACMode | None = None, presets=[]
     ) -> None:
