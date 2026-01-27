@@ -72,6 +72,7 @@ from .schema_utils import (
     get_temperature_selector,
     get_text_selector,
     get_time_selector,
+    get_tolerance_selector,
     seconds_to_duration,
 )
 
@@ -226,11 +227,11 @@ def get_tolerance_fields(
     hot_tol_value = defaults.get(CONF_HOT_TOLERANCE, DEFAULT_TOLERANCE)
 
     schema_dict[vol.Optional(CONF_COLD_TOLERANCE, default=cold_tol_value)] = (
-        get_temperature_selector(hass=hass, min_value=0, max_value=10, step=0.05)
+        get_tolerance_selector(hass=hass, min_value=0, max_value=10, step=0.05)
     )
 
     schema_dict[vol.Optional(CONF_HOT_TOLERANCE, default=hot_tol_value)] = (
-        get_temperature_selector(hass=hass, min_value=0, max_value=10, step=0.05)
+        get_tolerance_selector(hass=hass, min_value=0, max_value=10, step=0.05)
     )
 
     # Heat/Cool tolerance fields (only for heater_cooler and heat_pump)
@@ -244,14 +245,14 @@ def get_tolerance_fields(
                 CONF_HEAT_TOLERANCE,
                 default=heat_tol_value if heat_tol_value is not None else vol.UNDEFINED,
             )
-        ] = get_temperature_selector(hass=hass, min_value=0, max_value=5.0, step=0.05)
+        ] = get_tolerance_selector(hass=hass, min_value=0, max_value=5.0, step=0.05)
 
         schema_dict[
             vol.Optional(
                 CONF_COOL_TOLERANCE,
                 default=cool_tol_value if cool_tol_value is not None else vol.UNDEFINED,
             )
-        ] = get_temperature_selector(hass=hass, min_value=0, max_value=5.0, step=0.05)
+        ] = get_tolerance_selector(hass=hass, min_value=0, max_value=5.0, step=0.05)
 
     return schema_dict
 
@@ -965,7 +966,7 @@ def get_fan_schema(hass=None, defaults: dict[str, Any] | None = None):
             vol.Optional(
                 CONF_FAN_HOT_TOLERANCE,
                 default=defaults.get(CONF_FAN_HOT_TOLERANCE, 0.5),
-            ): get_temperature_selector(
+            ): get_tolerance_selector(
                 hass=hass, min_value=0.0, max_value=10.0, step=0.05
             ),
             vol.Optional(
