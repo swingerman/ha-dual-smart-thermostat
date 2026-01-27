@@ -1050,24 +1050,16 @@ def get_advanced_settings_schema(hass=None):
             ),
             vol.Optional(
                 CONF_COLD_TOLERANCE, default=DEFAULT_TOLERANCE
-            ): get_temperature_selector(
-                hass=hass, min_value=0, max_value=10, step=0.05
-            ),
+            ): get_tolerance_selector(hass=hass, min_value=0, max_value=10, step=0.05),
             vol.Optional(
                 CONF_HOT_TOLERANCE, default=DEFAULT_TOLERANCE
-            ): get_temperature_selector(
-                hass=hass, min_value=0, max_value=10, step=0.05
-            ),
+            ): get_tolerance_selector(hass=hass, min_value=0, max_value=10, step=0.05),
             vol.Optional(
                 CONF_HEAT_TOLERANCE, default=DEFAULT_TOLERANCE
-            ): get_temperature_selector(
-                hass=hass, min_value=0, max_value=5.0, step=0.05
-            ),
+            ): get_tolerance_selector(hass=hass, min_value=0, max_value=5.0, step=0.05),
             vol.Optional(
                 CONF_COOL_TOLERANCE, default=DEFAULT_TOLERANCE
-            ): get_temperature_selector(
-                hass=hass, min_value=0, max_value=5.0, step=0.05
-            ),
+            ): get_tolerance_selector(hass=hass, min_value=0, max_value=5.0, step=0.05),
             # Convert seconds to duration dict format for DurationSelector
             vol.Optional(
                 CONF_MIN_DUR, default=seconds_to_duration(300)
