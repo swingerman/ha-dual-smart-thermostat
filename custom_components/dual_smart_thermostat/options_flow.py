@@ -55,7 +55,7 @@ from .feature_steps import (
     OpeningsSteps,
     PresetsSteps,
 )
-from .schema_utils import get_temperature_selector
+from .schema_utils import get_tolerance_selector
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -202,9 +202,7 @@ class OptionsFlowHandler(OptionsFlow):
                 CONF_COLD_TOLERANCE,
                 description={"suggested_value": cold_tol},
             )
-        ] = get_temperature_selector(
-            hass=self.hass, min_value=0, max_value=10, step=0.1
-        )
+        ] = get_tolerance_selector(hass=self.hass, min_value=0, max_value=10, step=0.1)
 
         hot_tol = current_config.get(CONF_HOT_TOLERANCE, 0.3)
         _LOGGER.debug(
@@ -217,9 +215,7 @@ class OptionsFlowHandler(OptionsFlow):
                 CONF_HOT_TOLERANCE,
                 description={"suggested_value": hot_tol},
             )
-        ] = get_temperature_selector(
-            hass=self.hass, min_value=0, max_value=10, step=0.1
-        )
+        ] = get_tolerance_selector(hass=self.hass, min_value=0, max_value=10, step=0.1)
 
         # === TEMPERATURE LIMITS (always shown) ===
         # Use suggested_value instead of default to avoid saving defaults when not changed
@@ -441,7 +437,7 @@ class OptionsFlowHandler(OptionsFlow):
                         "suggested_value": current_config.get(CONF_HEAT_TOLERANCE)
                     },
                 )
-            ] = get_temperature_selector(
+            ] = get_tolerance_selector(
                 hass=self.hass, min_value=0, max_value=5.0, step=0.1
             )
 
@@ -452,7 +448,7 @@ class OptionsFlowHandler(OptionsFlow):
                         "suggested_value": current_config.get(CONF_COOL_TOLERANCE)
                     },
                 )
-            ] = get_temperature_selector(
+            ] = get_tolerance_selector(
                 hass=self.hass, min_value=0, max_value=5.0, step=0.1
             )
 
