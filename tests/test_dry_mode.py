@@ -192,6 +192,7 @@ async def setup_comp_heat_ac_cool_dry(hass: HomeAssistant) -> None:
                 "name": "test",
                 "cold_tolerance": 2,
                 "hot_tolerance": 4,
+                "target_humidity": 70,
                 "moist_tolerance": 5,
                 "dry_tolerance": 6,
                 "ac_mode": True,
@@ -428,9 +429,9 @@ async def test_set_target_temp_ac_dry_off(
     hass: HomeAssistant, setup_comp_heat_ac_cool_dry  # noqa: F811
 ) -> None:
     """Test if target temperature turn ac off."""
-    calls = setup_switch_dual(hass, common.ENT_DRYER, False, True)
     setup_humidity_sensor(hass, 50)
     await hass.async_block_till_done()
+    calls = setup_switch_dual(hass, common.ENT_DRYER, False, True)
     await common.async_set_humidity(hass, 65)
     assert len(calls) == 1
     call = calls[0]
@@ -911,6 +912,9 @@ async def test_dryer_mode(hass: HomeAssistant, setup_comp_1) -> None:  # noqa: F
                 "dryer": dryer_switch,
                 "target_sensor": common.ENT_SENSOR,
                 "humidity_sensor": common.ENT_HUMIDITY_SENSOR,
+                "target_humidity": 65,
+                "moist_tolerance": 0,
+                "dry_tolerance": 0,
                 "initial_hvac_mode": HVACMode.DRY,
             }
         },
@@ -972,6 +976,9 @@ async def test_dryer_mode_change(
                 "dryer": dryer_switch,
                 "target_sensor": common.ENT_SENSOR,
                 "humidity_sensor": common.ENT_HUMIDITY_SENSOR,
+                "target_humidity": 65,
+                "moist_tolerance": 0,
+                "dry_tolerance": 0,
                 "initial_hvac_mode": HVACMode.DRY,
             }
         },
@@ -1037,13 +1044,16 @@ async def test_dryer_mode_from_off_to_idle(
                 "dryer": dryer_switch,
                 "target_sensor": common.ENT_SENSOR,
                 "humidity_sensor": common.ENT_HUMIDITY_SENSOR,
+                "target_humidity": 65,
+                "moist_tolerance": 0,
+                "dry_tolerance": 0,
                 "initial_hvac_mode": HVACMode.OFF,
             }
         },
     )
     await hass.async_block_till_done()
 
-    setup_humidity_sensor(hass, 70)
+    setup_humidity_sensor(hass, 60)
     await hass.async_block_till_done()
 
     assert hass.states.get(dryer_switch).state == STATE_OFF
@@ -1157,6 +1167,7 @@ async def test_dryer_mode_tolerance(
                 "dryer": dryer_switch,
                 "target_sensor": common.ENT_SENSOR,
                 "humidity_sensor": common.ENT_HUMIDITY_SENSOR,
+                "target_humidity": 65,
                 "initial_hvac_mode": HVACMode.DRY,
                 "dry_tolerance": 2,
                 "moist_tolerance": 3,
@@ -1240,6 +1251,9 @@ async def test_dryer_mode_cycle(
                 "dryer": dryer_switch,
                 "target_sensor": common.ENT_SENSOR,
                 "humidity_sensor": common.ENT_HUMIDITY_SENSOR,
+                "target_humidity": 65,
+                "moist_tolerance": 0,
+                "dry_tolerance": 0,
                 "initial_hvac_mode": HVACMode.DRY,
                 "min_cycle_duration": timedelta(seconds=15),
             }
@@ -1321,6 +1335,9 @@ async def test_dryer_mode_opening_hvac_action_reason(
                 "dryer": dryer_switch,
                 "target_sensor": common.ENT_SENSOR,
                 "humidity_sensor": common.ENT_HUMIDITY_SENSOR,
+                "target_humidity": 65,
+                "moist_tolerance": 0,
+                "dry_tolerance": 0,
                 "initial_hvac_mode": HVACMode.DRY,
                 "openings": [
                     opening_1,
@@ -1337,7 +1354,7 @@ async def test_dryer_mode_opening_hvac_action_reason(
 
     assert (
         hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_ACTION_REASON)
-        == HVACActionReason.NONE
+        == HVACActionReason.TARGET_HUMIDITY_REACHED
     )
 
     setup_humidity_sensor(hass, 70)
@@ -1472,6 +1489,9 @@ async def test_dryer_mode_opening(
                 "dryer": dryer_switch,
                 "target_sensor": common.ENT_SENSOR,
                 "humidity_sensor": common.ENT_HUMIDITY_SENSOR,
+                "target_humidity": 65,
+                "moist_tolerance": 0,
+                "dry_tolerance": 0,
                 "initial_hvac_mode": HVACMode.DRY,
                 "openings": [
                     opening_1,
@@ -1590,6 +1610,9 @@ async def test_cooler_mode_opening_scope(
                 "dryer": dryer_switch,
                 "target_sensor": common.ENT_SENSOR,
                 "humidity_sensor": common.ENT_HUMIDITY_SENSOR,
+                "target_humidity": 65,
+                "moist_tolerance": 0,
+                "dry_tolerance": 0,
                 "initial_hvac_mode": hvac_mode,
                 "openings": [
                     opening_1,
