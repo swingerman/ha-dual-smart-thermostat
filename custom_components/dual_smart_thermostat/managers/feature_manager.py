@@ -259,6 +259,7 @@ class FeatureManager(StateManager):
 
         if self.is_configured_for_dryer_mode:
             self._supported_features |= ClimateEntityFeature.TARGET_HUMIDITY
+            self.environment.set_default_target_humidity()
 
         # Add FAN_MODE feature if fan device supports speed control
         if self.supports_fan_mode:

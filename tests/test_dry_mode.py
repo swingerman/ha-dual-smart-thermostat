@@ -1626,3 +1626,113 @@ async def test_cooler_mode_opening_scope(
         if hvac_mode == HVACMode.DRY
         else STATE_OFF
     )
+
+
+###################
+# Issue #527 tests
+###################
+
+
+@pytest.fixture
+async def setup_comp_dry_no_target_humidity_yaml(hass: HomeAssistant) -> None:
+    """Initialize components with dryer but no target_humidity in YAML config.
+
+    This reproduces issue #527 where humidity control UI doesn't appear
+    when configured via YAML without explicit target_humidity.
+    """
+    hass.config.units = METRIC_SYSTEM
+
+    # Setup required entities
+    setup_switch(hass, True)
+    setup_switch_dual(hass, common.ENT_DRYER, False, False)
+    setup_sensor(hass, 18)
+    setup_humidity_sensor(hass, 50)
+
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "heater": common.ENT_SWITCH,
+                "dryer": common.ENT_DRYER,
+                "target_sensor": common.ENT_SENSOR,
+                "humidity_sensor": common.ENT_HUMIDITY_SENSOR,
+                "moist_tolerance": 5,
+                "dry_tolerance": 5,
+                "cold_tolerance": 0.3,
+                "hot_tolerance": 0.3,
+                "initial_hvac_mode": HVACMode.OFF,
+                # Note: target_humidity is NOT set, just like in issue #527
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+
+async def test_target_humidity_initialized_without_yaml_config(
+    hass: HomeAssistant, setup_comp_dry_no_target_humidity_yaml  # noqa: F811
+) -> None:
+    """Test that target_humidity is initialized even when not in YAML config.
+
+    Regression test for issue #527: Humidity control not shown when setting
+    thermostat by YAML without explicit target_humidity parameter.
+
+    When dryer and humidity_sensor are configured, the TARGET_HUMIDITY feature
+    should be supported and target_humidity should have a default value (50),
+    even if not explicitly set in YAML config.
+    """
+    state = hass.states.get(common.ENTITY)
+
+    # Verify that TARGET_HUMIDITY feature is supported
+    from homeassistant.components.climate import ClimateEntityFeature
+
+    supported_features = state.attributes.get("supported_features", 0)
+    assert supported_features & ClimateEntityFeature.TARGET_HUMIDITY
+
+    # Verify that target_humidity has a default value (not None)
+    # This is what makes the humidity control UI appear
+    target_humidity = state.attributes.get(ATTR_HUMIDITY)
+    assert target_humidity is not None
+    assert target_humidity == 50  # Default value
+
+
+async def test_humidity_control_works_after_yaml_setup(
+    hass: HomeAssistant, setup_comp_dry_no_target_humidity_yaml  # noqa: F811
+) -> None:
+    """Test that humidity control works after YAML setup without target_humidity.
+
+    Verifies that users can set target humidity even when it wasn't
+    explicitly configured in YAML.
+    """
+    # Verify initial state has default target_humidity
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes.get(ATTR_HUMIDITY) == 50  # Default value
+
+    # Set humidity to verify the control works
+    await common.async_set_humidity(hass, 60)
+    await hass.async_block_till_done()
+
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes.get(ATTR_HUMIDITY) == 60
+
+    # Set a different value
+    await common.async_set_humidity(hass, 55)
+    await hass.async_block_till_done()
+
+    state = hass.states.get(common.ENTITY)
+    assert state.attributes.get(ATTR_HUMIDITY) == 55
+
+    # Verify humidity control is available even after mode switch
+    await common.async_set_hvac_mode(hass, HVACMode.HEAT)
+    await hass.async_block_till_done()
+
+    state = hass.states.get(common.ENTITY)
+    # TARGET_HUMIDITY feature should still be supported
+    from homeassistant.components.climate import ClimateEntityFeature
+
+    supported_features = state.attributes.get("supported_features", 0)
+    assert supported_features & ClimateEntityFeature.TARGET_HUMIDITY
+    # Target humidity should be retained
+    assert state.attributes.get(ATTR_HUMIDITY) == 55
