@@ -163,6 +163,13 @@ Climate entity manages HVAC mode state transitions with validation and callbacks
 
 ## Critical Development Rules
 
+### Before You Write Code
+
+1. State how you will verify this change (test, batch command, browser check, etc.)
+2. Write the test verification step first
+3. Then implement the code
+4. Run verification and iterate until it passes
+
 ### Configuration Flow Integration
 
 **CRITICAL**: Every added or modified configuration option MUST be integrated into the appropriate configuration flows (config, reconfigure, or options flows). This is mandatory for all configuration changes.
