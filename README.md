@@ -79,8 +79,8 @@ If the third [`secondary heater_dual_mode`](#secondar_heater_dual_mode) is set t
 
 ```yaml
 secondary_heater: switch.study_secondary_heater   # <-- required
-secondary_heater_timeout: 00:00:30                 # <-- required
-secondary_heater_timeout: true                   # <-- optional
+secondary_heater_timeout: 00:00:30                # <-- required
+secondary_heater_dual_mode: true                  # <-- optional
 ```
 
 ## Fan Only Mode

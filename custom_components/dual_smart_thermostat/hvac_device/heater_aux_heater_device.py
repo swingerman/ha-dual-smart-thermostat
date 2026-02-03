@@ -140,7 +140,7 @@ class HeaterAUXHeaterDevice(MultiHvacDevice):
         )
 
     async def _async_control_devices_when_on(self, time=None) -> None:
-        """Check if we need to turn heating on or off when the heater is off."""
+        """Check if we need to turn heating on or off when the heater is on."""
         _LOGGER.info("%s Controlling hvac while on", self.__class__.__name__)
 
         too_hot = self.environment.is_too_hot(self._target_env_attr)
@@ -193,8 +193,16 @@ class HeaterAUXHeaterDevice(MultiHvacDevice):
             self._hvac_action_reason = HVACActionReason.TARGET_TEMP_NOT_REACHED
 
         else:
-            await self.heater_device.async_control_hvac(time, force=False)
-            self._hvac_action_reason = self.heater_device.HVACActionReason
+            # FIX: Don't delegate to heater_device.async_control_hvac() as it will
+            # turn off the heater without also turning off the aux_heater in dual mode.
+            # Instead, handle keep-alive here directly.
+            if time is not None:
+                # Keep-alive: just ensure devices stay on
+                _LOGGER.info("Keep-alive - maintaining heater state")
+                self._hvac_action_reason = HVACActionReason.TARGET_TEMP_NOT_REACHED
+            else:
+                # Normal operation - heating should continue
+                self._hvac_action_reason = HVACActionReason.TARGET_TEMP_NOT_REACHED
 
     def _first_stage_heating_timed_out(self, timeout=None) -> bool:
         """Determines if the heater switch has been on for the timeout period."""
