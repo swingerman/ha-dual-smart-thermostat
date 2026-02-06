@@ -193,8 +193,17 @@ class HeaterAUXHeaterDevice(MultiHvacDevice):
             self._hvac_action_reason = HVACActionReason.TARGET_TEMP_NOT_REACHED
 
         else:
+            heater_was_active = self.heater_device.is_active
             await self.heater_device.async_control_hvac(time, force=False)
             self._hvac_action_reason = self.heater_device.HVACActionReason
+            # If primary heater was turned off by the control call, also turn off aux
+            if (
+                heater_was_active
+                and not self.heater_device.is_active
+                and self.aux_heater_device.is_active
+            ):
+                _LOGGER.info("Primary heater turned off, also turning off aux heater")
+                await self.aux_heater_device.async_turn_off()
 
     def _first_stage_heating_timed_out(self, timeout=None) -> bool:
         """Determines if the heater switch has been on for the timeout period."""
