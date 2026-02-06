@@ -74,9 +74,7 @@ class MultiHvacDevice(HVACDevice, ControlableHVACDevice):
     @hvac_mode.setter
     def hvac_mode(self, hvac_mode: HVACMode):
         self._hvac_mode = hvac_mode
-        if hvac_mode == HVACMode.OFF:
-            for device in self.hvac_devices:
-                device.hvac_mode = HVACMode.OFF
+        self.set_sub_devices_hvac_mode(hvac_mode)
 
     @property
     def hvac_action(self) -> HVACAction:

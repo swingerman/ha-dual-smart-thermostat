@@ -2708,3 +2708,375 @@ async def test_legacy_config_heat_mode_behaves_identically(
     await hass.async_block_till_done()
 
     assert hass.states.get(heater_switch).state == STATE_OFF
+
+
+async def test_aux_heater_turns_off_with_primary_at_target_non_dual(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory, setup_comp_1  # noqa: F811
+) -> None:
+    """Test that secondary heater turns off at target+tolerance in non-dual mode.
+
+    Issue #533: In non-dual mode, the primary heater is turned off when the aux
+    heater activates. When temperature reaches target + tolerance, the aux heater
+    should turn off. This verifies the aux doesn't overshoot beyond tolerance.
+    """
+    secondaty_heater_timeout = 10
+    heater_switch = "input_boolean.heater_switch"
+    secondary_heater_switch = "input_boolean.secondary_heater_switch"
+
+    assert await async_setup_component(
+        hass,
+        input_boolean.DOMAIN,
+        {"input_boolean": {"heater_switch": None, "secondary_heater_switch": None}},
+    )
+
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {
+                    "name": "test",
+                    "initial": 10,
+                    "min": 0,
+                    "max": 40,
+                    "step": 1,
+                }
+            }
+        },
+    )
+
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "heater": heater_switch,
+                "secondary_heater": secondary_heater_switch,
+                "secondary_heater_timeout": {"seconds": secondaty_heater_timeout},
+                "target_sensor": common.ENT_SENSOR,
+                "initial_hvac_mode": HVACMode.HEAT,
+                "cold_tolerance": 0.5,
+                "hot_tolerance": 0.5,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    # Start heating
+    setup_sensor(hass, 18)
+    await hass.async_block_till_done()
+    await common.async_set_temperature(hass, 23)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(heater_switch).state == STATE_ON
+    assert hass.states.get(secondary_heater_switch).state == STATE_OFF
+
+    # Wait for aux heater timeout - aux turns on, heater turns off (non-dual)
+    freezer.tick(timedelta(seconds=secondaty_heater_timeout + 5))
+    common.async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(secondary_heater_switch).state == STATE_ON
+
+    # Temperature reaches target but NOT target + tolerance
+    # At 23.0°C with target=23 and hot_tolerance=0.5:
+    # is_too_hot = 23.0 >= 23.5 → False
+    # The aux heater should stay on (within tolerance band)
+    setup_sensor(hass, 23)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(secondary_heater_switch).state == STATE_ON
+
+    # Temperature reaches target + tolerance (23.5)
+    # is_too_hot = 23.5 >= 23.5 → True → aux should turn off
+    setup_sensor(hass, 23.5)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(secondary_heater_switch).state == STATE_OFF
+
+
+async def test_aux_heater_dual_mode_both_turn_off_together(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory, setup_comp_1  # noqa: F811
+) -> None:
+    """Test that both heaters turn off together in dual mode (issue #533).
+
+    In dual mode, both the primary and secondary heaters run simultaneously.
+    When temperature reaches target + tolerance, BOTH should turn off at the same
+    control cycle. The secondary heater should NOT stay on after the primary turns off.
+    """
+    secondaty_heater_timeout = 10
+    heater_switch = "input_boolean.heater_switch"
+    secondary_heater_switch = "input_boolean.secondary_heater_switch"
+
+    assert await async_setup_component(
+        hass,
+        input_boolean.DOMAIN,
+        {"input_boolean": {"heater_switch": None, "secondary_heater_switch": None}},
+    )
+
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {
+                    "name": "test",
+                    "initial": 10,
+                    "min": 0,
+                    "max": 40,
+                    "step": 1,
+                }
+            }
+        },
+    )
+
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "heater": heater_switch,
+                "secondary_heater": secondary_heater_switch,
+                "secondary_heater_timeout": {"seconds": secondaty_heater_timeout},
+                "secondary_heater_dual_mode": True,
+                "target_sensor": common.ENT_SENSOR,
+                "initial_hvac_mode": HVACMode.HEAT,
+                "cold_tolerance": 0.5,
+                "hot_tolerance": 0.5,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    # Start heating
+    setup_sensor(hass, 18)
+    await hass.async_block_till_done()
+    await common.async_set_temperature(hass, 23)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(heater_switch).state == STATE_ON
+    assert hass.states.get(secondary_heater_switch).state == STATE_OFF
+
+    # Wait for aux timeout - in dual mode both should be on
+    freezer.tick(timedelta(seconds=secondaty_heater_timeout + 5))
+    common.async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(heater_switch).state == STATE_ON
+    assert hass.states.get(secondary_heater_switch).state == STATE_ON
+
+    # Temperature reaches target but NOT target + tolerance (23.2 < 23.5)
+    # Both heaters should stay on (within tolerance band)
+    setup_sensor(hass, 23.2)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(heater_switch).state == STATE_ON
+    assert hass.states.get(secondary_heater_switch).state == STATE_ON
+
+    # Temperature reaches target + tolerance (23.5)
+    # BOTH heaters should turn off together
+    setup_sensor(hass, 23.5)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(secondary_heater_switch).state == STATE_OFF
+
+
+async def test_aux_heater_dual_mode_secondary_not_left_on(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory, setup_comp_1  # noqa: F811
+) -> None:
+    """Test secondary heater is not left on if primary turns off first (issue #533).
+
+    This is the exact edge case from the bug report: in dual mode, if the primary
+    heater turns off (e.g., via the else branch delegating to heater_device),
+    the secondary heater should also turn off in the same or next control cycle.
+
+    The else branch in _async_control_devices_when_on only controls the primary
+    heater device. If it turns off, the secondary must also be turned off.
+    """
+    secondaty_heater_timeout = 10
+    heater_switch = "input_boolean.heater_switch"
+    secondary_heater_switch = "input_boolean.secondary_heater_switch"
+
+    assert await async_setup_component(
+        hass,
+        input_boolean.DOMAIN,
+        {"input_boolean": {"heater_switch": None, "secondary_heater_switch": None}},
+    )
+
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {
+                    "name": "test",
+                    "initial": 10,
+                    "min": 0,
+                    "max": 40,
+                    "step": 1,
+                }
+            }
+        },
+    )
+
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "heater": heater_switch,
+                "secondary_heater": secondary_heater_switch,
+                "secondary_heater_timeout": {"seconds": secondaty_heater_timeout},
+                "secondary_heater_dual_mode": True,
+                "target_sensor": common.ENT_SENSOR,
+                "initial_hvac_mode": HVACMode.HEAT,
+                "cold_tolerance": 0.5,
+                "hot_tolerance": 0.5,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    # Start heating
+    setup_sensor(hass, 18)
+    await hass.async_block_till_done()
+    await common.async_set_temperature(hass, 23)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(heater_switch).state == STATE_ON
+
+    # Wait for aux timeout - in dual mode both should be on
+    freezer.tick(timedelta(seconds=secondaty_heater_timeout + 5))
+    common.async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(heater_switch).state == STATE_ON
+    assert hass.states.get(secondary_heater_switch).state == STATE_ON
+
+    # Simulate reaching exactly at target + tolerance boundary
+    setup_sensor(hass, 23.5)
+    await hass.async_block_till_done()
+
+    # Both must be off - secondary must NOT be left on
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(secondary_heater_switch).state == STATE_OFF
+
+    # Verify they come back together when temp drops below cold tolerance
+    setup_sensor(hass, 22.4)
+    await hass.async_block_till_done()
+
+    # too_cold: 22.4 <= 23 - 0.5 = 22.5 → True
+    # aux has already ran today so aux should turn on directly
+    assert hass.states.get(secondary_heater_switch).state == STATE_ON
+
+
+async def test_aux_heater_dual_mode_heat_cool_mode_both_stay_on(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory, setup_comp_1  # noqa: F811
+) -> None:
+    """Test aux heater turns off with primary in HEAT_COOL mode (issue #533).
+
+    In HEAT_COOL mode with heater+cooler+secondary_heater in dual mode:
+    1. HeaterCoolerDevice wraps HeaterAUXHeaterDevice + CoolerDevice
+    2. When mode is HEAT_COOL, HeaterCoolerDevice sets heater_device.hvac_mode=HEAT
+    3. MultiHvacDevice propagates mode to children via set_sub_devices_hvac_mode
+    4. The inner HeaterDevice gets the correct HEAT mode
+
+    When temperature rises above target_temp_low in the else branch of
+    _async_control_devices_when_on(), the primary heater turns off and
+    the aux heater follows.
+    """
+    secondary_heater_timeout = 10
+    heater_switch = "input_boolean.heater_switch"
+    cooler_switch = "input_boolean.cooler_switch"
+    secondary_heater_switch = "input_boolean.secondary_heater_switch"
+
+    assert await async_setup_component(
+        hass,
+        input_boolean.DOMAIN,
+        {
+            "input_boolean": {
+                "heater_switch": None,
+                "cooler_switch": None,
+                "secondary_heater_switch": None,
+            }
+        },
+    )
+
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {
+                    "name": "test",
+                    "initial": 10,
+                    "min": 0,
+                    "max": 40,
+                    "step": 1,
+                }
+            }
+        },
+    )
+
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "heater": heater_switch,
+                "cooler": cooler_switch,
+                "secondary_heater": secondary_heater_switch,
+                "secondary_heater_timeout": {"seconds": secondary_heater_timeout},
+                "secondary_heater_dual_mode": True,
+                "target_sensor": common.ENT_SENSOR,
+                "initial_hvac_mode": HVACMode.OFF,
+                "target_temp_low": 23,
+                "target_temp_high": 28,
+                "cold_tolerance": 0.5,
+                "hot_tolerance": 0.5,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    # Switch to HEAT_COOL range mode, then set cold sensor → heating starts
+    await common.async_set_hvac_mode(hass, HVACMode.HEAT_COOL)
+    await hass.async_block_till_done()
+
+    setup_sensor(hass, 18)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(heater_switch).state == STATE_ON
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+    assert hass.states.get(secondary_heater_switch).state == STATE_OFF
+
+    # Wait for aux heater timeout → both heaters should be ON (dual mode)
+    freezer.tick(timedelta(seconds=secondary_heater_timeout + 5))
+    common.async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(heater_switch).state == STATE_ON
+    assert hass.states.get(secondary_heater_switch).state == STATE_ON
+
+    # Temperature at 23.2: above target_temp_low (23) but below target + tolerance (23.5)
+    # HeaterCoolerDevice delegates to HeaterAUXHeaterDevice which delegates
+    # to inner HeaterDevice. The inner HeaterDevice sees temp above target
+    # and turns off. Aux heater follows.
+    setup_sensor(hass, 23.2)
+    await hass.async_block_till_done()
+
+    # Fixed: both heaters turn OFF when primary heater turns off
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(secondary_heater_switch).state == STATE_OFF
