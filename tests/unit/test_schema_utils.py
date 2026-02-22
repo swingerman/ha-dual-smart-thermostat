@@ -6,11 +6,17 @@ Tests the schema utility functions that create selectors for config/options flow
 from unittest.mock import MagicMock
 
 from homeassistant.const import UnitOfTemperature
+import pytest
 
+from custom_components.dual_smart_thermostat.const import (
+    CONF_COLD_TOLERANCE,
+    CONF_HOT_TOLERANCE,
+)
 from custom_components.dual_smart_thermostat.schema_utils import (
     get_temperature_selector,
     get_tolerance_selector,
 )
+from custom_components.dual_smart_thermostat.schemas import get_core_schema
 
 
 class TestGetToleranceSelector:
@@ -169,3 +175,97 @@ class TestToleranceVsTemperatureComparison:
 
         # Temperature: 0°C absolute becomes 32°F
         assert temperature_selector.config["min"] == 32
+
+
+class TestGetCoreSchemaToleranceSelectors:
+    """Test that get_core_schema uses tolerance selectors (not percentage) for tolerance fields.
+
+    Issue #526: Tolerance fields were incorrectly using get_percentage_selector()
+    (0–100% range) instead of get_tolerance_selector() (temperature delta, 0–10°C).
+    Percentage selectors show % unit and reject small values in Fahrenheit.
+    """
+
+    @pytest.mark.parametrize("system_type", ["heat_pump", "heater_cooler", "ac_only"])
+    def test_cold_tolerance_uses_tolerance_selector_not_percentage(self, system_type):
+        """Test that cold_tolerance field uses tolerance selector, not percentage.
+
+        The tolerance selector uses °C/°F/° units and a max of 10.
+        The percentage selector uses % unit and a max of 100.
+        """
+        hass = MagicMock()
+        hass.config.units.temperature_unit = UnitOfTemperature.CELSIUS
+
+        schema = get_core_schema(system_type, defaults={}, hass=hass)
+
+        cold_tol_selector = None
+        for key, value in schema.schema.items():
+            if hasattr(key, "schema") and key.schema == CONF_COLD_TOLERANCE:
+                cold_tol_selector = value
+                break
+
+        assert (
+            cold_tol_selector is not None
+        ), f"cold_tolerance field not found in get_core_schema for {system_type}"
+        assert cold_tol_selector.config.get("unit_of_measurement") != "%", (
+            f"cold_tolerance should not use percentage selector for {system_type}. "
+            "Tolerances are temperature deltas, not percentages."
+        )
+        assert cold_tol_selector.config.get("max", 100) <= 20, (
+            f"cold_tolerance max should be <= 20 for {system_type}, "
+            f"got {cold_tol_selector.config.get('max')}. "
+            "A max of 100 indicates a percentage selector is being used."
+        )
+
+    @pytest.mark.parametrize("system_type", ["heat_pump", "heater_cooler", "ac_only"])
+    def test_hot_tolerance_uses_tolerance_selector_not_percentage(self, system_type):
+        """Test that hot_tolerance field uses tolerance selector, not percentage."""
+        hass = MagicMock()
+        hass.config.units.temperature_unit = UnitOfTemperature.CELSIUS
+
+        schema = get_core_schema(system_type, defaults={}, hass=hass)
+
+        hot_tol_selector = None
+        for key, value in schema.schema.items():
+            if hasattr(key, "schema") and key.schema == CONF_HOT_TOLERANCE:
+                hot_tol_selector = value
+                break
+
+        assert (
+            hot_tol_selector is not None
+        ), f"hot_tolerance field not found in get_core_schema for {system_type}"
+        assert hot_tol_selector.config.get("unit_of_measurement") != "%", (
+            f"hot_tolerance should not use percentage selector for {system_type}. "
+            "Tolerances are temperature deltas, not percentages."
+        )
+        assert hot_tol_selector.config.get("max", 100) <= 20, (
+            f"hot_tolerance max should be <= 20 for {system_type}, "
+            f"got {hot_tol_selector.config.get('max')}. "
+            "A max of 100 indicates a percentage selector is being used."
+        )
+
+    @pytest.mark.parametrize("system_type", ["heat_pump", "heater_cooler", "ac_only"])
+    def test_cold_tolerance_fahrenheit_uses_scaled_delta(self, system_type):
+        """Test that cold_tolerance is correctly scaled for Fahrenheit users.
+
+        A 0–10°C delta range should become 0–18°F (multiply by 1.8),
+        NOT 32–50°F (absolute temperature conversion).
+        This ensures Fahrenheit users can enter small tolerance values.
+        """
+        hass = MagicMock()
+        hass.config.units.temperature_unit = UnitOfTemperature.FAHRENHEIT
+
+        schema = get_core_schema(system_type, defaults={}, hass=hass)
+
+        cold_tol_selector = None
+        for key, value in schema.schema.items():
+            if hasattr(key, "schema") and key.schema == CONF_COLD_TOLERANCE:
+                cold_tol_selector = value
+                break
+
+        assert cold_tol_selector is not None
+        # min must be 0 (not 32 which would come from absolute °C→°F conversion)
+        assert cold_tol_selector.config.get("min") == 0, (
+            f"cold_tolerance min in Fahrenheit should be 0 (delta scaling), "
+            f"got {cold_tol_selector.config.get('min')}. "
+            "A min of 32 indicates incorrect absolute temperature conversion."
+        )

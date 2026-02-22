@@ -332,7 +332,10 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
                 "custom_components.dual_smart_thermostat.schemas",
                 fromlist=["get_core_schema"],
             ).get_core_schema(
-                system_type, defaults=self.collected_config, include_name=True
+                system_type,
+                defaults=self.collected_config,
+                include_name=True,
+                hass=self.hass,
             )
 
         return self.async_show_form(step_id="basic", data_schema=schema, errors=errors)
