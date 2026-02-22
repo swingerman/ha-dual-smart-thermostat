@@ -766,6 +766,12 @@ class EnvironmentManager(StateManager):
             "Setting temperatures from hvac mode and presets when have preset mode. is_range_mode: %s",
             is_range_mode,
         )
+
+        # Use template-aware getters to evaluate templates (#538)
+        preset_temp = preset_env.get_temperature(self.hass)
+        preset_temp_low = preset_env.get_target_temp_low(self.hass)
+        preset_temp_high = preset_env.get_target_temp_high(self.hass)
+
         if is_range_mode:
             _LOGGER.debug(
                 "Setting temperatures from preset range mode, preset_env: %s",
@@ -773,8 +779,8 @@ class EnvironmentManager(StateManager):
             )
 
             if preset_env.has_temp_range():
-                self.target_temp_low = preset_env.to_dict[ATTR_TARGET_TEMP_LOW]
-                self.target_temp_high = preset_env.to_dict[ATTR_TARGET_TEMP_HIGH]
+                self.target_temp_low = preset_temp_low
+                self.target_temp_high = preset_temp_high
 
         else:
             _LOGGER.debug(
@@ -789,21 +795,21 @@ class EnvironmentManager(StateManager):
 
                 # we prioritize the target temp from preset if it is set
                 if preset_env.has_temp():
-                    self.target_temp = preset_env.to_dict[ATTR_TEMPERATURE]
+                    self.target_temp = preset_temp
                 # only after that we check if the temp range is set
                 elif preset_env.has_temp_range():
                     if hvac_mode == HVACMode.HEAT:
                         _LOGGER.debug(
                             "Setting temperatures from preset target mode if HVACMode.HEAT. Preset: %s",
-                            preset_env.to_dict[ATTR_TARGET_TEMP_LOW],
+                            preset_temp_low,
                         )
-                        self.target_temp = preset_env.to_dict[ATTR_TARGET_TEMP_LOW]
+                        self.target_temp = preset_temp_low
                     elif hvac_mode in [HVACMode.COOL, HVACMode.FAN_ONLY]:
                         _LOGGER.debug(
                             "Setting temperatures from preset target mode if HVACMode.COOL, HVACMode.FAN_ONLY. Preset: %s",
-                            preset_env.to_dict[ATTR_TARGET_TEMP_HIGH],
+                            preset_temp_high,
                         )
-                        self.target_temp = preset_env.to_dict[ATTR_TARGET_TEMP_HIGH]
+                        self.target_temp = preset_temp_high
 
                 return
 
@@ -824,20 +830,20 @@ class EnvironmentManager(StateManager):
                 if hvac_mode == HVACMode.HEAT:
                     _LOGGER.debug(
                         "Setting temperatures from preset range mode if HVACMode.HEAT. Preset: %s",
-                        preset_env.to_dict[ATTR_TARGET_TEMP_LOW],
+                        preset_temp_low,
                     )
-                    self._target_temp = preset_env.to_dict[ATTR_TARGET_TEMP_LOW]
+                    self._target_temp = preset_temp_low
                 elif hvac_mode in [HVACMode.COOL, HVACMode.FAN_ONLY]:
                     _LOGGER.debug(
                         "Setting temperatures from preset range mode if HVACMode.COOL, HVACMode.FAN_ONLY. Preset: %s, sved_target_temp: %s",
-                        preset_env.to_dict[ATTR_TARGET_TEMP_HIGH],
+                        preset_temp_high,
                         self._saved_target_temp,
                     )
                     preset_match_old = old_preset_mode == preset_mode
                     self._target_temp = (
                         self._saved_target_temp
                         if preset_match_old and self._saved_target_temp
-                        else preset_env.to_dict[ATTR_TARGET_TEMP_HIGH]
+                        else preset_temp_high
                     )
                 else:
                     _LOGGER.debug("Setting target temp from preset, unhandled case")

@@ -1,6 +1,11 @@
 """Tests for EnvironmentManager tolerance selection logic."""
 
-from homeassistant.components.climate.const import HVACMode
+from homeassistant.components.climate.const import (
+    ATTR_TARGET_TEMP_HIGH,
+    ATTR_TARGET_TEMP_LOW,
+    HVACMode,
+)
+from homeassistant.const import ATTR_TEMPERATURE
 import pytest
 
 from custom_components.dual_smart_thermostat.const import (
@@ -13,6 +18,7 @@ from custom_components.dual_smart_thermostat.const import (
 from custom_components.dual_smart_thermostat.managers.environment_manager import (
     EnvironmentManager,
 )
+from custom_components.dual_smart_thermostat.preset_env.preset_env import PresetEnv
 
 
 @pytest.fixture
@@ -291,3 +297,118 @@ class TestIsTooHotWithModeAwareness:
         env._cur_temp = 22.49
         # 22.49 >= 22.0 + 0.5 -> 22.49 >= 22.5 -> False
         assert env.is_too_hot() is False
+
+
+class TestSetTempsFromPresetWithTemplates:
+    """Test that set_temepratures_from_hvac_mode_and_presets evaluates templates.
+
+    Regression tests for #538: template-based preset temperatures were passed
+    as raw template strings instead of being evaluated to float values.
+    """
+
+    @pytest.mark.asyncio
+    async def test_template_preset_target_temp_evaluated(
+        self, hass, basic_config, setup_template_test_entities
+    ):
+        """Test template preset evaluates to float for single target temp (#538)."""
+        setup_template_test_entities
+        env = EnvironmentManager(hass, basic_config)
+        env._saved_target_temp = 20.0
+
+        template_str = "{{ states('input_number.away_temp') | float }}"
+        preset_env = PresetEnv(**{ATTR_TEMPERATURE: template_str})
+
+        env.set_temepratures_from_hvac_mode_and_presets(
+            hvac_mode=HVACMode.HEAT,
+            supports_temp_range=False,
+            preset_mode="away",
+            preset_env=preset_env,
+            is_range_mode=False,
+        )
+
+        # Must be float 18.0, NOT the raw template string
+        assert env.target_temp == 18.0
+        assert isinstance(env.target_temp, float)
+
+    @pytest.mark.asyncio
+    async def test_template_preset_range_temps_evaluated(
+        self, hass, basic_config, setup_template_test_entities
+    ):
+        """Test template preset evaluates to floats for range temps (#538)."""
+        setup_template_test_entities
+        env = EnvironmentManager(hass, basic_config)
+
+        preset_env = PresetEnv(
+            **{
+                ATTR_TARGET_TEMP_LOW: "{{ states('input_number.away_temp') | float }}",
+                ATTR_TARGET_TEMP_HIGH: "{{ states('input_number.comfort_temp') | float }}",
+            }
+        )
+
+        env.set_temepratures_from_hvac_mode_and_presets(
+            hvac_mode=HVACMode.HEAT_COOL,
+            supports_temp_range=True,
+            preset_mode="away",
+            preset_env=preset_env,
+            is_range_mode=True,
+        )
+
+        # Must be evaluated floats, NOT raw template strings
+        assert env.target_temp_low == 18.0
+        assert env.target_temp_high == 22.0
+        assert isinstance(env.target_temp_low, float)
+        assert isinstance(env.target_temp_high, float)
+
+    @pytest.mark.asyncio
+    async def test_template_preset_range_fallback_to_heat(
+        self, hass, basic_config, setup_template_test_entities
+    ):
+        """Test template range preset falls back to temp_low for HEAT mode (#538)."""
+        setup_template_test_entities
+        env = EnvironmentManager(hass, basic_config)
+
+        preset_env = PresetEnv(
+            **{
+                ATTR_TARGET_TEMP_LOW: "{{ states('input_number.away_temp') | float }}",
+                ATTR_TARGET_TEMP_HIGH: "{{ states('input_number.comfort_temp') | float }}",
+            }
+        )
+
+        env.set_temepratures_from_hvac_mode_and_presets(
+            hvac_mode=HVACMode.HEAT,
+            supports_temp_range=False,
+            preset_mode="away",
+            preset_env=preset_env,
+            is_range_mode=False,
+        )
+
+        # Should use temp_low (18.0) for HEAT mode, evaluated from template
+        assert env.target_temp == 18.0
+        assert isinstance(env.target_temp, float)
+
+    @pytest.mark.asyncio
+    async def test_template_preset_range_fallback_to_cool(
+        self, hass, basic_config, setup_template_test_entities
+    ):
+        """Test template range preset falls back to temp_high for COOL mode (#538)."""
+        setup_template_test_entities
+        env = EnvironmentManager(hass, basic_config)
+
+        preset_env = PresetEnv(
+            **{
+                ATTR_TARGET_TEMP_LOW: "{{ states('input_number.away_temp') | float }}",
+                ATTR_TARGET_TEMP_HIGH: "{{ states('input_number.comfort_temp') | float }}",
+            }
+        )
+
+        env.set_temepratures_from_hvac_mode_and_presets(
+            hvac_mode=HVACMode.COOL,
+            supports_temp_range=False,
+            preset_mode="away",
+            preset_env=preset_env,
+            is_range_mode=False,
+        )
+
+        # Should use temp_high (22.0) for COOL mode, evaluated from template
+        assert env.target_temp == 22.0
+        assert isinstance(env.target_temp, float)
