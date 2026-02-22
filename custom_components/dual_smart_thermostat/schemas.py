@@ -781,7 +781,10 @@ def get_system_features_schema(system_type: str):
 
 
 def get_core_schema(
-    system_type: str, defaults: dict[str, Any] | None = None, include_name: bool = True
+    system_type: str,
+    defaults: dict[str, Any] | None = None,
+    include_name: bool = True,
+    hass=None,
 ):
     """Build the core configuration schema used by both config and options flows.
 
@@ -858,13 +861,13 @@ def get_core_schema(
             CONF_COLD_TOLERANCE,
             default=defaults.get(CONF_COLD_TOLERANCE, DEFAULT_TOLERANCE),
         )
-    ] = get_percentage_selector()
+    ] = get_tolerance_selector(hass=hass, min_value=0, max_value=10, step=0.05)
     schema_dict[
         vol.Optional(
             CONF_HOT_TOLERANCE,
             default=defaults.get(CONF_HOT_TOLERANCE, DEFAULT_TOLERANCE),
         )
-    ] = get_percentage_selector()
+    ] = get_tolerance_selector(hass=hass, min_value=0, max_value=10, step=0.05)
     # Convert seconds to duration dict format for DurationSelector
     min_dur_default = (
         seconds_to_duration(defaults.get(CONF_MIN_DUR))
