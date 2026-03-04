@@ -110,15 +110,17 @@ climate:
 #     max_floor_temp: 28
 #     min_floor_temp: 20
 #
-#     # Away preset with conservative floor limits
-#     away_temp: 16
-#     away_max_floor_temp: 25  # Lower max to save energy
-#     away_min_floor_temp: 18  # Higher min to prevent freezing
+#     # Away preset with conservative floor limits (nested format)
+#     away:
+#       temperature: 16
+#       max_floor_temp: 25       # Lower max to save energy
+#       min_floor_temp: 18       # Higher min to prevent freezing
 #
 #     # Comfort preset with relaxed limits
-#     comfort_temp: 22
-#     comfort_max_floor_temp: 30  # Allow warmer floors
-#     comfort_min_floor_temp: 23  # Keep floors warm
+#     comfort:
+#       temperature: 22
+#       max_floor_temp: 30       # Allow warmer floors
+#       min_floor_temp: 23       # Keep floors warm
 #
 #     # Home preset uses global limits
 #     home_temp: 20

@@ -543,14 +543,16 @@ climate:
 #     max_floor_temp: 28
 #     min_floor_temp: 20
 #
-#     # AWAY preset with template temperature and floor limits
-#     away_temp: "{{ 16 if is_state('sensor.season', 'winter') else 20 }}"
-#     away_max_floor_temp: 25  # Static floor limit for away
+#     # AWAY preset with template temperature and floor limits (nested format)
+#     away:
+#       temperature: "{{ 16 if is_state('sensor.season', 'winter') else 20 }}"
+#       max_floor_temp: 25       # Static floor limit for away
 #
 #     # ECO preset with template-based floor limits
-#     eco_temp: "{{ states('input_number.eco_target') | float }}"
-#     eco_max_floor_temp: "{{ states('input_number.eco_floor_max') | float }}"
-#     eco_min_floor_temp: "{{ states('input_number.eco_floor_min') | float }}"
+#     eco:
+#       temperature: "{{ states('input_number.eco_target') | float }}"
+#       max_floor_temp: "{{ states('input_number.eco_floor_max') | float }}"
+#       min_floor_temp: "{{ states('input_number.eco_floor_min') | float }}"
 #
 #     initial_hvac_mode: "heat"
 #

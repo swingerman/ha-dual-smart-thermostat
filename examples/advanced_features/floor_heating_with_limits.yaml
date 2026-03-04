@@ -64,18 +64,21 @@ climate:
 #     max_floor_temp: 28
 #     min_floor_temp: 20
 #
-#     # Preset modes with custom floor limits
-#     away_temp: 16
-#     away_max_floor_temp: 25      # Lower max when away (save energy)
-#     away_min_floor_temp: 18      # Higher min when away (prevent freezing)
+#     # Preset modes with custom floor limits (nested format)
+#     away:
+#       temperature: 16
+#       max_floor_temp: 25           # Lower max when away (save energy)
+#       min_floor_temp: 18           # Higher min when away (prevent freezing)
 #
-#     eco_temp: 19
-#     eco_max_floor_temp: 26       # Moderate limits for eco mode
-#     eco_min_floor_temp: 19
+#     eco:
+#       temperature: 19
+#       max_floor_temp: 26           # Moderate limits for eco mode
+#       min_floor_temp: 19
 #
-#     comfort_temp: 21
-#     comfort_max_floor_temp: 30   # Higher max for comfort
-#     comfort_min_floor_temp: 22   # Higher min for comfort
+#     comfort:
+#       temperature: 21
+#       max_floor_temp: 30           # Higher max for comfort
+#       min_floor_temp: 22           # Higher min for comfort
 #
 #     initial_hvac_mode: "heat"
 
