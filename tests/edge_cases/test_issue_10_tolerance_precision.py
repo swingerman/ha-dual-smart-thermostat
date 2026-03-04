@@ -196,22 +196,23 @@ async def test_issue_10_tolerance_precision_heat_cool_mode(hass, setup_comp_issu
     ), "Heater should STAY ON at 67.5°F"
     assert hass.states.get(cooler_switch).state == STATE_OFF
 
-    # Test 5: Temperature reaches 68°F - heater should turn OFF (reached setpoint)
+    # Test 5: Temperature reaches 68°F - heater should STAY ON
+    # hot_tolerance=1 means heater turns off at 68 + 1 = 69°F
     _setup_sensor(hass, temp_input, 68.0)
     await hass.async_block_till_done()
 
     assert (
-        hass.states.get(heater_switch).state == STATE_OFF
-    ), "Heater should turn OFF at 68°F (setpoint reached)"
+        hass.states.get(heater_switch).state == STATE_ON
+    ), "Heater should STAY ON at 68°F (turns off at 69°F = setpoint + hot_tolerance)"
     assert hass.states.get(cooler_switch).state == STATE_OFF
 
-    # Test 6: Temperature continues to 68.5°F - heater should STAY OFF
-    _setup_sensor(hass, temp_input, 68.5)
+    # Test 6: Temperature reaches 69°F - heater should turn OFF (setpoint + hot_tolerance)
+    _setup_sensor(hass, temp_input, 69.0)
     await hass.async_block_till_done()
 
     assert (
         hass.states.get(heater_switch).state == STATE_OFF
-    ), "Heater should STAY OFF at 68.5°F"
+    ), "Heater should turn OFF at 69°F (setpoint 68 + hot_tolerance 1)"
     assert hass.states.get(cooler_switch).state == STATE_OFF
 
 
@@ -305,11 +306,21 @@ async def test_issue_10_cooling_side(hass, setup_comp_issue_10):
     ), "Cooler should STAY ON at 71.9°F (bug: it might turn off)"
     assert hass.states.get(heater_switch).state == STATE_OFF
 
-    # Temperature reaches 71°F - cooler should turn OFF (reached setpoint)
+    # Temperature reaches 71°F - cooler should STAY ON
+    # cold_tolerance=1 means cooler turns off at 71 - 1 = 70°F
     _setup_sensor(hass, temp_input, 71.0)
     await hass.async_block_till_done()
 
     assert (
+        hass.states.get(cooler_switch).state == STATE_ON
+    ), "Cooler should STAY ON at 71°F (turns off at 70°F = setpoint - cold_tolerance)"
+    assert hass.states.get(heater_switch).state == STATE_OFF
+
+    # Temperature reaches 70°F - cooler should turn OFF (setpoint - cold_tolerance)
+    _setup_sensor(hass, temp_input, 70.0)
+    await hass.async_block_till_done()
+
+    assert (
         hass.states.get(cooler_switch).state == STATE_OFF
-    ), "Cooler should turn OFF at 71°F (setpoint reached)"
+    ), "Cooler should turn OFF at 70°F (setpoint 71 - cold_tolerance 1)"
     assert hass.states.get(heater_switch).state == STATE_OFF
