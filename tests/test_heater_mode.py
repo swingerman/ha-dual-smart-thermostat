@@ -3070,13 +3070,18 @@ async def test_aux_heater_dual_mode_heat_cool_mode_both_stay_on(
     assert hass.states.get(heater_switch).state == STATE_ON
     assert hass.states.get(secondary_heater_switch).state == STATE_ON
 
-    # Temperature at 23.2: above target_temp_low (23) but below target + tolerance (23.5)
-    # HeaterCoolerDevice delegates to HeaterAUXHeaterDevice which delegates
-    # to inner HeaterDevice. The inner HeaterDevice sees temp above target
-    # and turns off. Aux heater follows.
+    # Temperature at 23.2: above target_temp_low (23) but below target + hot_tolerance (23.5)
+    # Fix for issue #506: heater should STAY ON because tolerance provides hysteresis
     setup_sensor(hass, 23.2)
     await hass.async_block_till_done()
 
-    # Fixed: both heaters turn OFF when primary heater turns off
+    # Both heaters stay ON: 23.2 < 23.0 + 0.5 (target_low + hot_tolerance)
+    assert hass.states.get(heater_switch).state == STATE_ON
+    assert hass.states.get(secondary_heater_switch).state == STATE_ON
+
+    # Temperature reaches 23.5: target_temp_low + hot_tolerance → both heaters turn OFF
+    setup_sensor(hass, 23.5)
+    await hass.async_block_till_done()
+
     assert hass.states.get(heater_switch).state == STATE_OFF
     assert hass.states.get(secondary_heater_switch).state == STATE_OFF

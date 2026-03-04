@@ -3467,18 +3467,19 @@ async def test_hvac_mode_heat_cool_tolerances(
     assert hass.states.get(heater_switch).state == STATE_ON
     assert hass.states.get(cooler_switch).state == STATE_OFF
 
-    # Fix for issue #10: Heater should turn off when reaching target_low (22°C),
-    # not when reaching target_low + hot_tolerance (22.3°C)
+    # Fix for issue #506: Heater should turn off at target_low + hot_tolerance (22.3°C),
+    # not at target_low (22.0°C). Tolerance provides hysteresis on both sides.
     setup_sensor(hass, 22.1)
     await hass.async_block_till_done()
 
-    # Heater turns off when temp >= target_low (22.0), so at 22.1 it should be OFF
-    assert hass.states.get(heater_switch).state == STATE_OFF
+    # Heater stays ON because 22.1 < target_low + hot_tolerance (22.0 + 0.3 = 22.3)
+    assert hass.states.get(heater_switch).state == STATE_ON
     assert hass.states.get(cooler_switch).state == STATE_OFF
 
     setup_sensor(hass, 22.3)
     await hass.async_block_till_done()
 
+    # Heater turns OFF at 22.3 (target_low + hot_tolerance)
     assert hass.states.get(heater_switch).state == STATE_OFF
     assert hass.states.get(cooler_switch).state == STATE_OFF
 
@@ -3502,18 +3503,19 @@ async def test_hvac_mode_heat_cool_tolerances(
     assert hass.states.get(heater_switch).state == STATE_OFF
     assert hass.states.get(cooler_switch).state == STATE_ON
 
-    # Fix for issue #10: Cooler should turn off when reaching target_high (25°C),
-    # not when reaching target_high - cold_tolerance (24.7°C)
+    # Fix for issue #506: Cooler should turn off at target_high - cold_tolerance (24.7°C),
+    # not at target_high (25.0°C). Tolerance provides hysteresis on both sides.
     setup_sensor(hass, 25.0)
     await hass.async_block_till_done()
 
-    # Cooler turns off when temp <= target_high (25.0)
+    # Cooler stays ON because 25.0 > target_high - cold_tolerance (25.0 - 0.3 = 24.7)
     assert hass.states.get(heater_switch).state == STATE_OFF
-    assert hass.states.get(cooler_switch).state == STATE_OFF
+    assert hass.states.get(cooler_switch).state == STATE_ON
 
     setup_sensor(hass, 24.7)
     await hass.async_block_till_done()
 
+    # Cooler turns OFF at 24.7 (target_high - cold_tolerance)
     assert hass.states.get(heater_switch).state == STATE_OFF
     assert hass.states.get(cooler_switch).state == STATE_OFF
 
