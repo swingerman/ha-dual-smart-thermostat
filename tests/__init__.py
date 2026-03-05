@@ -3,6 +3,7 @@
 import datetime
 import logging
 
+from homeassistant.components import input_boolean, input_number
 from homeassistant.components.climate import (
     DOMAIN as CLIMATE,
     PRESET_ACTIVITY,
@@ -1218,6 +1219,64 @@ async def setup_component(hass: HomeAssistant, mock_config: dict) -> MockConfigE
     await hass.async_block_till_done()
 
     return config_entry
+
+
+@pytest.fixture
+async def setup_comp_heat_cool_dual_switch(hass: HomeAssistant) -> None:
+    """Set up a heat-cool thermostat with separate heater/cooler input_boolean switches.
+
+    Used for regression tests (issue #514) that verify no spurious turn_off calls
+    are sent to idle switches when a single physical device shares both heat and
+    cool control paths.
+
+    Entities created:
+        input_boolean.heater  - heater switch
+        input_boolean.cooler  - cooler switch
+        sensor.test           - temperature sensor (common.ENT_SENSOR)
+
+    Climate config:
+        heat_cool_mode=True, target_temp_low=20, target_temp_high=25
+    """
+    hass.config.units = METRIC_SYSTEM
+    assert await async_setup_component(hass, "homeassistant", {})
+    assert await async_setup_component(
+        hass,
+        input_boolean.DOMAIN,
+        {"input_boolean": {"heater": None, "cooler": None}},
+    )
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {
+                    "name": "test",
+                    "initial": 10,
+                    "min": 0,
+                    "max": 40,
+                    "step": 1,
+                }
+            }
+        },
+    )
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "cooler": "input_boolean.cooler",
+                "heater": "input_boolean.heater",
+                "heat_cool_mode": True,
+                "target_sensor": common.ENT_SENSOR,
+                "initial_hvac_mode": HVACMode.HEAT_COOL,
+                "target_temp_low": 20,
+                "target_temp_high": 25,
+            }
+        },
+    )
+    await hass.async_block_till_done()
 
 
 def setup_sensor(hass: HomeAssistant, temp: float) -> None:
