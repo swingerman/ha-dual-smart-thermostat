@@ -92,11 +92,31 @@ jobs:
       - name: Run pip-audit
         run: |
           echo "Running pip-audit for dependency vulnerabilities..."
-          pip-audit --desc --format=json --output=pip-audit-report.json || true
-          # Some vulnerabilities are in packages required by Home Assistant at specific versions
-          # Making this informational only to avoid blocking CI
-          pip-audit --desc || echo "⚠️ Some dependencies have known vulnerabilities but are required by Home Assistant"
-        continue-on-error: true
+          # Ignore known vulnerabilities in Home Assistant's pinned transitive dependencies.
+          # These cannot be upgraded independently — HA controls their versions.
+          # aiohttp: GHSA-9548-qrrj-x5pj, GHSA-6mq8-rvhq-8wgg, GHSA-69f9-5gxw-wvc2,
+          #          GHSA-6jhg-hg63-jvvf, GHSA-g84x-mcqj-x9qq, GHSA-fh55-r93g-j68g,
+          #          GHSA-54jq-c3m8-4m76, GHSA-jj3x-wxrx-4x23, GHSA-mqqc-3gqh-h2x8
+          # cryptography: GHSA-r6ph-v2qm-q3c2
+          # homeassistant: GHSA-mq77-rv97-285m, GHSA-pp3g-xmm4-5cw9
+          # orjson: GHSA-hx9q-6w63-j58v
+          HA_IGNORES="\
+            --ignore-vuln GHSA-9548-qrrj-x5pj \
+            --ignore-vuln GHSA-6mq8-rvhq-8wgg \
+            --ignore-vuln GHSA-69f9-5gxw-wvc2 \
+            --ignore-vuln GHSA-6jhg-hg63-jvvf \
+            --ignore-vuln GHSA-g84x-mcqj-x9qq \
+            --ignore-vuln GHSA-fh55-r93g-j68g \
+            --ignore-vuln GHSA-54jq-c3m8-4m76 \
+            --ignore-vuln GHSA-jj3x-wxrx-4x23 \
+            --ignore-vuln GHSA-mqqc-3gqh-h2x8 \
+            --ignore-vuln GHSA-r6ph-v2qm-q3c2 \
+            --ignore-vuln GHSA-mq77-rv97-285m \
+            --ignore-vuln GHSA-pp3g-xmm4-5cw9 \
+            --ignore-vuln GHSA-hx9q-6w63-j58v"
+          pip-audit --desc --format=json --output=pip-audit-report.json $HA_IGNORES || true
+          pip-audit --desc $HA_IGNORES
+        continue-on-error: false
 
       - name: Upload audit reports
         uses: actions/upload-artifact@v6
