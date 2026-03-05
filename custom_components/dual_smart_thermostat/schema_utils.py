@@ -112,7 +112,10 @@ def get_tolerance_selector(
         if temp_unit == UnitOfTemperature.FAHRENHEIT:
             min_value = round(min_value * 1.8, 2)
             max_value = round(max_value * 1.8, 2)
-            step = round(step * 1.8, 2)
+            # Use a Fahrenheit-friendly step (0.1°F) instead of scaling
+            # the Celsius step (e.g. 0.05°C * 1.8 = 0.09°F), which
+            # prevents entering round values like 1.0°F (#543)
+            step = 0.1
             unit_symbol = "°F"
         else:
             unit_symbol = "°C"
