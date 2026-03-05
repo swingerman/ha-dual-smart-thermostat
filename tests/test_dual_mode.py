@@ -1,5 +1,6 @@
 """The tests for the dual_smart_thermostat."""
 
+from contextlib import contextmanager
 import datetime
 from datetime import timedelta
 import logging
@@ -25,8 +26,10 @@ from homeassistant.components.climate.const import (
     DOMAIN as CLIMATE,
 )
 from homeassistant.const import (
+    ATTR_ENTITY_ID,
     ATTR_TEMPERATURE,
     ENTITY_MATCH_ALL,
+    EVENT_CALL_SERVICE,
     SERVICE_TURN_OFF,
     STATE_CLOSED,
     STATE_OFF,
@@ -65,6 +68,7 @@ from . import (  # noqa: F401
     setup_comp_dual_presets,
     setup_comp_heat_cool_1,
     setup_comp_heat_cool_2,
+    setup_comp_heat_cool_dual_switch,
     setup_comp_heat_cool_fan_config,
     setup_comp_heat_cool_fan_config_2,
     setup_comp_heat_cool_fan_presets,
@@ -3967,3 +3971,128 @@ async def test_heat_cool_mode_opening_timeout(
     # Then
     assert hass.states.get(heater_switch).state == STATE_OFF
     assert hass.states.get(cooler_switch).state == STATE_ON
+
+
+@contextmanager
+def track_turn_off_calls(hass, entity_id):
+    """Context manager tracking homeassistant.turn_off calls for entity_id via the event bus."""
+    calls = []
+
+    def _listener(event):
+        if (
+            event.data.get("domain") == HASS_DOMAIN
+            and event.data.get("service") == SERVICE_TURN_OFF
+            and event.data.get("service_data", {}).get(ATTR_ENTITY_ID) == entity_id
+        ):
+            calls.append(event.data)
+
+    unsub = hass.bus.async_listen(EVENT_CALL_SERVICE, _listener)
+    try:
+        yield calls
+    finally:
+        unsub()
+
+
+@pytest.mark.asyncio
+async def test_heat_cool_mode_does_not_turn_off_idle_cooler_when_heating(
+    hass: HomeAssistant, setup_comp_heat_cool_dual_switch  # noqa: F811
+):
+    """Cooler switch must not receive turn_off when it is already idle.
+
+    Regression test for issue #514: when a single physical AC unit is controlled
+    by two virtual switches (one for heat mode, one for cool mode), an unnecessary
+    turn_off sent to the idle cooler switch causes the physical device to turn off,
+    cancelling the just-activated heating.
+    """
+    heater_switch = "input_boolean.heater"
+    cooler_switch = "input_boolean.cooler"
+
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+
+    with track_turn_off_calls(hass, cooler_switch) as cooler_turn_offs:
+        # Temperature too cold — heater should activate
+        setup_sensor(hass, 18)
+        await hass.async_block_till_done()
+
+        assert hass.states.get(heater_switch).state == STATE_ON
+        assert hass.states.get(cooler_switch).state == STATE_OFF
+
+        # Cooler must NOT have received a turn_off call while it was already idle
+        assert cooler_turn_offs == [], (
+            f"Cooler received {len(cooler_turn_offs)} unexpected turn_off call(s) while idle. "
+            "This causes single-device setups (one AC unit, two virtual switches) to "
+            "turn off when heating is activated."
+        )
+
+
+@pytest.mark.asyncio
+async def test_heat_cool_mode_does_not_turn_off_idle_heater_when_cooling(
+    hass: HomeAssistant, setup_comp_heat_cool_dual_switch  # noqa: F811
+):
+    """Heater switch must not receive turn_off when it is already idle.
+
+    Regression test for issue #514 (cooling side): an unnecessary turn_off sent
+    to the idle heater switch causes the physical device to turn off, cancelling
+    the just-activated cooling.
+    """
+    heater_switch = "input_boolean.heater"
+    cooler_switch = "input_boolean.cooler"
+
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+
+    with track_turn_off_calls(hass, heater_switch) as heater_turn_offs:
+        # Temperature too hot — cooler should activate
+        setup_sensor(hass, 27)
+        await hass.async_block_till_done()
+
+        assert hass.states.get(cooler_switch).state == STATE_ON
+        assert hass.states.get(heater_switch).state == STATE_OFF
+
+        # Heater must NOT have received a turn_off call while it was already idle
+        assert heater_turn_offs == [], (
+            f"Heater received {len(heater_turn_offs)} unexpected turn_off call(s) while idle. "
+            "This causes single-device setups (one AC unit, two virtual switches) to "
+            "turn off when cooling is activated."
+        )
+
+
+@pytest.mark.asyncio
+async def test_heat_cool_mode_does_not_turn_off_either_idle_device_when_temp_in_range(
+    hass: HomeAssistant, setup_comp_heat_cool_dual_switch  # noqa: F811
+):
+    """Neither idle device should receive turn_off when temperature is in comfort range.
+
+    Regression test for issue #514 (else-case): when temp is already within the
+    heat/cool setpoint range and both devices are off, no turn_off commands should
+    be sent to either switch.  An unnecessary turn_off to a virtual switch backed
+    by a shared physical AC unit would turn the device off even when it is idle.
+    """
+    heater_switch = "input_boolean.heater"
+    cooler_switch = "input_boolean.cooler"
+
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(cooler_switch).state == STATE_OFF
+
+    with track_turn_off_calls(
+        hass, heater_switch
+    ) as heater_turn_offs, track_turn_off_calls(
+        hass, cooler_switch
+    ) as cooler_turn_offs:
+        # Temperature in comfort range — no device should activate or receive turn_off
+        setup_sensor(hass, 22)
+        await hass.async_block_till_done()
+
+        assert hass.states.get(heater_switch).state == STATE_OFF
+        assert hass.states.get(cooler_switch).state == STATE_OFF
+
+        # Neither idle device should have received a turn_off call
+        assert heater_turn_offs == [], (
+            f"Heater received {len(heater_turn_offs)} unexpected turn_off call(s) "
+            "while already idle and temperature was in comfort range."
+        )
+        assert cooler_turn_offs == [], (
+            f"Cooler received {len(cooler_turn_offs)} unexpected turn_off call(s) "
+            "while already idle and temperature was in comfort range."
+        )

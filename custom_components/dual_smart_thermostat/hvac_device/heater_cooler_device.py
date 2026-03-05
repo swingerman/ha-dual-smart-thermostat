@@ -175,14 +175,15 @@ class HeaterCoolerDevice(MultiHvacDevice):
         if too_cold:
             await self.heater_device.async_control_hvac(time, force)
             self._hvac_action_reason = self.heater_device.HVACActionReason
-            await self.cooler_device.async_turn_off()
+            if self.cooler_device.is_active:
+                await self.cooler_device.async_turn_off()
         elif too_hot:
             await self.cooler_device.async_control_hvac(time, force)
             self._hvac_action_reason = self.cooler_device.HVACActionReason
-            await self.heater_device.async_turn_off()
+            if self.heater_device.is_active:
+                await self.heater_device.async_turn_off()
         else:
-            await self.heater_device.async_turn_off()
-            await self.cooler_device.async_turn_off()
+            await self.async_turn_off_all(time)
             self._hvac_action_reason = HVACActionReason.TARGET_TEMP_REACHED
 
     async def _async_check_device_initial_state(self) -> None:
