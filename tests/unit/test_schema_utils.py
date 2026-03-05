@@ -68,8 +68,8 @@ class TestGetToleranceSelector:
         assert config["min"] == 0
         # max_value should be 10 * 1.8 = 18, NOT 50 (absolute conversion)
         assert config["max"] == 18
-        # step should be 0.05 * 1.8 = 0.09
-        assert config["step"] == 0.09
+        # step should be a Fahrenheit-friendly value (0.1), not 0.05 * 1.8 = 0.09
+        assert config["step"] == 0.1
         assert config["unit_of_measurement"] == "°F"
 
     def test_tolerance_selector_fahrenheit_default_tolerance_range(self):
@@ -88,8 +88,57 @@ class TestGetToleranceSelector:
         config = selector.config
         # Default min is 0, should stay 0
         assert config["min"] == 0
-        # Default step should be scaled for Fahrenheit (0.05 * 1.8 = 0.09)
-        assert config["step"] == 0.09
+        # Default step should be a Fahrenheit-friendly value (0.1)
+        assert config["step"] == 0.1
+
+    def test_tolerance_selector_fahrenheit_step_allows_round_values(self):
+        """Test that Fahrenheit tolerance step allows entering round values.
+
+        Issue #543: Users in Fahrenheit mode can't enter values like 1.0°F
+        because the step (0.05°C * 1.8 = 0.09°F) doesn't divide evenly into
+        common Fahrenheit tolerance values. The step should be a user-friendly
+        value like 0.1 in Fahrenheit mode.
+        """
+        hass = MagicMock()
+        hass.config.units.temperature_unit = UnitOfTemperature.FAHRENHEIT
+
+        selector = get_tolerance_selector(
+            hass=hass, min_value=0, max_value=10, step=0.05
+        )
+
+        config = selector.config
+        step = config["step"]
+        # User should be able to enter common Fahrenheit values
+        # 1.0°F must be a valid multiple of the step
+        assert 1.0 % step < 1e-9 or (step - (1.0 % step)) < 1e-9, (
+            f"Step {step}°F doesn't allow entering 1.0°F. "
+            f"1.0 % {step} = {1.0 % step}"
+        )
+        # 0.5°F must also be a valid multiple
+        assert 0.5 % step < 1e-9 or (step - (0.5 % step)) < 1e-9, (
+            f"Step {step}°F doesn't allow entering 0.5°F. "
+            f"0.5 % {step} = {0.5 % step}"
+        )
+
+    def test_tolerance_selector_fahrenheit_options_flow_step(self):
+        """Test options flow step (0.1°C) also works in Fahrenheit.
+
+        The options flow uses step=0.1, which scales to 0.18°F - also
+        not a round number. Users should be able to enter 1.0°F.
+        """
+        hass = MagicMock()
+        hass.config.units.temperature_unit = UnitOfTemperature.FAHRENHEIT
+
+        selector = get_tolerance_selector(
+            hass=hass, min_value=0, max_value=10, step=0.1
+        )
+
+        config = selector.config
+        step = config["step"]
+        assert 1.0 % step < 1e-9 or (step - (1.0 % step)) < 1e-9, (
+            f"Step {step}°F doesn't allow entering 1.0°F. "
+            f"1.0 % {step} = {1.0 % step}"
+        )
 
     def test_tolerance_selector_no_hass_uses_generic_degree(self):
         """Test that no hass instance uses generic degree symbol."""
