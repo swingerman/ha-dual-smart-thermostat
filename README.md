@@ -516,7 +516,7 @@ These limits also can be set in presets.
 ### Maximum floor temperature
 
 The `dual_smart_thermostat` can turn off if the floor heating reaches the maximum allowed temperature you define in order to protect the floor from overheating and damage.
-There is a default value of 28 degrees Celsius as per inustry recommendations.
+There is a default value of 28 degrees Celsius as per industry recommendations.
 To enable this protection you need to set two variables:
 
 ```yaml
