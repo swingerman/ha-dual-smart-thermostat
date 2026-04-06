@@ -460,6 +460,58 @@ climate:
    - Floor temperature limits reached
    - Min cycle duration preventing rapid switching
 
+### Fan Not Triggering When Temperature Is High
+
+**Problem:** You configured `fan_hot_tolerance` but the fan never activates for cooling. ([#425](https://github.com/swingerman/ha-dual-smart-thermostat/issues/425))
+
+**Common Causes:**
+
+1. **No cooler device configured:**
+   The `fan_hot_tolerance` feature only works when a cooler is present (either a separate `cooler` entity or `ac_mode: true`). It defines a temperature band *before* the cooler activates where the fan runs instead. Without a cooler in the device hierarchy, the fan tolerance logic is never invoked.
+
+   ```yaml
+   # ❌ Fan tolerance has no effect — no cooler path
+   climate:
+     - platform: dual_smart_thermostat
+       heater: switch.heater
+       fan: switch.fan
+       fan_hot_tolerance: 0.5
+       target_sensor: sensor.temp
+
+   # ✅ Correct — fan tolerance works with a cooler
+   climate:
+     - platform: dual_smart_thermostat
+       heater: switch.heater
+       cooler: switch.cooler
+       fan: switch.fan
+       fan_hot_tolerance: 0.5
+       target_sensor: sensor.temp
+   ```
+
+2. **`fan_hot_tolerance` set to 0:**
+   A value of 0 creates a zero-width fan zone, so no temperature can ever fall within range. Use a positive value (e.g., `0.5`).
+
+3. **`fan_air_outside: true` but outside is warmer:**
+   When `fan_air_outside` is enabled, the fan only runs if the outside temperature is cooler than inside. If outside air is warmer, the fan is skipped in favor of the cooler.
+
+### Temperature and Humidity Don't Run Simultaneously
+
+**Problem:** When switching between HEAT/COOL and DRY modes, only one type of control is active at a time.
+
+**This is by design.** The thermostat operates in one HVAC mode at a time:
+
+| Mode | Active Device | Inactive Devices |
+|------|--------------|-----------------|
+| HEAT | Heater | Cooler, Dryer, Fan |
+| COOL | Cooler | Heater, Dryer, Fan |
+| HEAT_COOL | Heater + Cooler | Dryer, Fan |
+| DRY | Dryer (dehumidifier) | Heater, Cooler, Fan |
+| FAN_ONLY | Fan | Heater, Cooler, Dryer |
+
+When you switch to DRY mode, temperature control stops. When you switch to HEAT or COOL, humidity control stops. This follows Home Assistant's standard climate entity model where each mode has a single purpose.
+
+**Workaround:** If you need simultaneous temperature and humidity control, consider using two separate thermostat entities — one for temperature and one for humidity — and coordinate them with automations.
+
 ---
 
 ## Preset Issues

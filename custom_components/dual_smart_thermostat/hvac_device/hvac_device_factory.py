@@ -144,6 +144,17 @@ class HVACDeviceFactory:
                 environment, openings, hvac_power, cooler_entity_id, fan_device
             )
 
+        if (
+            fan_device
+            and environment.fan_hot_tolerance is not None
+            and cooler_device is None
+        ):
+            _LOGGER.warning(
+                "'fan_hot_tolerance' is configured but no cooler device exists. "
+                "The fan_hot_tolerance feature only works with a cooler entity "
+                "or ac_mode enabled. The fan will not be used for cooling"
+            )
+
         if self._features.is_configured_for_heat_pump_mode:
             heater_device = HeatPumpDevice(
                 self.hass,
