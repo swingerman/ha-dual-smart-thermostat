@@ -417,6 +417,8 @@ class EnvironmentManager(StateManager):
         """Checks if the current temperature is below target."""
         if self._cur_temp is None or self._fan_hot_tolerance is None:
             return False
+        if self._fan_hot_tolerance <= 0:
+            return False
         target_temp = getattr(self, target_attr)
 
         too_hot_for_ac_temp = target_temp + self._hot_tolerance

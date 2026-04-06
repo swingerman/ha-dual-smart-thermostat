@@ -170,7 +170,9 @@ FAN_MODE_SCHEMA = {
     vol.Optional(CONF_FAN): cv.entity_id,
     vol.Optional(CONF_FAN_MODE): cv.boolean,
     vol.Optional(CONF_FAN_ON_WITH_AC): cv.boolean,
-    vol.Optional(CONF_FAN_HOT_TOLERANCE): vol.Coerce(float),
+    vol.Optional(CONF_FAN_HOT_TOLERANCE): vol.All(
+        vol.Coerce(float), vol.Range(min=0, min_included=False)
+    ),
     vol.Optional(CONF_FAN_HOT_TOLERANCE_TOGGLE): cv.entity_id,
     vol.Optional(CONF_FAN_AIR_OUTSIDE): cv.boolean,
 }

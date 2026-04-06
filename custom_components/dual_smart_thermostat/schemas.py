@@ -970,7 +970,7 @@ def get_fan_schema(hass=None, defaults: dict[str, Any] | None = None):
                 CONF_FAN_HOT_TOLERANCE,
                 default=defaults.get(CONF_FAN_HOT_TOLERANCE, 0.5),
             ): get_tolerance_selector(
-                hass=hass, min_value=0.0, max_value=10.0, step=0.05
+                hass=hass, min_value=0.1, max_value=10.0, step=0.05
             ),
             vol.Optional(
                 CONF_FAN_HOT_TOLERANCE_TOGGLE,

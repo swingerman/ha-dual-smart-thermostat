@@ -11,6 +11,7 @@ import pytest
 from custom_components.dual_smart_thermostat.const import (
     CONF_COLD_TOLERANCE,
     CONF_COOL_TOLERANCE,
+    CONF_FAN_HOT_TOLERANCE,
     CONF_HEAT_TOLERANCE,
     CONF_HOT_TOLERANCE,
     CONF_SENSOR,
@@ -412,3 +413,109 @@ class TestSetTempsFromPresetWithTemplates:
         # Should use temp_high (22.0) for COOL mode, evaluated from template
         assert env.target_temp == 22.0
         assert isinstance(env.target_temp, float)
+
+
+class TestIsWithinFanTolerance:
+    """Test is_within_fan_tolerance() edge cases.
+
+    Regression tests for #425: fan_hot_tolerance=0 creates a zero-width fan zone,
+    making the fan never trigger. The fan zone is defined as:
+      [target + hot_tolerance, target + hot_tolerance + fan_hot_tolerance]
+    When fan_hot_tolerance=0, both bounds are equal, so no temperature can fall
+    within the range (except the exact boundary, which is unreliable with floats).
+    """
+
+    @pytest.mark.asyncio
+    async def test_fan_tolerance_zero_never_triggers(self, hass):
+        """Test that fan_hot_tolerance=0 is treated as a degenerate case (#425).
+
+        With target=20, hot_tolerance=2.5, fan_hot_tolerance=0:
+        Fan zone = [22.5, 22.5] — zero-width, fan should never be "within" range.
+        The code should log a warning about the ineffective configuration.
+        """
+        config = {
+            CONF_SENSOR: "sensor.temperature",
+            CONF_COLD_TOLERANCE: 0.5,
+            CONF_HOT_TOLERANCE: 2.5,
+            CONF_FAN_HOT_TOLERANCE: 0,
+        }
+        env = EnvironmentManager(hass, config)
+        env._target_temp = 20.0
+
+        # At the exact boundary (22.5) — this is the only value that could
+        # possibly match, but with fan_hot_tolerance=0 the zone is degenerate
+        env._cur_temp = 22.5
+        assert env.is_within_fan_tolerance() is False
+
+        # Above the boundary
+        env._cur_temp = 23.0
+        assert env.is_within_fan_tolerance() is False
+
+        # Below the boundary
+        env._cur_temp = 22.0
+        assert env.is_within_fan_tolerance() is False
+
+    @pytest.mark.asyncio
+    async def test_fan_tolerance_positive_creates_valid_zone(self, hass):
+        """Test that a positive fan_hot_tolerance creates a usable fan zone.
+
+        With target=20, hot_tolerance=2.5, fan_hot_tolerance=1.0:
+        Fan zone = [22.5, 23.5]
+        """
+        config = {
+            CONF_SENSOR: "sensor.temperature",
+            CONF_COLD_TOLERANCE: 0.5,
+            CONF_HOT_TOLERANCE: 2.5,
+            CONF_FAN_HOT_TOLERANCE: 1.0,
+        }
+        env = EnvironmentManager(hass, config)
+        env._target_temp = 20.0
+
+        # At lower bound (inclusive)
+        env._cur_temp = 22.5
+        assert env.is_within_fan_tolerance() is True
+
+        # In the middle of the zone
+        env._cur_temp = 23.0
+        assert env.is_within_fan_tolerance() is True
+
+        # At upper bound (inclusive)
+        env._cur_temp = 23.5
+        assert env.is_within_fan_tolerance() is True
+
+        # Above the zone — cooler should take over
+        env._cur_temp = 23.6
+        assert env.is_within_fan_tolerance() is False
+
+        # Below the zone — not hot enough for fan
+        env._cur_temp = 22.4
+        assert env.is_within_fan_tolerance() is False
+
+    @pytest.mark.asyncio
+    async def test_fan_tolerance_none_returns_false(self, hass):
+        """Test that fan tolerance returns False when not configured."""
+        config = {
+            CONF_SENSOR: "sensor.temperature",
+            CONF_COLD_TOLERANCE: 0.5,
+            CONF_HOT_TOLERANCE: 0.5,
+        }
+        env = EnvironmentManager(hass, config)
+        env._target_temp = 20.0
+        env._cur_temp = 25.0
+
+        assert env.is_within_fan_tolerance() is False
+
+    @pytest.mark.asyncio
+    async def test_fan_tolerance_with_no_current_temp(self, hass):
+        """Test that fan tolerance returns False when current temp is None."""
+        config = {
+            CONF_SENSOR: "sensor.temperature",
+            CONF_COLD_TOLERANCE: 0.5,
+            CONF_HOT_TOLERANCE: 0.5,
+            CONF_FAN_HOT_TOLERANCE: 1.0,
+        }
+        env = EnvironmentManager(hass, config)
+        env._target_temp = 20.0
+        env._cur_temp = None
+
+        assert env.is_within_fan_tolerance() is False
