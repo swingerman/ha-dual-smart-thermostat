@@ -94,12 +94,8 @@ jobs:
           echo "Running pip-audit for dependency vulnerabilities..."
           # Ignore known vulnerabilities in Home Assistant's pinned transitive dependencies.
           # These cannot be upgraded independently — HA controls their versions.
-          # aiohttp: GHSA-9548-qrrj-x5pj, GHSA-6mq8-rvhq-8wgg, GHSA-69f9-5gxw-wvc2,
-          #          GHSA-6jhg-hg63-jvvf, GHSA-g84x-mcqj-x9qq, GHSA-fh55-r93g-j68g,
-          #          GHSA-54jq-c3m8-4m76, GHSA-jj3x-wxrx-4x23, GHSA-mqqc-3gqh-h2x8
-          # cryptography: GHSA-r6ph-v2qm-q3c2
-          # homeassistant: GHSA-mq77-rv97-285m, GHSA-pp3g-xmm4-5cw9
-          # orjson: GHSA-hx9q-6w63-j58v
+          # Will be resolved when migrating to HA 2026.x + Python 3.14.
+          # aiohttp 3.11.x CVEs (fixed in 3.13.4):
           HA_IGNORES="\
             --ignore-vuln GHSA-9548-qrrj-x5pj \
             --ignore-vuln GHSA-6mq8-rvhq-8wgg \
@@ -110,10 +106,37 @@ jobs:
             --ignore-vuln GHSA-54jq-c3m8-4m76 \
             --ignore-vuln GHSA-jj3x-wxrx-4x23 \
             --ignore-vuln GHSA-mqqc-3gqh-h2x8 \
+            --ignore-vuln GHSA-p998-jp59-783m \
+            --ignore-vuln GHSA-hcc4-c3v8-rx92 \
+            --ignore-vuln GHSA-m5qp-6w8w-w647 \
+            --ignore-vuln GHSA-3wq7-rqq7-wx6j \
+            --ignore-vuln GHSA-mwh4-6h8g-pg8w \
+            --ignore-vuln GHSA-966j-vmvw-g2g9 \
+            --ignore-vuln GHSA-63hf-3vf5-4wqf \
+            --ignore-vuln GHSA-c427-h43c-vf67 \
+            --ignore-vuln GHSA-w2fm-2cpv-w7v5 \
+            --ignore-vuln GHSA-2vrm-gr82-f7m5 \
+            --ignore-vuln GHSA-w476-p2h3-79g9 \
+            --ignore-vuln GHSA-gc5v-m9x4-r6x2 \
+            --ignore-vuln GHSA-pqhf-p39g-3x64 \
+            --ignore-vuln GHSA-cfh3-3jmp-rvhc \
+            --ignore-vuln GHSA-gm62-xv2j-4w53 \
+            --ignore-vuln GHSA-9ggr-2464-2j32 \
+            --ignore-vuln GHSA-9hjg-9r4m-mvj7 \
+            --ignore-vuln GHSA-2xpw-w6gg-jr37 \
+            --ignore-vuln GHSA-38jv-5279-wg99 \
+            --ignore-vuln GHSA-752w-5fwx-jx9f \
+            --ignore-vuln GHSA-8qf3-x8v5-2pj8 \
+            --ignore-vuln GHSA-pq67-6m6q-mj2v \
             --ignore-vuln GHSA-r6ph-v2qm-q3c2 \
+            --ignore-vuln GHSA-m959-cc7f-wv43 \
             --ignore-vuln GHSA-mq77-rv97-285m \
             --ignore-vuln GHSA-pp3g-xmm4-5cw9 \
-            --ignore-vuln GHSA-hx9q-6w63-j58v"
+            --ignore-vuln GHSA-r584-6283-p7xc \
+            --ignore-vuln GHSA-46j8-vpx8-6p72 \
+            --ignore-vuln GHSA-hx9q-6w63-j58v \
+            --ignore-vuln GHSA-vp96-hxj8-p424 \
+            --ignore-vuln GHSA-5pwr-322w-8jr4"
           pip-audit --desc --format=json --output=pip-audit-report.json $HA_IGNORES || true
           pip-audit --desc $HA_IGNORES
         continue-on-error: false
