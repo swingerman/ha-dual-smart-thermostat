@@ -93,6 +93,11 @@ class HeatPumpDevice(GenericHVACDevice):
         if features.is_configured_for_heat_cool_mode:
             self.hvac_modes = merge_hvac_modes(self.hvac_modes, [HVACMode.HEAT_COOL])
 
+        # Re-apply: parent __init__ rejected it because hvac_modes
+        # only contained OFF before HEAT/COOL were added above.
+        if initial_hvac_mode in self.hvac_modes:
+            self._hvac_mode = initial_hvac_mode
+
     @property
     def target_env_attr(self) -> str:
 

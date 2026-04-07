@@ -956,3 +956,72 @@ async def test_heat_cool_mode_switches_between_heat_cool_tolerances(
     # Cleanup: Turn off the climate entity to stop timers
     await common.async_set_hvac_mode(hass, HVACMode.OFF)
     await hass.async_block_till_done()
+
+
+###############################################
+# INITIAL HVAC MODE - HEAT PUMP (#555)        #
+###############################################
+
+
+@pytest.mark.parametrize("expected_lingering_timers", [True])
+async def test_heat_pump_initial_hvac_mode_applied(
+    hass: HomeAssistant,
+    setup_comp_1,  # noqa: F811
+) -> None:
+    """Test heat pump respects initial_hvac_mode (#555).
+
+    The heat pump device starts with hvac_modes=[OFF] and adds HEAT/COOL
+    in _apply_heat_pump_cooling_state(). The initial_hvac_mode must be
+    applied AFTER the modes are set up, otherwise it's rejected because
+    HEAT is not yet in hvac_modes during super().__init__().
+    """
+    heat_pump_switch = "input_boolean.test"
+    heat_pump_cooling_switch = "input_boolean.test2"
+
+    assert await async_setup_component(
+        hass,
+        input_boolean.DOMAIN,
+        {"input_boolean": {"test": None, "test2": None}},
+    )
+
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {"name": "test", "initial": 10, "min": 0, "max": 40, "step": 1}
+            }
+        },
+    )
+
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "heater": heat_pump_switch,
+                "heat_pump_cooling": heat_pump_cooling_switch,
+                "target_sensor": common.ENT_SENSOR,
+                "initial_hvac_mode": HVACMode.HEAT,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    # The climate entity should be in HEAT mode, not OFF
+    state = hass.states.get(common.ENTITY)
+    assert (
+        state.state == HVACMode.HEAT
+    ), f"Heat pump should initialize in HEAT mode, got {state.state}"
+
+    # Should actually heat when cold
+    setup_sensor(hass, 18)
+    await hass.async_block_till_done()
+    await common.async_set_temperature(hass, 23)
+    await hass.async_block_till_done()
+
+    assert (
+        hass.states.get(heat_pump_switch).state == STATE_ON
+    ), "Heat pump should turn ON when temp is below target in HEAT mode"
