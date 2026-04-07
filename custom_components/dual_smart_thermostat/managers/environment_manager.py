@@ -17,6 +17,7 @@ from homeassistant.helpers.typing import ConfigType
 from homeassistant.util.unit_conversion import TemperatureConverter
 
 from ..const import (
+    ATTR_PREV_HUMIDITY,
     ATTR_PREV_TARGET,
     ATTR_PREV_TARGET_HIGH,
     ATTR_PREV_TARGET_LOW,
@@ -980,6 +981,13 @@ class EnvironmentManager(StateManager):
                 _LOGGER.info("Restoring previous target temperature: %s", old_target)
 
                 self._target_temp = float(old_target)
+
+        if self._target_humidity is None:
+            old_humidity = old_state.attributes.get(ATTR_PREV_HUMIDITY)
+            if old_humidity is None:
+                old_humidity = old_state.attributes.get(ATTR_HUMIDITY)
+            if old_humidity is not None:
+                self._target_humidity = float(old_humidity)
 
         # do we actually need this?
         self._max_floor_temp = (

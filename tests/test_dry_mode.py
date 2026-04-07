@@ -31,7 +31,7 @@ from homeassistant.const import (
     STATE_UNAVAILABLE,
     STATE_UNKNOWN,
 )
-from homeassistant.core import DOMAIN as HASS_DOMAIN, HomeAssistant
+from homeassistant.core import DOMAIN as HASS_DOMAIN, HomeAssistant, State
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import entity_registry as er
 from homeassistant.setup import async_setup_component
@@ -41,6 +41,7 @@ import pytest
 
 from custom_components.dual_smart_thermostat.const import (
     ATTR_HVAC_ACTION_REASON,
+    ATTR_PREV_HUMIDITY,
     DOMAIN,
     PRESET_ANTI_FREEZE,
 )
@@ -1759,3 +1760,93 @@ async def test_humidity_control_works_after_yaml_setup(
     assert supported_features & ClimateEntityFeature.TARGET_HUMIDITY
     # Target humidity should be retained
     assert state.attributes.get(ATTR_HUMIDITY) == 55
+
+
+###############################################
+# HUMIDITY PERSISTENCE ON RESTART (#553)      #
+###############################################
+
+
+@pytest.mark.parametrize("expected_lingering_timers", [True])
+async def test_humidity_target_restored_on_restart(
+    hass: HomeAssistant,
+    setup_comp_1,  # noqa: F811
+) -> None:
+    """Test target humidity is restored from previous state on restart (#553).
+
+    The user sets humidity to 60%, restarts HA, and expects it to still be 60%.
+    Previously it always reverted to 50% because apply_old_state() didn't
+    restore the humidity target.
+    """
+
+    # Simulate a previous state with humidity set to 60%
+    common.mock_restore_cache(
+        hass,
+        (
+            State(
+                common.ENTITY,
+                HVACMode.DRY,
+                {
+                    ATTR_TEMPERATURE: "20",
+                    ATTR_HUMIDITY: "60",
+                    ATTR_PREV_HUMIDITY: "60",
+                },
+            ),
+        ),
+    )
+
+    assert await async_setup_component(
+        hass,
+        input_boolean.DOMAIN,
+        {"input_boolean": {"test": None}},
+    )
+
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {
+                    "name": "test",
+                    "initial": 10,
+                    "min": 0,
+                    "max": 40,
+                    "step": 1,
+                },
+                "humidity": {
+                    "name": "humidity",
+                    "initial": 50,
+                    "min": 0,
+                    "max": 100,
+                    "step": 1,
+                },
+            }
+        },
+    )
+
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "heater": common.ENT_SWITCH,
+                "target_sensor": common.ENT_SENSOR,
+                "dryer": common.ENT_DRYER,
+                "humidity_sensor": common.ENT_HUMIDITY_SENSOR,
+                "initial_hvac_mode": HVACMode.DRY,
+                "moist_tolerance": 1,
+                "dry_tolerance": 1,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    state = hass.states.get(common.ENTITY)
+    assert state is not None
+
+    # Target humidity should be restored to 60%, NOT reset to 50%
+    assert (
+        state.attributes.get(ATTR_HUMIDITY) == 60
+    ), f"Target humidity should be restored to 60%, got {state.attributes.get(ATTR_HUMIDITY)}"
