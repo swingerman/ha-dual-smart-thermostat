@@ -11,13 +11,11 @@ from unittest.mock import patch
 
 from homeassistant.components.climate import (
     _LOGGER,
-    ATTR_AUX_HEAT,
     ATTR_HVAC_MODE,
     ATTR_PRESET_MODE,
     ATTR_TARGET_TEMP_HIGH,
     ATTR_TARGET_TEMP_LOW,
     DOMAIN,
-    SERVICE_SET_AUX_HEAT,
     SERVICE_SET_HUMIDITY,
     SERVICE_SET_HVAC_MODE,
     SERVICE_SET_PRESET_MODE,
@@ -87,27 +85,6 @@ async def async_set_preset_mode(hass, preset_mode, entity_id=ENTITY_MATCH_ALL) -
         data[ATTR_ENTITY_ID] = entity_id
 
     await hass.services.async_call(DOMAIN, SERVICE_SET_PRESET_MODE, data, blocking=True)
-
-
-async def async_set_aux_heat(hass, aux_heat, entity_id=ENTITY_MATCH_ALL) -> None:
-    """Turn all or specified climate devices auxiliary heater on."""
-    data = {ATTR_AUX_HEAT: aux_heat}
-
-    if entity_id:
-        data[ATTR_ENTITY_ID] = entity_id
-
-    await hass.services.async_call(DOMAIN, SERVICE_SET_AUX_HEAT, data, blocking=True)
-
-
-@bind_hass
-def set_aux_heat(hass, aux_heat, entity_id=ENTITY_MATCH_ALL) -> None:
-    """Turn all or specified climate devices auxiliary heater on."""
-    data = {ATTR_AUX_HEAT: aux_heat}
-
-    if entity_id:
-        data[ATTR_ENTITY_ID] = entity_id
-
-    hass.services.call(DOMAIN, SERVICE_SET_AUX_HEAT, data)
 
 
 async def async_set_temperature(

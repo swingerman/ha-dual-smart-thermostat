@@ -7,7 +7,7 @@
 # Build with latest Home Assistant:
 #   docker build -f Dockerfile.dev -t dual-thermostat:dev .
 
-ARG PYTHON_VERSION=3.13
+ARG PYTHON_VERSION=3.14
 FROM python:${PYTHON_VERSION}-slim-bookworm
 
 # Metadata
@@ -15,7 +15,7 @@ LABEL maintainer="Dual Smart Thermostat Contributors"
 LABEL description="Development environment for Dual Smart Thermostat Home Assistant integration"
 
 # Build arguments
-ARG HA_VERSION=2025.1.0
+ARG HA_VERSION=2026.3.2
 ARG DEBIAN_FRONTEND=noninteractive
 
 # Environment variables
