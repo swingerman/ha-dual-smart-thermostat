@@ -16,6 +16,7 @@
     "input_number"
   ],
   "documentation": "https://github.com/swingerman/ha-dual-smart-thermostat.git",
+  "homeassistant": "2026.3.2",
   "integration_type": "device",
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/swingerman/ha-dual-smart-thermostat/issues",

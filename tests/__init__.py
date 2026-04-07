@@ -13,8 +13,6 @@ from homeassistant.components.climate import (
     PRESET_ECO,
     PRESET_HOME,
     PRESET_SLEEP,
-    STATE_OFF,
-    STATE_ON,
     HVACMode,
 )
 from homeassistant.components.valve import ValveEntityFeature
@@ -24,6 +22,8 @@ from homeassistant.const import (
     SERVICE_TURN_OFF,
     SERVICE_TURN_ON,
     STATE_CLOSED,
+    STATE_OFF,
+    STATE_ON,
     STATE_OPEN,
     UnitOfTemperature,
 )
