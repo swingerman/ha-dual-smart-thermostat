@@ -1,6 +1,7 @@
 import enum
 from itertools import chain
 
+from ..hvac_action_reason.hvac_action_reason_auto import HVACActionReasonAuto
 from ..hvac_action_reason.hvac_action_reason_external import HVACActionReasonExternal
 from ..hvac_action_reason.hvac_action_reason_internal import HVACActionReasonInternal
 
@@ -13,7 +14,11 @@ class HVACActionReason(enum.StrEnum):
 
     _ignore_ = "member cls"
     cls = vars()
-    for member in chain(list(HVACActionReasonInternal), list(HVACActionReasonExternal)):
+    for member in chain(
+        list(HVACActionReasonInternal),
+        list(HVACActionReasonExternal),
+        list(HVACActionReasonAuto),
+    ):
         cls[member.name] = member.value
 
     NONE = ""
