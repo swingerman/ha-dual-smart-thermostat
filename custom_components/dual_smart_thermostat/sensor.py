@@ -14,7 +14,7 @@ from typing import Any
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_NAME, CONF_UNIQUE_ID
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -94,6 +94,7 @@ class HvacActionReasonSensor(SensorEntity, RestoreEntity):
             self._remove_signal = None
         await super().async_will_remove_from_hass()
 
+    @callback
     def _handle_reason_update(self, reason) -> None:
         """Update native_value from a dispatched reason; ignore invalid values."""
         # Normalise None to NONE (empty enum value).
