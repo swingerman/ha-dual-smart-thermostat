@@ -247,6 +247,24 @@ async def async_set_hvac_action_reason(
     )
 
 
+def get_action_reason_sensor_entity_id(climate_entity_id: str) -> str:
+    """Return the expected hvac_action_reason sensor entity id for a climate.
+
+    The sensor's object id mirrors the climate's object id plus the
+    '_hvac_action_reason' suffix.
+    """
+    _, object_id = climate_entity_id.split(".", 1)
+    return f"sensor.{object_id}_hvac_action_reason"
+
+
+def get_action_reason_sensor_state(hass, climate_entity_id: str):
+    """Return the current state string of the companion action-reason sensor."""
+    sensor_state = hass.states.get(
+        get_action_reason_sensor_entity_id(climate_entity_id)
+    )
+    return sensor_state.state if sensor_state is not None else None
+
+
 def threadsafe_callback_factory(func):
     """Create threadsafe functions out of callbacks.
 

@@ -3,10 +3,11 @@
 import logging
 
 from homeassistant.components.sensor import SensorDeviceClass
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, State
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.entity import EntityCategory
 import pytest
+from pytest_homeassistant_custom_component.common import mock_restore_cache
 
 from custom_components.dual_smart_thermostat.const import (
     SET_HVAC_ACTION_REASON_SENSOR_SIGNAL,
@@ -149,3 +150,39 @@ async def test_sensor_mirrors_external_service_call(
     sensor_state = hass.states.get("sensor.test_hvac_action_reason")
     assert sensor_state is not None
     assert sensor_state.state == HVACActionReasonExternal.PRESENCE
+
+
+@pytest.mark.asyncio
+async def test_sensor_restores_last_state(hass: HomeAssistant) -> None:
+    """The sensor restores its previous enum value across restarts."""
+    sensor_entity_id = "sensor.test_hvac_action_reason"
+    mock_restore_cache(
+        hass,
+        (State(sensor_entity_id, HVACActionReasonInternal.TARGET_TEMP_REACHED),),
+    )
+
+    from homeassistant.components.climate import DOMAIN as CLIMATE
+    from homeassistant.setup import async_setup_component
+
+    from custom_components.dual_smart_thermostat.const import DOMAIN
+
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "cold_tolerance": 2,
+                "hot_tolerance": 4,
+                "heater": common.ENT_SWITCH,
+                "target_sensor": common.ENT_SENSOR,
+                "initial_hvac_mode": "heat",
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    state = hass.states.get(sensor_entity_id)
+    assert state is not None
+    assert state.state == HVACActionReasonInternal.TARGET_TEMP_REACHED
