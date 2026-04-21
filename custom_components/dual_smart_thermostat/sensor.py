@@ -9,11 +9,17 @@ from __future__ import annotations
 
 from collections.abc import Callable
 import logging
+from typing import Any
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import CONF_NAME, CONF_UNIQUE_ID
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import EntityCategory
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
+from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
 from .const import SET_HVAC_ACTION_REASON_SENSOR_SIGNAL
 from .hvac_action_reason.hvac_action_reason import HVACActionReason
@@ -108,3 +114,42 @@ class HvacActionReasonSensor(SensorEntity, RestoreEntity):
         self._attr_native_value = value
         if self.hass is not None and self.entity_id is not None:
             self.async_write_ha_state()
+
+
+def _derive_sensor_key(config: dict[str, Any], fallback_name: str) -> str:
+    """Return the stable key used by both climate and sensor for signalling.
+
+    Preference order: config_entry.entry_id > CONF_UNIQUE_ID > CONF_NAME.
+    The caller supplies ``fallback_name`` as the last-resort value.
+    """
+    return config.get(CONF_UNIQUE_ID) or fallback_name
+
+
+async def async_setup_entry(
+    hass: HomeAssistant,
+    config_entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+) -> None:
+    """Create the companion action-reason sensor for a config entry."""
+    config = {**config_entry.data, **config_entry.options}
+    name = config.get(CONF_NAME, "dual_smart_thermostat")
+    sensor_key = config_entry.entry_id
+
+    async_add_entities([HvacActionReasonSensor(sensor_key=sensor_key, name=name)])
+
+
+async def async_setup_platform(
+    hass: HomeAssistant,
+    config: ConfigType,
+    async_add_entities: AddEntitiesCallback,
+    discovery_info: DiscoveryInfoType | None = None,
+) -> None:
+    """Create the companion action-reason sensor for a YAML-discovered climate."""
+    if discovery_info is None:
+        # This platform is only instantiated via discovery from climate.py.
+        return
+
+    name = discovery_info["name"]
+    sensor_key = discovery_info["sensor_key"]
+
+    async_add_entities([HvacActionReasonSensor(sensor_key=sensor_key, name=name)])

@@ -43,6 +43,7 @@ from homeassistant.core import (
     State,
     callback,
 )
+from homeassistant.helpers import discovery
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.dispatcher import async_dispatcher_connect, dispatcher_send
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -442,29 +443,43 @@ async def _async_setup_config(
     )
 
     has_min_cycle = CONF_MIN_DUR in config
-    async_add_entities(
-        [
-            DualSmartThermostat(
-                name,
-                sensor_entity_id,
-                sensor_floor_entity_id,
-                sensor_outside_entity_id,
-                sensor_humidity_entity_id,
-                sensor_stale_duration,
-                sensor_heat_pump_cooling_entity_id,
-                keep_alive,
-                has_min_cycle,
-                precision,
-                unit,
-                unique_id,
-                hvac_device,
-                preset_manager,
-                environment_manager,
-                opening_manager,
-                feature_manager,
-                hvac_power_manager,
-            )
-        ]
+    thermostat = DualSmartThermostat(
+        name,
+        sensor_entity_id,
+        sensor_floor_entity_id,
+        sensor_outside_entity_id,
+        sensor_humidity_entity_id,
+        sensor_stale_duration,
+        sensor_heat_pump_cooling_entity_id,
+        keep_alive,
+        has_min_cycle,
+        precision,
+        unit,
+        unique_id,
+        hvac_device,
+        preset_manager,
+        environment_manager,
+        opening_manager,
+        feature_manager,
+        hvac_power_manager,
+    )
+    # Stable identifier shared with the companion sensor for dispatch signalling.
+    # For YAML setups without CONF_UNIQUE_ID, fall back to the climate's name.
+    sensor_key = unique_id or name
+    thermostat._action_reason_sensor_key = sensor_key
+    async_add_entities([thermostat])
+
+    # Load the companion sensor platform via discovery. For YAML setups we
+    # don't have a config entry id, so we derive sensor_key from
+    # CONF_UNIQUE_ID (if set) or the climate name.
+    hass.async_create_task(
+        discovery.async_load_platform(
+            hass,
+            "sensor",
+            DOMAIN,
+            {"name": name, "sensor_key": sensor_key},
+            config,
+        )
     )
 
     # Service to set HVACActionReason.
