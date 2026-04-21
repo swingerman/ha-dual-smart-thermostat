@@ -9,6 +9,7 @@ from custom_components.dual_smart_thermostat.hvac_action_reason.hvac_action_reas
 from custom_components.dual_smart_thermostat.hvac_action_reason.hvac_action_reason_external import (
     HVACActionReasonExternal,
 )
+from custom_components.dual_smart_thermostat.sensor import STATE_NONE
 
 from . import common, setup_comp_heat, setup_sensor, setup_switch  # noqa: F401
 
@@ -19,11 +20,8 @@ async def test_service_set_hvac_action_reason_presence(
     """Test setting HVAC action reason to PRESENCE."""
     state = hass.states.get(common.ENTITY)
     assert state.attributes.get(ATTR_HVAC_ACTION_REASON) == HVACActionReason.NONE
-    # Sensor mirrors the attribute.
-    assert (
-        common.get_action_reason_sensor_state(hass, common.ENTITY)
-        == HVACActionReason.NONE
-    )
+    # Sensor mirrors the attribute (NONE surfaces as "none" on the sensor).
+    assert common.get_action_reason_sensor_state(hass, common.ENTITY) == STATE_NONE
 
     await common.async_set_hvac_action_reason(
         hass, common.ENTITY, HVACActionReasonExternal.PRESENCE
@@ -48,11 +46,8 @@ async def test_service_set_hvac_action_reason_schedule(
     """Test setting HVAC action reason to SCHEDULE."""
     state = hass.states.get(common.ENTITY)
     assert state.attributes.get(ATTR_HVAC_ACTION_REASON) == HVACActionReason.NONE
-    # Sensor mirrors the attribute.
-    assert (
-        common.get_action_reason_sensor_state(hass, common.ENTITY)
-        == HVACActionReason.NONE
-    )
+    # Sensor mirrors the attribute (NONE surfaces as "none" on the sensor).
+    assert common.get_action_reason_sensor_state(hass, common.ENTITY) == STATE_NONE
 
     await common.async_set_hvac_action_reason(
         hass, common.ENTITY, HVACActionReasonExternal.SCHEDULE
@@ -77,11 +72,8 @@ async def test_service_set_hvac_action_reason_emergency(
     """Test setting HVAC action reason to EMERGENCY."""
     state = hass.states.get(common.ENTITY)
     assert state.attributes.get(ATTR_HVAC_ACTION_REASON) == HVACActionReason.NONE
-    # Sensor mirrors the attribute.
-    assert (
-        common.get_action_reason_sensor_state(hass, common.ENTITY)
-        == HVACActionReason.NONE
-    )
+    # Sensor mirrors the attribute (NONE surfaces as "none" on the sensor).
+    assert common.get_action_reason_sensor_state(hass, common.ENTITY) == STATE_NONE
 
     await common.async_set_hvac_action_reason(
         hass, common.ENTITY, HVACActionReasonExternal.EMERGENCY
@@ -106,11 +98,8 @@ async def test_service_set_hvac_action_reason_malfunction(
     """Test setting HVAC action reason to MALFUNCTION."""
     state = hass.states.get(common.ENTITY)
     assert state.attributes.get(ATTR_HVAC_ACTION_REASON) == HVACActionReason.NONE
-    # Sensor mirrors the attribute.
-    assert (
-        common.get_action_reason_sensor_state(hass, common.ENTITY)
-        == HVACActionReason.NONE
-    )
+    # Sensor mirrors the attribute (NONE surfaces as "none" on the sensor).
+    assert common.get_action_reason_sensor_state(hass, common.ENTITY) == STATE_NONE
 
     await common.async_set_hvac_action_reason(
         hass, common.ENTITY, HVACActionReasonExternal.MALFUNCTION

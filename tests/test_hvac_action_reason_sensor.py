@@ -24,7 +24,10 @@ from custom_components.dual_smart_thermostat.hvac_action_reason.hvac_action_reas
 from custom_components.dual_smart_thermostat.hvac_action_reason.hvac_action_reason_internal import (
     HVACActionReasonInternal,
 )
-from custom_components.dual_smart_thermostat.sensor import HvacActionReasonSensor
+from custom_components.dual_smart_thermostat.sensor import (
+    STATE_NONE,
+    HvacActionReasonSensor,
+)
 from tests import common
 from tests import setup_comp_heat  # noqa: F401
 
@@ -60,8 +63,9 @@ def test_sensor_entity_defaults() -> None:
     assert sensor.entity_category == EntityCategory.DIAGNOSTIC
     assert sensor.unique_id == "abc123_hvac_action_reason"
     assert sensor.translation_key == "hvac_action_reason"
-    # Default native_value is the "none" string (empty enum value).
-    assert sensor.native_value == HVACActionReason.NONE
+    # Default native_value is the "none" string (HVACActionReason.NONE
+    # is the empty enum value and is surfaced as "none" by the sensor).
+    assert sensor.native_value == STATE_NONE
 
 
 def test_sensor_options_contains_all_reason_values() -> None:
@@ -76,8 +80,9 @@ def test_sensor_options_contains_all_reason_values() -> None:
         assert value.value in options, f"missing external: {value.value}"
     for value in HVACActionReasonAuto:
         assert value.value in options, f"missing auto: {value.value}"
-    # NONE is the empty string — it must also be an allowed option.
-    assert HVACActionReason.NONE in options
+    # HVACActionReason.NONE (empty string) is surfaced as "none" so the
+    # translations JSON can carry a label for it.
+    assert STATE_NONE in options
 
 
 async def test_sensor_updates_state_on_valid_signal(hass: HomeAssistant) -> None:
@@ -136,7 +141,7 @@ async def test_sensor_created_alongside_climate_yaml(
     sensor_entity_id = "sensor.test_hvac_action_reason"
     state = hass.states.get(sensor_entity_id)
     assert state is not None, f"{sensor_entity_id} was not created"
-    assert state.state == HVACActionReason.NONE
+    assert state.state == STATE_NONE
 
 
 @pytest.mark.asyncio

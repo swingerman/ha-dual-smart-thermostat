@@ -25,8 +25,18 @@ from .hvac_action_reason.hvac_action_reason import HVACActionReason
 
 _LOGGER = logging.getLogger(__name__)
 
+# HVACActionReason.NONE is an empty string — Home Assistant's translation
+# validator rejects empty keys, so the sensor surfaces "none" as the
+# stable, translatable state value for that case.
+STATE_NONE = "none"
 
-_OPTIONS: tuple[str, ...] = tuple(sorted(m.value for m in HVACActionReason))
+
+def _build_options() -> tuple[str, ...]:
+    values = {v.value or STATE_NONE for v in HVACActionReason}
+    return tuple(sorted(values))
+
+
+_OPTIONS: tuple[str, ...] = _build_options()
 _OPTIONS_SET: frozenset[str] = frozenset(_OPTIONS)
 
 
@@ -45,7 +55,7 @@ class HvacActionReasonSensor(SensorEntity, RestoreEntity):
         self._attr_name = f"{name} HVAC Action Reason"
         self._attr_unique_id = f"{sensor_key}_hvac_action_reason"
         self._attr_options = _OPTIONS
-        self._attr_native_value = HVACActionReason.NONE
+        self._attr_native_value = STATE_NONE
         self._remove_signal: Callable[[], None] | None = None
 
     async def async_added_to_hass(self) -> None:
@@ -62,7 +72,7 @@ class HvacActionReasonSensor(SensorEntity, RestoreEntity):
                     last_state.state,
                     self.entity_id,
                 )
-            self._attr_native_value = HVACActionReason.NONE
+            self._attr_native_value = STATE_NONE
 
         self._remove_signal = async_dispatcher_connect(
             self.hass,
@@ -80,7 +90,8 @@ class HvacActionReasonSensor(SensorEntity, RestoreEntity):
     @callback
     def _handle_reason_update(self, reason) -> None:
         """Update native_value from a dispatched reason; ignore invalid values."""
-        value = str(reason) if reason is not None else HVACActionReason.NONE
+        raw = str(reason) if reason is not None else HVACActionReason.NONE
+        value = raw or STATE_NONE
 
         if value not in _OPTIONS_SET:
             _LOGGER.warning(

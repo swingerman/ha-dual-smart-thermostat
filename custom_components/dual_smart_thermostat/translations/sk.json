@@ -3,7 +3,7 @@
     "sensor": {
       "hvac_action_reason": {
         "state": {
-          "": "None",
+          "none": "None",
           "min_cycle_duration_not_reached": "Min cycle duration not reached",
           "target_temp_not_reached": "Target temperature not reached",
           "target_temp_reached": "Target temperature reached",
