@@ -122,7 +122,7 @@ def validate_template_or_number(value: Any) -> Any:
     Raises:
         vol.Invalid: If value is neither a valid number nor a valid template
     """
-    from homeassistant.helpers.template import Template
+    from homeassistant.helpers import config_validation as cv
 
     # Allow None or empty string (optional fields)
     if value is None or value == "":
@@ -146,15 +146,13 @@ def validate_template_or_number(value: Any) -> Any:
         except ValueError:
             pass  # Not a number, might be a template
 
-        # Not a number, validate as template
+        # Not a number, validate as template via HA's cv.template. It fetches
+        # hass from the running event loop and passes it to Template(), avoiding
+        # the "creates a template object without passing hass" deprecation.
         try:
-            # Create Template object to validate syntax
-            # Note: Pass None for hass during validation (not available in schema context)
-            template = Template(value, hass=None)
-            # Call ensure_valid() to check syntax
-            template.ensure_valid()
-            return value  # Return original string for template
-        except Exception as e:
+            cv.template(value)
+            return value  # Return original string for config storage
+        except vol.Invalid as e:
             raise vol.Invalid(
                 f"Value must be a number or valid template. "
                 f"Template syntax error: {str(e)}"
