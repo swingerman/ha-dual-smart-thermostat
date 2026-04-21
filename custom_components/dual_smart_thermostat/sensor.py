@@ -108,12 +108,17 @@ class HvacActionReasonSensor(SensorEntity, RestoreEntity):
         self.async_write_ha_state()
 
 
-async def async_setup_entry(
+# Home Assistant's platform API requires ``async def`` for both setup entry
+# points (HA awaits the returned coroutines). Without an actual ``await`` in
+# the body, SonarCloud flags python:S7503 — suppressed explicitly because
+# dropping ``async`` would break the HA contract.
+async def async_setup_entry(  # NOSONAR python:S7503 - HA platform API
     hass: HomeAssistant,
     config_entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Create the companion action-reason sensor for a config entry."""
+    del hass  # HA passes hass positionally but this platform doesn't need it
     config = {**config_entry.data, **config_entry.options}
     name = config.get(CONF_NAME, "dual_smart_thermostat")
     sensor_key = config_entry.entry_id
@@ -121,13 +126,16 @@ async def async_setup_entry(
     async_add_entities([HvacActionReasonSensor(sensor_key=sensor_key, name=name)])
 
 
-async def async_setup_platform(
+async def async_setup_platform(  # NOSONAR python:S7503 - HA platform API
     hass: HomeAssistant,
     config: ConfigType,
     async_add_entities: AddEntitiesCallback,
     discovery_info: DiscoveryInfoType | None = None,
 ) -> None:
     """Create the companion action-reason sensor for a YAML-discovered climate."""
+    # HA passes both positionally but this platform only uses discovery_info.
+    del hass
+    del config
     if discovery_info is None:
         # This platform is only instantiated via discovery from climate.py.
         return
