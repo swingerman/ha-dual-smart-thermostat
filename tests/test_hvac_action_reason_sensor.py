@@ -84,6 +84,7 @@ async def test_sensor_updates_state_on_valid_signal(hass: HomeAssistant) -> None
     """A valid reason dispatched on the signal updates native_value."""
     sensor = HvacActionReasonSensor(sensor_key="abc123", name="Test")
     sensor.hass = hass
+    sensor.entity_id = "sensor.test_hvac_action_reason"
     # Simulate entity being added to hass (subscribes to the signal).
     await sensor.async_added_to_hass()
 
@@ -101,6 +102,7 @@ async def test_sensor_ignores_invalid_signal_value(hass: HomeAssistant, caplog) 
     """An invalid reason is logged as a warning and state is preserved."""
     sensor = HvacActionReasonSensor(sensor_key="abc123", name="Test")
     sensor.hass = hass
+    sensor.entity_id = "sensor.test_hvac_action_reason"
     await sensor.async_added_to_hass()
 
     # Prime the sensor with a known valid value.

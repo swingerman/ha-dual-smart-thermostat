@@ -37,6 +37,7 @@ from homeassistant.core import (
     State,
     SupportsResponse,
     callback,
+    split_entity_id,
 )
 from homeassistant.helpers import event, restore_state
 from homeassistant.helpers.dispatcher import SignalType, async_dispatcher_connect
@@ -253,7 +254,7 @@ def get_action_reason_sensor_entity_id(climate_entity_id: str) -> str:
     The sensor's object id mirrors the climate's object id plus the
     '_hvac_action_reason' suffix.
     """
-    _, object_id = climate_entity_id.split(".", 1)
+    _, object_id = split_entity_id(climate_entity_id)
     return f"sensor.{object_id}_hvac_action_reason"
 
 

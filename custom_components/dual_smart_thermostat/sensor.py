@@ -22,27 +22,12 @@ from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
 from .const import SET_HVAC_ACTION_REASON_SENSOR_SIGNAL
 from .hvac_action_reason.hvac_action_reason import HVACActionReason
-from .hvac_action_reason.hvac_action_reason_auto import HVACActionReasonAuto
-from .hvac_action_reason.hvac_action_reason_external import HVACActionReasonExternal
-from .hvac_action_reason.hvac_action_reason_internal import HVACActionReasonInternal
 
 _LOGGER = logging.getLogger(__name__)
 
 
-def _build_options() -> list[str]:
-    """Return every valid sensor state value (sorted for stability)."""
-    values: set[str] = {HVACActionReason.NONE}
-    for enum_cls in (
-        HVACActionReasonInternal,
-        HVACActionReasonExternal,
-        HVACActionReasonAuto,
-    ):
-        for member in enum_cls:
-            values.add(member.value)
-    return sorted(values)
-
-
-_OPTIONS = _build_options()
+_OPTIONS: tuple[str, ...] = tuple(sorted(m.value for m in HVACActionReason))
+_OPTIONS_SET: frozenset[str] = frozenset(_OPTIONS)
 
 
 class HvacActionReasonSensor(SensorEntity, RestoreEntity):
@@ -59,7 +44,7 @@ class HvacActionReasonSensor(SensorEntity, RestoreEntity):
         self._sensor_key = sensor_key
         self._attr_name = f"{name} HVAC Action Reason"
         self._attr_unique_id = f"{sensor_key}_hvac_action_reason"
-        self._attr_options = list(_OPTIONS)
+        self._attr_options = _OPTIONS
         self._attr_native_value = HVACActionReason.NONE
         self._remove_signal: Callable[[], None] | None = None
 
@@ -67,9 +52,8 @@ class HvacActionReasonSensor(SensorEntity, RestoreEntity):
         """Restore previous state (if any) and subscribe to the mirror signal."""
         await super().async_added_to_hass()
 
-        # Restore last persisted state.
         last_state = await self.async_get_last_state()
-        if last_state is not None and last_state.state in self._attr_options:
+        if last_state is not None and last_state.state in _OPTIONS_SET:
             self._attr_native_value = last_state.state
         else:
             if last_state is not None:
@@ -96,14 +80,9 @@ class HvacActionReasonSensor(SensorEntity, RestoreEntity):
     @callback
     def _handle_reason_update(self, reason) -> None:
         """Update native_value from a dispatched reason; ignore invalid values."""
-        # Normalise None to NONE (empty enum value).
-        if reason is None:
-            reason = HVACActionReason.NONE
+        value = str(reason) if reason is not None else HVACActionReason.NONE
 
-        # Coerce StrEnum members to their underlying string for comparison.
-        value = reason.value if hasattr(reason, "value") else str(reason)
-
-        if value not in self._attr_options:
+        if value not in _OPTIONS_SET:
             _LOGGER.warning(
                 "Invalid hvac_action_reason %s for %s; ignoring",
                 value,
@@ -111,9 +90,11 @@ class HvacActionReasonSensor(SensorEntity, RestoreEntity):
             )
             return
 
+        if value == self._attr_native_value:
+            return
+
         self._attr_native_value = value
-        if self.hass is not None and self.entity_id is not None:
-            self.async_write_ha_state()
+        self.async_write_ha_state()
 
 
 async def async_setup_entry(

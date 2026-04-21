@@ -33,6 +33,7 @@ from homeassistant.const import (
     STATE_OPEN,
     STATE_UNAVAILABLE,
     STATE_UNKNOWN,
+    Platform,
 )
 from homeassistant.core import (
     CoreState,
@@ -464,19 +465,14 @@ async def _async_setup_config(
         feature_manager,
         hvac_power_manager,
     )
-    # Stable identifier shared with the companion sensor for dispatch signalling.
-    # For YAML setups without CONF_UNIQUE_ID, fall back to the climate's name.
     sensor_key = unique_id or name
     thermostat._action_reason_sensor_key = sensor_key
     async_add_entities([thermostat])
 
-    # Load the companion sensor platform via discovery. For YAML setups we
-    # don't have a config entry id, so we derive sensor_key from
-    # CONF_UNIQUE_ID (if set) or the climate name.
     hass.async_create_task(
         discovery.async_load_platform(
             hass,
-            "sensor",
+            Platform.SENSOR,
             DOMAIN,
             {"name": name, "sensor_key": sensor_key},
             config,
@@ -604,7 +600,9 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
         # hvac action reason
         self._hvac_action_reason = HVACActionReason.NONE
+        self._last_published_action_reason = HVACActionReason.NONE
         self._remove_signal_hvac_action_reason = None
+        self._action_reason_sensor_key: str | None = None
 
         self._temp_lock = asyncio.Lock()
 
@@ -1697,19 +1695,20 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
     def _publish_hvac_action_reason(self, reason) -> None:
         """Mirror the current hvac_action_reason onto the companion sensor.
 
-        Invoked after every assignment to ``self._hvac_action_reason`` so the
-        ``HvacActionReasonSensor`` entity stays in sync. Uses the thread-safe
-        ``dispatcher_send`` variant because some assignment sites run from
-        executor threads (e.g. the sync ``set_hvac_action_reason`` service
-        handler). Silently no-ops if the sensor key was never assigned
-        (defensive; should not happen in normal setup).
+        Uses the thread-safe ``dispatcher_send`` variant because some assignment
+        sites run from executor threads (e.g. the sync ``set_hvac_action_reason``
+        service handler). Skips the dispatch when the reason is unchanged so
+        the sensor does not emit redundant state-change events during every
+        control tick.
         """
-        sensor_key = getattr(self, "_action_reason_sensor_key", None)
-        if sensor_key is None:
+        if self._action_reason_sensor_key is None:
             return
+        if reason == self._last_published_action_reason:
+            return
+        self._last_published_action_reason = reason
         dispatcher_send(
             self.hass,
-            SET_HVAC_ACTION_REASON_SENSOR_SIGNAL.format(sensor_key),
+            SET_HVAC_ACTION_REASON_SENSOR_SIGNAL.format(self._action_reason_sensor_key),
             reason,
         )
 
