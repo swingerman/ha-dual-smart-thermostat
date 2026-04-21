@@ -612,14 +612,20 @@ preset_name:
 
 ## HVAC Action Reason
 
-State attribute: `hvac_action_reason`
+The `dual_smart_thermostat` tracks **why** the current HVAC action is happening and exposes it in two places:
 
-The `dual_smart_thermostat` will set the `hvac_action` attribute to `heating`, `cooling`, `idle` or `off` based on the current state of the thermostat. The `hvac_action` attribute is used to indicate the current action of the thermostat. The `dual_smart_thermostat` will also set the `hvac_action_reason` attribute based on the current state of the thermostat. The `hvac_action_reason` attribute is used to indicate the reason for the current action of the thermostat.
+- **Sensor entity (preferred):** `sensor.<climate_name>_hvac_action_reason` — a diagnostic enum sensor created automatically alongside each climate entity. Use this for automations, templates, and dashboards going forward.
+- **State attribute (deprecated):** `hvac_action_reason` on the climate entity. Still populated for backward compatibility; slated for removal in a future major release. Please migrate templates and automations to the sensor entity above.
+
+Both surfaces carry the same raw enum value at all times.
 
 ### HVAC Action Reason values
 
-The `hvac_action_reason` attribute is grouped by [internal](#hvac-action-reason-internal-values) and [external](#hvac-action-reason-external-values) values.
-The internal values can be set by the component only and the external values can be set by the user or automations.
+The reason is grouped into three categories:
+
+- [Internal values](#hvac-action-reason-internal-values) — set by the component itself.
+- [External values](#hvac-action-reason-external-values) — set by automations or scripts via the `set_hvac_action_reason` service.
+- [Auto values](#hvac-action-reason-auto-values) — reserved for Auto Mode (Phase 1 of the Auto Mode roadmap, issue #563). Declared in the sensor's options list but not yet emitted by any controller.
 
 #### HVAC Action Reason Internal values
 
@@ -648,6 +654,16 @@ The internal values can be set by the component only and the external values can
 | `emergency` | the last HVAc action was triggered by emergency |
 | `malfunction` | the last HVAc action was triggered by malfunction |
 
+#### HVAC Action Reason Auto values
+
+> **Reserved.** These values are declared so the sensor's `options` list is stable across Auto Mode development phases. They are **not yet emitted** by any controller. Phase 1 (see issue #563) will wire the priority engine to emit them.
+
+| Value | Description |
+|-------|-------------|
+| `auto_priority_humidity` | Auto Mode prioritised humidity control (→ DRY) |
+| `auto_priority_temperature` | Auto Mode prioritised temperature control (→ HEAT / COOL) |
+| `auto_priority_comfort` | Auto Mode chose fan for comfort (→ FAN_ONLY) |
+
 [all features ⤴️](#features)
 
 ## Services
@@ -660,6 +676,8 @@ The internal values can be set by the component only and the external values can
 |-----------|-------------|------|----------|
 | entity_id | The entity id of the thermostat | string | yes |
 | hvac_action_reason | The reason for the current action of the thermostat | [HVACActionReasonExternal](#hvac-action-reason-external-values) | yes |
+
+> The service updates both the deprecated `hvac_action_reason` state attribute and the new `sensor.<climate_name>_hvac_action_reason` entity. Automations reading either surface continue to work.
 
 ## Configuration variables
 

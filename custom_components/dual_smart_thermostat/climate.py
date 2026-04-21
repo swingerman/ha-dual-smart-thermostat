@@ -33,6 +33,7 @@ from homeassistant.const import (
     STATE_OPEN,
     STATE_UNAVAILABLE,
     STATE_UNKNOWN,
+    Platform,
 )
 from homeassistant.core import (
     CoreState,
@@ -43,6 +44,7 @@ from homeassistant.core import (
     State,
     callback,
 )
+from homeassistant.helpers import discovery
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.dispatcher import async_dispatcher_connect, dispatcher_send
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -123,6 +125,7 @@ from .const import (
     DEFAULT_NAME,
     DEFAULT_TOLERANCE,
     MIN_CYCLE_KEEP_ALIVE,
+    SET_HVAC_ACTION_REASON_SENSOR_SIGNAL,
     TIMED_OPENING_SCHEMA,
 )
 from .hvac_action_reason.hvac_action_reason import (
@@ -442,29 +445,38 @@ async def _async_setup_config(
     )
 
     has_min_cycle = CONF_MIN_DUR in config
-    async_add_entities(
-        [
-            DualSmartThermostat(
-                name,
-                sensor_entity_id,
-                sensor_floor_entity_id,
-                sensor_outside_entity_id,
-                sensor_humidity_entity_id,
-                sensor_stale_duration,
-                sensor_heat_pump_cooling_entity_id,
-                keep_alive,
-                has_min_cycle,
-                precision,
-                unit,
-                unique_id,
-                hvac_device,
-                preset_manager,
-                environment_manager,
-                opening_manager,
-                feature_manager,
-                hvac_power_manager,
-            )
-        ]
+    thermostat = DualSmartThermostat(
+        name,
+        sensor_entity_id,
+        sensor_floor_entity_id,
+        sensor_outside_entity_id,
+        sensor_humidity_entity_id,
+        sensor_stale_duration,
+        sensor_heat_pump_cooling_entity_id,
+        keep_alive,
+        has_min_cycle,
+        precision,
+        unit,
+        unique_id,
+        hvac_device,
+        preset_manager,
+        environment_manager,
+        opening_manager,
+        feature_manager,
+        hvac_power_manager,
+    )
+    sensor_key = unique_id or name
+    thermostat._action_reason_sensor_key = sensor_key
+    async_add_entities([thermostat])
+
+    hass.async_create_task(
+        discovery.async_load_platform(
+            hass,
+            Platform.SENSOR,
+            DOMAIN,
+            {"name": name, "sensor_key": sensor_key},
+            config,
+        )
     )
 
     # Service to set HVACActionReason.
@@ -588,7 +600,9 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
         # hvac action reason
         self._hvac_action_reason = HVACActionReason.NONE
+        self._last_published_action_reason = HVACActionReason.NONE
         self._remove_signal_hvac_action_reason = None
+        self._action_reason_sensor_key: str | None = None
 
         self._temp_lock = asyncio.Lock()
 
@@ -904,6 +918,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             )
 
             self._hvac_action_reason = old_state.attributes.get(ATTR_HVAC_ACTION_REASON)
+            self._publish_hvac_action_reason(self._hvac_action_reason)
 
         else:
             # No previous state, try and restore defaults
@@ -1193,6 +1208,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         await self.hvac_device.async_set_hvac_mode(hvac_mode)
 
         self._hvac_action_reason = self.hvac_device.HVACActionReason
+        self._publish_hvac_action_reason(self._hvac_action_reason)
 
         # Ensure we update the current operation after changing the mode
         self.async_write_ha_state()
@@ -1332,6 +1348,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                     new_state,
                 )
                 self._hvac_action_reason = self.hvac_device.HVACActionReason
+                self._publish_hvac_action_reason(self._hvac_action_reason)
                 self.async_write_ha_state()
             if self._remove_stale_tracking:
                 self._remove_stale_tracking()
@@ -1362,6 +1379,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             )
             await self.hvac_device.async_turn_off()
             self._hvac_action_reason = HVACActionReason.TEMPERATURE_SENSOR_STALLED
+            self._publish_hvac_action_reason(self._hvac_action_reason)
             self._sensor_stalled = True
             self.async_write_ha_state()
 
@@ -1383,6 +1401,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             )
             await self.hvac_device.async_turn_off()
             self._hvac_action_reason = HVACActionReason.HUMIDITY_SENSOR_STALLED
+            self._publish_hvac_action_reason(self._hvac_action_reason)
             self._humidity_sensor_stalled = True
             self.async_write_ha_state()
 
@@ -1457,6 +1476,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                     new_state,
                 )
                 self._hvac_action_reason = self.hvac_device.HVACActionReason
+                self._publish_hvac_action_reason(self._hvac_action_reason)
                 self.async_write_ha_state()
             if self._remove_humidity_stale_tracking:
                 self._remove_humidity_stale_tracking()
@@ -1561,6 +1581,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             )
 
             self._hvac_action_reason = self.hvac_device.HVACActionReason
+            self._publish_hvac_action_reason(self._hvac_action_reason)
 
     async def _async_control_climate_forced(self, time=None) -> None:
         """Forcefully control the climate device based on config."""
@@ -1671,6 +1692,26 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         await self._async_control_climate(force=True)
         self.async_write_ha_state()
 
+    def _publish_hvac_action_reason(self, reason) -> None:
+        """Mirror the current hvac_action_reason onto the companion sensor.
+
+        Uses the thread-safe ``dispatcher_send`` variant because some assignment
+        sites run from executor threads (e.g. the sync ``set_hvac_action_reason``
+        service handler). Skips the dispatch when the reason is unchanged so
+        the sensor does not emit redundant state-change events during every
+        control tick.
+        """
+        if self._action_reason_sensor_key is None:
+            return
+        if reason == self._last_published_action_reason:
+            return
+        self._last_published_action_reason = reason
+        dispatcher_send(
+            self.hass,
+            SET_HVAC_ACTION_REASON_SENSOR_SIGNAL.format(self._action_reason_sensor_key),
+            reason,
+        )
+
     @callback
     def _set_hvac_action_reason(self, *args) -> None:
         """My first service."""
@@ -1683,6 +1724,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             return
 
         self._hvac_action_reason = reason
+        self._publish_hvac_action_reason(self._hvac_action_reason)
 
         self.schedule_update_ha_state(True)
 

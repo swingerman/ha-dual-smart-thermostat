@@ -278,7 +278,7 @@ async def test_reload(hass: HomeAssistant) -> None:
     )
 
     await hass.async_block_till_done()
-    assert len(hass.states.async_all()) == 1
+    assert len(hass.states.async_all("climate")) == 1
     assert hass.states.get(common.ENTITY) is not None
 
     yaml_path = common.get_fixture_path("configuration.yaml", DOMAIN)
@@ -291,7 +291,7 @@ async def test_reload(hass: HomeAssistant) -> None:
         )
         await hass.async_block_till_done()
 
-    assert len(hass.states.async_all()) == 1
+    assert len(hass.states.async_all("climate")) == 1
     assert hass.states.get("climate.test") is None
     assert hass.states.get("climate.reload")
 

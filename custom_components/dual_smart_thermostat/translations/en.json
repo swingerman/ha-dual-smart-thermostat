@@ -1,5 +1,33 @@
 {
     "title": "Dual Smart Thermostat",
+    "entity": {
+        "sensor": {
+            "hvac_action_reason": {
+                "state": {
+                    "none": "None",
+                    "min_cycle_duration_not_reached": "Min cycle duration not reached",
+                    "target_temp_not_reached": "Target temperature not reached",
+                    "target_temp_reached": "Target temperature reached",
+                    "target_temp_not_reached_with_fan": "Target temperature not reached (fan assist)",
+                    "target_humidity_not_reached": "Target humidity not reached",
+                    "target_humidity_reached": "Target humidity reached",
+                    "misconfiguration": "Misconfiguration",
+                    "opening": "Opening detected",
+                    "limit": "Limit reached",
+                    "overheat": "Overheat protection",
+                    "temperature_sensor_stalled": "Temperature sensor stalled",
+                    "humidity_sensor_stalled": "Humidity sensor stalled",
+                    "presence": "Presence",
+                    "schedule": "Schedule",
+                    "emergency": "Emergency",
+                    "malfunction": "Malfunction",
+                    "auto_priority_humidity": "Auto: humidity priority",
+                    "auto_priority_temperature": "Auto: temperature priority",
+                    "auto_priority_comfort": "Auto: comfort priority"
+                }
+            }
+        }
+    },
     "config": {
         "error": {
             "same_heater_sensor": "Heater and temperature sensor cannot be the same entity",
