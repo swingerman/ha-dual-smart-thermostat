@@ -134,6 +134,10 @@ ATTR_PREV_TARGET_LOW = "prev_target_temp_low"
 ATTR_PREV_TARGET_HIGH = "prev_target_temp_high"
 ATTR_PREV_HUMIDITY = "prev_humidity"
 ATTR_HVAC_ACTION_REASON = "hvac_action_reason"
+# Dispatcher signal used to mirror the climate entity's _hvac_action_reason value
+# onto its companion HvacActionReasonSensor entity. Formatted with the
+# climate's sensor_key (config_entry.entry_id or CONF_UNIQUE_ID or CONF_NAME).
+SET_HVAC_ACTION_REASON_SENSOR_SIGNAL = "set_hvac_action_reason_sensor_signal_{}"
 ATTR_OPENING_TIMEOUT = "timeout"
 ATTR_CLOSING_TIMEOUT = "closing_timeout"
 
