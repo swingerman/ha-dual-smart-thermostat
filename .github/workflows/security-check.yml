@@ -96,6 +96,8 @@ jobs:
           # These cannot be upgraded independently — HA controls their versions.
           # Will be resolved when migrating to HA 2026.x + Python 3.14.
           # aiohttp 3.11.x CVEs (fixed in 3.13.4):
+          # pytest 9.0.0 CVE GHSA-6w46-j5rx-g56g (fixed in 9.0.3):
+          # pinned to ==9.0.0 by pytest-homeassistant-custom-component.
           HA_IGNORES="\
             --ignore-vuln GHSA-9548-qrrj-x5pj \
             --ignore-vuln GHSA-6mq8-rvhq-8wgg \
@@ -136,7 +138,8 @@ jobs:
             --ignore-vuln GHSA-46j8-vpx8-6p72 \
             --ignore-vuln GHSA-hx9q-6w63-j58v \
             --ignore-vuln GHSA-vp96-hxj8-p424 \
-            --ignore-vuln GHSA-5pwr-322w-8jr4"
+            --ignore-vuln GHSA-5pwr-322w-8jr4 \
+            --ignore-vuln GHSA-6w46-j5rx-g56g"
           pip-audit --desc --format=json --output=pip-audit-report.json $HA_IGNORES || true
           pip-audit --desc $HA_IGNORES
         continue-on-error: false
