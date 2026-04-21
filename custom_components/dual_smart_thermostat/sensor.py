@@ -9,11 +9,10 @@ from __future__ import annotations
 
 from collections.abc import Callable
 import logging
-from typing import Any
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_NAME, CONF_UNIQUE_ID
+from homeassistant.const import CONF_NAME
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import EntityCategory
@@ -115,15 +114,6 @@ class HvacActionReasonSensor(SensorEntity, RestoreEntity):
         self._attr_native_value = value
         if self.hass is not None and self.entity_id is not None:
             self.async_write_ha_state()
-
-
-def _derive_sensor_key(config: dict[str, Any], fallback_name: str) -> str:
-    """Return the stable key used by both climate and sensor for signalling.
-
-    Preference order: config_entry.entry_id > CONF_UNIQUE_ID > CONF_NAME.
-    The caller supplies ``fallback_name`` as the last-resort value.
-    """
-    return config.get(CONF_UNIQUE_ID) or fallback_name
 
 
 async def async_setup_entry(
