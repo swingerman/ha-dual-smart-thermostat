@@ -1,6 +1,10 @@
 """Tests for the hvac_action_reason sensor entity (Phase 0)."""
 
+import logging
+
 from homeassistant.components.sensor import SensorDeviceClass
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.entity import EntityCategory
 
 from custom_components.dual_smart_thermostat.const import (
@@ -70,3 +74,49 @@ def test_sensor_options_contains_all_reason_values() -> None:
         assert value.value in options, f"missing auto: {value.value}"
     # NONE is the empty string — it must also be an allowed option.
     assert HVACActionReason.NONE in options
+
+
+async def test_sensor_updates_state_on_valid_signal(hass: HomeAssistant) -> None:
+    """A valid reason dispatched on the signal updates native_value."""
+    sensor = HvacActionReasonSensor(sensor_key="abc123", name="Test")
+    sensor.hass = hass
+    # Simulate entity being added to hass (subscribes to the signal).
+    await sensor.async_added_to_hass()
+
+    async_dispatcher_send(
+        hass,
+        SET_HVAC_ACTION_REASON_SENSOR_SIGNAL.format("abc123"),
+        HVACActionReasonInternal.TARGET_TEMP_REACHED,
+    )
+    await hass.async_block_till_done()
+
+    assert sensor.native_value == HVACActionReasonInternal.TARGET_TEMP_REACHED
+
+
+async def test_sensor_ignores_invalid_signal_value(hass: HomeAssistant, caplog) -> None:
+    """An invalid reason is logged as a warning and state is preserved."""
+    sensor = HvacActionReasonSensor(sensor_key="abc123", name="Test")
+    sensor.hass = hass
+    await sensor.async_added_to_hass()
+
+    # Prime the sensor with a known valid value.
+    async_dispatcher_send(
+        hass,
+        SET_HVAC_ACTION_REASON_SENSOR_SIGNAL.format("abc123"),
+        HVACActionReasonInternal.TARGET_TEMP_REACHED,
+    )
+    await hass.async_block_till_done()
+
+    caplog.clear()
+    with caplog.at_level(logging.WARNING):
+        async_dispatcher_send(
+            hass,
+            SET_HVAC_ACTION_REASON_SENSOR_SIGNAL.format("abc123"),
+            "this_is_not_a_real_reason",
+        )
+        await hass.async_block_till_done()
+
+    # State preserved.
+    assert sensor.native_value == HVACActionReasonInternal.TARGET_TEMP_REACHED
+    # A warning was logged.
+    assert any("Invalid hvac_action_reason" in rec.message for rec in caplog.records)
