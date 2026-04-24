@@ -212,6 +212,31 @@ class FeatureManager(StateManager):
             or self._hvac_power_tolerance is not None
         )
 
+    @property
+    def is_configured_for_auto_mode(self) -> bool:
+        """Determine if the configuration supports Auto Mode.
+
+        Auto Mode requires a temperature sensor and at least two distinct
+        climate capabilities (heat / cool / dry / fan). Reserved for
+        Phase 1.2 of the Auto Mode roadmap (#563); Phase 1.1 only surfaces
+        availability and does not expose HVACMode.AUTO.
+        """
+        if self._sensor_entity_id is None:
+            return False
+
+        can_heat = self.is_configured_for_heat_pump_mode or (
+            self._heater_entity_id is not None and not self._ac_mode
+        )
+        can_cool = (
+            self.is_configured_for_heat_pump_mode
+            or self.is_configured_for_cooler_mode
+            or self.is_configured_for_dual_mode
+        )
+        can_dry = self.is_configured_for_dryer_mode
+        can_fan = self.is_configured_for_fan_mode
+
+        return sum((can_heat, can_cool, can_dry, can_fan)) >= 2
+
     def set_support_flags(
         self,
         presets: dict[str, PresetEnv],
