@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from functools import cached_property
 import logging
 from typing import TYPE_CHECKING
 
@@ -111,6 +112,15 @@ class FeatureManager(StateManager):
         )
 
     @property
+    def is_configured_for_heater_mode(self) -> bool:
+        """Determines if a standalone heater actuator is configured.
+
+        True when a heater entity exists and is not operating as an AC
+        (``ac_mode`` disabled). Returned independently of heat-pump mode.
+        """
+        return self._heater_entity_id is not None and self._ac_mode is not True
+
+    @property
     def is_configured_for_cooler_mode(self) -> bool:
         """Determines if the cooler mode is configured."""
         return self._heater_entity_id is not None and self._ac_mode is True
@@ -209,6 +219,29 @@ class FeatureManager(StateManager):
             self._hvac_power_levels is not None
             or self._hvac_power_tolerance is not None
         )
+
+    @cached_property
+    def is_configured_for_auto_mode(self) -> bool:
+        """Determine if the configuration supports Auto Mode.
+
+        Auto Mode requires a temperature sensor and at least two distinct
+        climate capabilities (heat / cool / dry / fan).
+        """
+        if self.environment.sensor_entity_id is None:
+            return False
+
+        can_heat = (
+            self.is_configured_for_heater_mode or self.is_configured_for_heat_pump_mode
+        )
+        can_cool = (
+            self.is_configured_for_heat_pump_mode
+            or self.is_configured_for_cooler_mode
+            or self.is_configured_for_dual_mode
+        )
+        can_dry = self.is_configured_for_dryer_mode
+        can_fan = self.is_configured_for_fan_mode
+
+        return sum((can_heat, can_cool, can_dry, can_fan)) >= 2
 
     def set_support_flags(
         self,
