@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from functools import cached_property
 import logging
 from typing import TYPE_CHECKING
 
@@ -35,7 +36,6 @@ from ..const import (
     CONF_HUMIDITY_SENSOR,
     CONF_HVAC_POWER_LEVELS,
     CONF_HVAC_POWER_TOLERANCE,
-    CONF_SENSOR,
 )
 from ..managers.environment_manager import EnvironmentManager
 from ..managers.state_manager import StateManager
@@ -66,7 +66,6 @@ class FeatureManager(StateManager):
 
         self._dryer_entity_id = config.get(CONF_DRYER)
         self._humidity_sensor_entity_id = config.get(CONF_HUMIDITY_SENSOR)
-        self._sensor_entity_id = config.get(CONF_SENSOR)
         self._heat_pump_cooling_entity_id = config.get(CONF_HEAT_PUMP_COOLING)
 
         self._aux_heater_entity_id = config.get(CONF_AUX_HEATER)
@@ -111,6 +110,15 @@ class FeatureManager(StateManager):
         return bool(
             self._supported_features & ClimateEntityFeature.TARGET_TEMPERATURE_RANGE
         )
+
+    @property
+    def is_configured_for_heater_mode(self) -> bool:
+        """Determines if a standalone heater actuator is configured.
+
+        True when a heater entity exists and is not operating as an AC
+        (``ac_mode`` disabled). Returned independently of heat-pump mode.
+        """
+        return self._heater_entity_id is not None and self._ac_mode is not True
 
     @property
     def is_configured_for_cooler_mode(self) -> bool:
@@ -212,20 +220,18 @@ class FeatureManager(StateManager):
             or self._hvac_power_tolerance is not None
         )
 
-    @property
+    @cached_property
     def is_configured_for_auto_mode(self) -> bool:
         """Determine if the configuration supports Auto Mode.
 
         Auto Mode requires a temperature sensor and at least two distinct
-        climate capabilities (heat / cool / dry / fan). Reserved for
-        Phase 1.2 of the Auto Mode roadmap (#563); Phase 1.1 only surfaces
-        availability and does not expose HVACMode.AUTO.
+        climate capabilities (heat / cool / dry / fan).
         """
-        if self._sensor_entity_id is None:
+        if self.environment.sensor_entity_id is None:
             return False
 
-        can_heat = self.is_configured_for_heat_pump_mode or (
-            self._heater_entity_id is not None and not self._ac_mode
+        can_heat = (
+            self.is_configured_for_heater_mode or self.is_configured_for_heat_pump_mode
         )
         can_cool = (
             self.is_configured_for_heat_pump_mode

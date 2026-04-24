@@ -20,31 +20,16 @@ from custom_components.dual_smart_thermostat.managers.feature_manager import (
 
 
 def _make_feature_manager(config: dict) -> FeatureManager:
-    """Build a FeatureManager from a raw config dict without hass dependencies."""
+    """Build a FeatureManager from a raw config dict without hass dependencies.
+
+    The environment is a MagicMock whose ``sensor_entity_id`` mirrors the
+    config's ``CONF_SENSOR`` value, so the predicate's sensor check
+    behaves as it would in production.
+    """
     hass = MagicMock()
     environment = MagicMock()
+    environment.sensor_entity_id = config.get(CONF_SENSOR)
     return FeatureManager(hass, config, environment)
-
-
-def test_feature_manager_stores_sensor_entity_id() -> None:
-    """FeatureManager captures the temperature sensor entity from config."""
-    config = {
-        CONF_HEATER: "switch.heater",
-        CONF_SENSOR: "sensor.indoor_temp",
-    }
-
-    fm = _make_feature_manager(config)
-
-    assert fm._sensor_entity_id == "sensor.indoor_temp"
-
-
-def test_feature_manager_sensor_entity_id_none_when_missing() -> None:
-    """With no temperature sensor configured, the attribute is None."""
-    config = {CONF_HEATER: "switch.heater"}
-
-    fm = _make_feature_manager(config)
-
-    assert fm._sensor_entity_id is None
 
 
 _BASE_SENSOR = {CONF_SENSOR: "sensor.indoor_temp"}

@@ -122,6 +122,11 @@ class EnvironmentManager(StateManager):
         self._config = config
 
     @property
+    def sensor_entity_id(self) -> str | None:
+        """Return the temperature sensor entity id (CONF_SENSOR)."""
+        return self._sensor
+
+    @property
     def cur_temp(self) -> float:
         return self._cur_temp
 
