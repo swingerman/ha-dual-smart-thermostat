@@ -35,6 +35,7 @@ from ..const import (
     CONF_HUMIDITY_SENSOR,
     CONF_HVAC_POWER_LEVELS,
     CONF_HVAC_POWER_TOLERANCE,
+    CONF_SENSOR,
 )
 from ..managers.environment_manager import EnvironmentManager
 from ..managers.state_manager import StateManager
@@ -65,6 +66,7 @@ class FeatureManager(StateManager):
 
         self._dryer_entity_id = config.get(CONF_DRYER)
         self._humidity_sensor_entity_id = config.get(CONF_HUMIDITY_SENSOR)
+        self._sensor_entity_id = config.get(CONF_SENSOR)
         self._heat_pump_cooling_entity_id = config.get(CONF_HEAT_PUMP_COOLING)
 
         self._aux_heater_entity_id = config.get(CONF_AUX_HEATER)
