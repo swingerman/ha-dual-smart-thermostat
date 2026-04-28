@@ -266,3 +266,39 @@ def test_idle_after_dry_uses_humidity_reached_reason() -> None:
     decision = ev.evaluate(last_decision=last)
     assert decision.next_mode is None
     assert decision.reason == HVACActionReason.TARGET_HUMIDITY_REACHED
+
+
+def test_range_mode_uses_target_temp_low_for_heat() -> None:
+    """Range mode: HEAT priority uses target_temp_low."""
+    ev = _make_evaluator()
+    ev._features.is_range_mode = True
+    ev._environment.target_temp_low = 19.0
+    ev._environment.target_temp_high = 24.0
+    ev._environment.target_temp = 21.0  # ignored in range mode
+    ev._environment.cur_temp = 18.4  # below low - 1x cold_tol (0.5) = below 18.5
+    decision = ev.evaluate(last_decision=None)
+    assert decision.next_mode == HVACMode.HEAT
+
+
+def test_range_mode_uses_target_temp_high_for_cool() -> None:
+    """Range mode: COOL priority uses target_temp_high."""
+    ev = _make_evaluator()
+    ev._features.is_range_mode = True
+    ev._environment.target_temp_low = 19.0
+    ev._environment.target_temp_high = 24.0
+    ev._environment.target_temp = 21.0  # ignored in range mode
+    ev._environment.cur_temp = 24.6  # above high + 1x hot_tol (0.5) = above 24.5
+    decision = ev.evaluate(last_decision=None)
+    assert decision.next_mode == HVACMode.COOL
+
+
+def test_range_mode_idle_between_targets() -> None:
+    """Range mode: temp between low and high → idle."""
+    ev = _make_evaluator()
+    ev._features.is_range_mode = True
+    ev._environment.target_temp_low = 19.0
+    ev._environment.target_temp_high = 24.0
+    ev._environment.cur_temp = 21.5  # comfortably between
+    decision = ev.evaluate(last_decision=None)
+    assert decision.next_mode is None
+    assert decision.reason == HVACActionReason.TARGET_TEMP_REACHED
