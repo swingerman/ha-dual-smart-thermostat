@@ -215,7 +215,7 @@ async def test_get_hvac_modes(
     """Test that the operation list returns the correct modes."""
     state = hass.states.get(common.ENTITY)
     modes = state.attributes.get("hvac_modes")
-    assert set(modes) == set([HVACMode.COOL, HVACMode.DRY, HVACMode.OFF])
+    assert set(modes) == set([HVACMode.COOL, HVACMode.DRY, HVACMode.OFF, HVACMode.AUTO])
 
 
 @pytest.fixture
