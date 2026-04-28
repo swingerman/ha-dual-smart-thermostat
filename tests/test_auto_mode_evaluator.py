@@ -20,7 +20,8 @@ def _make_evaluator(**overrides) -> AutoModeEvaluator:
     features = MagicMock()
 
     # Sensible defaults — every test overrides what it cares about.
-    environment.cur_temp = 20.0
+    # cur_temp == target_temp so neither cold nor hot priorities trigger by default.
+    environment.cur_temp = 21.0
     environment.cur_humidity = 50.0
     environment.cur_floor_temp = None
     environment.target_temp = 21.0
@@ -162,3 +163,57 @@ def test_humidity_below_target_does_not_trigger() -> None:
     ev._environment.cur_humidity = 30.0
     decision = ev.evaluate(last_decision=None)
     assert decision.next_mode != HVACMode.DRY
+
+
+def test_temp_urgent_cold_2x_returns_heat() -> None:
+    """Priority 4: temp at 2x cold tolerance triggers HEAT."""
+    ev = _make_evaluator()
+    ev._environment.cur_temp = 20.0  # target 21, cold_tol 0.5, 2x = 1.0 below
+    decision = ev.evaluate(last_decision=None)
+    assert decision.next_mode == HVACMode.HEAT
+    assert decision.reason == HVACActionReason.AUTO_PRIORITY_TEMPERATURE
+
+
+def test_temp_urgent_hot_2x_returns_cool() -> None:
+    """Priority 5: temp at 2x hot tolerance triggers COOL."""
+    ev = _make_evaluator()
+    ev._environment.cur_temp = 22.0  # target 21, hot_tol 0.5, 2x = 1.0 above
+    decision = ev.evaluate(last_decision=None)
+    assert decision.next_mode == HVACMode.COOL
+    assert decision.reason == HVACActionReason.AUTO_PRIORITY_TEMPERATURE
+
+
+def test_temp_normal_cold_returns_heat() -> None:
+    """Priority 7: temp at 1x cold tolerance triggers HEAT."""
+    ev = _make_evaluator()
+    ev._environment.cur_temp = 20.5  # target 21, cold_tol 0.5, 1x below
+    decision = ev.evaluate(last_decision=None)
+    assert decision.next_mode == HVACMode.HEAT
+
+
+def test_temp_normal_hot_returns_cool() -> None:
+    """Priority 8: temp at 1x hot tolerance triggers COOL."""
+    ev = _make_evaluator()
+    ev._environment.cur_temp = 21.5  # target 21, hot_tol 0.5, 1x above
+    decision = ev.evaluate(last_decision=None)
+    assert decision.next_mode == HVACMode.COOL
+
+
+def test_humidity_urgent_preempts_temp_normal() -> None:
+    """Urgent humidity (priority 3) wins over normal temp (priority 7)."""
+    ev = _make_evaluator()
+    ev._features.is_configured_for_dryer_mode = True
+    ev._environment.cur_humidity = 60.0  # urgent
+    ev._environment.cur_temp = 20.5  # normal cold
+    decision = ev.evaluate(last_decision=None)
+    assert decision.next_mode == HVACMode.DRY
+
+
+def test_temp_urgent_preempts_humidity_normal() -> None:
+    """Urgent temp (priority 4) wins over normal humidity (priority 6)."""
+    ev = _make_evaluator()
+    ev._features.is_configured_for_dryer_mode = True
+    ev._environment.cur_humidity = 55.0  # normal moist
+    ev._environment.cur_temp = 20.0  # urgent cold
+    decision = ev.evaluate(last_decision=None)
+    assert decision.next_mode == HVACMode.HEAT

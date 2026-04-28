@@ -84,7 +84,19 @@ class AutoModeEvaluator:
                 reason=HVACActionReason.AUTO_PRIORITY_HUMIDITY,
             )
 
-        # Priorities 4-5 fill in next task (urgent temp).
+        # Priority 4 (urgent): temp at 2x cold tolerance below cold_target.
+        if self._temp_too_cold(env, multiplier=2):
+            return AutoDecision(
+                next_mode=HVACMode.HEAT,
+                reason=HVACActionReason.AUTO_PRIORITY_TEMPERATURE,
+            )
+
+        # Priority 5 (urgent): temp at 2x hot tolerance above hot_target.
+        if self._temp_too_hot(env, multiplier=2):
+            return AutoDecision(
+                next_mode=HVACMode.COOL,
+                reason=HVACActionReason.AUTO_PRIORITY_TEMPERATURE,
+            )
 
         # Priority 6 (normal): humidity at 1x moist tolerance.
         if humidity_available and self._humidity_at(env, multiplier=1):
@@ -93,7 +105,21 @@ class AutoModeEvaluator:
                 reason=HVACActionReason.AUTO_PRIORITY_HUMIDITY,
             )
 
-        # Priorities 7-10 fill in next tasks.
+        # Priority 7 (normal): temp at 1x cold tolerance.
+        if self._temp_too_cold(env, multiplier=1):
+            return AutoDecision(
+                next_mode=HVACMode.HEAT,
+                reason=HVACActionReason.AUTO_PRIORITY_TEMPERATURE,
+            )
+
+        # Priority 8 (normal): temp at 1x hot tolerance.
+        if self._temp_too_hot(env, multiplier=1):
+            return AutoDecision(
+                next_mode=HVACMode.COOL,
+                reason=HVACActionReason.AUTO_PRIORITY_TEMPERATURE,
+            )
+
+        # Priorities 9-10 fill in next task.
 
         return AutoDecision(next_mode=None, reason=HVACActionReason.NONE)
 
@@ -104,3 +130,27 @@ class AutoModeEvaluator:
             return False
         threshold = env.target_humidity + multiplier * env._moist_tolerance
         return env.cur_humidity >= threshold
+
+    def _cold_target(self, env) -> float | None:
+        """Single-target mode: target_temp. Range mode: target_temp_low."""
+        if self._features.is_range_mode and env.target_temp_low is not None:
+            return env.target_temp_low
+        return env.target_temp
+
+    def _hot_target(self, env) -> float | None:
+        """Single-target mode: target_temp. Range mode: target_temp_high."""
+        if self._features.is_range_mode and env.target_temp_high is not None:
+            return env.target_temp_high
+        return env.target_temp
+
+    def _temp_too_cold(self, env, *, multiplier: int) -> bool:
+        cold_target = self._cold_target(env)
+        if env.cur_temp is None or cold_target is None:
+            return False
+        return env.cur_temp <= cold_target - multiplier * env._cold_tolerance
+
+    def _temp_too_hot(self, env, *, multiplier: int) -> bool:
+        hot_target = self._hot_target(env)
+        if env.cur_temp is None or hot_target is None:
+            return False
+        return env.cur_temp >= hot_target + multiplier * env._hot_tolerance
