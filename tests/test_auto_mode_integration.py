@@ -156,3 +156,43 @@ async def test_auto_idle_when_at_target(hass: HomeAssistant) -> None:
     assert (
         not turn_on_calls
     ), f"Expected no turn_on calls at target, got {turn_on_calls!r}"
+
+
+@pytest.mark.asyncio
+async def test_auto_mode_restored_after_restart(hass: HomeAssistant) -> None:
+    """A persisted hvac_mode=auto state is restored and AUTO immediately re-evaluates."""
+    from homeassistant.core import State
+    from pytest_homeassistant_custom_component.common import mock_restore_cache
+
+    mock_restore_cache(hass, (State(common.ENTITY, HVACMode.AUTO),))
+    hass.config.units = METRIC_SYSTEM
+    _setup_switches_and_capture_calls(hass)
+    setup_sensor(hass, 18.0)
+
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "cold_tolerance": 0.5,
+                "hot_tolerance": 0.5,
+                "heater": common.ENT_SWITCH,
+                "cooler": ENT_COOLER,
+                "target_sensor": common.ENT_SENSOR,
+                "target_temp": 21.0,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    state = hass.states.get(common.ENTITY)
+    assert state.state == HVACMode.AUTO
+
+
+# Note: a heater+fan-only setup does not expose HVACMode.FAN_ONLY in the
+# climate's hvac_modes list — the integration treats a fan entity as a
+# cooler-assist auxiliary, not a standalone routable mode. The capability
+# filtering for that case (no can_cool) is exercised by the evaluator
+# unit tests in test_auto_mode_evaluator.py rather than at integration level.

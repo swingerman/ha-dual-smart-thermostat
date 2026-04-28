@@ -363,3 +363,37 @@ def test_flap_prevention_dry_stays_until_dry_goal_reached() -> None:
     )
     decision = ev.evaluate(last_decision=last)
     assert decision.next_mode == HVACMode.DRY
+
+
+def test_no_cooler_capability_skips_cool_priorities() -> None:
+    """When can_cool is False, urgent + normal hot temp priorities don't fire."""
+    ev = _make_evaluator()
+    ev._features.is_configured_for_heat_pump_mode = False
+    ev._features.is_configured_for_cooler_mode = False
+    ev._features.is_configured_for_dual_mode = False
+    ev._environment.cur_temp = (
+        22.0  # 1x hot tolerance over target — would normally COOL
+    )
+    decision = ev.evaluate(last_decision=None)
+    assert decision.next_mode != HVACMode.COOL
+
+
+def test_no_cooler_with_urgent_hot_does_not_pick_cool() -> None:
+    """can_cool=False also blocks the urgent COOL priority."""
+    ev = _make_evaluator()
+    ev._features.is_configured_for_heat_pump_mode = False
+    ev._features.is_configured_for_cooler_mode = False
+    ev._features.is_configured_for_dual_mode = False
+    ev._environment.cur_temp = 23.0  # 2x hot tolerance — urgent
+    decision = ev.evaluate(last_decision=None)
+    assert decision.next_mode != HVACMode.COOL
+
+
+def test_no_heater_capability_skips_heat_priorities() -> None:
+    """When can_heat is False, HEAT priorities don't fire."""
+    ev = _make_evaluator()
+    ev._features.is_configured_for_heater_mode = False
+    ev._features.is_configured_for_heat_pump_mode = False
+    ev._environment.cur_temp = 19.0  # 2x cold — would normally HEAT
+    decision = ev.evaluate(last_decision=None)
+    assert decision.next_mode != HVACMode.HEAT

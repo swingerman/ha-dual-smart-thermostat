@@ -72,17 +72,26 @@ class AutoModeEvaluator:
         humidity_available = (
             feats.is_configured_for_dryer_mode and not humidity_sensor_stalled
         )
+        can_heat = (
+            getattr(feats, "is_configured_for_heater_mode", False)
+            or feats.is_configured_for_heat_pump_mode
+        )
+        can_cool = (
+            feats.is_configured_for_heat_pump_mode
+            or feats.is_configured_for_cooler_mode
+            or feats.is_configured_for_dual_mode
+        )
 
         # Flap prevention: if last_decision is set and that mode's goal is
         # still pending, only an urgent-tier priority can preempt.
         if last_decision is not None and last_decision.next_mode is not None:
             if self._goal_pending(last_decision.next_mode, humidity_available):
-                urgent = self._urgent_decision(humidity_available)
+                urgent = self._urgent_decision(humidity_available, can_heat, can_cool)
                 if urgent is not None and urgent.next_mode != last_decision.next_mode:
                     return urgent
                 return last_decision
 
-        return self._full_scan(humidity_available, last_decision)
+        return self._full_scan(humidity_available, can_heat, can_cool, last_decision)
 
     def _goal_pending(self, mode, humidity_available: bool) -> bool:
         """Whether the original triggering condition for ``mode`` still holds."""
@@ -97,19 +106,24 @@ class AutoModeEvaluator:
             return self._fan_band(env)
         return False
 
-    def _urgent_decision(self, humidity_available: bool) -> AutoDecision | None:
+    def _urgent_decision(
+        self,
+        humidity_available: bool,
+        can_heat: bool = True,
+        can_cool: bool = True,
+    ) -> AutoDecision | None:
         env = self._environment
         if humidity_available and self._humidity_at(env, multiplier=2):
             return AutoDecision(
                 next_mode=HVACMode.DRY,
                 reason=HVACActionReason.AUTO_PRIORITY_HUMIDITY,
             )
-        if self._temp_too_cold(env, multiplier=2):
+        if can_heat and self._temp_too_cold(env, multiplier=2):
             return AutoDecision(
                 next_mode=HVACMode.HEAT,
                 reason=HVACActionReason.AUTO_PRIORITY_TEMPERATURE,
             )
-        if self._temp_too_hot(env, multiplier=2):
+        if can_cool and self._temp_too_hot(env, multiplier=2):
             return AutoDecision(
                 next_mode=HVACMode.COOL,
                 reason=HVACActionReason.AUTO_PRIORITY_TEMPERATURE,
@@ -119,12 +133,14 @@ class AutoModeEvaluator:
     def _full_scan(
         self,
         humidity_available: bool,
+        can_heat: bool,
+        can_cool: bool,
         last_decision: AutoDecision | None,
     ) -> AutoDecision:
         env = self._environment
         feats = self._features
 
-        urgent = self._urgent_decision(humidity_available)
+        urgent = self._urgent_decision(humidity_available, can_heat, can_cool)
         if urgent is not None:
             return urgent
 
@@ -136,14 +152,14 @@ class AutoModeEvaluator:
             )
 
         # Priority 7 (normal cold).
-        if self._temp_too_cold(env, multiplier=1):
+        if can_heat and self._temp_too_cold(env, multiplier=1):
             return AutoDecision(
                 next_mode=HVACMode.HEAT,
                 reason=HVACActionReason.AUTO_PRIORITY_TEMPERATURE,
             )
 
         # Priority 8 (normal hot).
-        if self._temp_too_hot(env, multiplier=1):
+        if can_cool and self._temp_too_hot(env, multiplier=1):
             return AutoDecision(
                 next_mode=HVACMode.COOL,
                 reason=HVACActionReason.AUTO_PRIORITY_TEMPERATURE,
