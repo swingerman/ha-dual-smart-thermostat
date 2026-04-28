@@ -302,3 +302,64 @@ def test_range_mode_idle_between_targets() -> None:
     decision = ev.evaluate(last_decision=None)
     assert decision.next_mode is None
     assert decision.reason == HVACActionReason.TARGET_TEMP_REACHED
+
+
+def test_flap_prevention_stays_heat_while_goal_pending() -> None:
+    """In HEAT, still cold (goal pending) and no urgent → stay HEAT."""
+    ev = _make_evaluator()
+    ev._environment.cur_temp = 20.5  # 1x below — goal still pending
+    last = AutoDecision(
+        next_mode=HVACMode.HEAT, reason=HVACActionReason.AUTO_PRIORITY_TEMPERATURE
+    )
+    decision = ev.evaluate(last_decision=last)
+    assert decision.next_mode == HVACMode.HEAT
+
+
+def test_flap_prevention_switches_to_dry_on_urgent_humidity() -> None:
+    """In HEAT, urgent humidity emerges → switch to DRY."""
+    ev = _make_evaluator()
+    ev._features.is_configured_for_dryer_mode = True
+    ev._environment.cur_temp = 20.5  # still cold (goal pending)
+    ev._environment.cur_humidity = 60.0  # urgent humidity
+    last = AutoDecision(
+        next_mode=HVACMode.HEAT, reason=HVACActionReason.AUTO_PRIORITY_TEMPERATURE
+    )
+    decision = ev.evaluate(last_decision=last)
+    assert decision.next_mode == HVACMode.DRY
+
+
+def test_flap_prevention_normal_humidity_does_not_preempt_heat() -> None:
+    """Normal-tier humidity does NOT preempt active HEAT."""
+    ev = _make_evaluator()
+    ev._features.is_configured_for_dryer_mode = True
+    ev._environment.cur_temp = 20.5  # 1x below (goal pending)
+    ev._environment.cur_humidity = 55.0  # normal moist
+    last = AutoDecision(
+        next_mode=HVACMode.HEAT, reason=HVACActionReason.AUTO_PRIORITY_TEMPERATURE
+    )
+    decision = ev.evaluate(last_decision=last)
+    assert decision.next_mode == HVACMode.HEAT
+
+
+def test_flap_prevention_rescans_when_goal_reached() -> None:
+    """In HEAT, temp recovered → full top-down scan picks fresh."""
+    ev = _make_evaluator()
+    ev._environment.cur_temp = 21.0  # at target — goal reached
+    last = AutoDecision(
+        next_mode=HVACMode.HEAT, reason=HVACActionReason.AUTO_PRIORITY_TEMPERATURE
+    )
+    decision = ev.evaluate(last_decision=last)
+    assert decision.next_mode is None  # idle
+    assert decision.reason == HVACActionReason.TARGET_TEMP_REACHED
+
+
+def test_flap_prevention_dry_stays_until_dry_goal_reached() -> None:
+    """In DRY, humidity still high (goal pending) → stay DRY."""
+    ev = _make_evaluator()
+    ev._features.is_configured_for_dryer_mode = True
+    ev._environment.cur_humidity = 55.0  # still 1x — goal pending
+    last = AutoDecision(
+        next_mode=HVACMode.DRY, reason=HVACActionReason.AUTO_PRIORITY_HUMIDITY
+    )
+    decision = ev.evaluate(last_decision=last)
+    assert decision.next_mode == HVACMode.DRY
