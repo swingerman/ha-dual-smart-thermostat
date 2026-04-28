@@ -136,6 +136,7 @@ from .hvac_action_reason.hvac_action_reason import (
 from .hvac_action_reason.hvac_action_reason_external import HVACActionReasonExternal
 from .hvac_device.controllable_hvac_device import ControlableHVACDevice
 from .hvac_device.hvac_device_factory import HVACDeviceFactory
+from .managers.auto_mode_evaluator import AutoDecision, AutoModeEvaluator
 from .managers.environment_manager import EnvironmentManager, TargetTemperatures
 from .managers.feature_manager import FeatureManager
 from .managers.hvac_power_manager import HvacPowerManager
@@ -585,6 +586,11 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
         # HVAC modes
         self._attr_hvac_modes = self.hvac_device.hvac_modes
+        if (
+            self.features.is_configured_for_auto_mode
+            and HVACMode.AUTO not in self._attr_hvac_modes
+        ):
+            self._attr_hvac_modes = [*self._attr_hvac_modes, HVACMode.AUTO]
         self._hvac_mode = self.hvac_device.hvac_mode
         self._last_hvac_mode = None
 
@@ -603,6 +609,15 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self._last_published_action_reason = HVACActionReason.NONE
         self._remove_signal_hvac_action_reason = None
         self._action_reason_sensor_key: str | None = None
+
+        # Auto mode (Phase 1.2)
+        if feature_manager.is_configured_for_auto_mode:
+            self._auto_evaluator: AutoModeEvaluator | None = AutoModeEvaluator(
+                environment_manager, opening_manager, feature_manager
+            )
+        else:
+            self._auto_evaluator = None
+        self._last_auto_decision: AutoDecision | None = None
 
         self._temp_lock = asyncio.Lock()
 
