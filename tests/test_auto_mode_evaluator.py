@@ -115,3 +115,50 @@ def test_opening_preempts_stall() -> None:
     ev._openings.any_opening_open.return_value = True
     decision = ev.evaluate(last_decision=None, temp_sensor_stalled=True)
     assert decision.reason == HVACActionReason.OPENING
+
+
+def test_humidity_urgent_2x_returns_dry() -> None:
+    """Priority 3: humidity at 2x moist tolerance triggers DRY."""
+    ev = _make_evaluator()
+    ev._features.is_configured_for_dryer_mode = True
+    ev._environment.cur_humidity = 60.0  # target 50, moist_tol 5 → 2x = 60
+    decision = ev.evaluate(last_decision=None)
+    assert decision.next_mode == HVACMode.DRY
+    assert decision.reason == HVACActionReason.AUTO_PRIORITY_HUMIDITY
+
+
+def test_humidity_normal_returns_dry() -> None:
+    """Priority 6: humidity at 1x moist tolerance triggers DRY."""
+    ev = _make_evaluator()
+    ev._features.is_configured_for_dryer_mode = True
+    ev._environment.cur_humidity = 55.0  # target 50, moist_tol 5 → 1x = 55
+    decision = ev.evaluate(last_decision=None)
+    assert decision.next_mode == HVACMode.DRY
+
+
+def test_humidity_priority_skipped_when_no_dryer() -> None:
+    """When dryer not configured, humidity priorities are silent."""
+    ev = _make_evaluator()
+    ev._features.is_configured_for_dryer_mode = False
+    ev._environment.cur_humidity = 65.0  # would otherwise be urgent
+    decision = ev.evaluate(last_decision=None)
+    assert decision.next_mode is None
+    assert decision.reason != HVACActionReason.AUTO_PRIORITY_HUMIDITY
+
+
+def test_humidity_stall_suppresses_humidity_priorities() -> None:
+    """A stalled humidity sensor → humidity priorities skipped."""
+    ev = _make_evaluator()
+    ev._features.is_configured_for_dryer_mode = True
+    ev._environment.cur_humidity = 60.0  # would be urgent
+    decision = ev.evaluate(last_decision=None, humidity_sensor_stalled=True)
+    assert decision.next_mode != HVACMode.DRY
+
+
+def test_humidity_below_target_does_not_trigger() -> None:
+    """Humidity below target does not pick DRY (Phase 1.2 doesn't humidify)."""
+    ev = _make_evaluator()
+    ev._features.is_configured_for_dryer_mode = True
+    ev._environment.cur_humidity = 30.0
+    decision = ev.evaluate(last_decision=None)
+    assert decision.next_mode != HVACMode.DRY

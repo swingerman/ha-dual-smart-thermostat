@@ -56,6 +56,7 @@ class AutoModeEvaluator:
     ) -> AutoDecision:
         """Return the next AutoDecision based on the priority table."""
         env = self._environment
+        feats = self._features
 
         # Priority 1: floor overheat — preempts everything.
         if env.is_floor_hot:
@@ -72,5 +73,34 @@ class AutoModeEvaluator:
                 reason=HVACActionReason.TEMPERATURE_SENSOR_STALLED,
             )
 
-        # Subsequent priorities filled in by later tasks.
+        humidity_available = (
+            feats.is_configured_for_dryer_mode and not humidity_sensor_stalled
+        )
+
+        # Priority 3 (urgent): humidity at 2x moist tolerance.
+        if humidity_available and self._humidity_at(env, multiplier=2):
+            return AutoDecision(
+                next_mode=HVACMode.DRY,
+                reason=HVACActionReason.AUTO_PRIORITY_HUMIDITY,
+            )
+
+        # Priorities 4-5 fill in next task (urgent temp).
+
+        # Priority 6 (normal): humidity at 1x moist tolerance.
+        if humidity_available and self._humidity_at(env, multiplier=1):
+            return AutoDecision(
+                next_mode=HVACMode.DRY,
+                reason=HVACActionReason.AUTO_PRIORITY_HUMIDITY,
+            )
+
+        # Priorities 7-10 fill in next tasks.
+
         return AutoDecision(next_mode=None, reason=HVACActionReason.NONE)
+
+    @staticmethod
+    def _humidity_at(env, *, multiplier: int) -> bool:
+        """Whether cur_humidity is at or above target_humidity + multiplier×moist_tolerance."""
+        if env.cur_humidity is None or env.target_humidity is None:
+            return False
+        threshold = env.target_humidity + multiplier * env._moist_tolerance
+        return env.cur_humidity >= threshold
