@@ -1,8 +1,10 @@
 """Tests for AutoModeEvaluator (Phase 1.2)."""
 
+from dataclasses import FrozenInstanceError
 from unittest.mock import MagicMock
 
 from homeassistant.components.climate import HVACMode
+import pytest
 
 from custom_components.dual_smart_thermostat.hvac_action_reason.hvac_action_reason import (
     HVACActionReason,
@@ -44,6 +46,10 @@ def _make_evaluator(**overrides) -> AutoModeEvaluator:
 
     features.is_configured_for_dryer_mode = False
     features.is_configured_for_fan_mode = False
+    features.is_configured_for_heater_mode = True
+    features.is_configured_for_heat_pump_mode = False
+    features.is_configured_for_cooler_mode = False
+    features.is_configured_for_dual_mode = False
     features.is_range_mode = False
 
     for key, value in overrides.items():
@@ -69,13 +75,8 @@ def test_auto_decision_is_frozen_dataclass() -> None:
     )
     assert decision.next_mode == HVACMode.HEAT
     assert decision.reason == HVACActionReason.TARGET_TEMP_NOT_REACHED
-    # frozen → cannot reassign
-    try:
+    with pytest.raises(FrozenInstanceError):
         decision.next_mode = HVACMode.COOL
-    except Exception as exc:  # FrozenInstanceError
-        assert "frozen" in str(exc).lower() or "cannot" in str(exc).lower()
-    else:
-        raise AssertionError("AutoDecision should be frozen")
 
 
 def test_floor_hot_returns_overheat() -> None:
@@ -178,6 +179,7 @@ def test_temp_urgent_cold_2x_returns_heat() -> None:
 def test_temp_urgent_hot_2x_returns_cool() -> None:
     """Priority 5: temp at 2x hot tolerance triggers COOL."""
     ev = _make_evaluator()
+    ev._features.is_configured_for_cooler_mode = True
     ev._environment.cur_temp = 22.0  # target 21, hot_tol 0.5, 2x = 1.0 above
     decision = ev.evaluate(last_decision=None)
     assert decision.next_mode == HVACMode.COOL
@@ -195,6 +197,7 @@ def test_temp_normal_cold_returns_heat() -> None:
 def test_temp_normal_hot_returns_cool() -> None:
     """Priority 8: temp at 1x hot tolerance triggers COOL."""
     ev = _make_evaluator()
+    ev._features.is_configured_for_cooler_mode = True
     ev._environment.cur_temp = 21.5  # target 21, hot_tol 0.5, 1x above
     decision = ev.evaluate(last_decision=None)
     assert decision.next_mode == HVACMode.COOL
@@ -242,6 +245,7 @@ def test_fan_skipped_when_no_fan_configured() -> None:
 def test_temp_normal_hot_preempts_fan_band() -> None:
     """Priority 8 (normal hot) beats priority 9 (fan band)."""
     ev = _make_evaluator()
+    ev._features.is_configured_for_cooler_mode = True
     ev._features.is_configured_for_fan_mode = True
     ev._environment.cur_temp = 21.5  # 1x hot tolerance
     ev._environment.is_within_fan_tolerance.return_value = True
@@ -284,6 +288,7 @@ def test_range_mode_uses_target_temp_low_for_heat() -> None:
 def test_range_mode_uses_target_temp_high_for_cool() -> None:
     """Range mode: COOL priority uses target_temp_high."""
     ev = _make_evaluator()
+    ev._features.is_configured_for_cooler_mode = True
     ev._features.is_range_mode = True
     ev._environment.target_temp_low = 19.0
     ev._environment.target_temp_high = 24.0

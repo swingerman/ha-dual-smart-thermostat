@@ -1,8 +1,7 @@
 """Integration tests for AUTO mode end-to-end through the climate entity."""
 
 from homeassistant.components.climate import DOMAIN as CLIMATE, HVACMode
-from homeassistant.const import SERVICE_TURN_OFF, SERVICE_TURN_ON, STATE_OFF
-import homeassistant.core as ha
+from homeassistant.const import SERVICE_TURN_ON, STATE_OFF
 from homeassistant.core import HomeAssistant
 from homeassistant.setup import async_setup_component
 from homeassistant.util.unit_system import METRIC_SYSTEM
@@ -10,26 +9,9 @@ import pytest
 
 from custom_components.dual_smart_thermostat.const import DOMAIN
 
-from . import common, setup_sensor
+from . import common, setup_sensor, setup_switch_dual
 
 ENT_COOLER = "switch.cooler_test"
-
-
-def _setup_switches_and_capture_calls(hass: HomeAssistant) -> list:
-    """Pre-create heater + cooler switch states and capture turn_on/turn_off calls.
-
-    Single registration so both switches' service calls land in one ``calls`` list.
-    """
-    hass.states.async_set(common.ENT_SWITCH, STATE_OFF)
-    hass.states.async_set(ENT_COOLER, STATE_OFF)
-    calls: list = []
-
-    def log_call(call) -> None:
-        calls.append(call)
-
-    hass.services.async_register(ha.DOMAIN, SERVICE_TURN_ON, log_call)
-    hass.services.async_register(ha.DOMAIN, SERVICE_TURN_OFF, log_call)
-    return calls
 
 
 def _heater_cooler_climate_config(initial_mode: HVACMode = HVACMode.OFF) -> dict:
@@ -92,7 +74,7 @@ async def test_auto_absent_from_hvac_modes_for_heater_only(
 async def test_auto_picks_heat_when_too_cold(hass: HomeAssistant) -> None:
     """Selecting AUTO with cur_temp << target → heater turn_on service fires."""
     hass.config.units = METRIC_SYSTEM
-    calls = _setup_switches_and_capture_calls(hass)
+    calls = setup_switch_dual(hass, ENT_COOLER, False, False)
     setup_sensor(hass, 18.0)  # well below target − 2x tolerance
 
     assert await async_setup_component(hass, CLIMATE, _heater_cooler_climate_config())
@@ -116,7 +98,7 @@ async def test_auto_picks_heat_when_too_cold(hass: HomeAssistant) -> None:
 async def test_auto_picks_cool_when_too_hot(hass: HomeAssistant) -> None:
     """Selecting AUTO with cur_temp >> target → cooler turn_on service fires."""
     hass.config.units = METRIC_SYSTEM
-    calls = _setup_switches_and_capture_calls(hass)
+    calls = setup_switch_dual(hass, ENT_COOLER, False, False)
     setup_sensor(hass, 25.0)  # well above target + 2x tolerance
 
     assert await async_setup_component(hass, CLIMATE, _heater_cooler_climate_config())
@@ -140,7 +122,7 @@ async def test_auto_picks_cool_when_too_hot(hass: HomeAssistant) -> None:
 async def test_auto_idle_when_at_target(hass: HomeAssistant) -> None:
     """At target → AUTO reports idle, no actuator turn_on call."""
     hass.config.units = METRIC_SYSTEM
-    calls = _setup_switches_and_capture_calls(hass)
+    calls = setup_switch_dual(hass, ENT_COOLER, False, False)
     setup_sensor(hass, 21.0)
 
     assert await async_setup_component(hass, CLIMATE, _heater_cooler_climate_config())
@@ -166,7 +148,7 @@ async def test_auto_mode_restored_after_restart(hass: HomeAssistant) -> None:
 
     mock_restore_cache(hass, (State(common.ENTITY, HVACMode.AUTO),))
     hass.config.units = METRIC_SYSTEM
-    _setup_switches_and_capture_calls(hass)
+    setup_switch_dual(hass, ENT_COOLER, False, False)
     setup_sensor(hass, 18.0)
 
     assert await async_setup_component(
@@ -189,13 +171,6 @@ async def test_auto_mode_restored_after_restart(hass: HomeAssistant) -> None:
 
     state = hass.states.get(common.ENTITY)
     assert state.state == HVACMode.AUTO
-
-
-# Note: a heater+fan-only setup does not expose HVACMode.FAN_ONLY in the
-# climate's hvac_modes list — the integration treats a fan entity as a
-# cooler-assist auxiliary, not a standalone routable mode. The capability
-# filtering for that case (no can_cool) is exercised by the evaluator
-# unit tests in test_auto_mode_evaluator.py rather than at integration level.
 
 
 @pytest.mark.asyncio
