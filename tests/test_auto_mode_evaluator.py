@@ -217,3 +217,52 @@ def test_temp_urgent_preempts_humidity_normal() -> None:
     ev._environment.cur_temp = 20.0  # urgent cold
     decision = ev.evaluate(last_decision=None)
     assert decision.next_mode == HVACMode.HEAT
+
+
+def test_fan_band_returns_fan_only() -> None:
+    """Priority 9: temp in fan band → FAN_ONLY."""
+    ev = _make_evaluator()
+    ev._features.is_configured_for_fan_mode = True
+    ev._environment.is_within_fan_tolerance.return_value = True
+    decision = ev.evaluate(last_decision=None)
+    assert decision.next_mode == HVACMode.FAN_ONLY
+    assert decision.reason == HVACActionReason.AUTO_PRIORITY_COMFORT
+
+
+def test_fan_skipped_when_no_fan_configured() -> None:
+    """No fan configured → priority 9 silent."""
+    ev = _make_evaluator()
+    ev._features.is_configured_for_fan_mode = False
+    ev._environment.is_within_fan_tolerance.return_value = True
+    decision = ev.evaluate(last_decision=None)
+    assert decision.next_mode != HVACMode.FAN_ONLY
+
+
+def test_temp_normal_hot_preempts_fan_band() -> None:
+    """Priority 8 (normal hot) beats priority 9 (fan band)."""
+    ev = _make_evaluator()
+    ev._features.is_configured_for_fan_mode = True
+    ev._environment.cur_temp = 21.5  # 1x hot tolerance
+    ev._environment.is_within_fan_tolerance.return_value = True
+    decision = ev.evaluate(last_decision=None)
+    assert decision.next_mode == HVACMode.COOL
+
+
+def test_idle_when_all_targets_met() -> None:
+    """Priority 10: nothing fires → idle-keep with TARGET_TEMP_REACHED."""
+    ev = _make_evaluator()  # all defaults: nothing fires
+    decision = ev.evaluate(last_decision=None)
+    assert decision.next_mode is None
+    assert decision.reason == HVACActionReason.TARGET_TEMP_REACHED
+
+
+def test_idle_after_dry_uses_humidity_reached_reason() -> None:
+    """Priority 10 idle after DRY → reason TARGET_HUMIDITY_REACHED."""
+    ev = _make_evaluator()
+    ev._features.is_configured_for_dryer_mode = True
+    last = AutoDecision(
+        next_mode=HVACMode.DRY, reason=HVACActionReason.AUTO_PRIORITY_HUMIDITY
+    )
+    decision = ev.evaluate(last_decision=last)
+    assert decision.next_mode is None
+    assert decision.reason == HVACActionReason.TARGET_HUMIDITY_REACHED

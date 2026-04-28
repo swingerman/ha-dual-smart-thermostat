@@ -119,9 +119,18 @@ class AutoModeEvaluator:
                 reason=HVACActionReason.AUTO_PRIORITY_TEMPERATURE,
             )
 
-        # Priorities 9-10 fill in next task.
+        # Priority 9 (comfort): temp in fan-tolerance band, fan available.
+        if feats.is_configured_for_fan_mode and self._fan_band(env):
+            return AutoDecision(
+                next_mode=HVACMode.FAN_ONLY,
+                reason=HVACActionReason.AUTO_PRIORITY_COMFORT,
+            )
 
-        return AutoDecision(next_mode=None, reason=HVACActionReason.NONE)
+        # Priority 10 (idle): all targets met. Reason depends on prior decision.
+        idle_reason = HVACActionReason.TARGET_TEMP_REACHED
+        if last_decision is not None and last_decision.next_mode == HVACMode.DRY:
+            idle_reason = HVACActionReason.TARGET_HUMIDITY_REACHED
+        return AutoDecision(next_mode=None, reason=idle_reason)
 
     @staticmethod
     def _humidity_at(env, *, multiplier: int) -> bool:
@@ -154,3 +163,12 @@ class AutoModeEvaluator:
         if env.cur_temp is None or hot_target is None:
             return False
         return env.cur_temp >= hot_target + multiplier * env._hot_tolerance
+
+    def _fan_band(self, env) -> bool:
+        """Whether cur_temp is within the fan-tolerance comfort band."""
+        target_attr = (
+            "_target_temp_high"
+            if (self._features.is_range_mode and env.target_temp_high is not None)
+            else "_target_temp"
+        )
+        return env.is_within_fan_tolerance(target_attr)
