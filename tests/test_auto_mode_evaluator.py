@@ -30,6 +30,7 @@ def _make_evaluator(**overrides) -> AutoModeEvaluator:
     environment.target_humidity = 50.0
     environment._cold_tolerance = 0.5
     environment._hot_tolerance = 0.5
+    environment._get_active_tolerance_for_mode.return_value = (0.5, 0.5)
     environment._moist_tolerance = 5.0
     environment._dry_tolerance = 5.0
     environment._fan_hot_tolerance = 0.0

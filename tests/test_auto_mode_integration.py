@@ -196,3 +196,47 @@ async def test_auto_mode_restored_after_restart(hass: HomeAssistant) -> None:
 # cooler-assist auxiliary, not a standalone routable mode. The capability
 # filtering for that case (no can_cool) is exercised by the evaluator
 # unit tests in test_auto_mode_evaluator.py rather than at integration level.
+
+
+@pytest.mark.asyncio
+async def test_auto_persists_in_hvac_modes_after_heat_pump_state_change(
+    hass: HomeAssistant,
+) -> None:
+    """Heat-pump cooling sensor toggling does not strip AUTO from hvac_modes."""
+    hass.config.units = METRIC_SYSTEM
+    hass.states.async_set(common.ENT_SWITCH, STATE_OFF)
+    hass.states.async_set("binary_sensor.heat_pump_cooling", "off")
+
+    setup_sensor(hass, 21.0)
+
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "cold_tolerance": 0.5,
+                "hot_tolerance": 0.5,
+                "heater": common.ENT_SWITCH,
+                "heat_pump_cooling": "binary_sensor.heat_pump_cooling",
+                "target_sensor": common.ENT_SENSOR,
+                "initial_hvac_mode": HVACMode.OFF,
+                "target_temp": 21.0,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    state = hass.states.get(common.ENTITY)
+    assert HVACMode.AUTO in state.attributes["hvac_modes"]
+
+    # Flip the heat-pump cooling sensor to trigger the changed-event handler
+    # that previously overwrote _attr_hvac_modes from the device, dropping AUTO.
+    hass.states.async_set("binary_sensor.heat_pump_cooling", "on")
+    await hass.async_block_till_done()
+
+    state = hass.states.get(common.ENTITY)
+    assert (
+        HVACMode.AUTO in state.attributes["hvac_modes"]
+    ), "AUTO must remain in hvac_modes after heat-pump cooling state changes"

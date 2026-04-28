@@ -585,12 +585,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self._unit = unit
 
         # HVAC modes
-        self._attr_hvac_modes = self.hvac_device.hvac_modes
-        if (
-            self.features.is_configured_for_auto_mode
-            and HVACMode.AUTO not in self._attr_hvac_modes
-        ):
-            self._attr_hvac_modes = [*self._attr_hvac_modes, HVACMode.AUTO]
+        self._attr_hvac_modes = self._compute_attr_hvac_modes()
         self._hvac_mode = self.hvac_device.hvac_mode
         self._last_hvac_mode = None
 
@@ -1017,6 +1012,18 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         """Return the sensor temperature."""
         return self.environment.cur_floor_temp
 
+    def _compute_attr_hvac_modes(self) -> list[HVACMode]:
+        """Build the climate's hvac_modes list from the device modes plus AUTO.
+
+        AUTO is appended when the configuration supports it. Used both at init
+        time and after every mode change that could refresh the device's
+        hvac_modes list (e.g., heat-pump cooling sensor toggles).
+        """
+        modes = list(self.hvac_device.hvac_modes)
+        if self.features.is_configured_for_auto_mode and HVACMode.AUTO not in modes:
+            modes.append(HVACMode.AUTO)
+        return modes
+
     @property
     def hvac_mode(self) -> HVACMode | None:
         """Return current operation."""
@@ -1200,7 +1207,9 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             self._hvac_mode = HVACMode.AUTO
             self._set_support_flags()
             self._last_auto_decision = None  # fresh top-down scan on entry
-            await self._async_evaluate_auto_and_dispatch(force=True)
+            await self._async_evaluate_auto_and_dispatch(
+                force=True, is_restore=is_restore
+            )
             self.async_write_ha_state()
             return
 
@@ -1531,7 +1540,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             "hvac modes after entity heat pump cooling change: %s",
             self.hvac_device.hvac_modes,
         )
-        self._attr_hvac_modes = self.hvac_device.hvac_modes
+        self._attr_hvac_modes = self._compute_attr_hvac_modes()
         self.async_write_ha_state()
 
     async def _async_entity_heat_pump_cooling_changed(
@@ -1625,8 +1634,15 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         """Control the climate device based on config removing time param."""
         await self._async_control_climate(time=None, force=force)
 
-    async def _async_evaluate_auto_and_dispatch(self, force: bool) -> None:
-        """Run the AutoModeEvaluator and dispatch to the chosen sub-mode."""
+    async def _async_evaluate_auto_and_dispatch(
+        self, force: bool, is_restore: bool = False
+    ) -> None:
+        """Run the AutoModeEvaluator and dispatch to the chosen sub-mode.
+
+        When ``is_restore`` is True we skip rewriting the environment's
+        target temperatures from the preset — the restore path has already
+        repopulated them from the persisted state.
+        """
         decision = self._auto_evaluator.evaluate(
             self._last_auto_decision,
             temp_sensor_stalled=self._sensor_stalled,
@@ -1643,14 +1659,15 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             # self._hvac_mode (which stays AUTO) — only the underlying device's
             # mode is transitioned to the picked sub-mode.
             self.environment.set_hvac_mode(decision.next_mode)
-            self.environment.set_temepratures_from_hvac_mode_and_presets(
-                decision.next_mode,
-                self.features.hvac_modes_support_range_temp(self._attr_hvac_modes),
-                self.presets.preset_mode,
-                self.presets.preset_env,
-                self.features.is_range_mode,
-            )
-            self._target_humidity = self.environment.target_humidity
+            if not is_restore:
+                self.environment.set_temepratures_from_hvac_mode_and_presets(
+                    decision.next_mode,
+                    self.features.hvac_modes_support_range_temp(self._attr_hvac_modes),
+                    self.presets.preset_mode,
+                    self.presets.preset_env,
+                    self.features.is_range_mode,
+                )
+                self._target_humidity = self.environment.target_humidity
             await self.hvac_device.async_set_hvac_mode(decision.next_mode)
 
         await self.hvac_device.async_control_hvac(force=force)
