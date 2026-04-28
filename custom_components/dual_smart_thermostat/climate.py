@@ -1020,6 +1020,11 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
     @property
     def hvac_mode(self) -> HVACMode | None:
         """Return current operation."""
+        # When AUTO is the user-selected mode, the climate reports AUTO even
+        # though the underlying hvac_device runs a concrete sub-mode picked
+        # by the evaluator. hvac_action still reflects the device's runtime.
+        if self._hvac_mode == HVACMode.AUTO:
+            return HVACMode.AUTO
         return self.hvac_device.hvac_mode
 
     @property
@@ -1190,6 +1195,14 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
     ) -> None:
         """Call climate mode based on current mode."""
         _LOGGER.info("%s: Setting hvac mode: %s", self.entity_id, hvac_mode)
+
+        if hvac_mode == HVACMode.AUTO and self._auto_evaluator is not None:
+            self._hvac_mode = HVACMode.AUTO
+            self._set_support_flags()
+            self._last_auto_decision = None  # fresh top-down scan on entry
+            await self._async_evaluate_auto_and_dispatch(force=True)
+            self.async_write_ha_state()
+            return
 
         if hvac_mode not in self.hvac_modes:
             _LOGGER.debug("%s: Unrecognized hvac mode: %s", self.entity_id, hvac_mode)
@@ -1584,6 +1597,9 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         _LOGGER.debug("Attempting to control climate, time %s, force %s", time, force)
 
         async with self._temp_lock:
+            if self._hvac_mode == HVACMode.AUTO and self._auto_evaluator is not None:
+                await self._async_evaluate_auto_and_dispatch(force=force)
+                return
 
             if self.hvac_device.hvac_mode == HVACMode.OFF and time is None:
                 _LOGGER.debug("Climate is off, skipping control")
@@ -1608,6 +1624,39 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
     async def _async_control_climate_no_time(self, time=None, force=False) -> None:
         """Control the climate device based on config removing time param."""
         await self._async_control_climate(time=None, force=force)
+
+    async def _async_evaluate_auto_and_dispatch(self, force: bool) -> None:
+        """Run the AutoModeEvaluator and dispatch to the chosen sub-mode."""
+        decision = self._auto_evaluator.evaluate(
+            self._last_auto_decision,
+            temp_sensor_stalled=self._sensor_stalled,
+            humidity_sensor_stalled=self._humidity_sensor_stalled,
+        )
+        self._last_auto_decision = decision
+
+        if (
+            decision.next_mode is not None
+            and decision.next_mode != self.hvac_device.hvac_mode
+        ):
+            # Mirror the normal async_set_hvac_mode path so controllers see the
+            # correct mode-aware tolerance and tied targets. We do not touch
+            # self._hvac_mode (which stays AUTO) — only the underlying device's
+            # mode is transitioned to the picked sub-mode.
+            self.environment.set_hvac_mode(decision.next_mode)
+            self.environment.set_temepratures_from_hvac_mode_and_presets(
+                decision.next_mode,
+                self.features.hvac_modes_support_range_temp(self._attr_hvac_modes),
+                self.presets.preset_mode,
+                self.presets.preset_env,
+                self.features.is_range_mode,
+            )
+            self._target_humidity = self.environment.target_humidity
+            await self.hvac_device.async_set_hvac_mode(decision.next_mode)
+
+        await self.hvac_device.async_control_hvac(force=force)
+
+        self._hvac_action_reason = decision.reason
+        self._publish_hvac_action_reason(decision.reason)
 
     @callback
     def _async_hvac_mode_changed(self, hvac_mode) -> None:
