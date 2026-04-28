@@ -74,3 +74,44 @@ def test_auto_decision_is_frozen_dataclass() -> None:
         assert "frozen" in str(exc).lower() or "cannot" in str(exc).lower()
     else:
         raise AssertionError("AutoDecision should be frozen")
+
+
+def test_floor_hot_returns_overheat() -> None:
+    """Priority 1: floor temp at limit forces idle / OVERHEAT."""
+    ev = _make_evaluator(**{"environment.is_floor_hot": True})
+    decision = ev.evaluate(last_decision=None)
+    assert decision.next_mode is None
+    assert decision.reason == HVACActionReason.OVERHEAT
+
+
+def test_opening_open_returns_opening_idle() -> None:
+    """Priority 2: opening detected forces idle / OPENING."""
+    ev = _make_evaluator()
+    ev._openings.any_opening_open.return_value = True
+    decision = ev.evaluate(last_decision=None)
+    assert decision.next_mode is None
+    assert decision.reason == HVACActionReason.OPENING
+
+
+def test_temperature_stall_returns_temperature_stall() -> None:
+    """Temperature sensor stall → idle / TEMPERATURE_SENSOR_STALLED."""
+    ev = _make_evaluator()
+    decision = ev.evaluate(last_decision=None, temp_sensor_stalled=True)
+    assert decision.next_mode is None
+    assert decision.reason == HVACActionReason.TEMPERATURE_SENSOR_STALLED
+
+
+def test_floor_hot_preempts_opening_and_stall() -> None:
+    """Safety priority 1 wins over priority 2 and over stall."""
+    ev = _make_evaluator(**{"environment.is_floor_hot": True})
+    ev._openings.any_opening_open.return_value = True
+    decision = ev.evaluate(last_decision=None, temp_sensor_stalled=True)
+    assert decision.reason == HVACActionReason.OVERHEAT
+
+
+def test_opening_preempts_stall() -> None:
+    """Opening (safety 2) wins over a stall."""
+    ev = _make_evaluator()
+    ev._openings.any_opening_open.return_value = True
+    decision = ev.evaluate(last_decision=None, temp_sensor_stalled=True)
+    assert decision.reason == HVACActionReason.OPENING

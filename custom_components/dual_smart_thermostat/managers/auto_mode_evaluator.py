@@ -32,6 +32,13 @@ class AutoDecision:
     reason: HVACActionReason
 
 
+def _auto_scope():
+    """Return the OpeningHvacModeScope value used for AUTO opening checks."""
+    from ..managers.opening_manager import OpeningHvacModeScope
+
+    return OpeningHvacModeScope.ALL
+
+
 class AutoModeEvaluator:
     """Decides which concrete sub-mode AUTO runs each tick."""
 
@@ -47,6 +54,23 @@ class AutoModeEvaluator:
         temp_sensor_stalled: bool = False,
         humidity_sensor_stalled: bool = False,
     ) -> AutoDecision:
-        """Return the next AutoDecision. Subsequent tasks fill this in."""
-        # Placeholder — overridden in Task 2.
+        """Return the next AutoDecision based on the priority table."""
+        env = self._environment
+
+        # Priority 1: floor overheat — preempts everything.
+        if env.is_floor_hot:
+            return AutoDecision(next_mode=None, reason=HVACActionReason.OVERHEAT)
+
+        # Priority 2: opening — preempts everything except floor overheat.
+        if self._openings.any_opening_open(hvac_mode_scope=_auto_scope()):
+            return AutoDecision(next_mode=None, reason=HVACActionReason.OPENING)
+
+        # Temperature sensor stall pauses everything below safety.
+        if temp_sensor_stalled:
+            return AutoDecision(
+                next_mode=None,
+                reason=HVACActionReason.TEMPERATURE_SENSOR_STALLED,
+            )
+
+        # Subsequent priorities filled in by later tasks.
         return AutoDecision(next_mode=None, reason=HVACActionReason.NONE)
