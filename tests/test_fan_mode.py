@@ -273,7 +273,9 @@ async def test_get_hvac_modes_cool_fan_configured(
     """Test that the operation list returns the correct modes."""
     state = hass.states.get(common.ENTITY)
     modes = state.attributes.get("hvac_modes")
-    assert set(modes) == set([HVACMode.COOL, HVACMode.OFF, HVACMode.FAN_ONLY])
+    assert set(modes) == set(
+        [HVACMode.COOL, HVACMode.OFF, HVACMode.FAN_ONLY, HVACMode.AUTO]
+    )
 
 
 async def test_get_hvac_modes_fan_only_configured(

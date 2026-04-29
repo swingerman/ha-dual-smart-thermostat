@@ -34,6 +34,7 @@ The `dual_smart_thermostat` is an enhanced version of generic thermostat impleme
 | **Floor Temperature Control** | ![heating-coil](docs/images/heating-coil-custom.png) ![snowflake-thermometer](docs/images/snowflake-thermometer-custom.png)  ![thermometer-alert](docs/images/thermometer-alert-custom.png) | [docs](#floor-heating-temperature-control) |
 | **Window/Door Sensor Integration (Openings)** | ![window-open](docs/images/window-open-custom.png)  ![window-open](docs/images/door-open-custom.png) ![chevron-right](docs/images/chevron-right-custom.png) ![timer-cog](docs/images/timer-cog-outline-custom.png)  ![chevron-right](docs/images/chevron-right-custom.png) ![hvac-off](docs/images/hvac-off-custom.png)| [docs](#openings) |
 | **Preset Modes Support** |  | [docs](#presets) |
+| **Auto Mode (Priority Engine)** | | [docs](#auto-mode) |
 | **HVAC Action Reason Tracking** | | [docs](#hvac-action-reason) |
 
 ## Examples
@@ -609,6 +610,22 @@ preset_name:
   min_floor_temp: 5
   max_floor_temp: 28
 ```
+
+## Auto Mode
+
+When the thermostat is configured with at least two distinct climate capabilities (any of heating, cooling, drying, fan), the integration exposes `auto` as one of its HVAC modes. In Auto Mode the integration picks between HEAT, COOL, DRY, and FAN_ONLY automatically based on the current environment, configured tolerances, and a fixed priority table:
+
+1. **Safety** — floor-temperature limit and window/door openings preempt all other decisions.
+2. **Urgent** (2× tolerance) — temperature or humidity beyond 2× the configured tolerance switches the mode immediately, even if a different mode is currently active.
+3. **Normal** (1× tolerance) — temperature or humidity beyond the configured tolerance picks the matching mode.
+4. **Comfort** — when the room is mildly above target and a fan is configured, run the fan instead of cooling.
+5. **Idle** — when all targets are met, stop actuators.
+
+The thermostat continues to report `auto` as its `hvac_mode`; the underlying actuator (heater / cooler / dryer / fan) reflects the chosen sub-mode in `hvac_action`. Mode-flap prevention keeps the chosen sub-mode running until its goal is reached or a higher-priority concern arises.
+
+The active priority is exposed via the `hvac_action_reason` sensor as `auto_priority_temperature`, `auto_priority_humidity`, or `auto_priority_comfort`. See [HVAC Action Reason Auto values](#hvac-action-reason-auto-values).
+
+Auto Mode requires a temperature sensor; the humidity-priority paths additionally require a humidity sensor. Phase 1.3 will add outside-temperature bias; Phase 1.4 will add apparent-temperature support; Phase 2 will add a PID controller option.
 
 ## HVAC Action Reason
 

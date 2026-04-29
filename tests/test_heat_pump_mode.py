@@ -169,10 +169,18 @@ async def setup_comp_heat_pump(hass: HomeAssistant) -> None:
 @pytest.mark.parametrize(
     ("dual_mode", "cooling_mode", "hvac_modes"),
     [
-        (False, STATE_ON, [HVACMode.COOL, HVACMode.OFF]),
-        (False, STATE_OFF, [HVACMode.HEAT, HVACMode.OFF]),
-        (True, STATE_ON, [HVACMode.COOL, HVACMode.HEAT_COOL, HVACMode.OFF]),
-        (True, STATE_OFF, [HVACMode.HEAT, HVACMode.HEAT_COOL, HVACMode.OFF]),
+        (False, STATE_ON, [HVACMode.COOL, HVACMode.OFF, HVACMode.AUTO]),
+        (False, STATE_OFF, [HVACMode.HEAT, HVACMode.OFF, HVACMode.AUTO]),
+        (
+            True,
+            STATE_ON,
+            [HVACMode.COOL, HVACMode.HEAT_COOL, HVACMode.OFF, HVACMode.AUTO],
+        ),
+        (
+            True,
+            STATE_OFF,
+            [HVACMode.HEAT, HVACMode.HEAT_COOL, HVACMode.OFF, HVACMode.AUTO],
+        ),
     ],
 )
 async def test_get_hvac_modes(

@@ -353,7 +353,13 @@ async def test_presets_use_case_150_2(
 
     modes = state.attributes.get("hvac_modes")
     assert set(modes) == set(
-        [HVACMode.OFF, HVACMode.HEAT, HVACMode.COOL, HVACMode.HEAT_COOL]
+        [
+            HVACMode.OFF,
+            HVACMode.HEAT,
+            HVACMode.COOL,
+            HVACMode.HEAT_COOL,
+            HVACMode.AUTO,
+        ]
     )
 
     assert hass.states.get(heater_switch).state == STATE_OFF
@@ -413,7 +419,9 @@ async def test_get_hvac_modes_dual(
     """Test that the operation list returns the correct modes."""
     state = hass.states.get(common.ENTITY)
     modes = state.attributes.get("hvac_modes")
-    assert set(modes) == set([HVACMode.OFF, HVACMode.HEAT, HVACMode.COOL])
+    assert set(modes) == set(
+        [HVACMode.OFF, HVACMode.HEAT, HVACMode.COOL, HVACMode.AUTO]
+    )
 
 
 async def test_get_hvac_modes_heat_cool(
@@ -423,7 +431,13 @@ async def test_get_hvac_modes_heat_cool(
     state = hass.states.get(common.ENTITY)
     modes = state.attributes.get("hvac_modes")
     assert set(modes) == set(
-        [HVACMode.OFF, HVACMode.HEAT, HVACMode.COOL, HVACMode.HEAT_COOL]
+        [
+            HVACMode.OFF,
+            HVACMode.HEAT,
+            HVACMode.COOL,
+            HVACMode.HEAT_COOL,
+            HVACMode.AUTO,
+        ]
     )
 
 
@@ -434,7 +448,13 @@ async def test_get_hvac_modes_heat_cool_2(
     state = hass.states.get(common.ENTITY)
     modes = state.attributes.get("hvac_modes")
     assert set(modes) == set(
-        [HVACMode.OFF, HVACMode.HEAT, HVACMode.COOL, HVACMode.HEAT_COOL]
+        [
+            HVACMode.OFF,
+            HVACMode.HEAT,
+            HVACMode.COOL,
+            HVACMode.HEAT_COOL,
+            HVACMode.AUTO,
+        ]
     )
 
 
@@ -499,6 +519,7 @@ async def test_dual_get_hvac_modes_fan_configured(
             HVACMode.HEAT,
             HVACMode.COOL,
             HVACMode.FAN_ONLY,
+            HVACMode.AUTO,
         ]
     )
 
@@ -516,6 +537,7 @@ async def test_heat_cool_get_hvac_modes_fan_configured(
             HVACMode.COOL,
             HVACMode.HEAT_COOL,
             HVACMode.FAN_ONLY,
+            HVACMode.AUTO,
         ]
     )
 

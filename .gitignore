@@ -22,3 +22,4 @@ config/*
 
 # specify
 .specify/scripts/
+.claude/
