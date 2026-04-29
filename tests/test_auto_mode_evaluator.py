@@ -371,6 +371,42 @@ def test_flap_prevention_dry_stays_until_dry_goal_reached() -> None:
     assert decision.next_mode == HVACMode.DRY
 
 
+def test_flap_prevention_cool_stays_until_cool_goal_reached() -> None:
+    """In COOL, still hot (goal pending) and no urgent → stay COOL."""
+    ev = _make_evaluator()
+    ev._features.is_configured_for_cooler_mode = True
+    ev._environment.cur_temp = 21.5  # 1x above — goal still pending
+    last = AutoDecision(
+        next_mode=HVACMode.COOL, reason=HVACActionReason.AUTO_PRIORITY_TEMPERATURE
+    )
+    decision = ev.evaluate(last_decision=last)
+    assert decision.next_mode == HVACMode.COOL
+
+
+def test_flap_prevention_fan_only_stays_until_fan_band_exited() -> None:
+    """In FAN_ONLY, comfort band still satisfied → stay FAN_ONLY."""
+    ev = _make_evaluator()
+    ev._features.is_configured_for_fan_mode = True
+    ev._environment.is_within_fan_tolerance.return_value = True
+    last = AutoDecision(
+        next_mode=HVACMode.FAN_ONLY, reason=HVACActionReason.AUTO_PRIORITY_COMFORT
+    )
+    decision = ev.evaluate(last_decision=last)
+    assert decision.next_mode == HVACMode.FAN_ONLY
+
+
+def test_flap_prevention_unknown_mode_falls_through_to_full_scan() -> None:
+    """A last_decision with a mode outside HEAT/COOL/DRY/FAN_ONLY → rescan."""
+    ev = _make_evaluator()
+    last = AutoDecision(
+        next_mode=HVACMode.OFF, reason=HVACActionReason.TARGET_TEMP_REACHED
+    )
+    decision = ev.evaluate(last_decision=last)
+    # All defaults satisfied → idle.
+    assert decision.next_mode is None
+    assert decision.reason == HVACActionReason.TARGET_TEMP_REACHED
+
+
 def test_no_cooler_capability_skips_cool_priorities() -> None:
     """When can_cool is False, urgent + normal hot temp priorities don't fire."""
     ev = _make_evaluator()
