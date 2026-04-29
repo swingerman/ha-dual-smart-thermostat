@@ -1607,7 +1607,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
         async with self._temp_lock:
             if self._hvac_mode == HVACMode.AUTO and self._auto_evaluator is not None:
-                await self._async_evaluate_auto_and_dispatch(force=force)
+                await self._async_evaluate_auto_and_dispatch(time=time, force=force)
                 return
 
             if self.hvac_device.hvac_mode == HVACMode.OFF and time is None:
@@ -1635,13 +1635,16 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         await self._async_control_climate(time=None, force=force)
 
     async def _async_evaluate_auto_and_dispatch(
-        self, force: bool, is_restore: bool = False
+        self, *, time=None, force: bool = False, is_restore: bool = False
     ) -> None:
         """Run the AutoModeEvaluator and dispatch to the chosen sub-mode.
 
-        When ``is_restore`` is True we skip rewriting the environment's
-        target temperatures from the preset — the restore path has already
-        repopulated them from the persisted state.
+        ``time`` is forwarded to the underlying ``async_control_hvac`` so
+        keep-alive semantics (e.g. periodic safety turn-off when the device
+        is unexpectedly on) are preserved. When ``is_restore`` is True we
+        skip rewriting the environment's target temperatures from the preset
+        — the restore path has already repopulated them from the persisted
+        state.
         """
         decision = self._auto_evaluator.evaluate(
             self._last_auto_decision,
@@ -1670,7 +1673,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                 self._target_humidity = self.environment.target_humidity
             await self.hvac_device.async_set_hvac_mode(decision.next_mode)
 
-        await self.hvac_device.async_control_hvac(force=force)
+        await self.hvac_device.async_control_hvac(time=time, force=force)
 
         self._hvac_action_reason = decision.reason
         self._publish_hvac_action_reason(decision.reason)
