@@ -552,21 +552,31 @@ class EnvironmentManager(StateManager):
         return self._cur_temp <= target_temp - cold_tolerance
 
     def is_too_hot(self, target_attr="_target_temp") -> bool:
-        """Checks if the current temperature is above target."""
+        """Checks if the current temperature is above target.
+
+        Uses ``effective_temp_for_mode(self._hvac_mode)`` so that COOL mode
+        with ``CONF_USE_APPARENT_TEMP`` enabled compares against the heat
+        index. All other modes compare against raw ``cur_temp`` (the
+        selector returns ``cur_temp`` for them).
+        """
         target_temp = getattr(self, target_attr)
-        if self._cur_temp is None or target_temp is None:
+        active_temp = self.effective_temp_for_mode(self._hvac_mode)
+        if active_temp is None or target_temp is None:
             return False
 
         _, hot_tolerance = self._get_active_tolerance_for_mode()
 
         _LOGGER.debug(
-            "is_too_hot - target temp attr: %s, Target temp: %s, current temp: %s, tolerance: %s",
+            "is_too_hot - target temp attr: %s, Target temp: %s, "
+            "active temp: %s (cur_temp: %s, mode: %s), tolerance: %s",
             target_attr,
             target_temp,
+            active_temp,
             self._cur_temp,
+            self._hvac_mode,
             hot_tolerance,
         )
-        return self._cur_temp >= target_temp + hot_tolerance
+        return active_temp >= target_temp + hot_tolerance
 
     def is_equal_to_target(self, target_attr="_target_temp") -> bool:
         """Checks if the current temperature is equal to target."""

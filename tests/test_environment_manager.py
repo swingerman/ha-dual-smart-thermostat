@@ -183,3 +183,72 @@ def test_effective_temp_for_mode_non_cool_returns_cur() -> None:
     env._cur_humidity = 80.0
     for mode in (HVACMode.HEAT, HVACMode.DRY, HVACMode.FAN_ONLY, HVACMode.AUTO):
         assert env.effective_temp_for_mode(mode) == 32.0
+
+
+def test_is_too_hot_uses_apparent_when_mode_cool_and_flag_on() -> None:
+    """is_too_hot consults apparent_temp when env._hvac_mode == COOL and flag on.
+
+    Setup: target=27.0, hot_tolerance=0.5, cur_temp=27.4 (raw is_too_hot=False
+    because cur_temp < target+tolerance). With humidity=80%, apparent ≈ 30°C
+    (well above 27.5 threshold) → apparent is_too_hot=True.
+
+    Asserts that the apparent path is consulted when the env is in COOL mode.
+    """
+    from custom_components.dual_smart_thermostat.const import (
+        CONF_HOT_TOLERANCE,
+        CONF_TARGET_TEMP,
+        CONF_USE_APPARENT_TEMP,
+    )
+
+    env = _make_env(
+        **{
+            CONF_USE_APPARENT_TEMP: True,
+            CONF_TARGET_TEMP: 27.0,
+            CONF_HOT_TOLERANCE: 0.5,
+        }
+    )
+    env._cur_temp = 27.4  # raw is just below target+tolerance (27.5)
+    env._cur_humidity = 80.0  # apparent boosts above threshold
+    env._hvac_mode = HVACMode.COOL
+    assert env.is_too_hot() is True
+
+
+def test_is_too_hot_uses_raw_when_mode_not_cool() -> None:
+    """is_too_hot uses raw cur_temp when env._hvac_mode != COOL even with flag on."""
+    from custom_components.dual_smart_thermostat.const import (
+        CONF_HOT_TOLERANCE,
+        CONF_TARGET_TEMP,
+        CONF_USE_APPARENT_TEMP,
+    )
+
+    env = _make_env(
+        **{
+            CONF_USE_APPARENT_TEMP: True,
+            CONF_TARGET_TEMP: 27.0,
+            CONF_HOT_TOLERANCE: 0.5,
+        }
+    )
+    env._cur_temp = 27.4
+    env._cur_humidity = 80.0
+    env._hvac_mode = HVACMode.HEAT  # NOT cool
+    # Raw cur_temp 27.4 < target+tolerance (27.5) → False.
+    assert env.is_too_hot() is False
+
+
+def test_is_too_hot_uses_raw_when_flag_off() -> None:
+    """Flag off → raw cur_temp regardless of mode."""
+    from custom_components.dual_smart_thermostat.const import (
+        CONF_HOT_TOLERANCE,
+        CONF_TARGET_TEMP,
+    )
+
+    env = _make_env(
+        **{
+            CONF_TARGET_TEMP: 27.0,
+            CONF_HOT_TOLERANCE: 0.5,
+        }
+    )
+    env._cur_temp = 27.4
+    env._cur_humidity = 80.0
+    env._hvac_mode = HVACMode.COOL
+    assert env.is_too_hot() is False
