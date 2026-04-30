@@ -572,3 +572,139 @@ async def test_heat_pump_auto_outside_bias_emits_temperature_reason(
     state = hass.states.get(common.ENTITY)
     assert state is not None
     assert state.attributes["hvac_action_reason"] == "auto_priority_temperature"
+
+
+# ---------------------------------------------------------------------------
+# Phase 1.4: apparent temperature
+# ---------------------------------------------------------------------------
+
+# Reuse the common humidity-sensor entity so setup_humidity_sensor() populates
+# the correct entity that the thermostat's listener tracks.
+ENT_HUMIDITY_SENSOR = common.ENT_HUMIDITY_SENSOR
+
+
+@pytest.mark.asyncio
+async def test_heater_cooler_auto_picks_cool_via_apparent_temp(
+    hass: HomeAssistant,
+) -> None:
+    """Given heater_cooler+humidity sensor with use_apparent_temp on,
+    AUTO active, target=27 °C, raw cur_temp=27.4 (below target+tol=27.5),
+    humidity=80% (apparent ≈ 30.6 °C, well above 27.5) /
+    When AUTO evaluates /
+    Then it picks COOL with AUTO_PRIORITY_TEMPERATURE, and
+    apparent_temperature is exposed in state attributes.
+
+    target_humidity=80 with moist_tolerance=5 means cur_humidity=80 is
+    exactly at target → no humidity priority fires → pure temperature signal.
+    """
+    hass.config.units = METRIC_SYSTEM
+    setup_switch_dual(hass, ENT_COOLER_SWITCH, False, False)
+    setup_sensor(hass, 27.4)
+    setup_humidity_sensor(hass, 80.0)
+
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        _heater_cooler_yaml(
+            humidity_sensor=ENT_HUMIDITY_SENSOR,
+            target_temp=27.0,
+            target_humidity=80,
+            moist_tolerance=5,
+            dry_tolerance=5,
+            use_apparent_temp=True,
+        ),
+    )
+    await hass.async_block_till_done()
+    await common.async_set_hvac_mode(hass, HVACMode.AUTO, common.ENTITY)
+    await hass.async_block_till_done()
+
+    state = hass.states.get(common.ENTITY)
+    assert state is not None
+    assert state.attributes["hvac_action_reason"] == "auto_priority_temperature"
+    # apparent_temperature attribute is exposed when flag on AND humidity
+    # available AND apparent != cur_temp.
+    assert "apparent_temperature" in state.attributes
+
+
+@pytest.mark.asyncio
+async def test_heater_cooler_standalone_cool_uses_apparent_temp(
+    hass: HomeAssistant,
+) -> None:
+    """Given heater_cooler+humidity with use_apparent_temp on /
+    User sets HVAC mode to COOL directly (not AUTO), target=27°C,
+    cur_temp=27.4, humidity=80% /
+    When the cooler controller evaluates /
+    Then is_too_hot returns True via apparent (raw would be False) and the
+    cooler service-call fires.
+
+    target_humidity=80 with moist_tolerance=5 ensures no humidity priority
+    interferes (cur_humidity == target_humidity → neither too_humid nor too_dry).
+    """
+    hass.config.units = METRIC_SYSTEM
+    calls = setup_switch_dual(hass, ENT_COOLER_SWITCH, False, False)
+    setup_sensor(hass, 27.4)
+    setup_humidity_sensor(hass, 80.0)
+
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        _heater_cooler_yaml(
+            humidity_sensor=ENT_HUMIDITY_SENSOR,
+            target_temp=27.0,
+            target_humidity=80,
+            moist_tolerance=5,
+            dry_tolerance=5,
+            use_apparent_temp=True,
+        ),
+    )
+    await hass.async_block_till_done()
+    await common.async_set_hvac_mode(hass, HVACMode.COOL, common.ENTITY)
+    await hass.async_block_till_done()
+
+    cool_calls = [
+        c
+        for c in calls
+        if c.service == SERVICE_TURN_ON and c.data.get("entity_id") == ENT_COOLER_SWITCH
+    ]
+    assert cool_calls, "cooler should fire because apparent >= target+tol"
+
+
+@pytest.mark.asyncio
+async def test_heater_cooler_apparent_temp_off_matches_phase_1_3(
+    hass: HomeAssistant,
+) -> None:
+    """Given heater_cooler+humidity but use_apparent_temp left off /
+    AUTO active, target=27, cur_temp=27.4, humidity=80% /
+    When AUTO evaluates /
+    Then it does NOT pick COOL (raw 27.4 < target+tolerance 27.5) — Phase 1.3
+    behaviour is preserved (regression guard).
+
+    Also verifies that apparent_temperature is NOT exposed in state attributes
+    when the flag is off, even when humidity data is available.
+    """
+    hass.config.units = METRIC_SYSTEM
+    setup_switch_dual(hass, ENT_COOLER_SWITCH, False, False)
+    setup_sensor(hass, 27.4)
+    setup_humidity_sensor(hass, 80.0)
+
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        _heater_cooler_yaml(
+            humidity_sensor=ENT_HUMIDITY_SENSOR,
+            target_temp=27.0,
+            target_humidity=80,
+            moist_tolerance=5,
+            dry_tolerance=5,
+            # use_apparent_temp NOT set → defaults to False
+        ),
+    )
+    await hass.async_block_till_done()
+    await common.async_set_hvac_mode(hass, HVACMode.AUTO, common.ENTITY)
+    await hass.async_block_till_done()
+
+    state = hass.states.get(common.ENTITY)
+    assert state is not None
+    # Without apparent, raw cur_temp 27.4 is below 27.5 (target+0.5) → idle.
+    assert state.attributes["hvac_action_reason"] != "auto_priority_temperature"
+    assert "apparent_temperature" not in state.attributes
