@@ -525,3 +525,50 @@ async def test_auto_without_outside_sensor_behaves_like_phase_1_2(
     state = hass.states.get(common.ENTITY)
     assert state is not None
     assert state.attributes["hvac_action_reason"] == "auto_priority_temperature"
+
+
+# ---------------------------------------------------------------------------
+# Phase 1.3: outside-temperature bias on heat_pump system type
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_heat_pump_auto_outside_bias_emits_temperature_reason(
+    hass: HomeAssistant,
+) -> None:
+    """Given a heat_pump system with outside_sensor and a large outside delta /
+    When AUTO evaluates with the room slightly below target /
+    Then it emits AUTO_PRIORITY_TEMPERATURE — proves the Phase 1.3 wiring
+    works through the heat_pump dispatch path, not just heater_cooler."""
+    hass.config.units = METRIC_SYSTEM
+    hass.states.async_set(common.ENT_SWITCH, STATE_OFF)
+    hass.states.async_set("binary_sensor.heat_pump_cooling", "off")
+    setup_sensor(hass, 20.5)  # 1× cold-tolerance below 21.0 target → normal HEAT
+    hass.states.async_set("sensor.outside_test", "-5.0")  # 25.5°C delta
+
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "cold_tolerance": 0.5,
+                "hot_tolerance": 0.5,
+                "heater": common.ENT_SWITCH,
+                "heat_pump_cooling": "binary_sensor.heat_pump_cooling",
+                "target_sensor": common.ENT_SENSOR,
+                "outside_sensor": "sensor.outside_test",
+                "auto_outside_delta_boost": 8.0,
+                "initial_hvac_mode": HVACMode.OFF,
+                "target_temp": 21.0,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+    await common.async_set_hvac_mode(hass, HVACMode.AUTO, common.ENTITY)
+    await hass.async_block_till_done()
+
+    state = hass.states.get(common.ENTITY)
+    assert state is not None
+    assert state.attributes["hvac_action_reason"] == "auto_priority_temperature"
