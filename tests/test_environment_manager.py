@@ -2,6 +2,7 @@
 
 from unittest.mock import MagicMock
 
+from homeassistant.components.climate import HVACMode
 from homeassistant.const import UnitOfTemperature
 
 from custom_components.dual_smart_thermostat.managers.environment_manager import (
@@ -144,3 +145,41 @@ def test_apparent_temp_fahrenheit_input_conversion() -> None:
     apparent = env.apparent_temp
     # 90°F / 80% RH → 113°F per NWS table (window 110-116).
     assert 110.0 < apparent < 116.0
+
+
+def test_effective_temp_for_mode_returns_cur_when_flag_off() -> None:
+    """Flag off → returns cur_temp for every mode."""
+    env = _make_env()
+    env._cur_temp = 32.0
+    env._cur_humidity = 80.0
+    for mode in (
+        HVACMode.HEAT,
+        HVACMode.COOL,
+        HVACMode.DRY,
+        HVACMode.FAN_ONLY,
+        HVACMode.AUTO,
+    ):
+        assert env.effective_temp_for_mode(mode) == 32.0
+
+
+def test_effective_temp_for_mode_cool_returns_apparent_when_eligible() -> None:
+    """COOL mode + flag on + humid + above 27°C → returns apparent_temp."""
+    from custom_components.dual_smart_thermostat.const import CONF_USE_APPARENT_TEMP
+
+    env = _make_env(**{CONF_USE_APPARENT_TEMP: True})
+    env._cur_temp = 32.0
+    env._cur_humidity = 80.0
+    eff = env.effective_temp_for_mode(HVACMode.COOL)
+    assert eff is not None
+    assert eff > 32.0  # apparent boosts above raw
+
+
+def test_effective_temp_for_mode_non_cool_returns_cur() -> None:
+    """Non-COOL modes → returns cur_temp even when flag is on."""
+    from custom_components.dual_smart_thermostat.const import CONF_USE_APPARENT_TEMP
+
+    env = _make_env(**{CONF_USE_APPARENT_TEMP: True})
+    env._cur_temp = 32.0
+    env._cur_humidity = 80.0
+    for mode in (HVACMode.HEAT, HVACMode.DRY, HVACMode.FAN_ONLY, HVACMode.AUTO):
+        assert env.effective_temp_for_mode(mode) == 32.0

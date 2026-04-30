@@ -205,6 +205,17 @@ class EnvironmentManager(StateManager):
             hi_f, UnitOfTemperature.FAHRENHEIT, self._temperature_unit
         )
 
+    def effective_temp_for_mode(self, mode: HVACMode) -> float | None:
+        """Return the temperature to use for control decisions in ``mode``.
+
+        Substitutes ``apparent_temp`` for ``cur_temp`` only when the mode is
+        COOL and the apparent-temp prerequisites are met (see ``apparent_temp``).
+        All other modes get raw ``cur_temp`` regardless of the flag.
+        """
+        if mode == HVACMode.COOL:
+            return self.apparent_temp
+        return self._cur_temp
+
     @property
     def target_temp(self) -> float:
         return self._target_temp
