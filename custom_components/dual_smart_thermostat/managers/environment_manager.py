@@ -72,6 +72,28 @@ class EnvironmentAttributeType(enum.StrEnum):
     HUMIDITY = "humidity"
 
 
+def _rothfusz_heat_index_f(t_f: float, rh: float) -> float:
+    """NWS Rothfusz heat-index polynomial.
+
+    ``t_f`` is dry-bulb temperature in degrees Fahrenheit. ``rh`` is relative
+    humidity as a percentage (0-100). Returns heat index in degrees Fahrenheit.
+
+    Standard 8-term polynomial. Caller is responsible for the validity gate
+    (formula is meaningful only above ~80 °F / 27 °C).
+    """
+    return (
+        -42.379
+        + 2.04901523 * t_f
+        + 10.14333127 * rh
+        - 0.22475541 * t_f * rh
+        - 0.00683783 * t_f * t_f
+        - 0.05481717 * rh * rh
+        + 0.00122874 * t_f * t_f * rh
+        + 0.00085282 * t_f * rh * rh
+        - 0.00000199 * t_f * t_f * rh * rh
+    )
+
+
 class EnvironmentManager(StateManager):
     """Class to manage the temperatures of the thermostat."""
 
