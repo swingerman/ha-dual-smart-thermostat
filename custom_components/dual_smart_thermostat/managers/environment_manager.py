@@ -45,6 +45,7 @@ from ..const import (
     CONF_TARGET_TEMP_HIGH,
     CONF_TARGET_TEMP_LOW,
     CONF_TEMP_STEP,
+    CONF_USE_APPARENT_TEMP,
     DEFAULT_MAX_FLOOR_TEMP,
     DEFAULT_TOLERANCE,
 )
@@ -142,6 +143,9 @@ class EnvironmentManager(StateManager):
         self._saved_target_humidity = None
         self._config_heat_cool_mode = config.get(CONF_HEAT_COOL_MODE) or False
         self._config = config
+
+        self._use_apparent_temp = config.get(CONF_USE_APPARENT_TEMP, False)
+        self._humidity_sensor_stalled = False
 
     @property
     def sensor_entity_id(self) -> str | None:
@@ -288,6 +292,14 @@ class EnvironmentManager(StateManager):
     @property
     def cur_humidity(self) -> float:
         return self._cur_humidity
+
+    @property
+    def humidity_sensor_stalled(self) -> bool:
+        return self._humidity_sensor_stalled
+
+    @humidity_sensor_stalled.setter
+    def humidity_sensor_stalled(self, value: bool) -> None:
+        self._humidity_sensor_stalled = bool(value)
 
     def get_env_attr_type(self, attr: str) -> EnvironmentAttributeType:
         return (
