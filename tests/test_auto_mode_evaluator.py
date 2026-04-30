@@ -457,3 +457,22 @@ def test_evaluator_default_outside_delta_boost_is_none() -> None:
     features = MagicMock()
     ev = AutoModeEvaluator(environment, openings, features)
     assert ev._outside_delta_boost_c is None
+
+
+def test_evaluate_accepts_outside_temp_and_stall_flag() -> None:
+    """evaluate() accepts outside_temp and outside_sensor_stalled kwargs without error."""
+    ev = _make_evaluator()
+    decision = ev.evaluate(
+        last_decision=None,
+        outside_temp=5.0,
+        outside_sensor_stalled=False,
+    )
+    # With all defaults (cur_temp == target_temp), nothing fires → idle.
+    assert decision.next_mode is None
+
+
+def test_evaluate_outside_temp_defaults_to_none() -> None:
+    """evaluate() defaults outside_temp/outside_sensor_stalled when not supplied."""
+    ev = _make_evaluator()
+    decision = ev.evaluate(last_decision=None)
+    assert decision.next_mode is None

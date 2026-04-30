@@ -74,6 +74,8 @@ class AutoModeEvaluator:
         *,
         temp_sensor_stalled: bool = False,
         humidity_sensor_stalled: bool = False,
+        outside_temp: float | None = None,
+        outside_sensor_stalled: bool = False,
     ) -> AutoDecision:
         """Return the next AutoDecision based on the priority table."""
         env = self._environment
