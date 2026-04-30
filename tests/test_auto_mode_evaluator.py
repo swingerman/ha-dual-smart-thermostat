@@ -675,3 +675,80 @@ def test_full_scan_outside_bias_skipped_when_below_target() -> None:
         outside_temp=-5.0,  # huge delta but no underlying trigger
     )
     assert decision.next_mode is None  # idle
+
+
+def test_free_cooling_skipped_when_no_fan_configured() -> None:
+    """No fan configured → free cooling never fires."""
+    ev = _make_evaluator()
+    ev._features.is_configured_for_fan_mode = False
+    ev._environment.cur_temp = 24.0
+    assert (
+        ev._free_cooling_applies(outside_temp=15.0, outside_sensor_stalled=False)
+        is False
+    )
+
+
+def test_free_cooling_skipped_when_outside_temp_none() -> None:
+    """No outside reading → no free cooling."""
+    ev = _make_evaluator()
+    ev._features.is_configured_for_fan_mode = True
+    ev._environment.cur_temp = 24.0
+    assert (
+        ev._free_cooling_applies(outside_temp=None, outside_sensor_stalled=False)
+        is False
+    )
+
+
+def test_free_cooling_skipped_when_outside_stalled() -> None:
+    """Stalled outside sensor → no free cooling."""
+    ev = _make_evaluator()
+    ev._features.is_configured_for_fan_mode = True
+    ev._environment.cur_temp = 24.0
+    assert (
+        ev._free_cooling_applies(outside_temp=15.0, outside_sensor_stalled=True)
+        is False
+    )
+
+
+def test_free_cooling_skipped_when_cur_temp_none() -> None:
+    """No inside reading → no free cooling."""
+    ev = _make_evaluator()
+    ev._features.is_configured_for_fan_mode = True
+    ev._environment.cur_temp = None
+    assert (
+        ev._free_cooling_applies(outside_temp=15.0, outside_sensor_stalled=False)
+        is False
+    )
+
+
+def test_free_cooling_fires_when_outside_more_than_margin_cooler() -> None:
+    """Free cooling fires when outside ≤ inside − 2°C margin."""
+    ev = _make_evaluator()
+    ev._features.is_configured_for_fan_mode = True
+    ev._environment.cur_temp = 24.0
+    assert (
+        ev._free_cooling_applies(outside_temp=22.0, outside_sensor_stalled=False)
+        is True
+    )  # exactly the 2°C margin
+
+
+def test_free_cooling_skipped_when_outside_within_margin() -> None:
+    """Free cooling does not fire when outside is within margin of inside."""
+    ev = _make_evaluator()
+    ev._features.is_configured_for_fan_mode = True
+    ev._environment.cur_temp = 24.0
+    assert (
+        ev._free_cooling_applies(outside_temp=22.5, outside_sensor_stalled=False)
+        is False
+    )  # only 1.5°C cooler
+
+
+def test_free_cooling_skipped_when_outside_warmer_than_inside() -> None:
+    """Outside warmer than inside → free cooling never fires."""
+    ev = _make_evaluator()
+    ev._features.is_configured_for_fan_mode = True
+    ev._environment.cur_temp = 24.0
+    assert (
+        ev._free_cooling_applies(outside_temp=28.0, outside_sensor_stalled=False)
+        is False
+    )

@@ -17,6 +17,11 @@ from .opening_manager import OpeningHvacModeScope
 
 _AUTO_SCOPE = OpeningHvacModeScope.ALL
 
+# Free-cooling margin (°C) — fan is preferred to compressor only when
+# outside is at least this much cooler than inside, in the normal cooling
+# tier. Hardcoded for v1; revisit if real users complain.
+_FREE_COOLING_MARGIN_C = 2.0
+
 
 @dataclass(frozen=True)
 class AutoDecision:
@@ -97,6 +102,29 @@ class AutoModeEvaluator:
         if mode == HVACMode.COOL:
             return outside_temp > inside
         return False
+
+    def _free_cooling_applies(
+        self,
+        *,
+        outside_temp: float | None,
+        outside_sensor_stalled: bool,
+    ) -> bool:
+        """Whether outside air is cool enough to use FAN_ONLY instead of COOL.
+
+        The caller is responsible for gating this on the normal-tier COOL
+        branch firing (priority 8). This helper only checks the prerequisites:
+        fan configured, outside reading available and fresh, inside reading
+        available, and outside is at least _FREE_COOLING_MARGIN_C cooler than
+        inside.
+        """
+        if not self._features.is_configured_for_fan_mode:
+            return False
+        if outside_temp is None or outside_sensor_stalled:
+            return False
+        inside = self._environment.cur_temp
+        if inside is None:
+            return False
+        return outside_temp <= inside - _FREE_COOLING_MARGIN_C
 
     def evaluate(
         self,
