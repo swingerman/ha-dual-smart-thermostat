@@ -395,3 +395,35 @@ async def test_auto_min_cycle_duration_propagates_to_controller(
     state = hass.states.get(common.ENTITY)
     assert state is not None
     assert state.state == HVACMode.AUTO
+
+
+# ---------------------------------------------------------------------------
+# Outside-sensor stall flag — Task 8
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_auto_outside_sensor_unconfigured_loads_cleanly(
+    hass: HomeAssistant,
+) -> None:
+    """Given a heater+cooler+AUTO setup with no outside sensor configured /
+    When AUTO loads /
+    Then setup completes without errors and the entity is reachable.
+
+    This is a regression guard for Task 8: if the new ``_outside_sensor_stalled``
+    attribute or ``_remove_outside_stale_tracking`` initialisation is broken the
+    entity will fail to load and ``state`` will be None / "unavailable".
+    """
+    # Given a heater+cooler climate with no outside_sensor in the config.
+    hass.config.units = METRIC_SYSTEM
+    setup_switch_dual(hass, ENT_COOLER_SWITCH, False, False)
+    setup_sensor(hass, 21.0)
+
+    # When the integration is set up.
+    assert await async_setup_component(hass, CLIMATE, _heater_cooler_yaml())
+    await hass.async_block_till_done()
+
+    # Then the entity is reachable and not unavailable.
+    state = hass.states.get(common.ENTITY)
+    assert state is not None
+    assert state.state != "unavailable"

@@ -569,8 +569,10 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self._sensor_stale_duration = sensor_stale_duration
         self._remove_stale_tracking: Callable[[], None] | None = None
         self._remove_humidity_stale_tracking: Callable[[], None] | None = None
+        self._remove_outside_stale_tracking: Callable[[], None] | None = None
         self._sensor_stalled = False
         self._humidity_sensor_stalled = False
+        self._outside_sensor_stalled = False
 
         # environment
         self._temp_precision = precision
@@ -970,6 +972,8 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             self._remove_stale_tracking()
         if self._remove_humidity_stale_tracking:
             self._remove_humidity_stale_tracking()
+        if self._remove_outside_stale_tracking:
+            self._remove_outside_stale_tracking()
         return await super().async_will_remove_from_hass()
 
     @property
@@ -1442,6 +1446,23 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             self._humidity_sensor_stalled = True
             self.async_write_ha_state()
 
+    async def _async_outside_sensor_not_responding(
+        self, now: datetime | None = None
+    ) -> None:
+        """Handle outside-temperature sensor stale event.
+
+        Outside data is advisory, not safety — we do NOT call emergency
+        stop or change the action reason. We just flip the stall flag so
+        the AUTO evaluator skips outside-bias next tick.
+        """
+        outside_sensor_id = self.sensor_outside_entity_id
+        state = self.hass.states.get(outside_sensor_id) if outside_sensor_id else None
+        _LOGGER.info(
+            "Outside sensor has not been updated for %s",
+            now - state.last_updated if now and state else "---",
+        )
+        self._outside_sensor_stalled = True
+
     async def _async_sensor_floor_changed_event(
         self, event: Event[EventStateChangedData]
     ) -> None:
@@ -1480,6 +1501,23 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         _LOGGER.debug("Sensor outside change: %s", new_state)
         if new_state is None or new_state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
             return
+
+        if self._sensor_stale_duration:
+            if self._outside_sensor_stalled:
+                self._outside_sensor_stalled = False
+                _LOGGER.warning(
+                    "Climate (%s) - outside sensor recovered with state: %s",
+                    self.unique_id,
+                    new_state,
+                )
+                self.async_write_ha_state()
+            if self._remove_outside_stale_tracking:
+                self._remove_outside_stale_tracking()
+            self._remove_outside_stale_tracking = async_track_time_interval(
+                self.hass,
+                self._async_outside_sensor_not_responding,
+                self._sensor_stale_duration,
+            )
 
         self.environment.update_outside_temp_from_state(new_state)
         if trigger_control:
