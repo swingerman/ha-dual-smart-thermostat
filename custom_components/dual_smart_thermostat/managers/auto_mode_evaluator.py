@@ -34,10 +34,18 @@ class AutoDecision:
 class AutoModeEvaluator:
     """Decides which concrete sub-mode AUTO runs each tick."""
 
-    def __init__(self, environment, openings, features) -> None:
+    def __init__(
+        self,
+        environment,
+        openings,
+        features,
+        *,
+        outside_delta_boost_c: float | None = None,
+    ) -> None:
         self._environment = environment
         self._openings = openings
         self._features = features
+        self._outside_delta_boost_c = outside_delta_boost_c
 
     @property
     def _can_heat(self) -> bool:

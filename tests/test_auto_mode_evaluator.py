@@ -439,3 +439,21 @@ def test_no_heater_capability_skips_heat_priorities() -> None:
     ev._environment.cur_temp = 19.0  # 2x cold — would normally HEAT
     decision = ev.evaluate(last_decision=None)
     assert decision.next_mode != HVACMode.HEAT
+
+
+def test_evaluator_accepts_outside_delta_boost_threshold() -> None:
+    """Evaluator stores the outside-delta-boost threshold (in °C) at construction."""
+    environment = MagicMock()
+    openings = MagicMock()
+    features = MagicMock()
+    ev = AutoModeEvaluator(environment, openings, features, outside_delta_boost_c=8.0)
+    assert ev._outside_delta_boost_c == 8.0
+
+
+def test_evaluator_default_outside_delta_boost_is_none() -> None:
+    """When no threshold is provided, the evaluator stores None and disables bias."""
+    environment = MagicMock()
+    openings = MagicMock()
+    features = MagicMock()
+    ev = AutoModeEvaluator(environment, openings, features)
+    assert ev._outside_delta_boost_c is None
