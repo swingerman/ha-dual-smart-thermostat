@@ -29,6 +29,7 @@ from . import common, setup_humidity_sensor, setup_sensor, setup_switch_dual
 # conventions while staying independent of common.ENT_COOLER (which is itself
 # an input_boolean used by other suites).
 ENT_COOLER_SWITCH = "switch.cooler_test"
+ENT_OUTSIDE_SENSOR = "sensor.outside_test"
 
 
 def _heater_cooler_yaml(
@@ -427,3 +428,100 @@ async def test_auto_outside_sensor_unconfigured_loads_cleanly(
     state = hass.states.get(common.ENTITY)
     assert state is not None
     assert state.state != "unavailable"
+
+
+# ---------------------------------------------------------------------------
+# Phase 1.3: outside-temperature bias
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_auto_helsinki_winter_loads_with_outside_sensor(
+    hass: HomeAssistant,
+) -> None:
+    """Given heater+cooler with outside_sensor and outside-delta-boost = 8°C,
+    AUTO active, room 1× tolerance below target, outside very cold /
+    When AUTO evaluates /
+    Then it picks HEAT and emits AUTO_PRIORITY_TEMPERATURE.
+
+    This is a smoke test: it verifies the Phase 1.3 wiring (config read,
+    sensor plumbing, evaluator threading) works end-to-end and does not
+    break the normal HEAT path.
+    """
+    hass.config.units = METRIC_SYSTEM
+    setup_switch_dual(hass, ENT_COOLER_SWITCH, False, False)
+    setup_sensor(hass, 20.5)  # 1× cold-tolerance below 21.0 target
+    hass.states.async_set(ENT_OUTSIDE_SENSOR, "-5.0")  # very cold
+
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        _heater_cooler_yaml(
+            outside_sensor=ENT_OUTSIDE_SENSOR,
+            auto_outside_delta_boost=8.0,
+        ),
+    )
+    await hass.async_block_till_done()
+    await common.async_set_hvac_mode(hass, HVACMode.AUTO, common.ENTITY)
+    await hass.async_block_till_done()
+
+    state = hass.states.get(common.ENTITY)
+    assert state is not None
+    assert state.attributes["hvac_action_reason"] == "auto_priority_temperature"
+
+
+@pytest.mark.asyncio
+async def test_auto_free_cooling_picks_fan_over_cool_in_normal_tier(
+    hass: HomeAssistant,
+) -> None:
+    """Given heater+cooler+fan with outside_sensor /
+    AUTO active, room 1× hot-tolerance above target, outside 4°C cooler /
+    When AUTO evaluates /
+    Then it picks FAN_ONLY (not COOL) — outside air does the work.
+
+    Verifies the free-cooling path emits AUTO_PRIORITY_COMFORT.
+    """
+    hass.config.units = METRIC_SYSTEM
+    setup_switch_dual(hass, ENT_COOLER_SWITCH, False, False)
+    setup_switch_dual(hass, "switch.fan_test", False, False)
+    setup_sensor(hass, 21.5)  # 1× hot-tolerance above 21.0 target → normal COOL
+    hass.states.async_set(ENT_OUTSIDE_SENSOR, "17.5")  # 4°C cooler
+
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        _heater_cooler_yaml(
+            outside_sensor=ENT_OUTSIDE_SENSOR,
+            fan="switch.fan_test",
+        ),
+    )
+    await hass.async_block_till_done()
+    await common.async_set_hvac_mode(hass, HVACMode.AUTO, common.ENTITY)
+    await hass.async_block_till_done()
+
+    state = hass.states.get(common.ENTITY)
+    assert state is not None
+    assert state.attributes["hvac_action_reason"] == "auto_priority_comfort"
+
+
+@pytest.mark.asyncio
+async def test_auto_without_outside_sensor_behaves_like_phase_1_2(
+    hass: HomeAssistant,
+) -> None:
+    """Given heater+cooler with NO outside_sensor /
+    AUTO active, room 1× cold-tolerance below target /
+    When AUTO evaluates /
+    Then it picks HEAT with AUTO_PRIORITY_TEMPERATURE — Phase 1.2 behavior
+    is preserved (regression guard for Tasks 5/7/9 plumbing)."""
+    hass.config.units = METRIC_SYSTEM
+    setup_switch_dual(hass, ENT_COOLER_SWITCH, False, False)
+    setup_sensor(hass, 20.5)
+
+    assert await async_setup_component(hass, CLIMATE, _heater_cooler_yaml())
+    await hass.async_block_till_done()
+    await common.async_set_hvac_mode(hass, HVACMode.AUTO, common.ENTITY)
+    await hass.async_block_till_done()
+
+    state = hass.states.get(common.ENTITY)
+    assert state is not None
+    assert state.attributes["hvac_action_reason"] == "auto_priority_temperature"

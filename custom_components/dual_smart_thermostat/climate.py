@@ -221,6 +221,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
             cv.time_period, cv.positive_timedelta
         ),
         vol.Optional(CONF_OUTSIDE_SENSOR): cv.entity_id,
+        vol.Optional(CONF_AUTO_OUTSIDE_DELTA_BOOST): vol.Coerce(float),
         vol.Optional(CONF_AC_MODE): cv.boolean,
         vol.Optional(CONF_HEAT_COOL_MODE): cv.boolean,
         vol.Optional(CONF_MAX_TEMP): vol.Coerce(float),
