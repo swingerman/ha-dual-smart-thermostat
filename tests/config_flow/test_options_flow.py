@@ -39,6 +39,7 @@ from custom_components.dual_smart_thermostat.const import (
     CONF_SENSOR,
     CONF_SYSTEM_TYPE,
     CONF_TARGET_HUMIDITY,
+    CONF_USE_APPARENT_TEMP,
     DOMAIN,
     SYSTEM_TYPE_AC_ONLY,
     SYSTEM_TYPE_HEATER_COOLER,
@@ -1283,3 +1284,56 @@ async def test_options_flow_persists_auto_outside_delta_boost(mock_hass):
 
     # CONF_AUTO_OUTSIDE_DELTA_BOOST must be present in collected_config
     assert flow.collected_config.get(CONF_AUTO_OUTSIDE_DELTA_BOOST) == 12.0
+
+
+@pytest.mark.asyncio
+async def test_options_flow_persists_use_apparent_temp(mock_hass):
+    """CONF_USE_APPARENT_TEMP round-trips through the options flow.
+
+    The toggle lives in the advanced_settings collapsed section and is only
+    surfaced when a humidity_sensor is configured (heater_cooler system).
+    Submitting the init step with the toggle set to True should land it in
+    collected_config so it is persisted into the config entry's options.
+    """
+    config_entry = Mock()
+    config_entry.data = {
+        CONF_NAME: "Test Thermostat",
+        CONF_SYSTEM_TYPE: SYSTEM_TYPE_HEATER_COOLER,
+        CONF_SENSOR: "sensor.temperature",
+        CONF_HEATER: "switch.heater",
+        CONF_COOLER: "switch.cooler",
+        CONF_HUMIDITY_SENSOR: "sensor.humidity",
+    }
+    config_entry.options = {}
+    config_entry.entry_id = "test_apparent_temp_entry"
+
+    flow = OptionsFlowHandler(config_entry)
+    flow.hass = mock_hass
+
+    # Verify the init form is shown
+    result = await flow.async_step_init()
+    assert result["type"] == FlowResultType.FORM
+    assert result["step_id"] == "init"
+
+    # Submit advanced_settings containing the apparent-temp toggle
+    result = await flow.async_step_init(
+        {
+            "advanced_settings": {
+                CONF_USE_APPARENT_TEMP: True,
+            }
+        }
+    )
+
+    # The flow may continue to subsequent steps (fan, humidity, openings,
+    # presets…). Walk through each with empty input to accept defaults.
+    max_steps = 10
+    while result["type"] == FlowResultType.FORM and max_steps > 0:
+        step_id = result.get("step_id", "")
+        step_handler = getattr(flow, f"async_step_{step_id}", None)
+        if step_handler is None:
+            break
+        result = await step_handler({})
+        max_steps -= 1
+
+    # CONF_USE_APPARENT_TEMP must be present and True in collected_config
+    assert flow.collected_config.get(CONF_USE_APPARENT_TEMP) is True

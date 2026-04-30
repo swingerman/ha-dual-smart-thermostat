@@ -43,6 +43,7 @@ from .const import (
     CONF_TARGET_TEMP_HIGH,
     CONF_TARGET_TEMP_LOW,
     CONF_TEMP_STEP,
+    CONF_USE_APPARENT_TEMP,
     SYSTEM_TYPE_AC_ONLY,
     SYSTEM_TYPE_DUAL_STAGE,
     SYSTEM_TYPE_FLOOR_HEATING,
@@ -476,6 +477,15 @@ class OptionsFlowHandler(OptionsFlow):
                         unit_of_measurement=DEGREE,
                     )
                 )
+
+            # Phase 1.4 — apparent temp toggle, gated on humidity sensor configured.
+            if current_config.get(CONF_HUMIDITY_SENSOR):
+                advanced_dict[
+                    vol.Optional(
+                        CONF_USE_APPARENT_TEMP,
+                        default=current_config.get(CONF_USE_APPARENT_TEMP, False),
+                    )
+                ] = selector.BooleanSelector()
 
         # Add advanced settings section if there are any fields
         if advanced_dict:
