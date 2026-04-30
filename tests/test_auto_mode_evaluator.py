@@ -476,3 +476,141 @@ def test_evaluate_outside_temp_defaults_to_none() -> None:
     ev = _make_evaluator()
     decision = ev.evaluate(last_decision=None)
     assert decision.next_mode is None
+
+
+def test_outside_promotion_threshold_disabled_when_none() -> None:
+    """No threshold configured → never promote, regardless of outside delta."""
+    ev = _make_evaluator()
+    ev._outside_delta_boost_c = None
+    ev._environment.cur_temp = 18.0  # 3°C cold
+    assert (
+        ev._outside_promotes_to_urgent(
+            HVACMode.HEAT, outside_temp=-10.0, outside_sensor_stalled=False
+        )
+        is False
+    )
+
+
+def test_outside_promotion_skipped_when_outside_temp_none() -> None:
+    """No outside reading available → no promotion."""
+    ev = _make_evaluator()
+    ev._outside_delta_boost_c = 8.0
+    ev._environment.cur_temp = 18.0
+    assert (
+        ev._outside_promotes_to_urgent(
+            HVACMode.HEAT, outside_temp=None, outside_sensor_stalled=False
+        )
+        is False
+    )
+
+
+def test_outside_promotion_skipped_when_outside_stalled() -> None:
+    """Stalled outside sensor → no promotion even when delta is huge."""
+    ev = _make_evaluator()
+    ev._outside_delta_boost_c = 8.0
+    ev._environment.cur_temp = 18.0
+    assert (
+        ev._outside_promotes_to_urgent(
+            HVACMode.HEAT, outside_temp=-10.0, outside_sensor_stalled=True
+        )
+        is False
+    )
+
+
+def test_outside_promotion_skipped_when_cur_temp_none() -> None:
+    """Inside reading missing → no promotion."""
+    ev = _make_evaluator()
+    ev._outside_delta_boost_c = 8.0
+    ev._environment.cur_temp = None
+    assert (
+        ev._outside_promotes_to_urgent(
+            HVACMode.HEAT, outside_temp=-10.0, outside_sensor_stalled=False
+        )
+        is False
+    )
+
+
+def test_outside_promotion_heat_fires_when_delta_meets_threshold_and_outside_colder() -> (
+    None
+):
+    """HEAT promotes when outside is colder AND |delta| ≥ threshold."""
+    ev = _make_evaluator()
+    ev._outside_delta_boost_c = 8.0
+    ev._environment.cur_temp = 18.0
+    assert (
+        ev._outside_promotes_to_urgent(
+            HVACMode.HEAT, outside_temp=10.0, outside_sensor_stalled=False
+        )
+        is True
+    )  # delta = 8.0, exactly threshold
+
+
+def test_outside_promotion_heat_skipped_when_delta_below_threshold() -> None:
+    """HEAT does not promote when delta is below threshold."""
+    ev = _make_evaluator()
+    ev._outside_delta_boost_c = 8.0
+    ev._environment.cur_temp = 18.0
+    assert (
+        ev._outside_promotes_to_urgent(
+            HVACMode.HEAT, outside_temp=11.0, outside_sensor_stalled=False
+        )
+        is False
+    )  # delta = 7.0
+
+
+def test_outside_promotion_heat_skipped_when_outside_warmer_than_inside() -> None:
+    """HEAT direction guard: outside warmer than inside → no promotion."""
+    ev = _make_evaluator()
+    ev._outside_delta_boost_c = 8.0
+    ev._environment.cur_temp = 18.0
+    assert (
+        ev._outside_promotes_to_urgent(
+            HVACMode.HEAT, outside_temp=27.0, outside_sensor_stalled=False
+        )
+        is False
+    )  # delta = 9.0 but outside is warmer
+
+
+def test_outside_promotion_cool_fires_when_outside_hotter() -> None:
+    """COOL promotes when outside is hotter AND |delta| ≥ threshold."""
+    ev = _make_evaluator()
+    ev._outside_delta_boost_c = 8.0
+    ev._environment.cur_temp = 24.0
+    assert (
+        ev._outside_promotes_to_urgent(
+            HVACMode.COOL, outside_temp=33.0, outside_sensor_stalled=False
+        )
+        is True
+    )
+
+
+def test_outside_promotion_cool_skipped_when_outside_cooler() -> None:
+    """COOL direction guard: outside cooler than inside → no promotion."""
+    ev = _make_evaluator()
+    ev._outside_delta_boost_c = 8.0
+    ev._environment.cur_temp = 24.0
+    assert (
+        ev._outside_promotes_to_urgent(
+            HVACMode.COOL, outside_temp=10.0, outside_sensor_stalled=False
+        )
+        is False
+    )
+
+
+def test_outside_promotion_skipped_for_non_temp_modes() -> None:
+    """Non-temp modes (DRY, FAN_ONLY) never promote."""
+    ev = _make_evaluator()
+    ev._outside_delta_boost_c = 8.0
+    ev._environment.cur_temp = 18.0
+    assert (
+        ev._outside_promotes_to_urgent(
+            HVACMode.DRY, outside_temp=-10.0, outside_sensor_stalled=False
+        )
+        is False
+    )
+    assert (
+        ev._outside_promotes_to_urgent(
+            HVACMode.FAN_ONLY, outside_temp=-10.0, outside_sensor_stalled=False
+        )
+        is False
+    )

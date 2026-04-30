@@ -68,6 +68,36 @@ class AutoModeEvaluator:
     def _dryer_configured(self) -> bool:
         return self._features.is_configured_for_dryer_mode
 
+    def _outside_promotes_to_urgent(
+        self,
+        mode: HVACMode,
+        *,
+        outside_temp: float | None,
+        outside_sensor_stalled: bool,
+    ) -> bool:
+        """Whether outside temperature delta promotes a normal-tier temp priority.
+
+        Returns True only for HEAT (when outside is colder than inside) and COOL
+        (when outside is hotter than inside) when the absolute delta meets the
+        configured threshold. Returns False if the threshold is not configured,
+        the outside reading is missing or stale, or the inside reading is missing.
+        """
+        if self._outside_delta_boost_c is None:
+            return False
+        if outside_temp is None or outside_sensor_stalled:
+            return False
+        inside = self._environment.cur_temp
+        if inside is None:
+            return False
+        delta = abs(inside - outside_temp)
+        if delta < self._outside_delta_boost_c:
+            return False
+        if mode == HVACMode.HEAT:
+            return outside_temp < inside
+        if mode == HVACMode.COOL:
+            return outside_temp > inside
+        return False
+
     def evaluate(
         self,
         last_decision: AutoDecision | None,
