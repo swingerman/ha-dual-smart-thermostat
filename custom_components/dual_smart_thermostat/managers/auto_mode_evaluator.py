@@ -265,8 +265,22 @@ class AutoModeEvaluator:
                 reason=HVACActionReason.AUTO_PRIORITY_TEMPERATURE,
             )
 
-        # Priority 8 (normal hot).
+        # Priority 8 (normal hot) — free cooling preempts COOL when outside is
+        # cool enough AND the priority is NOT promoted to urgent by outside-delta.
         if self._can_cool and self._temp_too_hot(env, hot_tolerance, multiplier=1):
+            promoted = self._outside_promotes_to_urgent(
+                HVACMode.COOL,
+                outside_temp=outside_temp,
+                outside_sensor_stalled=outside_sensor_stalled,
+            )
+            if not promoted and self._free_cooling_applies(
+                outside_temp=outside_temp,
+                outside_sensor_stalled=outside_sensor_stalled,
+            ):
+                return AutoDecision(
+                    next_mode=HVACMode.FAN_ONLY,
+                    reason=HVACActionReason.AUTO_PRIORITY_COMFORT,
+                )
             return AutoDecision(
                 next_mode=HVACMode.COOL,
                 reason=HVACActionReason.AUTO_PRIORITY_TEMPERATURE,

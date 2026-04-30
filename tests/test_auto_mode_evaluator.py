@@ -752,3 +752,65 @@ def test_free_cooling_skipped_when_outside_warmer_than_inside() -> None:
         ev._free_cooling_applies(outside_temp=28.0, outside_sensor_stalled=False)
         is False
     )
+
+
+def test_full_scan_picks_fan_for_free_cooling_in_normal_cool_tier() -> None:
+    """Normal-tier COOL with outside cool enough → pick FAN_ONLY instead."""
+    ev = _make_evaluator()
+    ev._features.is_configured_for_cooler_mode = True
+    ev._features.is_configured_for_fan_mode = True
+    ev._outside_delta_boost_c = 8.0
+    ev._environment.cur_temp = 21.5  # 1× above 21.0 target → normal-tier COOL
+    decision = ev.evaluate(
+        last_decision=None,
+        outside_temp=18.0,  # 3.5°C cooler — meets 2°C margin
+        outside_sensor_stalled=False,
+    )
+    assert decision.next_mode == HVACMode.FAN_ONLY
+    assert decision.reason == HVACActionReason.AUTO_PRIORITY_COMFORT
+
+
+def test_full_scan_does_not_pick_fan_when_free_cooling_margin_not_met() -> None:
+    """Normal-tier COOL with outside not cool enough → still pick COOL."""
+    ev = _make_evaluator()
+    ev._features.is_configured_for_cooler_mode = True
+    ev._features.is_configured_for_fan_mode = True
+    ev._environment.cur_temp = 21.5
+    decision = ev.evaluate(
+        last_decision=None,
+        outside_temp=20.5,  # only 1°C cooler — below 2°C margin
+    )
+    assert decision.next_mode == HVACMode.COOL
+
+
+def test_full_scan_skips_free_cooling_in_urgent_tier() -> None:
+    """Urgent COOL stays COOL — fan would be too slow when room is hot."""
+    ev = _make_evaluator()
+    ev._features.is_configured_for_cooler_mode = True
+    ev._features.is_configured_for_fan_mode = True
+    ev._environment.cur_temp = 22.5  # 2× above target → urgent
+    decision = ev.evaluate(
+        last_decision=None,
+        outside_temp=18.0,  # cool, but irrelevant — urgent picks COOL
+    )
+    assert decision.next_mode == HVACMode.COOL
+
+
+def test_full_scan_skips_free_cooling_when_outside_promotes_to_urgent() -> None:
+    """Outside-delta-promotion of normal COOL also suppresses free cooling.
+
+    This proves the priority order: outside-delta promotion takes effect
+    before free-cooling consideration.
+    """
+    ev = _make_evaluator()
+    ev._features.is_configured_for_cooler_mode = True
+    ev._features.is_configured_for_fan_mode = True
+    ev._outside_delta_boost_c = 8.0
+    # Normal-tier COOL (only 1× over) but outside is hot AND large delta.
+    ev._environment.cur_temp = 21.5
+    # outside hotter than inside by 10.5°C → promotes COOL to urgent → no fan.
+    decision = ev.evaluate(
+        last_decision=None,
+        outside_temp=32.0,
+    )
+    assert decision.next_mode == HVACMode.COOL
