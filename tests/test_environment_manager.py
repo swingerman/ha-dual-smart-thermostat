@@ -68,3 +68,79 @@ def test_env_manager_humidity_sensor_stalled_setter_updates_flag() -> None:
     env = _make_env()
     env.humidity_sensor_stalled = True
     assert env.humidity_sensor_stalled is True
+
+
+def test_apparent_temp_falls_back_when_flag_off() -> None:
+    """Flag off → apparent_temp returns cur_temp regardless of humidity."""
+    env = _make_env()
+    env._cur_temp = 32.0
+    env._cur_humidity = 80.0
+    assert env.apparent_temp == 32.0
+
+
+def test_apparent_temp_falls_back_when_cur_temp_none() -> None:
+    """No temp → apparent_temp returns None."""
+    from custom_components.dual_smart_thermostat.const import CONF_USE_APPARENT_TEMP
+
+    env = _make_env(**{CONF_USE_APPARENT_TEMP: True})
+    env._cur_temp = None
+    env._cur_humidity = 80.0
+    assert env.apparent_temp is None
+
+
+def test_apparent_temp_falls_back_when_humidity_none() -> None:
+    """Humidity unavailable → apparent_temp returns cur_temp."""
+    from custom_components.dual_smart_thermostat.const import CONF_USE_APPARENT_TEMP
+
+    env = _make_env(**{CONF_USE_APPARENT_TEMP: True})
+    env._cur_temp = 32.0
+    env._cur_humidity = None
+    assert env.apparent_temp == 32.0
+
+
+def test_apparent_temp_falls_back_when_humidity_stalled() -> None:
+    """Humidity stalled → apparent_temp returns cur_temp."""
+    from custom_components.dual_smart_thermostat.const import CONF_USE_APPARENT_TEMP
+
+    env = _make_env(**{CONF_USE_APPARENT_TEMP: True})
+    env._cur_temp = 32.0
+    env._cur_humidity = 80.0
+    env.humidity_sensor_stalled = True
+    assert env.apparent_temp == 32.0
+
+
+def test_apparent_temp_falls_back_below_27c_threshold() -> None:
+    """Below 27°C (Rothfusz validity threshold) → returns cur_temp."""
+    from custom_components.dual_smart_thermostat.const import CONF_USE_APPARENT_TEMP
+
+    env = _make_env(**{CONF_USE_APPARENT_TEMP: True})
+    env._cur_temp = 26.9  # just below
+    env._cur_humidity = 80.0
+    assert env.apparent_temp == 26.9
+
+
+def test_apparent_temp_above_threshold_humid_celsius() -> None:
+    """Above threshold + humid → apparent_temp > cur_temp."""
+    from custom_components.dual_smart_thermostat.const import CONF_USE_APPARENT_TEMP
+
+    env = _make_env(**{CONF_USE_APPARENT_TEMP: True})
+    env._cur_temp = 32.0  # ≈90°F
+    env._cur_humidity = 80.0
+    apparent = env.apparent_temp
+    assert apparent is not None
+    assert 39.0 < apparent < 47.0
+    assert apparent > env._cur_temp
+
+
+def test_apparent_temp_fahrenheit_input_conversion() -> None:
+    """Same physical conditions in °F input → consistent output in °F."""
+    from custom_components.dual_smart_thermostat.const import CONF_USE_APPARENT_TEMP
+
+    hass = MagicMock()
+    hass.config.units.temperature_unit = UnitOfTemperature.FAHRENHEIT
+    env = EnvironmentManager(hass, {CONF_USE_APPARENT_TEMP: True})
+    env._cur_temp = 90.0  # 90°F = 32.2°C
+    env._cur_humidity = 80.0
+    apparent = env.apparent_temp
+    # 90°F / 80% RH → 113°F per NWS table (window 110-116).
+    assert 110.0 < apparent < 116.0

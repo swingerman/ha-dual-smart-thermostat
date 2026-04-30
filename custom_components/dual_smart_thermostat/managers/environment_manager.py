@@ -174,6 +174,38 @@ class EnvironmentManager(StateManager):
         return self._cur_outside_temp
 
     @property
+    def apparent_temp(self) -> float | None:
+        """Heat-index ("feels-like") temperature in the user's configured unit.
+
+        Returns ``cur_temp`` (i.e. acts as a no-op) when:
+        - ``CONF_USE_APPARENT_TEMP`` is False,
+        - ``cur_temp`` or ``cur_humidity`` is missing,
+        - the humidity sensor is stalled,
+        - or the dry-bulb temperature is below 27 °C (Rothfusz validity).
+
+        Otherwise returns the NWS Rothfusz heat index, computed in °F and
+        converted back to the user's unit.
+        """
+        if not self._use_apparent_temp:
+            return self._cur_temp
+        if self._cur_temp is None or self._cur_humidity is None:
+            return self._cur_temp
+        if self._humidity_sensor_stalled:
+            return self._cur_temp
+        cur_c = TemperatureConverter.convert(
+            self._cur_temp, self._temperature_unit, UnitOfTemperature.CELSIUS
+        )
+        if cur_c < 27.0:
+            return self._cur_temp
+        cur_f = TemperatureConverter.convert(
+            self._cur_temp, self._temperature_unit, UnitOfTemperature.FAHRENHEIT
+        )
+        hi_f = _rothfusz_heat_index_f(cur_f, self._cur_humidity)
+        return TemperatureConverter.convert(
+            hi_f, UnitOfTemperature.FAHRENHEIT, self._temperature_unit
+        )
+
+    @property
     def target_temp(self) -> float:
         return self._target_temp
 
