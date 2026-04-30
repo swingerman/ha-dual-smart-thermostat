@@ -41,6 +41,7 @@ def _make_evaluator(**overrides) -> AutoModeEvaluator:
     environment.is_too_hot.return_value = False
     environment.is_too_moist = False
     environment.is_within_fan_tolerance.return_value = False
+    environment.effective_temp_for_mode = lambda mode: environment.cur_temp
 
     openings.any_opening_open.return_value = False
 
@@ -814,3 +815,57 @@ def test_full_scan_skips_free_cooling_when_outside_promotes_to_urgent() -> None:
         outside_temp=32.0,
     )
     assert decision.next_mode == HVACMode.COOL
+
+
+def test_full_scan_picks_cool_when_apparent_above_target_even_if_raw_below() -> None:
+    """When CONF_USE_APPARENT_TEMP is on, AUTO picks COOL using apparent temp.
+
+    Setup: target=27, hot_tolerance=0.5, cur_temp=27.4 (raw → not too_hot),
+    humidity=80% (apparent → ~30°C → too_hot). AUTO must pick COOL.
+    """
+    ev = _make_evaluator()
+    ev._features.is_configured_for_cooler_mode = True
+    ev._environment.cur_temp = 27.4
+    ev._environment.cur_humidity = 80.0
+    ev._environment.target_temp = 27.0
+    ev._environment._get_active_tolerance_for_mode.return_value = (0.5, 0.5)
+
+    # Stub the env's effective_temp_for_mode to return apparent only for COOL.
+    def _eff(mode):
+        if mode == HVACMode.COOL:
+            return 30.0  # simulated apparent temp
+        return 27.4
+
+    ev._environment.effective_temp_for_mode = _eff
+    decision = ev.evaluate(last_decision=None)
+    assert decision.next_mode == HVACMode.COOL
+
+
+def test_full_scan_does_not_pick_cool_when_raw_below_target_and_no_apparent_substitution() -> (
+    None
+):
+    """Without apparent substitution, AUTO does NOT pick COOL when raw < target+tol."""
+    ev = _make_evaluator()
+    ev._features.is_configured_for_cooler_mode = True
+    ev._environment.cur_temp = 27.4
+    ev._environment.target_temp = 27.0
+    ev._environment._get_active_tolerance_for_mode.return_value = (0.5, 0.5)
+    # effective_temp_for_mode returns raw for all modes (flag off behaviour).
+    ev._environment.effective_temp_for_mode = lambda mode: 27.4
+    decision = ev.evaluate(last_decision=None)
+    assert decision.next_mode is None  # idle
+
+
+def test_full_scan_apparent_only_affects_cool_decisions() -> None:
+    """HEAT decisions still consult cur_temp directly (regression guard)."""
+    ev = _make_evaluator()
+    ev._features.is_configured_for_heater_mode = True
+    ev._environment.cur_temp = 20.5
+    ev._environment.target_temp = 21.0
+    ev._environment._get_active_tolerance_for_mode.return_value = (0.5, 0.5)
+    # If something accidentally consulted effective_temp_for_mode for HEAT,
+    # this stub would lie and say apparent is 22 — which would NOT trigger HEAT.
+    # The test passes only if _temp_too_cold uses raw cur_temp (20.5 < 20.5).
+    ev._environment.effective_temp_for_mode = lambda mode: 22.0
+    decision = ev.evaluate(last_decision=None)
+    assert decision.next_mode == HVACMode.HEAT
