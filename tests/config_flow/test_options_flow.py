@@ -21,6 +21,7 @@ import pytest
 
 from custom_components.dual_smart_thermostat.const import (
     ATTR_OPENING_TIMEOUT,
+    CONF_AUTO_OUTSIDE_DELTA_BOOST,
     CONF_COLD_TOLERANCE,
     CONF_COOLER,
     CONF_FAN,
@@ -34,6 +35,7 @@ from custom_components.dual_smart_thermostat.const import (
     CONF_MIN_DUR,
     CONF_OPENINGS,
     CONF_OPENINGS_SCOPE,
+    CONF_OUTSIDE_SENSOR,
     CONF_SENSOR,
     CONF_SYSTEM_TYPE,
     CONF_TARGET_HUMIDITY,
@@ -1227,3 +1229,57 @@ async def test_keep_alive_and_min_cycle_always_available_in_options(hass):
     # Verify the values were saved in collected_config
     assert flow.collected_config.get(CONF_KEEP_ALIVE) is not None
     assert flow.collected_config.get(CONF_MIN_DUR) is not None
+
+
+@pytest.mark.asyncio
+async def test_options_flow_persists_auto_outside_delta_boost(mock_hass):
+    """CONF_AUTO_OUTSIDE_DELTA_BOOST round-trips through the options flow.
+
+    The knob lives in the advanced_settings collapsed section and is only
+    surfaced when an outside_sensor is configured (heater_cooler system).
+    Submitting the init step with the new knob should land it in
+    collected_config so it is persisted into the config entry's options.
+    """
+    config_entry = Mock()
+    config_entry.data = {
+        CONF_NAME: "Test Thermostat",
+        CONF_SYSTEM_TYPE: SYSTEM_TYPE_HEATER_COOLER,
+        CONF_SENSOR: "sensor.temperature",
+        CONF_HEATER: "switch.heater",
+        CONF_COOLER: "switch.cooler",
+        CONF_OUTSIDE_SENSOR: "sensor.outside_temp",
+    }
+    config_entry.options = {}
+    config_entry.entry_id = "test_outside_delta_entry"
+
+    flow = OptionsFlowHandler(config_entry)
+    flow.hass = mock_hass
+
+    # Verify the init form is shown
+    result = await flow.async_step_init()
+    assert result["type"] == FlowResultType.FORM
+    assert result["step_id"] == "init"
+
+    # Submit advanced_settings containing the new knob
+    result = await flow.async_step_init(
+        {
+            "advanced_settings": {
+                CONF_AUTO_OUTSIDE_DELTA_BOOST: 12.0,
+            }
+        }
+    )
+
+    # The flow may continue to subsequent steps (fan, humidity, openings,
+    # presets…). Walk through each with empty input to accept defaults.
+    max_steps = 10
+    while result["type"] == FlowResultType.FORM and max_steps > 0:
+        step_id = result.get("step_id", "")
+        # Determine the handler for the current step
+        step_handler = getattr(flow, f"async_step_{step_id}", None)
+        if step_handler is None:
+            break
+        result = await step_handler({})
+        max_steps -= 1
+
+    # CONF_AUTO_OUTSIDE_DELTA_BOOST must be present in collected_config
+    assert flow.collected_config.get(CONF_AUTO_OUTSIDE_DELTA_BOOST) == 12.0

@@ -34,6 +34,7 @@ from homeassistant.const import (
     STATE_UNAVAILABLE,
     STATE_UNKNOWN,
     Platform,
+    UnitOfTemperature,
 )
 from homeassistant.core import (
     CoreState,
@@ -57,6 +58,7 @@ from homeassistant.helpers.reload import async_setup_reload_service
 from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.service import extract_entity_ids
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
+from homeassistant.util.unit_conversion import TemperatureConverter
 import voluptuous as vol
 
 from . import DOMAIN, PLATFORMS
@@ -73,6 +75,7 @@ from .const import (
     ATTR_PREV_TARGET_HIGH,
     ATTR_PREV_TARGET_LOW,
     CONF_AC_MODE,
+    CONF_AUTO_OUTSIDE_DELTA_BOOST,
     CONF_AUX_HEATER,
     CONF_AUX_HEATING_DUAL_MODE,
     CONF_AUX_HEATING_TIMEOUT,
@@ -218,6 +221,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
             cv.time_period, cv.positive_timedelta
         ),
         vol.Optional(CONF_OUTSIDE_SENSOR): cv.entity_id,
+        vol.Optional(CONF_AUTO_OUTSIDE_DELTA_BOOST): vol.Coerce(float),
         vol.Optional(CONF_AC_MODE): cv.boolean,
         vol.Optional(CONF_HEAT_COOL_MODE): cv.boolean,
         vol.Optional(CONF_MAX_TEMP): vol.Coerce(float),
@@ -411,6 +415,7 @@ async def _async_setup_config(
     sensor_outside_entity_id = config.get(CONF_OUTSIDE_SENSOR)
     sensor_humidity_entity_id = config.get(CONF_HUMIDITY_SENSOR)
     sensor_stale_duration: timedelta | None = config.get(CONF_STALE_DURATION)
+    auto_outside_delta_boost = config.get(CONF_AUTO_OUTSIDE_DELTA_BOOST)
     sensor_heat_pump_cooling_entity_id = config.get(CONF_HEAT_PUMP_COOLING)
     keep_alive = config.get(CONF_KEEP_ALIVE)
 
@@ -465,6 +470,7 @@ async def _async_setup_config(
         opening_manager,
         feature_manager,
         hvac_power_manager,
+        auto_outside_delta_boost=auto_outside_delta_boost,
     )
     sensor_key = unique_id or name
     thermostat._action_reason_sensor_key = sensor_key
@@ -532,6 +538,8 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         opening_manager: OpeningManager,
         feature_manager: FeatureManager,
         power_manager: HvacPowerManager,
+        *,
+        auto_outside_delta_boost: float | None = None,
     ) -> None:
         """Initialize the thermostat."""
         self._attr_name = name
@@ -569,8 +577,10 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self._sensor_stale_duration = sensor_stale_duration
         self._remove_stale_tracking: Callable[[], None] | None = None
         self._remove_humidity_stale_tracking: Callable[[], None] | None = None
+        self._remove_outside_stale_tracking: Callable[[], None] | None = None
         self._sensor_stalled = False
         self._humidity_sensor_stalled = False
+        self._outside_sensor_stalled = False
 
         # environment
         self._temp_precision = precision
@@ -605,10 +615,20 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self._remove_signal_hvac_action_reason = None
         self._action_reason_sensor_key: str | None = None
 
-        # Auto mode (Phase 1.2)
+        # Auto mode (Phase 1.2 + 1.3)
         if feature_manager.is_configured_for_auto_mode:
+            outside_delta_boost_c: float | None = None
+            if auto_outside_delta_boost is not None:
+                outside_delta_boost_c = TemperatureConverter.convert(
+                    auto_outside_delta_boost,
+                    unit,
+                    UnitOfTemperature.CELSIUS,
+                )
             self._auto_evaluator: AutoModeEvaluator | None = AutoModeEvaluator(
-                environment_manager, opening_manager, feature_manager
+                environment_manager,
+                opening_manager,
+                feature_manager,
+                outside_delta_boost_c=outside_delta_boost_c,
             )
         else:
             self._auto_evaluator = None
@@ -970,6 +990,8 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             self._remove_stale_tracking()
         if self._remove_humidity_stale_tracking:
             self._remove_humidity_stale_tracking()
+        if self._remove_outside_stale_tracking:
+            self._remove_outside_stale_tracking()
         return await super().async_will_remove_from_hass()
 
     @property
@@ -1442,6 +1464,23 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             self._humidity_sensor_stalled = True
             self.async_write_ha_state()
 
+    async def _async_outside_sensor_not_responding(
+        self, now: datetime | None = None
+    ) -> None:
+        """Handle outside-temperature sensor stale event.
+
+        Outside data is advisory, not safety — we do NOT call emergency
+        stop or change the action reason. We just flip the stall flag so
+        the AUTO evaluator skips outside-bias next tick.
+        """
+        outside_sensor_id = self.sensor_outside_entity_id
+        state = self.hass.states.get(outside_sensor_id) if outside_sensor_id else None
+        _LOGGER.info(
+            "Outside sensor has not been updated for %s",
+            now - state.last_updated if now and state else "---",
+        )
+        self._outside_sensor_stalled = True
+
     async def _async_sensor_floor_changed_event(
         self, event: Event[EventStateChangedData]
     ) -> None:
@@ -1480,6 +1519,23 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         _LOGGER.debug("Sensor outside change: %s", new_state)
         if new_state is None or new_state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
             return
+
+        if self._sensor_stale_duration:
+            if self._outside_sensor_stalled:
+                self._outside_sensor_stalled = False
+                _LOGGER.warning(
+                    "Climate (%s) - outside sensor recovered with state: %s",
+                    self.unique_id,
+                    new_state,
+                )
+                self.async_write_ha_state()
+            if self._remove_outside_stale_tracking:
+                self._remove_outside_stale_tracking()
+            self._remove_outside_stale_tracking = async_track_time_interval(
+                self.hass,
+                self._async_outside_sensor_not_responding,
+                self._sensor_stale_duration,
+            )
 
         self.environment.update_outside_temp_from_state(new_state)
         if trigger_control:
@@ -1650,6 +1706,8 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             self._last_auto_decision,
             temp_sensor_stalled=self._sensor_stalled,
             humidity_sensor_stalled=self._humidity_sensor_stalled,
+            outside_temp=self.environment.cur_outside_temp,
+            outside_sensor_stalled=self._outside_sensor_stalled,
         )
         self._last_auto_decision = decision
 

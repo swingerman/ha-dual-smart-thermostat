@@ -17,6 +17,11 @@ from .opening_manager import OpeningHvacModeScope
 
 _AUTO_SCOPE = OpeningHvacModeScope.ALL
 
+# Free-cooling margin (°C) — fan is preferred to compressor only when
+# outside is at least this much cooler than inside, in the normal cooling
+# tier. Hardcoded for v1; revisit if real users complain.
+_FREE_COOLING_MARGIN_C = 2.0
+
 
 @dataclass(frozen=True)
 class AutoDecision:
@@ -34,10 +39,18 @@ class AutoDecision:
 class AutoModeEvaluator:
     """Decides which concrete sub-mode AUTO runs each tick."""
 
-    def __init__(self, environment, openings, features) -> None:
+    def __init__(
+        self,
+        environment,
+        openings,
+        features,
+        *,
+        outside_delta_boost_c: float | None = None,
+    ) -> None:
         self._environment = environment
         self._openings = openings
         self._features = features
+        self._outside_delta_boost_c = outside_delta_boost_c
 
     @property
     def _can_heat(self) -> bool:
@@ -60,12 +73,67 @@ class AutoModeEvaluator:
     def _dryer_configured(self) -> bool:
         return self._features.is_configured_for_dryer_mode
 
+    def _outside_promotes_to_urgent(
+        self,
+        mode: HVACMode,
+        *,
+        outside_temp: float | None,
+        outside_sensor_stalled: bool,
+    ) -> bool:
+        """Whether outside temperature delta promotes a normal-tier temp priority.
+
+        Returns True only for HEAT (when outside is colder than inside) and COOL
+        (when outside is hotter than inside) when the absolute delta meets the
+        configured threshold. Returns False if the threshold is not configured,
+        the outside reading is missing or stale, or the inside reading is missing.
+        """
+        if self._outside_delta_boost_c is None:
+            return False
+        if outside_temp is None or outside_sensor_stalled:
+            return False
+        inside = self._environment.cur_temp
+        if inside is None:
+            return False
+        delta = abs(inside - outside_temp)
+        if delta < self._outside_delta_boost_c:
+            return False
+        if mode == HVACMode.HEAT:
+            return outside_temp < inside
+        if mode == HVACMode.COOL:
+            return outside_temp > inside
+        return False
+
+    def _free_cooling_applies(
+        self,
+        *,
+        outside_temp: float | None,
+        outside_sensor_stalled: bool,
+    ) -> bool:
+        """Whether outside air is cool enough to use FAN_ONLY instead of COOL.
+
+        The caller is responsible for gating this on the normal-tier COOL
+        branch firing (priority 8). This helper only checks the prerequisites:
+        fan configured, outside reading available and fresh, inside reading
+        available, and outside is at least _FREE_COOLING_MARGIN_C cooler than
+        inside.
+        """
+        if not self._features.is_configured_for_fan_mode:
+            return False
+        if outside_temp is None or outside_sensor_stalled:
+            return False
+        inside = self._environment.cur_temp
+        if inside is None:
+            return False
+        return outside_temp <= inside - _FREE_COOLING_MARGIN_C
+
     def evaluate(
         self,
         last_decision: AutoDecision | None,
         *,
         temp_sensor_stalled: bool = False,
         humidity_sensor_stalled: bool = False,
+        outside_temp: float | None = None,
+        outside_sensor_stalled: bool = False,
     ) -> AutoDecision:
         """Return the next AutoDecision based on the priority table."""
         env = self._environment
@@ -96,14 +164,23 @@ class AutoModeEvaluator:
                 hot_tolerance,
             ):
                 urgent = self._urgent_decision(
-                    humidity_available, cold_tolerance, hot_tolerance
+                    humidity_available,
+                    cold_tolerance,
+                    hot_tolerance,
+                    outside_temp=outside_temp,
+                    outside_sensor_stalled=outside_sensor_stalled,
                 )
                 if urgent is not None and urgent.next_mode != last_decision.next_mode:
                     return urgent
                 return last_decision
 
         return self._full_scan(
-            humidity_available, cold_tolerance, hot_tolerance, last_decision
+            humidity_available,
+            cold_tolerance,
+            hot_tolerance,
+            last_decision,
+            outside_temp=outside_temp,
+            outside_sensor_stalled=outside_sensor_stalled,
         )
 
     def _goal_pending(
@@ -130,6 +207,9 @@ class AutoModeEvaluator:
         humidity_available: bool,
         cold_tolerance: float,
         hot_tolerance: float,
+        *,
+        outside_temp: float | None = None,
+        outside_sensor_stalled: bool = False,
     ) -> AutoDecision | None:
         env = self._environment
         if humidity_available and self._humidity_at(env, multiplier=2):
@@ -155,11 +235,18 @@ class AutoModeEvaluator:
         cold_tolerance: float,
         hot_tolerance: float,
         last_decision: AutoDecision | None,
+        *,
+        outside_temp: float | None = None,
+        outside_sensor_stalled: bool = False,
     ) -> AutoDecision:
         env = self._environment
 
         urgent = self._urgent_decision(
-            humidity_available, cold_tolerance, hot_tolerance
+            humidity_available,
+            cold_tolerance,
+            hot_tolerance,
+            outside_temp=outside_temp,
+            outside_sensor_stalled=outside_sensor_stalled,
         )
         if urgent is not None:
             return urgent
@@ -178,8 +265,22 @@ class AutoModeEvaluator:
                 reason=HVACActionReason.AUTO_PRIORITY_TEMPERATURE,
             )
 
-        # Priority 8 (normal hot).
+        # Priority 8 (normal hot) — free cooling preempts COOL when outside is
+        # cool enough AND the priority is NOT promoted to urgent by outside-delta.
         if self._can_cool and self._temp_too_hot(env, hot_tolerance, multiplier=1):
+            promoted = self._outside_promotes_to_urgent(
+                HVACMode.COOL,
+                outside_temp=outside_temp,
+                outside_sensor_stalled=outside_sensor_stalled,
+            )
+            if not promoted and self._free_cooling_applies(
+                outside_temp=outside_temp,
+                outside_sensor_stalled=outside_sensor_stalled,
+            ):
+                return AutoDecision(
+                    next_mode=HVACMode.FAN_ONLY,
+                    reason=HVACActionReason.AUTO_PRIORITY_COMFORT,
+                )
             return AutoDecision(
                 next_mode=HVACMode.COOL,
                 reason=HVACActionReason.AUTO_PRIORITY_TEMPERATURE,
