@@ -136,14 +136,23 @@ class AutoModeEvaluator:
                 hot_tolerance,
             ):
                 urgent = self._urgent_decision(
-                    humidity_available, cold_tolerance, hot_tolerance
+                    humidity_available,
+                    cold_tolerance,
+                    hot_tolerance,
+                    outside_temp=outside_temp,
+                    outside_sensor_stalled=outside_sensor_stalled,
                 )
                 if urgent is not None and urgent.next_mode != last_decision.next_mode:
                     return urgent
                 return last_decision
 
         return self._full_scan(
-            humidity_available, cold_tolerance, hot_tolerance, last_decision
+            humidity_available,
+            cold_tolerance,
+            hot_tolerance,
+            last_decision,
+            outside_temp=outside_temp,
+            outside_sensor_stalled=outside_sensor_stalled,
         )
 
     def _goal_pending(
@@ -170,6 +179,9 @@ class AutoModeEvaluator:
         humidity_available: bool,
         cold_tolerance: float,
         hot_tolerance: float,
+        *,
+        outside_temp: float | None = None,
+        outside_sensor_stalled: bool = False,
     ) -> AutoDecision | None:
         env = self._environment
         if humidity_available and self._humidity_at(env, multiplier=2):
@@ -195,11 +207,18 @@ class AutoModeEvaluator:
         cold_tolerance: float,
         hot_tolerance: float,
         last_decision: AutoDecision | None,
+        *,
+        outside_temp: float | None = None,
+        outside_sensor_stalled: bool = False,
     ) -> AutoDecision:
         env = self._environment
 
         urgent = self._urgent_decision(
-            humidity_available, cold_tolerance, hot_tolerance
+            humidity_available,
+            cold_tolerance,
+            hot_tolerance,
+            outside_temp=outside_temp,
+            outside_sensor_stalled=outside_sensor_stalled,
         )
         if urgent is not None:
             return urgent

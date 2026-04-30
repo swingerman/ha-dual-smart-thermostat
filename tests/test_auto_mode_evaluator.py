@@ -614,3 +614,64 @@ def test_outside_promotion_skipped_for_non_temp_modes() -> None:
         )
         is False
     )
+
+
+def test_full_scan_promotes_normal_heat_to_urgent_with_outside_bias() -> None:
+    """Normal-tier HEAT becomes urgent when outside-delta crosses the threshold.
+
+    Critically, this proves the promotion fires through evaluate() — not just
+    in the helper. Inside is 1× cold tolerance below target (normal HEAT
+    territory) but outside delta is large.
+    """
+    ev = _make_evaluator()
+    ev._outside_delta_boost_c = 8.0
+    ev._features.is_configured_for_heater_mode = True
+    ev._environment.cur_temp = 20.5  # 1× below 21.0 target
+    decision = ev.evaluate(
+        last_decision=None,
+        outside_temp=10.0,  # delta = 10.5 ≥ 8 threshold
+        outside_sensor_stalled=False,
+    )
+    assert decision.next_mode == HVACMode.HEAT
+    assert decision.reason == HVACActionReason.AUTO_PRIORITY_TEMPERATURE
+
+
+def test_full_scan_normal_heat_unaffected_when_outside_delta_below_threshold() -> None:
+    """Normal HEAT stays normal-tier when outside delta is small."""
+    ev = _make_evaluator()
+    ev._outside_delta_boost_c = 8.0
+    ev._features.is_configured_for_heater_mode = True
+    ev._environment.cur_temp = 20.5
+    decision = ev.evaluate(
+        last_decision=None,
+        outside_temp=15.0,  # delta = 5.5 < 8
+    )
+    assert decision.next_mode == HVACMode.HEAT
+    assert decision.reason == HVACActionReason.AUTO_PRIORITY_TEMPERATURE
+
+
+def test_full_scan_promotes_normal_cool_to_urgent_with_outside_bias() -> None:
+    """Normal-tier COOL becomes urgent when outside-delta is large and hot."""
+    ev = _make_evaluator()
+    ev._outside_delta_boost_c = 8.0
+    ev._features.is_configured_for_cooler_mode = True
+    ev._environment.cur_temp = 21.5  # 1× above 21.0 target
+    decision = ev.evaluate(
+        last_decision=None,
+        outside_temp=32.0,  # delta = 10.5 ≥ 8
+    )
+    assert decision.next_mode == HVACMode.COOL
+    assert decision.reason == HVACActionReason.AUTO_PRIORITY_TEMPERATURE
+
+
+def test_full_scan_outside_bias_skipped_when_below_target() -> None:
+    """Bias only applies to existing normal-tier triggers — does not invent priorities."""
+    ev = _make_evaluator()
+    ev._outside_delta_boost_c = 8.0
+    ev._features.is_configured_for_heater_mode = True
+    ev._environment.cur_temp = 21.0  # AT target — neither tier fires
+    decision = ev.evaluate(
+        last_decision=None,
+        outside_temp=-5.0,  # huge delta but no underlying trigger
+    )
+    assert decision.next_mode is None  # idle
