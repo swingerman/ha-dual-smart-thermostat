@@ -63,6 +63,7 @@ from . import (  # noqa: F401
     setup_comp_heat_ac_cool_presets_range,
     setup_comp_heat_ac_cool_safety_delay,
     setup_fan,
+    setup_humidity_sensor,
     setup_sensor,
     setup_switch,
 )
@@ -1803,3 +1804,100 @@ async def test_legacy_config_cool_mode_behaves_identically(
     await hass.async_block_till_done()
 
     assert hass.states.get(cooler_switch).state == STATE_OFF
+
+
+# ---------------------------------------------------------------------------
+# Phase 1.4: apparent temperature for ac_only system type
+# ---------------------------------------------------------------------------
+
+
+async def test_ac_only_cool_uses_apparent_temp_when_flag_on(
+    hass: HomeAssistant,
+) -> None:
+    """Given ac_only with humidity sensor + use_apparent_temp on,
+    target=27, cur_temp=27.4 (raw not too_hot), humidity=80% /
+    When user sets HVAC mode to COOL /
+    Then the cooler fires because apparent >= target+tolerance."""
+    hass.config.units = METRIC_SYSTEM
+    setup_sensor(hass, 27.4)
+    setup_humidity_sensor(hass, 80.0)
+    calls = setup_switch(hass, False)
+
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "ac_mode": True,
+                "cold_tolerance": 0.5,
+                "hot_tolerance": 0.5,
+                "heater": common.ENT_SWITCH,
+                "target_sensor": common.ENT_SENSOR,
+                "humidity_sensor": common.ENT_HUMIDITY_SENSOR,
+                "target_temp": 27.0,
+                "target_humidity": 80,
+                "moist_tolerance": 5,
+                "dry_tolerance": 5,
+                "use_apparent_temp": True,
+                "initial_hvac_mode": HVACMode.OFF,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+    await common.async_set_hvac_mode(hass, HVACMode.COOL, common.ENTITY)
+    await hass.async_block_till_done()
+
+    cool_calls = [
+        c
+        for c in calls
+        if c.service == SERVICE_TURN_ON and c.data.get("entity_id") == common.ENT_SWITCH
+    ]
+    assert cool_calls, "ac_only cooler should fire via apparent_temp"
+
+
+async def test_ac_only_apparent_temp_off_does_not_cool_when_raw_below(
+    hass: HomeAssistant,
+) -> None:
+    """ac_only with humidity sensor but apparent flag OFF must NOT cool when
+    raw cur_temp is below target+tolerance (regression guard)."""
+    hass.config.units = METRIC_SYSTEM
+    setup_sensor(hass, 27.4)
+    setup_humidity_sensor(hass, 80.0)
+    calls = setup_switch(hass, False)
+
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "ac_mode": True,
+                "cold_tolerance": 0.5,
+                "hot_tolerance": 0.5,
+                "heater": common.ENT_SWITCH,
+                "target_sensor": common.ENT_SENSOR,
+                "humidity_sensor": common.ENT_HUMIDITY_SENSOR,
+                "target_temp": 27.0,
+                "target_humidity": 80,
+                "moist_tolerance": 5,
+                "dry_tolerance": 5,
+                "initial_hvac_mode": HVACMode.OFF,
+                # use_apparent_temp NOT set
+            }
+        },
+    )
+    await hass.async_block_till_done()
+    await common.async_set_hvac_mode(hass, HVACMode.COOL, common.ENTITY)
+    await hass.async_block_till_done()
+
+    cool_calls = [
+        c
+        for c in calls
+        if c.service == SERVICE_TURN_ON and c.data.get("entity_id") == common.ENT_SWITCH
+    ]
+    assert (
+        not cool_calls
+    ), "ac_only must not cool when raw < target+tol and apparent off"
