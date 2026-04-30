@@ -34,6 +34,7 @@ from homeassistant.const import (
     STATE_UNAVAILABLE,
     STATE_UNKNOWN,
     Platform,
+    UnitOfTemperature,
 )
 from homeassistant.core import (
     CoreState,
@@ -57,6 +58,7 @@ from homeassistant.helpers.reload import async_setup_reload_service
 from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.service import extract_entity_ids
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
+from homeassistant.util.unit_conversion import TemperatureConverter
 import voluptuous as vol
 
 from . import DOMAIN, PLATFORMS
@@ -73,6 +75,7 @@ from .const import (
     ATTR_PREV_TARGET_HIGH,
     ATTR_PREV_TARGET_LOW,
     CONF_AC_MODE,
+    CONF_AUTO_OUTSIDE_DELTA_BOOST,
     CONF_AUX_HEATER,
     CONF_AUX_HEATING_DUAL_MODE,
     CONF_AUX_HEATING_TIMEOUT,
@@ -411,6 +414,7 @@ async def _async_setup_config(
     sensor_outside_entity_id = config.get(CONF_OUTSIDE_SENSOR)
     sensor_humidity_entity_id = config.get(CONF_HUMIDITY_SENSOR)
     sensor_stale_duration: timedelta | None = config.get(CONF_STALE_DURATION)
+    auto_outside_delta_boost = config.get(CONF_AUTO_OUTSIDE_DELTA_BOOST)
     sensor_heat_pump_cooling_entity_id = config.get(CONF_HEAT_PUMP_COOLING)
     keep_alive = config.get(CONF_KEEP_ALIVE)
 
@@ -465,6 +469,7 @@ async def _async_setup_config(
         opening_manager,
         feature_manager,
         hvac_power_manager,
+        auto_outside_delta_boost=auto_outside_delta_boost,
     )
     sensor_key = unique_id or name
     thermostat._action_reason_sensor_key = sensor_key
@@ -532,6 +537,8 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         opening_manager: OpeningManager,
         feature_manager: FeatureManager,
         power_manager: HvacPowerManager,
+        *,
+        auto_outside_delta_boost: float | None = None,
     ) -> None:
         """Initialize the thermostat."""
         self._attr_name = name
@@ -607,10 +614,20 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self._remove_signal_hvac_action_reason = None
         self._action_reason_sensor_key: str | None = None
 
-        # Auto mode (Phase 1.2)
+        # Auto mode (Phase 1.2 + 1.3)
         if feature_manager.is_configured_for_auto_mode:
+            outside_delta_boost_c: float | None = None
+            if auto_outside_delta_boost is not None:
+                outside_delta_boost_c = TemperatureConverter.convert(
+                    auto_outside_delta_boost,
+                    unit,
+                    UnitOfTemperature.CELSIUS,
+                )
             self._auto_evaluator: AutoModeEvaluator | None = AutoModeEvaluator(
-                environment_manager, opening_manager, feature_manager
+                environment_manager,
+                opening_manager,
+                feature_manager,
+                outside_delta_boost_c=outside_delta_boost_c,
             )
         else:
             self._auto_evaluator = None
@@ -1688,6 +1705,8 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             self._last_auto_decision,
             temp_sensor_stalled=self._sensor_stalled,
             humidity_sensor_stalled=self._humidity_sensor_stalled,
+            outside_temp=self.environment.cur_outside_temp,
+            outside_sensor_stalled=self._outside_sensor_stalled,
         )
         self._last_auto_decision = decision
 
