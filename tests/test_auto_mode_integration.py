@@ -708,3 +708,93 @@ async def test_heater_cooler_apparent_temp_off_matches_phase_1_3(
     # Without apparent, raw cur_temp 27.4 is below 27.5 (target+0.5) → idle.
     assert state.attributes["hvac_action_reason"] != "auto_priority_temperature"
     assert "apparent_temperature" not in state.attributes
+
+
+@pytest.mark.asyncio
+async def test_heat_pump_auto_picks_cool_via_apparent_temp(
+    hass: HomeAssistant,
+) -> None:
+    """Given a heat_pump system with humidity sensor + use_apparent_temp on,
+    target=27, cur_temp=27.4, humidity=80% /
+    When AUTO evaluates /
+    Then it routes to COOL via the heat-pump dispatch path (proves the env
+    plumbing works through heat_pump too, not just heater_cooler)."""
+    hass.config.units = METRIC_SYSTEM
+    hass.states.async_set(common.ENT_SWITCH, STATE_OFF)
+    hass.states.async_set("binary_sensor.heat_pump_cooling", "off")
+    setup_sensor(hass, 27.4)
+    setup_humidity_sensor(hass, 80.0)
+
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "cold_tolerance": 0.5,
+                "hot_tolerance": 0.5,
+                "heater": common.ENT_SWITCH,
+                "heat_pump_cooling": "binary_sensor.heat_pump_cooling",
+                "target_sensor": common.ENT_SENSOR,
+                "humidity_sensor": ENT_HUMIDITY_SENSOR,
+                "target_temp": 27.0,
+                "target_humidity": 80,
+                "moist_tolerance": 5,
+                "dry_tolerance": 5,
+                "use_apparent_temp": True,
+                "initial_hvac_mode": HVACMode.OFF,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+    await common.async_set_hvac_mode(hass, HVACMode.AUTO, common.ENTITY)
+    await hass.async_block_till_done()
+
+    state = hass.states.get(common.ENTITY)
+    assert state is not None
+    assert state.attributes["hvac_action_reason"] == "auto_priority_temperature"
+
+
+@pytest.mark.asyncio
+async def test_heat_pump_apparent_temp_off_matches_phase_1_3(
+    hass: HomeAssistant,
+) -> None:
+    """heat_pump with humidity sensor but apparent flag OFF must behave as
+    Phase 1.3 did (regression guard)."""
+    hass.config.units = METRIC_SYSTEM
+    hass.states.async_set(common.ENT_SWITCH, STATE_OFF)
+    hass.states.async_set("binary_sensor.heat_pump_cooling", "off")
+    setup_sensor(hass, 27.4)
+    setup_humidity_sensor(hass, 80.0)
+
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "cold_tolerance": 0.5,
+                "hot_tolerance": 0.5,
+                "heater": common.ENT_SWITCH,
+                "heat_pump_cooling": "binary_sensor.heat_pump_cooling",
+                "target_sensor": common.ENT_SENSOR,
+                "humidity_sensor": ENT_HUMIDITY_SENSOR,
+                "target_temp": 27.0,
+                "target_humidity": 80,
+                "moist_tolerance": 5,
+                "dry_tolerance": 5,
+                "initial_hvac_mode": HVACMode.OFF,
+                # use_apparent_temp NOT set
+            }
+        },
+    )
+    await hass.async_block_till_done()
+    await common.async_set_hvac_mode(hass, HVACMode.AUTO, common.ENTITY)
+    await hass.async_block_till_done()
+
+    state = hass.states.get(common.ENTITY)
+    assert state is not None
+    assert state.attributes["hvac_action_reason"] != "auto_priority_temperature"
+    assert "apparent_temperature" not in state.attributes
