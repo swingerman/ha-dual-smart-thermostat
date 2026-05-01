@@ -327,9 +327,10 @@ class AutoModeEvaluator:
 
     def _temp_too_hot(self, env, hot_tolerance: float, *, multiplier: int) -> bool:
         hot_target = self._hot_target(env)
-        if env.cur_temp is None or hot_target is None:
+        active_temp = env.effective_temp_for_mode(HVACMode.COOL)
+        if active_temp is None or hot_target is None:
             return False
-        return env.cur_temp >= hot_target + multiplier * hot_tolerance
+        return active_temp >= hot_target + multiplier * hot_tolerance
 
     def _fan_band(self, env) -> bool:
         """Whether cur_temp is within the fan-tolerance comfort band."""

@@ -697,7 +697,8 @@
                             "heat_cool_mode": "Heat/Cool mode",
                             "heat_tolerance": "Heat tolerance",
                             "cool_tolerance": "Cool tolerance",
-                            "auto_outside_delta_boost": "Auto: outside-delta urgency threshold"
+                            "auto_outside_delta_boost": "Auto: outside-delta urgency threshold",
+                            "use_apparent_temp": "Use apparent (\"feels-like\") temperature for cooling decisions"
                         },
                         "data_description": {
                             "initial_hvac_mode": "Initial HVAC mode when starting Home Assistant. Sets the default operation mode on startup.",
@@ -706,7 +707,8 @@
                             "heat_cool_mode": "Enable heat/cool mode with dual temperature control. When enabled, allows automatic switching between heating and cooling to maintain a comfortable temperature range.",
                             "heat_tolerance": "Tolerance for heating operations. Overrides the legacy cold_tolerance setting specifically for heating mode. When set, this value is used instead of cold_tolerance to determine when heating activates (default: uses cold_tolerance if not specified).",
                             "cool_tolerance": "Tolerance for cooling operations. Overrides the legacy hot_tolerance setting specifically for cooling mode. When set, this value is used instead of hot_tolerance to determine when cooling activates (default: uses hot_tolerance if not specified).",
-                            "auto_outside_delta_boost": "When AUTO mode is on and the inside/outside temperature difference meets this threshold, normal-tier heating or cooling is treated as urgent. Only active when an outside sensor is configured. Default: 8°C / 14°F."
+                            "auto_outside_delta_boost": "When AUTO mode is on and the inside/outside temperature difference meets this threshold, normal-tier heating or cooling is treated as urgent. Only active when an outside sensor is configured. Default: 8°C / 14°F.",
+                            "use_apparent_temp": "When enabled and a humidity sensor is configured, AUTO and standalone COOL decide based on the heat index instead of raw temperature. Above 27°C / 80°F humidity makes the room feel hotter, so the cooler runs more aggressively. The actual sensor temperature continues to be shown in the UI."
                         }
                     }
                 }

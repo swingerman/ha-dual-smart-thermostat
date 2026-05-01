@@ -124,6 +124,7 @@ from .const import (
     CONF_TARGET_TEMP_HIGH,
     CONF_TARGET_TEMP_LOW,
     CONF_TEMP_STEP,
+    CONF_USE_APPARENT_TEMP,
     DEFAULT_MAX_FLOOR_TEMP,
     DEFAULT_NAME,
     DEFAULT_TOLERANCE,
@@ -222,6 +223,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
         ),
         vol.Optional(CONF_OUTSIDE_SENSOR): cv.entity_id,
         vol.Optional(CONF_AUTO_OUTSIDE_DELTA_BOOST): vol.Coerce(float),
+        vol.Optional(CONF_USE_APPARENT_TEMP): cv.boolean,
         vol.Optional(CONF_AC_MODE): cv.boolean,
         vol.Optional(CONF_HEAT_COOL_MODE): cv.boolean,
         vol.Optional(CONF_MAX_TEMP): vol.Coerce(float),
@@ -1147,6 +1149,13 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         if self._cur_humidity is not None:
             attributes[ATTR_PREV_HUMIDITY] = self.environment.target_humidity
 
+        # Phase 1.4: expose apparent ("feels-like") temp when the flag is
+        # on and humidity is available. Hidden otherwise to avoid clutter.
+        if self.environment._use_apparent_temp:
+            apparent = self.environment.apparent_temp
+            if apparent is not None and apparent != self.environment.cur_temp:
+                attributes["apparent_temperature"] = round(apparent, 1)
+
         attributes[ATTR_HVAC_ACTION_REASON] = (
             self._hvac_action_reason or HVACActionReason.NONE
         )
@@ -1462,6 +1471,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             self._hvac_action_reason = HVACActionReason.HUMIDITY_SENSOR_STALLED
             self._publish_hvac_action_reason(self._hvac_action_reason)
             self._humidity_sensor_stalled = True
+            self.environment.humidity_sensor_stalled = True
             self.async_write_ha_state()
 
     async def _async_outside_sensor_not_responding(
@@ -1562,6 +1572,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         if self._sensor_stale_duration:
             if self._humidity_sensor_stalled:
                 self._humidity_sensor_stalled = False
+                self.environment.humidity_sensor_stalled = False
                 _LOGGER.warning(
                     "Climate (%s) - humidity sensor (%s) recovered with state: %s",
                     self.unique_id,

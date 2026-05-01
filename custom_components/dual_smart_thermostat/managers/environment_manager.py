@@ -45,6 +45,7 @@ from ..const import (
     CONF_TARGET_TEMP_HIGH,
     CONF_TARGET_TEMP_LOW,
     CONF_TEMP_STEP,
+    CONF_USE_APPARENT_TEMP,
     DEFAULT_MAX_FLOOR_TEMP,
     DEFAULT_TOLERANCE,
 )
@@ -70,6 +71,28 @@ class EnvironmentAttributeType(enum.StrEnum):
 
     TEMPERATURE = "temperature"
     HUMIDITY = "humidity"
+
+
+def _rothfusz_heat_index_f(t_f: float, rh: float) -> float:
+    """NWS Rothfusz heat-index polynomial.
+
+    ``t_f`` is dry-bulb temperature in degrees Fahrenheit. ``rh`` is relative
+    humidity as a percentage (0-100). Returns heat index in degrees Fahrenheit.
+
+    Standard 8-term polynomial. Caller is responsible for the validity gate
+    (formula is meaningful only above ~80 °F / 27 °C).
+    """
+    return (
+        -42.379
+        + 2.04901523 * t_f
+        + 10.14333127 * rh
+        - 0.22475541 * t_f * rh
+        - 0.00683783 * t_f * t_f
+        - 0.05481717 * rh * rh
+        + 0.00122874 * t_f * t_f * rh
+        + 0.00085282 * t_f * rh * rh
+        - 0.00000199 * t_f * t_f * rh * rh
+    )
 
 
 class EnvironmentManager(StateManager):
@@ -121,6 +144,9 @@ class EnvironmentManager(StateManager):
         self._config_heat_cool_mode = config.get(CONF_HEAT_COOL_MODE) or False
         self._config = config
 
+        self._use_apparent_temp = config.get(CONF_USE_APPARENT_TEMP, False)
+        self._humidity_sensor_stalled = False
+
     @property
     def sensor_entity_id(self) -> str | None:
         """Return the temperature sensor entity id (CONF_SENSOR)."""
@@ -146,6 +172,49 @@ class EnvironmentManager(StateManager):
     @property
     def cur_outside_temp(self) -> float:
         return self._cur_outside_temp
+
+    @property
+    def apparent_temp(self) -> float | None:
+        """Heat-index ("feels-like") temperature in the user's configured unit.
+
+        Returns ``cur_temp`` (i.e. acts as a no-op) when:
+        - ``CONF_USE_APPARENT_TEMP`` is False,
+        - ``cur_temp`` or ``cur_humidity`` is missing,
+        - the humidity sensor is stalled,
+        - or the dry-bulb temperature is below 27 °C (Rothfusz validity).
+
+        Otherwise returns the NWS Rothfusz heat index, computed in °F and
+        converted back to the user's unit.
+        """
+        if not self._use_apparent_temp:
+            return self._cur_temp
+        if self._cur_temp is None or self._cur_humidity is None:
+            return self._cur_temp
+        if self._humidity_sensor_stalled:
+            return self._cur_temp
+        cur_c = TemperatureConverter.convert(
+            self._cur_temp, self._temperature_unit, UnitOfTemperature.CELSIUS
+        )
+        if cur_c < 27.0:
+            return self._cur_temp
+        cur_f = TemperatureConverter.convert(
+            self._cur_temp, self._temperature_unit, UnitOfTemperature.FAHRENHEIT
+        )
+        hi_f = _rothfusz_heat_index_f(cur_f, self._cur_humidity)
+        return TemperatureConverter.convert(
+            hi_f, UnitOfTemperature.FAHRENHEIT, self._temperature_unit
+        )
+
+    def effective_temp_for_mode(self, mode: HVACMode) -> float | None:
+        """Return the temperature to use for control decisions in ``mode``.
+
+        Substitutes ``apparent_temp`` for ``cur_temp`` only when the mode is
+        COOL and the apparent-temp prerequisites are met (see ``apparent_temp``).
+        All other modes get raw ``cur_temp`` regardless of the flag.
+        """
+        if mode == HVACMode.COOL:
+            return self.apparent_temp
+        return self._cur_temp
 
     @property
     def target_temp(self) -> float:
@@ -266,6 +335,14 @@ class EnvironmentManager(StateManager):
     @property
     def cur_humidity(self) -> float:
         return self._cur_humidity
+
+    @property
+    def humidity_sensor_stalled(self) -> bool:
+        return self._humidity_sensor_stalled
+
+    @humidity_sensor_stalled.setter
+    def humidity_sensor_stalled(self, value: bool) -> None:
+        self._humidity_sensor_stalled = bool(value)
 
     def get_env_attr_type(self, attr: str) -> EnvironmentAttributeType:
         return (
@@ -475,21 +552,31 @@ class EnvironmentManager(StateManager):
         return self._cur_temp <= target_temp - cold_tolerance
 
     def is_too_hot(self, target_attr="_target_temp") -> bool:
-        """Checks if the current temperature is above target."""
+        """Checks if the current temperature is above target.
+
+        Uses ``effective_temp_for_mode(self._hvac_mode)`` so that COOL mode
+        with ``CONF_USE_APPARENT_TEMP`` enabled compares against the heat
+        index. All other modes compare against raw ``cur_temp`` (the
+        selector returns ``cur_temp`` for them).
+        """
         target_temp = getattr(self, target_attr)
-        if self._cur_temp is None or target_temp is None:
+        active_temp = self.effective_temp_for_mode(self._hvac_mode)
+        if active_temp is None or target_temp is None:
             return False
 
         _, hot_tolerance = self._get_active_tolerance_for_mode()
 
         _LOGGER.debug(
-            "is_too_hot - target temp attr: %s, Target temp: %s, current temp: %s, tolerance: %s",
+            "is_too_hot - target temp attr: %s, Target temp: %s, "
+            "active temp: %s (cur_temp: %s, mode: %s), tolerance: %s",
             target_attr,
             target_temp,
+            active_temp,
             self._cur_temp,
+            self._hvac_mode,
             hot_tolerance,
         )
-        return self._cur_temp >= target_temp + hot_tolerance
+        return active_temp >= target_temp + hot_tolerance
 
     def is_equal_to_target(self, target_attr="_target_temp") -> bool:
         """Checks if the current temperature is equal to target."""
