@@ -2,7 +2,7 @@
 pip>=24.1.2,<27.0
 pytest-homeassistant-custom-component==0.13.324
 # Explicit pytest dependencies (may be transitive from pytest-homeassistant-custom-component)
-pytest>=8.0.0
+pytest>=8.4.2
 pytest-cov>=4.1.0
 pytest-asyncio>=0.23.0
 # Code formatting and linting
