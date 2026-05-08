@@ -221,6 +221,115 @@ async def test_get_hvac_modes(
     assert set(modes) == set(hvac_modes)
 
 
+@pytest.mark.parametrize(
+    ("cooling_mode", "expected_modes"),
+    [
+        (
+            STATE_ON,
+            [HVACMode.COOL, HVACMode.FAN_ONLY, HVACMode.OFF, HVACMode.AUTO],
+        ),
+        (
+            STATE_OFF,
+            [HVACMode.HEAT, HVACMode.FAN_ONLY, HVACMode.OFF, HVACMode.AUTO],
+        ),
+    ],
+)
+async def test_heat_pump_with_fan_exposes_fan_only_mode(
+    hass: HomeAssistant,
+    setup_comp_1,  # noqa: F811
+    cooling_mode,
+    expected_modes,
+) -> None:
+    """Heat pump configurations with a fan entity must expose FAN_ONLY.
+
+    Regression test for issue #585: when heat_pump_cooling and a fan entity
+    are configured together, the FAN_ONLY mode was silently dropped because
+    the factory only attached fan_device when a cooler_device existed.
+    """
+    heat_pump_cooling_switch = "input_boolean.test2"
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "cold_tolerance": 2,
+                "hot_tolerance": 4,
+                "heater": common.ENT_SWITCH,
+                "fan": common.ENT_FAN,
+                "heat_pump_cooling": heat_pump_cooling_switch,
+                "target_sensor": common.ENT_SENSOR,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+    hass.states.async_set("input_boolean.test2", cooling_mode)
+
+    await hass.async_block_till_done()
+
+    state = hass.states.get(common.ENTITY)
+    modes = state.attributes.get("hvac_modes")
+    _LOGGER.debug("Modes: %s", modes)
+    assert set(modes) == set(expected_modes)
+
+
+async def test_heat_pump_with_fan_fan_only_mode_runs_fan_only(
+    hass: HomeAssistant, setup_comp_1  # noqa: F811
+) -> None:
+    """Switching to FAN_ONLY in a heat-pump+fan setup turns the fan on
+    without engaging the heat-pump valve.
+
+    Regression test for issue #585.
+    """
+    from . import setup_switch_dual
+
+    heat_pump_cooling_switch = "input_boolean.test2"
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "cold_tolerance": 2,
+                "hot_tolerance": 4,
+                "heater": common.ENT_SWITCH,
+                "fan": common.ENT_FAN,
+                "heat_pump_cooling": heat_pump_cooling_switch,
+                "target_sensor": common.ENT_SENSOR,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+    hass.states.async_set("input_boolean.test2", STATE_OFF)
+    await hass.async_block_till_done()
+
+    setup_sensor(hass, 28)
+    await common.async_set_temperature(hass, 20)
+    await hass.async_block_till_done()
+
+    calls = setup_switch_dual(hass, common.ENT_FAN, False, False)
+
+    await common.async_set_hvac_mode(hass, HVACMode.FAN_ONLY)
+    await hass.async_block_till_done()
+
+    fan_on = [
+        c
+        for c in calls
+        if c.service == SERVICE_TURN_ON and c.data.get("entity_id") == common.ENT_FAN
+    ]
+    heat_pump_on = [
+        c
+        for c in calls
+        if c.service == SERVICE_TURN_ON and c.data.get("entity_id") == common.ENT_SWITCH
+    ]
+    assert len(fan_on) == 1, f"expected fan switch turned on, got: {calls}"
+    assert (
+        len(heat_pump_on) == 0
+    ), f"heat-pump switch must not be turned on in FAN_ONLY mode, got: {calls}"
+
+
 @pytest.fixture
 async def setup_comp_heat_pump_presets(hass: HomeAssistant) -> None:
     """Initialize components."""

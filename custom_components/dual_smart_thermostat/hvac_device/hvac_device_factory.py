@@ -229,30 +229,36 @@ class HVACDeviceFactory:
                 return heater_cooler_device
 
         if heater_device:
+            sub_devices = [heater_device]
+            if fan_device:
+                sub_devices.append(fan_device)
             if dryer_device:
+                sub_devices.append(dryer_device)
+            if len(sub_devices) > 1:
                 return MultiHvacDevice(
                     self.hass,
-                    [heater_device, dryer_device],
+                    sub_devices,
                     self._initial_hvac_mode,
                     environment,
                     openings,
                     self._features,
                 )
-            else:
-                return heater_device
+            return heater_device
 
         if cooler_device:
+            sub_devices = [cooler_device]
             if dryer_device:
+                sub_devices.append(dryer_device)
+            if len(sub_devices) > 1:
                 return MultiHvacDevice(
                     self.hass,
-                    [cooler_device, dryer_device],
+                    sub_devices,
                     self._initial_hvac_mode,
                     environment,
                     openings,
                     self._features,
                 )
-            else:
-                return cooler_device
+            return cooler_device
 
         if fan_device:
             return fan_device
