@@ -2,7 +2,7 @@ import logging
 from typing import Callable
 
 from homeassistant.components.climate import HVACAction, HVACMode
-from homeassistant.core import Context, HomeAssistant, callback
+from homeassistant.core import Context, HomeAssistant, State, callback
 
 from ..hvac_action_reason.hvac_action_reason import HVACActionReason
 from ..hvac_device.controllable_hvac_device import ControlableHVACDevice
@@ -45,6 +45,18 @@ class MultiHvacDevice(HVACDevice, ControlableHVACDevice):
     def set_context(self, context: Context):
         for device in self.hvac_devices:
             device.set_context(context)
+
+    @callback
+    def on_entity_state_changed(self, entity_id: str, new_state: State) -> None:
+        """Forward state-change notifications to every sub-device.
+
+        Sub-devices (e.g. HeatPumpDevice) may need entity state changes to
+        update their own ``hvac_modes``. After delegating, re-merge the
+        combined mode list so the climate entity sees the latest set.
+        """
+        for device in self.hvac_devices:
+            device.on_entity_state_changed(entity_id, new_state)
+        self.init_hvac_modes(self.hvac_devices)
 
     def get_device_ids(self) -> list[str]:
         device_ids = []
