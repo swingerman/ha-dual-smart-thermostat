@@ -99,8 +99,10 @@ jobs:
           # pytest 9.0.0 CVE GHSA-6w46-j5rx-g56g (fixed in 9.0.3):
           # pinned to ==9.0.0 by pytest-homeassistant-custom-component.
           # pip 26.0.1 CVE GHSA-58qw-9mgm-455v (concatenated tar/ZIP handling):
+          # pip 26.0.1 CVE GHSA-jp4c-xjxw-mgf9 (self-update timing, fixed in 26.1):
           # ships with the GitHub Actions runner; cannot be controlled by us.
           HA_IGNORES="\
+            --ignore-vuln GHSA-jp4c-xjxw-mgf9 \
             --ignore-vuln GHSA-9548-qrrj-x5pj \
             --ignore-vuln GHSA-6mq8-rvhq-8wgg \
             --ignore-vuln GHSA-69f9-5gxw-wvc2 \
