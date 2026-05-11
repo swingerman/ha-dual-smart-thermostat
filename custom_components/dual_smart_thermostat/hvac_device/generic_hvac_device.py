@@ -200,6 +200,19 @@ class GenericHVACDevice(
             any_opening_open,
         )
 
+        # When the climate is OFF, keep-alive bypasses `needs_control` so it can
+        # enforce the device staying off. We must never run goal-based logic
+        # here — only turn the switch off if it ended up on externally.
+        # See issue #587.
+        if self._hvac_mode == HVACMode.OFF:
+            if self.hvac_controller.is_active:
+                _LOGGER.info(
+                    "Climate mode is OFF but %s is on; turning it off",
+                    self.entity_id,
+                )
+                await self.async_turn_off()
+            return
+
         if self.hvac_controller.is_active:
             await self.hvac_controller.async_control_device_when_on(
                 self.strategy,
