@@ -314,8 +314,22 @@ async def async_setup_platform(
     """Set up the smart dual thermostat platform."""
 
     await async_setup_reload_service(hass, DOMAIN, PLATFORMS)
-    await _async_setup_config(
+    sensor_key = await _async_setup_config(
         hass, config, config.get(CONF_UNIQUE_ID), async_add_entities
+    )
+
+    # UI config entries register the companion sensor via
+    # ``async_forward_entry_setups`` in ``__init__.py``; discovery must run
+    # only for YAML (issue #584 — duplicate registration orphaned the
+    # registry row).
+    hass.async_create_task(
+        discovery.async_load_platform(
+            hass,
+            Platform.SENSOR,
+            DOMAIN,
+            {"name": config[CONF_NAME], "sensor_key": sensor_key},
+            config,
+        )
     )
 
 
@@ -396,8 +410,8 @@ async def _async_setup_config(
     config: dict[str, Any],
     unique_id: str | None,
     async_add_entities: AddEntitiesCallback,
-) -> None:
-    """Set up the smart dual thermostat platform."""
+) -> str:
+    """Set up the smart dual thermostat platform. Returns the sensor_key."""
 
     # Normalize config values from config flow (strings to proper types)
     # This ensures consistency between YAML config and config entry setup
@@ -478,16 +492,6 @@ async def _async_setup_config(
     thermostat._action_reason_sensor_key = sensor_key
     async_add_entities([thermostat])
 
-    hass.async_create_task(
-        discovery.async_load_platform(
-            hass,
-            Platform.SENSOR,
-            DOMAIN,
-            {"name": name, "sensor_key": sensor_key},
-            config,
-        )
-    )
-
     # Service to set HVACActionReason.
     def set_hvac_action_reason_service(call: ServiceCall) -> None:
         """My first service."""
@@ -515,6 +519,8 @@ async def _async_setup_config(
     hass.services.async_register(
         DOMAIN, SERVICE_SET_HVAC_ACTION_REASON, set_hvac_action_reason_service
     )
+
+    return sensor_key
 
 
 class DualSmartThermostat(ClimateEntity, RestoreEntity):
