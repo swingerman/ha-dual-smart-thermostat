@@ -236,8 +236,8 @@ class PresetManager(StateManager):
     ):
         """Restore range temperatures from preset, preferring old state values."""
         # Use template-aware getters for preset temperatures
-        preset_temp_low = preset.get_target_temp_low(self.hass)
-        preset_temp_high = preset.get_target_temp_high(self.hass)
+        preset_temp_low = self._environment.get_validated_preset_temp_low(preset)
+        preset_temp_high = self._environment.get_validated_preset_temp_high(preset)
 
         # Prefer old state values, fall back to preset values
         if preset_temp_low is not None:
@@ -258,17 +258,25 @@ class PresetManager(StateManager):
         """Restore temperature from preset configuration (supports multiple formats)."""
         # Handle legacy float format
         if isinstance(preset, float):
-            self._environment.target_temp = float(preset)
+            temp = self._environment.normalize_preset_temperature(
+                float(preset), ATTR_TEMPERATURE
+            )
+            if temp is not None:
+                self._environment.target_temp = temp
             return
 
         # Handle legacy dict format
         if isinstance(preset, dict) and ATTR_TEMPERATURE in preset:
-            self._environment.target_temp = float(preset[ATTR_TEMPERATURE])
+            temp = self._environment.normalize_preset_temperature(
+                float(preset[ATTR_TEMPERATURE]), ATTR_TEMPERATURE
+            )
+            if temp is not None:
+                self._environment.target_temp = temp
             return
 
         # Handle PresetEnv object with template support
         if hasattr(preset, "get_temperature"):
-            temp = preset.get_temperature(self.hass)
+            temp = self._environment.get_validated_preset_temperature(preset)
             if temp is not None:
                 self._environment.target_temp = temp
             return

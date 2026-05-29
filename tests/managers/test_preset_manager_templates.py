@@ -9,6 +9,10 @@ import pytest
 from custom_components.dual_smart_thermostat.managers.preset_manager import (
     PresetManager,
 )
+from custom_components.dual_smart_thermostat.managers.environment_manager import (
+    EnvironmentManager,
+)
+from custom_components.dual_smart_thermostat.const import CONF_SENSOR
 from custom_components.dual_smart_thermostat.preset_env.preset_env import PresetEnv
 
 
@@ -29,6 +33,9 @@ class TestPresetManagerTemplateIntegration:
         config = {}
         environment = Mock()
         environment.target_temp = None
+        environment.get_validated_preset_temperature.side_effect = (
+            lambda preset: preset.get_temperature(hass)
+        )
         features = Mock()
         features.is_range_mode = False
 
@@ -70,6 +77,9 @@ class TestPresetManagerTemplateIntegration:
         environment = Mock()
         environment.target_temp = None
         environment.saved_target_temp = 20.0
+        environment.get_validated_preset_temperature.side_effect = (
+            lambda preset: preset.get_temperature(hass)
+        )
         features = Mock()
         features.is_range_mode = False
 
@@ -110,6 +120,12 @@ class TestPresetManagerTemplateIntegration:
         environment.target_temp_high = None
         environment.saved_target_temp_low = None
         environment.saved_target_temp_high = None
+        environment.get_validated_preset_temp_low.side_effect = (
+            lambda preset: preset.get_target_temp_low(hass)
+        )
+        environment.get_validated_preset_temp_high.side_effect = (
+            lambda preset: preset.get_target_temp_high(hass)
+        )
         features = Mock()
         features.is_range_mode = True
 
@@ -130,3 +146,27 @@ class TestPresetManagerTemplateIntegration:
         # Assert: Both temps set from templates (outdoor_temp = 20 in fixture)
         assert environment.target_temp_low == 18.0  # 20 - 2
         assert environment.target_temp_high == 24.0  # 20 + 4
+
+    @pytest.mark.asyncio
+    async def test_preset_manager_ignores_legacy_zero_temperature_placeholder(
+        self, hass: HomeAssistant
+    ):
+        """Legacy preset temperature=0 should not overwrite a valid target."""
+        environment = EnvironmentManager(hass, {CONF_SENSOR: "sensor.temperature"})
+        environment.target_temp = 21.0
+        features = Mock()
+        features.is_range_mode = False
+
+        preset_manager = PresetManager(hass, {}, environment, features)
+        preset_manager._presets = {"away": 0.0}
+        preset_manager._preset_modes = ["away"]
+
+        old_state = Mock()
+        old_state.attributes = {
+            "preset_mode": "away",
+            "temperature": None,
+        }
+
+        await preset_manager.apply_old_state(old_state)
+
+        assert environment.target_temp == 21.0

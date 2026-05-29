@@ -469,6 +469,55 @@ class EnvironmentManager(StateManager):
         self._target_temp = temperature
         # self._saved_target_temp = temperature
 
+    def normalize_preset_temperature(
+        self, value: float | None, field_name: str
+    ) -> float | None:
+        """Return preset temperature only if it fits thermostat bounds."""
+        if value is None:
+            return None
+
+        temp = float(value)
+        min_temp = self.min_temp
+        max_temp = self.max_temp
+
+        if min_temp is not None and temp < min_temp:
+            _LOGGER.warning(
+                "Ignoring preset %s=%s because it is below min_temp=%s",
+                field_name,
+                temp,
+                min_temp,
+            )
+            return None
+
+        if max_temp is not None and temp > max_temp:
+            _LOGGER.warning(
+                "Ignoring preset %s=%s because it is above max_temp=%s",
+                field_name,
+                temp,
+                max_temp,
+            )
+            return None
+
+        return temp
+
+    def get_validated_preset_temperature(self, preset_env: PresetEnv) -> float | None:
+        """Resolve and validate the preset target temperature."""
+        return self.normalize_preset_temperature(
+            preset_env.get_temperature(self.hass), ATTR_TEMPERATURE
+        )
+
+    def get_validated_preset_temp_low(self, preset_env: PresetEnv) -> float | None:
+        """Resolve and validate the preset low temperature."""
+        return self.normalize_preset_temperature(
+            preset_env.get_target_temp_low(self.hass), ATTR_TARGET_TEMP_LOW
+        )
+
+    def get_validated_preset_temp_high(self, preset_env: PresetEnv) -> float | None:
+        """Resolve and validate the preset high temperature."""
+        return self.normalize_preset_temperature(
+            preset_env.get_target_temp_high(self.hass), ATTR_TARGET_TEMP_HIGH
+        )
+
     def set_temperature_range(
         self, temperature: float, temp_low: float, temp_high: float
     ) -> None:
@@ -862,19 +911,18 @@ class EnvironmentManager(StateManager):
             is_range_mode,
         )
 
-        # Use template-aware getters to evaluate templates (#538)
-        preset_temp = preset_env.get_temperature(self.hass)
-        preset_temp_low = preset_env.get_target_temp_low(self.hass)
-        preset_temp_high = preset_env.get_target_temp_high(self.hass)
-
         if is_range_mode:
             _LOGGER.debug(
                 "Setting temperatures from preset range mode, preset_env: %s",
                 preset_env.to_dict,
             )
 
-            if preset_env.has_temp_range():
+            preset_temp_low = self.get_validated_preset_temp_low(preset_env)
+            preset_temp_high = self.get_validated_preset_temp_high(preset_env)
+
+            if preset_temp_low is not None:
                 self.target_temp_low = preset_temp_low
+            if preset_temp_high is not None:
                 self.target_temp_high = preset_temp_high
             elif preset_env.has_temp():
                 # Single-temp preset applied while in range (heat/cool) mode.
@@ -894,32 +942,18 @@ class EnvironmentManager(StateManager):
                 preset_env.to_dict,
             )
 
-            if preset_env.has_temp():
+            preset_temp = self.get_validated_preset_temperature(preset_env)
+            preset_temp_low = self.get_validated_preset_temp_low(preset_env)
+            preset_temp_high = self.get_validated_preset_temp_high(preset_env)
+
+            if preset_temp is not None:
                 _LOGGER.debug(
                     "Setting temperatures from preset target mode if target_temp set"
                 )
-
-                # we prioritize the target temp from preset if it is set
-                if preset_env.has_temp():
-                    self.target_temp = preset_temp
-                # only after that we check if the temp range is set
-                elif preset_env.has_temp_range():
-                    if hvac_mode == HVACMode.HEAT:
-                        _LOGGER.debug(
-                            "Setting temperatures from preset target mode if HVACMode.HEAT. Preset: %s",
-                            preset_temp_low,
-                        )
-                        self.target_temp = preset_temp_low
-                    elif hvac_mode in [HVACMode.COOL, HVACMode.FAN_ONLY]:
-                        _LOGGER.debug(
-                            "Setting temperatures from preset target mode if HVACMode.COOL, HVACMode.FAN_ONLY. Preset: %s",
-                            preset_temp_high,
-                        )
-                        self.target_temp = preset_temp_high
-
+                self.target_temp = preset_temp
                 return
 
-            if not preset_env.has_temp_range():
+            if preset_temp_low is None and preset_temp_high is None:
                 _LOGGER.debug(
                     "Setting temperatures from preset target mode when preset not in presets_range. Saved temp: %s",
                     self._saved_target_temp,
@@ -934,12 +968,15 @@ class EnvironmentManager(StateManager):
                 )
 
                 if hvac_mode == HVACMode.HEAT:
-                    _LOGGER.debug(
-                        "Setting temperatures from preset range mode if HVACMode.HEAT. Preset: %s",
-                        preset_temp_low,
-                    )
-                    self._target_temp = preset_temp_low
-                elif hvac_mode in [HVACMode.COOL, HVACMode.FAN_ONLY]:
+                    if preset_temp_low is not None:
+                        _LOGGER.debug(
+                            "Setting temperatures from preset range mode if HVACMode.HEAT. Preset: %s",
+                            preset_temp_low,
+                        )
+                        self._target_temp = preset_temp_low
+                elif hvac_mode in [HVACMode.COOL, HVACMode.FAN_ONLY] and (
+                    preset_temp_high is not None
+                ):
                     _LOGGER.debug(
                         "Setting temperatures from preset range mode if HVACMode.COOL, HVACMode.FAN_ONLY. Preset: %s, sved_target_temp: %s",
                         preset_temp_high,

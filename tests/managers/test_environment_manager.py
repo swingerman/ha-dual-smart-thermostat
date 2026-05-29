@@ -75,6 +75,22 @@ class TestSetHvacMode:
         assert environment_manager._hvac_mode == HVACMode.FAN_ONLY
 
 
+class TestPresetTemperatureValidation:
+    """Test preset temperature validation helpers."""
+
+    def test_zero_placeholder_below_min_temp_is_ignored(self, environment_manager):
+        """Preset placeholders like 0 should be treated as unset when below bounds."""
+        preset_env = PresetEnv(temperature=0)
+
+        assert environment_manager.get_validated_preset_temperature(preset_env) is None
+
+    def test_valid_preset_temperature_within_bounds_is_kept(self, environment_manager):
+        """Temperatures inside configured bounds should pass through unchanged."""
+        preset_env = PresetEnv(temperature=21.5)
+
+        assert environment_manager.get_validated_preset_temperature(preset_env) == 21.5
+
+
 class TestGetActiveToleranceForMode:
     """Test _get_active_tolerance_for_mode() method."""
 
