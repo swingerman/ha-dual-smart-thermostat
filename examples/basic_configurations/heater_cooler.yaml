@@ -88,14 +88,18 @@ climate:
 #         timeout: 00:05:00  # Wait 5 minutes before turning off
 #
 #     # Preset temperatures
-#     away_temp: 16
-#     away_temp_high: 28
-#     eco_temp: 18
-#     eco_temp_high: 26
-#     comfort_temp: 20
-#     comfort_temp_high: 24
-#     home_temp: 21
-#     home_temp_high: 23
+#     away:
+#       target_temp_low: 16
+#       target_temp_high: 28
+#     eco:
+#       target_temp_low: 18
+#       target_temp_high: 26
+#     comfort:
+#       target_temp_low: 20
+#       target_temp_high: 24
+#     home:
+#       target_temp_low: 21
+#       target_temp_high: 23
 #
 #     # Floor protection (if you have floor heating/cooling)
 #     # floor_sensor: sensor.floor_temperature

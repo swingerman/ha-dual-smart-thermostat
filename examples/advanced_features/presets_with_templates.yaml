@@ -78,12 +78,14 @@ climate:
     # ECO preset maintains comfortable offset
     # If outdoor is 5°C → indoor target 16°C
     # If outdoor is 25°C → indoor target 24°C
-    eco_temp: "{{ [16, states('sensor.outdoor_temperature') | float + 11] | min }}"
-    eco_temp_high: "{{ [28, states('sensor.outdoor_temperature') | float - 1] | max }}"
+    eco:
+      target_temp_low: "{{ [16, states('sensor.outdoor_temperature') | float + 11] | min }}"
+      target_temp_high: "{{ [28, states('sensor.outdoor_temperature') | float - 1] | max }}"
 
     # HOME preset with moderate outdoor influence
-    home_temp: "{{ states('sensor.outdoor_temperature') | float * 0.3 + 14 }}"
-    home_temp_high: "{{ 30 - (states('sensor.outdoor_temperature') | float * 0.2) }}"
+    home:
+      target_temp_low: "{{ states('sensor.outdoor_temperature') | float * 0.3 + 14 }}"
+      target_temp_high: "{{ 30 - (states('sensor.outdoor_temperature') | float * 0.2) }}"
 
     initial_hvac_mode: "heat_cool"
 
@@ -140,15 +142,18 @@ climate:
     heat_cool_mode: true
 
     # Reference input_numbers directly
-    away_temp: "{{ states('input_number.away_heating_target') | float }}"
-    away_temp_high: "{{ states('input_number.away_cooling_target') | float }}"
+    away:
+      target_temp_low: "{{ states('input_number.away_heating_target') | float }}"
+      target_temp_high: "{{ states('input_number.away_cooling_target') | float }}"
 
-    eco_temp: "{{ states('input_number.eco_heating_target') | float }}"
-    eco_temp_high: "{{ states('input_number.eco_cooling_target') | float }}"
+    eco:
+      target_temp_low: "{{ states('input_number.eco_heating_target') | float }}"
+      target_temp_high: "{{ states('input_number.eco_cooling_target') | float }}"
 
     # Static presets for comparison
-    comfort_temp: 21
-    comfort_temp_high: 24
+    comfort:
+      target_temp_low: 21
+      target_temp_high: 24
 
     initial_hvac_mode: "heat_cool"
 
@@ -225,30 +230,35 @@ climate:
     # AWAY preset: Wide temperature range based on outdoor temp
     # Outdoor 10°C → Range: 12-28°C (outdoor + 2 to 28)
     # Outdoor 20°C → Range: 22-28°C (outdoor + 2 to 28)
-    away_temp: "{{ states('sensor.outdoor_temp') | float + 2 }}"
-    away_temp_high: 28
+    away:
+      target_temp_low: "{{ states('sensor.outdoor_temp') | float + 2 }}"
+      target_temp_high: 28
 
     # ECO preset: Dynamic range based on season
     # Winter: 18-24°C (6°C range)
     # Summer: 22-28°C (6°C range)
-    eco_temp: "{{ 18 if is_state('sensor.season', 'winter') else 22 }}"
-    eco_temp_high: "{{ 24 if is_state('sensor.season', 'winter') else 28 }}"
+    eco:
+      target_temp_low: "{{ 18 if is_state('sensor.season', 'winter') else 22 }}"
+      target_temp_high: "{{ 24 if is_state('sensor.season', 'winter') else 28 }}"
 
     # COMFORT preset: Narrow range adapting to time of day
     # Day: 20-23°C
     # Night: 19-22°C
-    comfort_temp: "{{ 20 if now().hour >= 6 and now().hour < 22 else 19 }}"
-    comfort_temp_high: "{{ 23 if now().hour >= 6 and now().hour < 22 else 22 }}"
+    comfort:
+      target_temp_low: "{{ 20 if now().hour >= 6 and now().hour < 22 else 19 }}"
+      target_temp_high: "{{ 23 if now().hour >= 6 and now().hour < 22 else 22 }}"
 
     # HOME preset: Mix static low, dynamic high
-    home_temp: 20
-    home_temp_high: "{{ states('input_number.home_cooling_target') | float }}"
+    home:
+      target_temp_low: 20
+      target_temp_high: "{{ states('input_number.home_cooling_target') | float }}"
 
     initial_hvac_mode: "heat_cool"
 
 # Range Mode Notes:
-# - In heat_cool mode, *_temp becomes target_temp_low
-# - *_temp_high becomes target_temp_high
+# - In heat_cool mode, use the nested preset format with both
+#   target_temp_low and target_temp_high
+# - target_temp_low is the heat-to target, target_temp_high the cool-to target
 # - Both can independently use templates or static values
 # - Ensure low < high (HA validates this)
 # - Templates must return numeric values

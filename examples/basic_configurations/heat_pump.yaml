@@ -107,13 +107,17 @@ climate:
 #       - binary_sensor.front_door
 #
 #     # Presets for different scenarios
-#     away_temp: 16          # Temperature when away
-#     away_temp_high: 28
-#     eco_temp: 18           # Eco mode temperature
-#     eco_temp_high: 26
-#     comfort_temp: 20       # Comfort mode
-#     comfort_temp_high: 24
-#     home_temp: 21          # Home mode
-#     home_temp_high: 23
+#     away:                  # Temperature when away
+#       target_temp_low: 16
+#       target_temp_high: 28
+#     eco:                   # Eco mode temperature
+#       target_temp_low: 18
+#       target_temp_high: 26
+#     comfort:               # Comfort mode
+#       target_temp_low: 20
+#       target_temp_high: 24
+#     home:                  # Home mode
+#       target_temp_low: 21
+#       target_temp_high: 23
 #
 #     initial_hvac_mode: "heat_cool"
