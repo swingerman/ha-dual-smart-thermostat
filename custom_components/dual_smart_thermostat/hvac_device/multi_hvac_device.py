@@ -58,6 +58,32 @@ class MultiHvacDevice(HVACDevice, ControlableHVACDevice):
             device.on_entity_state_changed(entity_id, new_state)
         self.init_hvac_modes(self.hvac_devices)
 
+        # A sub-device may have swapped its mode in response to the state
+        # change (e.g. a wrapped HeatPumpDevice swaps HEAT<->COOL when its
+        # heat_pump_cooling entity toggles). When that removes the wrapper's
+        # current mode from the merged list, follow the sub-device so the
+        # climate entity reports the new mode instead of staying stuck on the
+        # old one (issue #597).
+        if (
+            self._hvac_mode is not None
+            and self._hvac_mode != HVACMode.OFF
+            and self._hvac_mode not in self.hvac_modes
+        ):
+            for device in self.hvac_devices:
+                device_mode = device.hvac_mode
+                if (
+                    device_mode is not None
+                    and device_mode != HVACMode.OFF
+                    and device_mode in self.hvac_modes
+                ):
+                    _LOGGER.debug(
+                        "Re-syncing wrapper hvac mode %s -> %s after sub-device swap",
+                        self._hvac_mode,
+                        device_mode,
+                    )
+                    self._hvac_mode = device_mode
+                    break
+
     def get_device_ids(self) -> list[str]:
         device_ids = []
         for device in self.hvac_devices:

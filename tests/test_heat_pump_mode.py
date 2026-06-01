@@ -330,6 +330,53 @@ async def test_heat_pump_with_fan_fan_only_mode_runs_fan_only(
     ), f"heat-pump switch must not be turned on in FAN_ONLY mode, got: {calls}"
 
 
+async def test_heat_pump_with_fan_follows_cooling_status_heat_to_cool(
+    hass: HomeAssistant, setup_comp_1  # noqa: F811
+) -> None:
+    """Heat pump + fan must follow the heat_pump_cooling entity HEAT->COOL.
+
+    Regression test for issue #597: when a heat_pump_cooling heat pump is
+    configured together with a fan entity, the device is wrapped in a
+    MultiHvacDevice. Flipping the heat_pump_cooling entity swapped the inner
+    HeatPumpDevice's mode but the wrapper kept reporting the old mode, so the
+    climate entity stayed stuck in HEAT instead of switching to COOL.
+    """
+    setup_heat_pump_cooling_status(hass, False)
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "cold_tolerance": 2,
+                "hot_tolerance": 4,
+                "heater": common.ENT_SWITCH,
+                "fan": common.ENT_FAN,
+                "heat_pump_cooling": common.ENT_HEAT_PUMP_COOLING,
+                "target_sensor": common.ENT_SENSOR,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    await common.async_set_temperature(hass, 26)
+    setup_sensor(hass, 23)
+    await common.async_set_hvac_mode(hass, HVACMode.HEAT)
+    await hass.async_block_till_done()
+
+    state = hass.states.get(common.ENTITY)
+    assert state.state == HVACMode.HEAT
+
+    # Flip the heat_pump_cooling entity to cooling.
+    setup_switch(hass, True)
+    setup_heat_pump_cooling_status(hass, True)
+    await hass.async_block_till_done()
+
+    state = hass.states.get(common.ENTITY)
+    assert state.state == HVACMode.COOL
+
+
 @pytest.fixture
 async def setup_comp_heat_pump_presets(hass: HomeAssistant) -> None:
     """Initialize components."""
