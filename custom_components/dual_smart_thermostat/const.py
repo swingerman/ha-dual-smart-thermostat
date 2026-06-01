@@ -136,6 +136,9 @@ ATTR_PREV_TARGET_LOW = "prev_target_temp_low"
 ATTR_PREV_TARGET_HIGH = "prev_target_temp_high"
 ATTR_PREV_HUMIDITY = "prev_humidity"
 ATTR_HVAC_ACTION_REASON = "hvac_action_reason"
+# Last active (non-off) HVAC mode, persisted so it can be resumed on
+# turn_on after a Home Assistant restart (see issue #600).
+ATTR_LAST_HVAC_MODE = "last_hvac_mode"
 # Dispatcher signal used to mirror the climate entity's _hvac_action_reason value
 # onto its companion HvacActionReasonSensor entity. Formatted with the
 # climate's sensor_key (config_entry.entry_id or CONF_UNIQUE_ID or CONF_NAME).
