@@ -876,6 +876,17 @@ class EnvironmentManager(StateManager):
             if preset_env.has_temp_range():
                 self.target_temp_low = preset_temp_low
                 self.target_temp_high = preset_temp_high
+            elif preset_env.has_temp():
+                # Single-temp preset applied while in range (heat/cool) mode.
+                # Without this fallback the preset is silently ignored and
+                # switching presets appears to do nothing (issue #592). Apply
+                # the single value to both setpoints so the change is honored.
+                _LOGGER.debug(
+                    "Applying single-temp preset %s to both setpoints in range mode",
+                    preset_temp,
+                )
+                self.target_temp_low = preset_temp
+                self.target_temp_high = preset_temp
 
         else:
             _LOGGER.debug(

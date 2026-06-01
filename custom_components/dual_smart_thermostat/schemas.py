@@ -1179,8 +1179,13 @@ def get_presets_schema(user_input: dict[str, Any]) -> vol.Schema:
                 if user_input.get(preset_key) or user_input.get(internal_name):
                     selected_presets.append(preset_key)
 
-    # Determine if heat_cool_mode is enabled in the provided context/user_input.
-    # Support both explicit boolean key and old internal naming conventions.
+    # Determine if heat_cool (range / dual-setpoint) mode is enabled in the
+    # provided context/user_input. Support both the explicit boolean flag and
+    # the inferred case where target ranges are configured. The latter matters
+    # for system types (e.g. AC-only) that drive range mode purely via
+    # target_temp_low/high without the heat_cool_mode flag — otherwise the
+    # preset form shows a single temp field and switching presets does nothing
+    # (issue #592). This mirrors FeatureManager.is_configured_for_heat_cool_mode.
     heat_cool_enabled = False
     try:
         # user_input may include the raw flag or the internal config mapping
@@ -1191,6 +1196,12 @@ def get_presets_schema(user_input: dict[str, Any]) -> vol.Schema:
             # Older/alternate keys may exist in user_input or context
             # Check for truthy values on any known heat_cool related keys
             if any(user_input.get(k) for k in ("heat_cool_mode",)):
+                heat_cool_enabled = True
+            # Inferred range mode: both target setpoints configured.
+            if (
+                user_input.get(CONF_TARGET_TEMP_LOW) is not None
+                and user_input.get(CONF_TARGET_TEMP_HIGH) is not None
+            ):
                 heat_cool_enabled = True
     except Exception:
         heat_cool_enabled = False
