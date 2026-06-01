@@ -421,12 +421,12 @@ climate:
 
 | System Type | Required Preset Fields | Template Support |
 |-------------|------------------------|------------------|
-| `simple_heater` | `<preset>_temp` | ✅ Templates work |
-| `ac_only` | `<preset>_temp_high` | ✅ Templates work |
-| `heater_cooler` (single mode) | `<preset>_temp` (heat) OR `<preset>_temp_high` (cool) | ✅ Templates work |
-| `heater_cooler` (heat_cool mode) | Both `<preset>_temp` AND `<preset>_temp_high` | ✅ Both can use templates |
-| `heat_pump` (single mode) | `<preset>_temp` (heat) OR `<preset>_temp_high` (cool) | ✅ Templates work |
-| `heat_pump` (heat_cool mode) | Both `<preset>_temp` AND `<preset>_temp_high` | ✅ Both can use templates |
+| `simple_heater` | `<preset>_temp` (or nested `temperature`) | ✅ Templates work |
+| `ac_only` | `<preset>_temp` (or nested `temperature`) | ✅ Templates work |
+| `heater_cooler` (single mode) | `<preset>_temp` (or nested `temperature`) | ✅ Templates work |
+| `heater_cooler` (heat_cool mode) | Nested `<preset>:` with both `target_temp_low` AND `target_temp_high` | ✅ Both can use templates |
+| `heat_pump` (single mode) | `<preset>_temp` (or nested `temperature`) | ✅ Templates work |
+| `heat_pump` (heat_cool mode) | Nested `<preset>:` with both `target_temp_low` AND `target_temp_high` | ✅ Both can use templates |
 
 **Configuration Example - Heat/Cool Mode with Templates**:
 ```yaml
@@ -438,14 +438,16 @@ climate:
     target_sensor: sensor.temperature
     heat_cool_mode: true
 
-    # Both fields required for heat_cool mode
+    # Both fields required for heat_cool mode (use the nested preset format)
     # Both can use templates independently
-    away_temp: "{{ states('input_number.away_heat') | float }}"      # ← For heating
-    away_temp_high: "{{ states('input_number.away_cool') | float }}"  # ← For cooling
+    away:
+      target_temp_low: "{{ states('input_number.away_heat') | float }}"   # ← For heating
+      target_temp_high: "{{ states('input_number.away_cool') | float }}"  # ← For cooling
 
     # Or mix static and template
-    eco_temp: 18                                                       # ← Static heating target
-    eco_temp_high: "{{ states('sensor.outdoor') | float + 6 }}"       # ← Dynamic cooling target
+    eco:
+      target_temp_low: 18                                              # ← Static heating target
+      target_temp_high: "{{ states('sensor.outdoor') | float + 6 }}"   # ← Dynamic cooling target
 ```
 
 #### Template Best Practices and Pitfalls

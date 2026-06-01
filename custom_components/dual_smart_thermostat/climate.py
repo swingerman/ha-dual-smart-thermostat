@@ -69,6 +69,7 @@ from .const import (
     ATTR_HVAC_ACTION_REASON,
     ATTR_HVAC_POWER_LEVEL,
     ATTR_HVAC_POWER_PERCENT,
+    ATTR_LAST_HVAC_MODE,
     ATTR_OPENING_TIMEOUT,
     ATTR_PREV_HUMIDITY,
     ATTR_PREV_TARGET,
@@ -931,6 +932,16 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             if hvac_mode not in self.hvac_modes:
                 hvac_mode = HVACMode.OFF
 
+            # Restore the last active (non-off) HVAC mode so turn_on can resume
+            # the correct mode after a restart while the entity was off (#600).
+            restored_last_hvac_mode = old_state.attributes.get(ATTR_LAST_HVAC_MODE)
+            if (
+                restored_last_hvac_mode is not None
+                and restored_last_hvac_mode != HVACMode.OFF
+                and restored_last_hvac_mode in self.hvac_modes
+            ):
+                self._last_hvac_mode = restored_last_hvac_mode
+
             self.features.apply_old_state(old_state, hvac_mode, self.presets.presets)
             self._attr_supported_features = self.features.supported_features
 
@@ -1166,6 +1177,13 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             self._hvac_action_reason or HVACActionReason.NONE
         )
 
+        # Persist the last active (non-off) HVAC mode so it can be resumed on
+        # turn_on after a Home Assistant restart (issue #600). Without this the
+        # in-memory _last_hvac_mode is lost across restarts and turn_on falls
+        # back to the alphabetically-first mode (e.g. COOL before HEAT).
+        if self._last_hvac_mode is not None and self._last_hvac_mode != HVACMode.OFF:
+            attributes[ATTR_LAST_HVAC_MODE] = self._last_hvac_mode
+
         # Add fan mode to state attributes for persistence
         if self.features.supports_fan_mode and self.fan_mode is not None:
             attributes[ATTR_FAN_MODE] = self.fan_mode
@@ -1255,7 +1273,12 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             return
 
         if hvac_mode == HVACMode.OFF:
-            self._last_hvac_mode = self.hvac_device.hvac_mode
+            # Only remember a real, non-off mode. Saving None/OFF would clobber
+            # a previously remembered (or restored) mode with nothing useful,
+            # breaking resume-on-turn_on after a restart-while-off (#600).
+            current_device_mode = self.hvac_device.hvac_mode
+            if current_device_mode is not None and current_device_mode != HVACMode.OFF:
+                self._last_hvac_mode = current_device_mode
             _LOGGER.info(
                 "%s: Turning off with saving last hvac mode: %s",
                 self.entity_id,

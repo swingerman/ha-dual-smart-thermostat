@@ -523,9 +523,8 @@ When you switch to DRY mode, temperature control stops. When you switch to HEAT 
 **Diagnosis:**
 
 1. **Check preset is fully configured:**
-   - For heating-only: Need `<preset>_temp`
-   - For cooling-only: Need `<preset>_temp_high`
-   - For heat_cool: Need both `<preset>_temp` and `<preset>_temp_high`
+   - For heating-only: Need `<preset>_temp` (flat) or a nested `<preset>:` with `target_temp_low`
+   - For heat_cool range: Use the nested `<preset>:` format with both `target_temp_low` and `target_temp_high`
 
 2. **Verify configuration loaded:**
    - Check Configuration → Server Controls → Check Configuration
@@ -546,9 +545,10 @@ climate:
     # ❌ Incomplete - won't show
     away_temp: 16
 
-    # ✅ Complete - will show
-    away_temp: 16
-    away_temp_high: 28
+    # ✅ Complete - will show (nested format for heat_cool range)
+    away:
+      target_temp_low: 16
+      target_temp_high: 28
 ```
 
 2. **Restart Home Assistant:**

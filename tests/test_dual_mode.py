@@ -31,6 +31,7 @@ from homeassistant.const import (
     ENTITY_MATCH_ALL,
     EVENT_CALL_SERVICE,
     SERVICE_TURN_OFF,
+    SERVICE_TURN_ON,
     STATE_CLOSED,
     STATE_OFF,
     STATE_ON,
@@ -49,6 +50,7 @@ import voluptuous as vol
 
 from custom_components.dual_smart_thermostat.const import (
     ATTR_HVAC_ACTION_REASON,
+    ATTR_LAST_HVAC_MODE,
     DOMAIN,
     PRESET_ANTI_FREEZE,
 )
@@ -227,6 +229,66 @@ async def test_restore_state_while_off(hass: HomeAssistant) -> None:
     _LOGGER.debug("Attributes: %s", state.attributes)
     assert state.attributes[ATTR_TEMPERATURE] == 20
     assert state.state == HVACMode.OFF
+
+
+async def test_restore_last_hvac_mode_resumes_on_turn_on(
+    hass: HomeAssistant,
+) -> None:
+    """Turning on after a restart-while-off resumes the last active mode.
+
+    Regression test for issue #600: a heater + cooler setup (heat_cool_mode
+    off) that was turned off, then had Home Assistant restarted, used to lose
+    the in-memory last-mode and fall back to the alphabetically-first mode
+    (COOL) on turn_on. The last active mode is now persisted via the
+    ``last_hvac_mode`` attribute and restored so HEAT resumes correctly.
+    """
+    common.mock_restore_cache(
+        hass,
+        (
+            State(
+                "climate.test",
+                HVACMode.OFF,
+                {ATTR_TEMPERATURE: "20", ATTR_LAST_HVAC_MODE: HVACMode.HEAT},
+            ),
+        ),
+    )
+
+    hass.set_state(CoreState.starting)
+
+    await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "cold_tolerance": 0.5,
+                "hot_tolerance": 0,
+                "heater": common.ENT_HEATER,
+                "cooler": common.ENT_COOLER,
+                "target_sensor": common.ENT_SENSOR,
+                "heat_cool_mode": False,
+                "target_temp": 20,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    # Restored while off.
+    state = hass.states.get("climate.test")
+    assert state.state == HVACMode.OFF
+
+    # Turning on must resume HEAT (the persisted last mode), not COOL.
+    await hass.services.async_call(
+        CLIMATE,
+        SERVICE_TURN_ON,
+        {ATTR_ENTITY_ID: "climate.test"},
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+
+    state = hass.states.get("climate.test")
+    assert state.state == HVACMode.HEAT
 
 
 # issue 80

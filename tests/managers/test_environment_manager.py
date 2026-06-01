@@ -415,6 +415,59 @@ class TestSetTempsFromPresetWithTemplates:
         assert isinstance(env.target_temp, float)
 
 
+class TestSingleTempPresetInRangeMode:
+    """Regression tests for issue #592.
+
+    A preset configured with only a single ``temperature`` (no low/high
+    range) applied while the thermostat is in range (heat/cool) mode used to
+    be silently ignored, so switching presets did nothing.
+    """
+
+    @pytest.mark.asyncio
+    async def test_single_temp_preset_applied_to_both_setpoints(
+        self, hass, basic_config
+    ):
+        """Single-temp preset in range mode sets both setpoints (#592)."""
+        env = EnvironmentManager(hass, basic_config)
+        env.target_temp_low = 18.0
+        env.target_temp_high = 24.0
+
+        preset_env = PresetEnv(**{ATTR_TEMPERATURE: 21})
+
+        env.set_temepratures_from_hvac_mode_and_presets(
+            hvac_mode=HVACMode.HEAT_COOL,
+            supports_temp_range=True,
+            preset_mode="comfort",
+            preset_env=preset_env,
+            is_range_mode=True,
+        )
+
+        # Previously both stayed at 18/24 (preset silently ignored). Now the
+        # single temp is applied to both setpoints so the change is honored.
+        assert env.target_temp_low == 21
+        assert env.target_temp_high == 21
+
+    @pytest.mark.asyncio
+    async def test_range_preset_still_applied_in_range_mode(self, hass, basic_config):
+        """A proper range preset is unaffected by the single-temp fallback."""
+        env = EnvironmentManager(hass, basic_config)
+        env.target_temp_low = 18.0
+        env.target_temp_high = 24.0
+
+        preset_env = PresetEnv(**{ATTR_TARGET_TEMP_LOW: 19, ATTR_TARGET_TEMP_HIGH: 23})
+
+        env.set_temepratures_from_hvac_mode_and_presets(
+            hvac_mode=HVACMode.HEAT_COOL,
+            supports_temp_range=True,
+            preset_mode="comfort",
+            preset_env=preset_env,
+            is_range_mode=True,
+        )
+
+        assert env.target_temp_low == 19
+        assert env.target_temp_high == 23
+
+
 class TestIsWithinFanTolerance:
     """Test is_within_fan_tolerance() edge cases.
 

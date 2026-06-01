@@ -15,28 +15,34 @@ climate:
     heat_cool_mode: true
 
     # AWAY Preset - Energy saving when nobody home
-    away_temp: 16        # Heat to 16°C when away (heating mode)
-    away_temp_high: 28   # Cool to 28°C when away (cooling mode)
+    away:
+      target_temp_low: 16    # Heat to 16°C when away (heating mode)
+      target_temp_high: 28   # Cool to 28°C when away (cooling mode)
 
     # ECO Preset - Moderate energy savings
-    eco_temp: 18
-    eco_temp_high: 26
+    eco:
+      target_temp_low: 18
+      target_temp_high: 26
 
     # COMFORT Preset - Maximum comfort
-    comfort_temp: 21
-    comfort_temp_high: 24
+    comfort:
+      target_temp_low: 21
+      target_temp_high: 24
 
     # HOME Preset - Normal home temperature
-    home_temp: 20
-    home_temp_high: 25
+    home:
+      target_temp_low: 20
+      target_temp_high: 25
 
     # SLEEP Preset - Optimal sleeping temperature
-    sleep_temp: 19
-    sleep_temp_high: 23
+    sleep:
+      target_temp_low: 19
+      target_temp_high: 23
 
     # ACTIVITY Preset - Cooler for exercise/activity
-    activity_temp: 17
-    activity_temp_high: 22
+    activity:
+      target_temp_low: 17
+      target_temp_high: 22
 
     initial_hvac_mode: "heat_cool"
 
@@ -46,13 +52,13 @@ climate:
 #
 # When you select a preset:
 #   1. Target temperatures change to preset values
-#   2. In heat mode → Uses *_temp value
-#   3. In cool mode → Uses *_temp_high value
+#   2. In heat mode → Uses target_temp_low value
+#   3. In cool mode → Uses target_temp_high value
 #   4. In heat_cool mode → Uses both (as low and high)
 #
 # Example - ECO preset with heat_cool mode:
-#   - target_temp_low: 18°C (eco_temp)
-#   - target_temp_high: 26°C (eco_temp_high)
+#   - target_temp_low: 18°C
+#   - target_temp_high: 26°C
 #   - Maintains temperature between 18-26°C
 #
 # When preset is "none" (default):
@@ -140,14 +146,18 @@ climate:
 #     target_sensor: sensor.temperature
 #     heat_cool_mode: true
 #
-#     away_temp: 16
-#     away_temp_high: 28
-#     eco_temp: 18
-#     eco_temp_high: 26
-#     home_temp: 20
-#     home_temp_high: 24
-#     sleep_temp: 19
-#     sleep_temp_high: 23
+#     away:
+#       target_temp_low: 16
+#       target_temp_high: 28
+#     eco:
+#       target_temp_low: 18
+#       target_temp_high: 26
+#     home:
+#       target_temp_low: 20
+#       target_temp_high: 24
+#     sleep:
+#       target_temp_low: 19
+#       target_temp_high: 23
 #
 #     initial_hvac_mode: "heat_cool"
 #
@@ -299,8 +309,9 @@ climate:
 #     cooler: switch.cooler
 #     target_sensor: sensor.temperature
 #     heat_cool_mode: true
-#     away_temp: "{{ states('input_number.away_temp_heat') | float }}"
-#     away_temp_high: "{{ states('input_number.away_temp_cool') | float }}"
+#     away:
+#       target_temp_low: "{{ states('input_number.away_temp_heat') | float }}"
+#       target_temp_high: "{{ states('input_number.away_temp_cool') | float }}"
 #
 # NOTE: Templates in climate config require restart to update!
 # Better approach is to use automations to set temps dynamically.
@@ -339,8 +350,9 @@ climate:
 # ========================================
 #
 # Preset doesn't appear in UI:
-#   - Check that both *_temp and *_temp_high are set
-#   - For heating-only, only *_temp is needed
+#   - Check that both target_temp_low and target_temp_high are set
+#     (use the nested preset format for heat_cool ranges)
+#   - For heating-only, only a single *_temp value is needed
 #   - Restart Home Assistant after config changes
 #   - Check logs for configuration errors
 #
@@ -356,6 +368,6 @@ climate:
 #   - Check if UI/app is overriding
 #
 # Want to disable a preset:
-#   - Remove the *_temp and *_temp_high lines
+#   - Remove the preset block (or the single *_temp line)
 #   - Restart Home Assistant
 #   - Preset will no longer appear in UI
