@@ -75,40 +75,6 @@ class TestSetHvacMode:
         assert environment_manager._hvac_mode == HVACMode.FAN_ONLY
 
 
-class TestPresetTemperatureValidation:
-    """Test preset temperature validation helpers."""
-
-    def test_zero_placeholder_is_ignored(self, environment_manager):
-        """Preset placeholders like 0 should be treated as unset."""
-        preset_env = PresetEnv(temperature=0)
-
-        assert environment_manager.get_validated_preset_temperature(preset_env) is None
-
-    def test_negative_placeholder_is_ignored(self, environment_manager):
-        """Negative preset temperatures are non-physical placeholders and ignored."""
-        preset_env = PresetEnv(temperature=-5)
-
-        assert environment_manager.get_validated_preset_temperature(preset_env) is None
-
-    def test_valid_preset_temperature_is_kept(self, environment_manager):
-        """A normal in-range temperature should pass through unchanged."""
-        preset_env = PresetEnv(temperature=21.5)
-
-        assert environment_manager.get_validated_preset_temperature(preset_env) == 21.5
-
-    def test_low_preset_below_min_temp_is_kept(self, environment_manager):
-        """Legitimate low presets (e.g. anti-freeze at 5°C) must survive the
-        placeholder guard even though they sit below the default min_temp of 7°C.
-
-        The guard rejects non-physical placeholders (<= 0), NOT values below the
-        configured min_temp — clamping to min_temp would silently break the
-        anti-freeze preset (regression guard for PR #598).
-        """
-        preset_env = PresetEnv(temperature=5)
-
-        assert environment_manager.get_validated_preset_temperature(preset_env) == 5
-
-
 class TestGetActiveToleranceForMode:
     """Test _get_active_tolerance_for_mode() method."""
 

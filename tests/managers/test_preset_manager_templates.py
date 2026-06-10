@@ -33,9 +33,6 @@ class TestPresetManagerTemplateIntegration:
         config = {}
         environment = Mock()
         environment.target_temp = None
-        environment.get_validated_preset_temperature.side_effect = (
-            lambda preset: preset.get_temperature(hass)
-        )
         features = Mock()
         features.is_range_mode = False
 
@@ -77,9 +74,6 @@ class TestPresetManagerTemplateIntegration:
         environment = Mock()
         environment.target_temp = None
         environment.saved_target_temp = 20.0
-        environment.get_validated_preset_temperature.side_effect = (
-            lambda preset: preset.get_temperature(hass)
-        )
         features = Mock()
         features.is_range_mode = False
 
@@ -120,12 +114,6 @@ class TestPresetManagerTemplateIntegration:
         environment.target_temp_high = None
         environment.saved_target_temp_low = None
         environment.saved_target_temp_high = None
-        environment.get_validated_preset_temp_low.side_effect = (
-            lambda preset: preset.get_target_temp_low(hass)
-        )
-        environment.get_validated_preset_temp_high.side_effect = (
-            lambda preset: preset.get_target_temp_high(hass)
-        )
         features = Mock()
         features.is_range_mode = True
 

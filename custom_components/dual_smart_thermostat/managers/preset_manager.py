@@ -14,7 +14,7 @@ from ..const import CONF_PRESETS, CONF_PRESETS_OLD
 from ..managers.environment_manager import EnvironmentManager
 from ..managers.feature_manager import FeatureManager
 from ..managers.state_manager import StateManager
-from ..preset_env.preset_env import PresetEnv
+from ..preset_env.preset_env import PresetEnv, normalize_preset_temperature
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -235,9 +235,9 @@ class PresetManager(StateManager):
         old_target_temp_high: float | None,
     ):
         """Restore range temperatures from preset, preferring old state values."""
-        # Use template-aware getters for preset temperatures
-        preset_temp_low = self._environment.get_validated_preset_temp_low(preset)
-        preset_temp_high = self._environment.get_validated_preset_temp_high(preset)
+        # Template-aware getters; placeholder values (<= 0) come back as None
+        preset_temp_low = preset.get_target_temp_low(self.hass)
+        preset_temp_high = preset.get_target_temp_high(self.hass)
 
         # Prefer old state values, fall back to preset values
         if preset_temp_low is not None:
@@ -258,16 +258,14 @@ class PresetManager(StateManager):
         """Restore temperature from preset configuration (supports multiple formats)."""
         # Handle legacy float format
         if isinstance(preset, float):
-            temp = self._environment.normalize_preset_temperature(
-                float(preset), ATTR_TEMPERATURE
-            )
+            temp = normalize_preset_temperature(float(preset), ATTR_TEMPERATURE)
             if temp is not None:
                 self._environment.target_temp = temp
             return
 
         # Handle legacy dict format
         if isinstance(preset, dict) and ATTR_TEMPERATURE in preset:
-            temp = self._environment.normalize_preset_temperature(
+            temp = normalize_preset_temperature(
                 float(preset[ATTR_TEMPERATURE]), ATTR_TEMPERATURE
             )
             if temp is not None:
@@ -276,7 +274,7 @@ class PresetManager(StateManager):
 
         # Handle PresetEnv object with template support
         if hasattr(preset, "get_temperature"):
-            temp = self._environment.get_validated_preset_temperature(preset)
+            temp = preset.get_temperature(self.hass)
             if temp is not None:
                 self._environment.target_temp = temp
             return
