@@ -472,29 +472,27 @@ class EnvironmentManager(StateManager):
     def normalize_preset_temperature(
         self, value: float | None, field_name: str
     ) -> float | None:
-        """Return preset temperature only if it fits thermostat bounds."""
+        """Return preset temperature unless it is a non-physical placeholder.
+
+        Some real-world configs use ``temperature: 0`` (or negative values) as a
+        placeholder meaning "unset" inside a preset definition. Applying those
+        would overwrite a valid target with a bogus value, so we treat anything
+        at or below zero as unset and ignore it.
+
+        Note: we deliberately do NOT clamp against ``min_temp``/``max_temp`` here.
+        Legitimate low presets such as ``PRESET_ANTI_FREEZE`` (5°C) sit below the
+        default ``min_temp`` of 7°C and must still be honored.
+        """
         if value is None:
             return None
 
         temp = float(value)
-        min_temp = self.min_temp
-        max_temp = self.max_temp
 
-        if min_temp is not None and temp < min_temp:
+        if temp <= 0:
             _LOGGER.warning(
-                "Ignoring preset %s=%s because it is below min_temp=%s",
+                "Ignoring preset %s=%s because it is a placeholder (<= 0)",
                 field_name,
                 temp,
-                min_temp,
-            )
-            return None
-
-        if max_temp is not None and temp > max_temp:
-            _LOGGER.warning(
-                "Ignoring preset %s=%s because it is above max_temp=%s",
-                field_name,
-                temp,
-                max_temp,
             )
             return None
 
@@ -920,21 +918,25 @@ class EnvironmentManager(StateManager):
             preset_temp_low = self.get_validated_preset_temp_low(preset_env)
             preset_temp_high = self.get_validated_preset_temp_high(preset_env)
 
-            if preset_temp_low is not None:
-                self.target_temp_low = preset_temp_low
-            if preset_temp_high is not None:
-                self.target_temp_high = preset_temp_high
-            elif preset_env.has_temp():
+            if preset_temp_low is not None or preset_temp_high is not None:
+                if preset_temp_low is not None:
+                    self.target_temp_low = preset_temp_low
+                if preset_temp_high is not None:
+                    self.target_temp_high = preset_temp_high
+            else:
                 # Single-temp preset applied while in range (heat/cool) mode.
                 # Without this fallback the preset is silently ignored and
                 # switching presets appears to do nothing (issue #592). Apply
-                # the single value to both setpoints so the change is honored.
-                _LOGGER.debug(
-                    "Applying single-temp preset %s to both setpoints in range mode",
-                    preset_temp,
-                )
-                self.target_temp_low = preset_temp
-                self.target_temp_high = preset_temp
+                # the single (bounds-validated) value to both setpoints so the
+                # change is honored.
+                preset_temp = self.get_validated_preset_temperature(preset_env)
+                if preset_temp is not None:
+                    _LOGGER.debug(
+                        "Applying single-temp preset %s to both setpoints in range mode",
+                        preset_temp,
+                    )
+                    self.target_temp_low = preset_temp
+                    self.target_temp_high = preset_temp
 
         else:
             _LOGGER.debug(
@@ -943,8 +945,6 @@ class EnvironmentManager(StateManager):
             )
 
             preset_temp = self.get_validated_preset_temperature(preset_env)
-            preset_temp_low = self.get_validated_preset_temp_low(preset_env)
-            preset_temp_high = self.get_validated_preset_temp_high(preset_env)
 
             if preset_temp is not None:
                 _LOGGER.debug(
@@ -952,6 +952,11 @@ class EnvironmentManager(StateManager):
                 )
                 self.target_temp = preset_temp
                 return
+
+            # Only needed past the single-temp early return; the getters may
+            # evaluate templates, so don't pay for them on the common path.
+            preset_temp_low = self.get_validated_preset_temp_low(preset_env)
+            preset_temp_high = self.get_validated_preset_temp_high(preset_env)
 
             if preset_temp_low is None and preset_temp_high is None:
                 _LOGGER.debug(

@@ -6,13 +6,13 @@ from homeassistant.const import ATTR_TEMPERATURE
 from homeassistant.core import HomeAssistant
 import pytest
 
-from custom_components.dual_smart_thermostat.managers.preset_manager import (
-    PresetManager,
-)
+from custom_components.dual_smart_thermostat.const import CONF_SENSOR
 from custom_components.dual_smart_thermostat.managers.environment_manager import (
     EnvironmentManager,
 )
-from custom_components.dual_smart_thermostat.const import CONF_SENSOR
+from custom_components.dual_smart_thermostat.managers.preset_manager import (
+    PresetManager,
+)
 from custom_components.dual_smart_thermostat.preset_env.preset_env import PresetEnv
 
 
