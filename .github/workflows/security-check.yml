@@ -111,6 +111,10 @@ jobs:
           # zeroconf GHSA-9pgc-3ccv-5297 / GHSA-phvx-9mgw-67r5 / GHSA-rfg2-pjw2-56x2
           # (mDNS DoS): all transitive deps pinned by Home Assistant; cannot be
           # upgraded independently. Will clear when HA bumps these versions.
+          # aiohttp 3.13.5 GHSA-jg22-mg44-37j8 (CookieJar.load untrusted input) /
+          # GHSA-hg6j-4rv6-33pg (cookies after cross-origin redirect), fixed in 3.14.0.
+          # pyjwt 2.10.1 PYSEC-2026-175..179 (JWK/HMAC validation, PyJWKClient
+          # scheme/SSRF + unknown-kid fetch), fixed in 2.13.0.
           HA_IGNORES="\
             --ignore-vuln GHSA-jp4c-xjxw-mgf9 \
             --ignore-vuln GHSA-9548-qrrj-x5pj \
@@ -159,7 +163,14 @@ jobs:
             --ignore-vuln GHSA-4gg8-gxpx-9rph \
             --ignore-vuln GHSA-9pgc-3ccv-5297 \
             --ignore-vuln GHSA-phvx-9mgw-67r5 \
-            --ignore-vuln GHSA-rfg2-pjw2-56x2"
+            --ignore-vuln GHSA-rfg2-pjw2-56x2 \
+            --ignore-vuln GHSA-jg22-mg44-37j8 \
+            --ignore-vuln GHSA-hg6j-4rv6-33pg \
+            --ignore-vuln PYSEC-2026-175 \
+            --ignore-vuln PYSEC-2026-176 \
+            --ignore-vuln PYSEC-2026-177 \
+            --ignore-vuln PYSEC-2026-178 \
+            --ignore-vuln PYSEC-2026-179"
           pip-audit --desc --format=json --output=pip-audit-report.json $HA_IGNORES || true
           pip-audit --desc $HA_IGNORES
         continue-on-error: false
