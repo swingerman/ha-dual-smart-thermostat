@@ -332,3 +332,71 @@ class TestRangeModeWithTemplates:
         # Assert: Static unchanged, template updated
         assert temp_low_after == 18.0  # Still static
         assert temp_high_after == 29.0  # 25 + 4 from updated template
+
+
+class TestPlaceholderTemperatureGuard:
+    """Placeholder temperatures (<= 0) are filtered to None by the getters.
+
+    Some real-world configs use temperature: 0 (or negative) as an "unset"
+    placeholder; applying it would overwrite a valid target. The guard lives
+    in PresetEnv's getters so static values, lazily-rendered templates, and
+    every consumer (apply, restore, template re-evaluation) are all covered.
+    """
+
+    @pytest.mark.asyncio
+    async def test_zero_placeholder_is_ignored(self, hass: HomeAssistant):
+        """Static temperature=0 placeholder should read as unset."""
+        preset_env = PresetEnv(**{ATTR_TEMPERATURE: 0})
+
+        assert preset_env.get_temperature(hass) is None
+
+    @pytest.mark.asyncio
+    async def test_negative_placeholder_is_ignored(self, hass: HomeAssistant):
+        """Negative temperatures are non-physical placeholders and ignored."""
+        preset_env = PresetEnv(**{ATTR_TEMPERATURE: -5})
+
+        assert preset_env.get_temperature(hass) is None
+
+    @pytest.mark.asyncio
+    async def test_valid_temperature_is_kept(self, hass: HomeAssistant):
+        """A normal temperature passes through unchanged."""
+        preset_env = PresetEnv(**{ATTR_TEMPERATURE: 21.5})
+
+        assert preset_env.get_temperature(hass) == 21.5
+
+    @pytest.mark.asyncio
+    async def test_low_preset_below_min_temp_is_kept(self, hass: HomeAssistant):
+        """Legitimate low presets (e.g. anti-freeze at 5°C) must survive the
+        placeholder guard even though they sit below the default min_temp of
+        7°C. The guard rejects non-physical placeholders (<= 0), NOT values
+        below the configured min_temp (regression guard for PR #598).
+        """
+        preset_env = PresetEnv(**{ATTR_TEMPERATURE: 5})
+
+        assert preset_env.get_temperature(hass) == 5
+
+    @pytest.mark.asyncio
+    async def test_zero_range_placeholders_are_ignored(self, hass: HomeAssistant):
+        """Range getters apply the same placeholder guard."""
+        preset_env = PresetEnv(**{ATTR_TARGET_TEMP_LOW: 0, ATTR_TARGET_TEMP_HIGH: 0})
+
+        assert preset_env.get_target_temp_low(hass) is None
+        assert preset_env.get_target_temp_high(hass) is None
+
+    @pytest.mark.asyncio
+    async def test_template_rendering_placeholder_is_ignored(self, hass: HomeAssistant):
+        """A template that renders to 0 at apply time reads as unset too."""
+        hass.states.async_set("sensor.away_temp", "0")
+        await hass.async_block_till_done()
+
+        preset_env = PresetEnv(
+            **{ATTR_TEMPERATURE: "{{ states('sensor.away_temp') | float }}"}
+        )
+
+        assert preset_env.get_temperature(hass) is None
+
+        # Once the sensor reports a real value, the preset applies again
+        hass.states.async_set("sensor.away_temp", "16")
+        await hass.async_block_till_done()
+
+        assert preset_env.get_temperature(hass) == 16.0

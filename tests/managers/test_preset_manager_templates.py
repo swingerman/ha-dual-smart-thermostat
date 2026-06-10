@@ -6,6 +6,10 @@ from homeassistant.const import ATTR_TEMPERATURE
 from homeassistant.core import HomeAssistant
 import pytest
 
+from custom_components.dual_smart_thermostat.const import CONF_SENSOR
+from custom_components.dual_smart_thermostat.managers.environment_manager import (
+    EnvironmentManager,
+)
 from custom_components.dual_smart_thermostat.managers.preset_manager import (
     PresetManager,
 )
@@ -130,3 +134,27 @@ class TestPresetManagerTemplateIntegration:
         # Assert: Both temps set from templates (outdoor_temp = 20 in fixture)
         assert environment.target_temp_low == 18.0  # 20 - 2
         assert environment.target_temp_high == 24.0  # 20 + 4
+
+    @pytest.mark.asyncio
+    async def test_preset_manager_ignores_legacy_zero_temperature_placeholder(
+        self, hass: HomeAssistant
+    ):
+        """Legacy preset temperature=0 should not overwrite a valid target."""
+        environment = EnvironmentManager(hass, {CONF_SENSOR: "sensor.temperature"})
+        environment.target_temp = 21.0
+        features = Mock()
+        features.is_range_mode = False
+
+        preset_manager = PresetManager(hass, {}, environment, features)
+        preset_manager._presets = {"away": 0.0}
+        preset_manager._preset_modes = ["away"]
+
+        old_state = Mock()
+        old_state.attributes = {
+            "preset_mode": "away",
+            "temperature": None,
+        }
+
+        await preset_manager.apply_old_state(old_state)
+
+        assert environment.target_temp == 21.0

@@ -16,6 +16,36 @@ from ..const import CONF_MAX_FLOOR_TEMP, CONF_MIN_FLOOR_TEMP
 _LOGGER = logging.getLogger(__name__)
 
 
+def normalize_preset_temperature(value: float | None, field_name: str) -> float | None:
+    """Return preset temperature unless it is a non-physical placeholder.
+
+    Some real-world configs use ``temperature: 0`` (or negative values) as a
+    placeholder meaning "unset" inside a preset definition. Applying those
+    would overwrite a valid target with a bogus value, so we treat anything
+    at or below zero as unset and ignore it. Templates can also render such
+    values at apply time, which is why this runs on every read rather than
+    once at parse time.
+
+    Note: we deliberately do NOT clamp against ``min_temp``/``max_temp``.
+    Legitimate low presets such as ``PRESET_ANTI_FREEZE`` (5°C) sit below the
+    default ``min_temp`` of 7°C and must still be honored.
+    """
+    if value is None:
+        return None
+
+    temp = float(value)
+
+    if temp <= 0:
+        _LOGGER.warning(
+            "Ignoring preset %s=%s because it is a placeholder (<= 0)",
+            field_name,
+            temp,
+        )
+        return None
+
+    return temp
+
+
 class TargeTempEnv:
     temperature: float | None
 
@@ -133,22 +163,32 @@ class PresetEnv(TempEnv, HumidityEnv):
             _LOGGER.debug(f"PresetEnv: Could not extract entities from template: {e}")
 
     def get_temperature(self, hass: HomeAssistant) -> float | None:
-        """Get temperature, evaluating template if needed."""
+        """Get temperature, evaluating template if needed.
+
+        Placeholder values (<= 0) are filtered to None here so every consumer
+        — apply, restore, and template re-evaluation — gets the same guard.
+        """
         if "temperature" in self._template_fields:
-            return self._evaluate_template(hass, "temperature")
-        return self.temperature
+            value = self._evaluate_template(hass, "temperature")
+        else:
+            value = self.temperature
+        return normalize_preset_temperature(value, "temperature")
 
     def get_target_temp_low(self, hass: HomeAssistant) -> float | None:
         """Get target_temp_low, evaluating template if needed."""
         if "target_temp_low" in self._template_fields:
-            return self._evaluate_template(hass, "target_temp_low")
-        return self.target_temp_low
+            value = self._evaluate_template(hass, "target_temp_low")
+        else:
+            value = self.target_temp_low
+        return normalize_preset_temperature(value, "target_temp_low")
 
     def get_target_temp_high(self, hass: HomeAssistant) -> float | None:
         """Get target_temp_high, evaluating template if needed."""
         if "target_temp_high" in self._template_fields:
-            return self._evaluate_template(hass, "target_temp_high")
-        return self.target_temp_high
+            value = self._evaluate_template(hass, "target_temp_high")
+        else:
+            value = self.target_temp_high
+        return normalize_preset_temperature(value, "target_temp_high")
 
     def _evaluate_template(self, hass: HomeAssistant, field_name: str) -> float:
         """Safely evaluate template with fallback to previous value."""

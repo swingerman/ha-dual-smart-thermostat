@@ -14,7 +14,7 @@ from ..const import CONF_PRESETS, CONF_PRESETS_OLD
 from ..managers.environment_manager import EnvironmentManager
 from ..managers.feature_manager import FeatureManager
 from ..managers.state_manager import StateManager
-from ..preset_env.preset_env import PresetEnv
+from ..preset_env.preset_env import PresetEnv, normalize_preset_temperature
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -235,7 +235,7 @@ class PresetManager(StateManager):
         old_target_temp_high: float | None,
     ):
         """Restore range temperatures from preset, preferring old state values."""
-        # Use template-aware getters for preset temperatures
+        # Template-aware getters; placeholder values (<= 0) come back as None
         preset_temp_low = preset.get_target_temp_low(self.hass)
         preset_temp_high = preset.get_target_temp_high(self.hass)
 
@@ -258,12 +258,18 @@ class PresetManager(StateManager):
         """Restore temperature from preset configuration (supports multiple formats)."""
         # Handle legacy float format
         if isinstance(preset, float):
-            self._environment.target_temp = float(preset)
+            temp = normalize_preset_temperature(float(preset), ATTR_TEMPERATURE)
+            if temp is not None:
+                self._environment.target_temp = temp
             return
 
         # Handle legacy dict format
         if isinstance(preset, dict) and ATTR_TEMPERATURE in preset:
-            self._environment.target_temp = float(preset[ATTR_TEMPERATURE])
+            temp = normalize_preset_temperature(
+                float(preset[ATTR_TEMPERATURE]), ATTR_TEMPERATURE
+            )
+            if temp is not None:
+                self._environment.target_temp = temp
             return
 
         # Handle PresetEnv object with template support
