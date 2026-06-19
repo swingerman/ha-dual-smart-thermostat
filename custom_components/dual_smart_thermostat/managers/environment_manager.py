@@ -407,10 +407,15 @@ class EnvironmentManager(StateManager):
                 )
                 return (self._cool_tolerance, self._cool_tolerance)
 
-        # HEAT_COOL (Auto): Determine operation from temperature
+        # HEAT_COOL (Auto): Determine operation from the dual setpoints.
+        # Below target_temp_low -> heating; above target_temp_high -> cooling;
+        # inside the deadband -> no active demand (falls through to legacy).
         elif self._hvac_mode == HVACMode.HEAT_COOL:
-            if self._cur_temp is not None and self._target_temp is not None:
-                if self._cur_temp < self._target_temp:
+            if self._cur_temp is not None:
+                if (
+                    self._target_temp_low is not None
+                    and self._cur_temp < self._target_temp_low
+                ):
                     # Currently heating
                     if self._heat_tolerance is not None:
                         _LOGGER.debug(
@@ -418,7 +423,10 @@ class EnvironmentManager(StateManager):
                             self._heat_tolerance,
                         )
                         return (self._heat_tolerance, self._heat_tolerance)
-                else:
+                elif (
+                    self._target_temp_high is not None
+                    and self._cur_temp > self._target_temp_high
+                ):
                     # Currently cooling
                     if self._cool_tolerance is not None:
                         _LOGGER.debug(

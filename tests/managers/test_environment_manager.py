@@ -121,11 +121,12 @@ class TestGetActiveToleranceForMode:
     async def test_heat_cool_mode_heating_uses_heat_tolerance(
         self, hass, environment_manager_with_tolerances
     ):
-        """Test HEAT_COOL mode uses heat_tolerance when currently heating."""
+        """Test HEAT_COOL mode uses heat_tolerance when below the low setpoint."""
         env = environment_manager_with_tolerances
         env.set_hvac_mode(HVACMode.HEAT_COOL)
-        env._target_temp = 21.0
-        env._cur_temp = 20.0  # Below target -> heating
+        env._target_temp_low = 19.0
+        env._target_temp_high = 24.0
+        env._cur_temp = 18.0  # Below low setpoint -> heating
 
         cold_tol, hot_tol = env._get_active_tolerance_for_mode()
 
@@ -136,16 +137,36 @@ class TestGetActiveToleranceForMode:
     async def test_heat_cool_mode_cooling_uses_cool_tolerance(
         self, hass, environment_manager_with_tolerances
     ):
-        """Test HEAT_COOL mode uses cool_tolerance when currently cooling."""
+        """Test HEAT_COOL mode uses cool_tolerance when above the high setpoint."""
         env = environment_manager_with_tolerances
         env.set_hvac_mode(HVACMode.HEAT_COOL)
-        env._target_temp = 21.0
-        env._cur_temp = 22.0  # Above target -> cooling
+        env._target_temp_low = 19.0
+        env._target_temp_high = 24.0
+        env._cur_temp = 25.0  # Above high setpoint -> cooling
 
         cold_tol, hot_tol = env._get_active_tolerance_for_mode()
 
         assert cold_tol == 2.0  # cool_tolerance
         assert hot_tol == 2.0  # cool_tolerance
+
+    @pytest.mark.asyncio
+    async def test_heat_cool_mode_deadband_uses_legacy(
+        self, hass, environment_manager_with_tolerances
+    ):
+        """Inside the deadband (between low/high), no mode-specific tolerance
+        applies. Regression for #612: the heat/cool decision must use the dual
+        setpoints, not the single _target_temp (which would mis-pick cool_tol).
+        """
+        env = environment_manager_with_tolerances
+        env.set_hvac_mode(HVACMode.HEAT_COOL)
+        env._target_temp_low = 19.0
+        env._target_temp_high = 24.0
+        env._cur_temp = 21.0  # Between setpoints -> no active demand
+
+        cold_tol, hot_tol = env._get_active_tolerance_for_mode()
+
+        assert cold_tol == 0.5  # legacy cold_tolerance
+        assert hot_tol == 0.5  # legacy hot_tolerance
 
     @pytest.mark.asyncio
     async def test_legacy_fallback_when_heat_tolerance_none(
