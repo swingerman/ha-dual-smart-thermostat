@@ -410,30 +410,29 @@ class EnvironmentManager(StateManager):
         # HEAT_COOL (Auto): Determine operation from the dual setpoints.
         # Below target_temp_low -> heating; above target_temp_high -> cooling;
         # inside the deadband -> no active demand (falls through to legacy).
-        elif self._hvac_mode == HVACMode.HEAT_COOL:
-            if self._cur_temp is not None:
-                if (
-                    self._target_temp_low is not None
-                    and self._cur_temp < self._target_temp_low
-                ):
-                    # Currently heating
-                    if self._heat_tolerance is not None:
-                        _LOGGER.debug(
-                            "Using heat_tolerance for HEAT_COOL mode (heating): %s",
-                            self._heat_tolerance,
-                        )
-                        return (self._heat_tolerance, self._heat_tolerance)
-                elif (
-                    self._target_temp_high is not None
-                    and self._cur_temp > self._target_temp_high
-                ):
-                    # Currently cooling
-                    if self._cool_tolerance is not None:
-                        _LOGGER.debug(
-                            "Using cool_tolerance for HEAT_COOL mode (cooling): %s",
-                            self._cool_tolerance,
-                        )
-                        return (self._cool_tolerance, self._cool_tolerance)
+        elif self._hvac_mode == HVACMode.HEAT_COOL and self._cur_temp is not None:
+            # Currently heating (below low setpoint)
+            if (
+                self._target_temp_low is not None
+                and self._cur_temp < self._target_temp_low
+                and self._heat_tolerance is not None
+            ):
+                _LOGGER.debug(
+                    "Using heat_tolerance for HEAT_COOL mode (heating): %s",
+                    self._heat_tolerance,
+                )
+                return (self._heat_tolerance, self._heat_tolerance)
+            # Currently cooling (above high setpoint)
+            if (
+                self._target_temp_high is not None
+                and self._cur_temp > self._target_temp_high
+                and self._cool_tolerance is not None
+            ):
+                _LOGGER.debug(
+                    "Using cool_tolerance for HEAT_COOL mode (cooling): %s",
+                    self._cool_tolerance,
+                )
+                return (self._cool_tolerance, self._cool_tolerance)
 
         # Fallback: Use legacy tolerances (with defaults if not configured)
         cold_tol = (
