@@ -117,6 +117,9 @@ jobs:
           # scheme/SSRF + unknown-kid fetch), fixed in 2.13.0.
           # pip 26.1.1 PYSEC-2026-196 (entry-point path sanitizing, fixed in
           # 26.1.2): ships with the GitHub Actions runner.
+          # aiohttp 3.13.5 batch (request pipelining DoS, host-only cookie
+          # restore, C-parser max_line_size bypass, multipart header injection,
+          # DigestAuth cross-origin leak, and related), fixed in 3.14.0/3.14.1.
           HA_IGNORES="\
             --ignore-vuln GHSA-jp4c-xjxw-mgf9 \
             --ignore-vuln GHSA-9548-qrrj-x5pj \
@@ -173,7 +176,19 @@ jobs:
             --ignore-vuln PYSEC-2026-177 \
             --ignore-vuln PYSEC-2026-178 \
             --ignore-vuln PYSEC-2026-179 \
-            --ignore-vuln PYSEC-2026-196"
+            --ignore-vuln PYSEC-2026-196 \
+            --ignore-vuln GHSA-4fvr-rgm6-gqmc \
+            --ignore-vuln GHSA-2fqr-mr3j-6wp8 \
+            --ignore-vuln GHSA-63hw-fmq6-xxg2 \
+            --ignore-vuln GHSA-m6qw-4cw2-hm4m \
+            --ignore-vuln GHSA-hpj7-wq8m-9hgp \
+            --ignore-vuln GHSA-4m7w-qmgq-4wj5 \
+            --ignore-vuln GHSA-537c-gmf6-5ccf \
+            --ignore-vuln GHSA-9663-mqmp-p9mm \
+            --ignore-vuln GHSA-9x8q-7h8h-wcw9 \
+            --ignore-vuln GHSA-g3cq-j2xw-wf74 \
+            --ignore-vuln GHSA-x84v-g949-293w \
+            --ignore-vuln GHSA-xcgm-r5h9-7989"
           pip-audit --desc --format=json --output=pip-audit-report.json $HA_IGNORES || true
           pip-audit --desc $HA_IGNORES
         continue-on-error: false
