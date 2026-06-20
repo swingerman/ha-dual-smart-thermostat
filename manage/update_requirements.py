@@ -5,7 +5,8 @@ import requests
 
 harequire = []
 request = requests.get(
-    "https://raw.githubusercontent.com/home-assistant/home-assistant/dev/setup.py"
+    "https://raw.githubusercontent.com/home-assistant/home-assistant/dev/setup.py",
+    timeout=30,
 )
 request = request.text.split("REQUIRES = [")[1].split("]")[0].split("\n")
 for req in request:
