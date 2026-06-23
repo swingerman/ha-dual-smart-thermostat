@@ -364,6 +364,7 @@ async def test_auto_keep_alive_forwards_time_to_controller(
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.parametrize("expected_lingering_timers", [True])
 @pytest.mark.asyncio
 async def test_auto_min_cycle_duration_propagates_to_controller(
     hass: HomeAssistant,
