@@ -118,55 +118,89 @@ class TestGetActiveToleranceForMode:
         assert hot_tol == 2.0  # cool_tolerance
 
     @pytest.mark.asyncio
-    async def test_heat_cool_mode_heating_uses_heat_tolerance(
+    async def test_heat_cool_heater_loop_directional_tolerances(
         self, hass, environment_manager_with_tolerances
     ):
-        """Test HEAT_COOL mode uses heat_tolerance when below the low setpoint."""
+        """HEAT_COOL heater loop (low setpoint): start below low uses the
+        directional cold_tolerance, stop above low uses heat_tolerance (#612)."""
         env = environment_manager_with_tolerances
         env.set_hvac_mode(HVACMode.HEAT_COOL)
-        env._target_temp_low = 19.0
-        env._target_temp_high = 24.0
-        env._cur_temp = 18.0  # Below low setpoint -> heating
 
-        cold_tol, hot_tol = env._get_active_tolerance_for_mode()
+        cold_tol, hot_tol = env._get_active_tolerance_for_mode("_target_temp_low")
 
-        assert cold_tol == 0.3  # heat_tolerance
-        assert hot_tol == 0.3  # heat_tolerance
+        assert cold_tol == 0.5  # cold_tolerance -> heater start below low
+        assert hot_tol == 0.3  # heat_tolerance -> heater stop above low
 
     @pytest.mark.asyncio
-    async def test_heat_cool_mode_cooling_uses_cool_tolerance(
+    async def test_heat_cool_cooler_loop_directional_tolerances(
         self, hass, environment_manager_with_tolerances
     ):
-        """Test HEAT_COOL mode uses cool_tolerance when above the high setpoint."""
+        """HEAT_COOL cooler loop (high setpoint): start above high uses the
+        directional hot_tolerance, stop below high uses cool_tolerance (#612)."""
         env = environment_manager_with_tolerances
         env.set_hvac_mode(HVACMode.HEAT_COOL)
-        env._target_temp_low = 19.0
-        env._target_temp_high = 24.0
-        env._cur_temp = 25.0  # Above high setpoint -> cooling
 
-        cold_tol, hot_tol = env._get_active_tolerance_for_mode()
+        cold_tol, hot_tol = env._get_active_tolerance_for_mode("_target_temp_high")
 
-        assert cold_tol == 2.0  # cool_tolerance
-        assert hot_tol == 2.0  # cool_tolerance
+        assert cold_tol == 2.0  # cool_tolerance -> cooler stop below high
+        assert hot_tol == 0.5  # hot_tolerance -> cooler start above high
 
     @pytest.mark.asyncio
-    async def test_heat_cool_mode_deadband_uses_legacy(
-        self, hass, environment_manager_with_tolerances
-    ):
-        """Inside the deadband (between low/high), no mode-specific tolerance
-        applies. Regression for #612: the heat/cool decision must use the dual
-        setpoints, not the single _target_temp (which would mis-pick cool_tol).
-        """
-        env = environment_manager_with_tolerances
+    async def test_heat_cool_mode_mode_tolerances_fall_back_to_legacy(self, hass):
+        """When heat/cool tolerances are unset, each loop falls back to the
+        legacy directional tolerances (backward compatible)."""
+        config = {
+            CONF_SENSOR: "sensor.temperature",
+            CONF_COLD_TOLERANCE: 0.4,
+            CONF_HOT_TOLERANCE: 0.6,
+        }
+        env = EnvironmentManager(hass, config)
+        env.set_hvac_mode(HVACMode.HEAT_COOL)
+
+        assert env._get_active_tolerance_for_mode("_target_temp_low") == (0.4, 0.6)
+        assert env._get_active_tolerance_for_mode("_target_temp_high") == (0.4, 0.6)
+
+    @pytest.mark.asyncio
+    async def test_heat_cool_cooler_starts_at_high_plus_hot_tolerance(self, hass):
+        """Regression #612: cooler starts at target_high + hot_tolerance, NOT
+        + cool_tolerance. With hot_tolerance=0 it must start exactly at high."""
+        config = {
+            CONF_SENSOR: "sensor.temperature",
+            CONF_COLD_TOLERANCE: 0.0,
+            CONF_HOT_TOLERANCE: 0.0,
+            CONF_HEAT_TOLERANCE: 0.3,
+            CONF_COOL_TOLERANCE: 0.5,
+        }
+        env = EnvironmentManager(hass, config)
+        env.set_hvac_mode(HVACMode.HEAT_COOL)
+        env._target_temp_high = 24.0
+
+        env._cur_temp = 24.2  # above high -> cooler should start (not wait for 24.5)
+        assert env.is_too_hot("_target_temp_high") is True
+
+        env._cur_temp = 23.8  # below high - cool_tolerance(0.5)=23.5 -> stop
+        assert env.is_too_cold("_target_temp_high") is False
+        env._cur_temp = 23.4  # below 23.5 -> cooler stops
+        assert env.is_too_cold("_target_temp_high") is True
+
+    @pytest.mark.asyncio
+    async def test_heat_cool_heater_stops_at_low_plus_heat_tolerance(self, hass):
+        """Regression #612: heater runs until target_low + heat_tolerance."""
+        config = {
+            CONF_SENSOR: "sensor.temperature",
+            CONF_COLD_TOLERANCE: 0.0,
+            CONF_HOT_TOLERANCE: 0.0,
+            CONF_HEAT_TOLERANCE: 0.3,
+            CONF_COOL_TOLERANCE: 0.5,
+        }
+        env = EnvironmentManager(hass, config)
         env.set_hvac_mode(HVACMode.HEAT_COOL)
         env._target_temp_low = 19.0
-        env._target_temp_high = 24.0
-        env._cur_temp = 21.0  # Between setpoints -> no active demand
 
-        cold_tol, hot_tol = env._get_active_tolerance_for_mode()
-
-        assert cold_tol == 0.5  # legacy cold_tolerance
-        assert hot_tol == 0.5  # legacy hot_tolerance
+        env._cur_temp = 19.2  # below low + heat_tolerance(0.3)=19.3 -> keep heating
+        assert env.is_too_hot("_target_temp_low") is False
+        env._cur_temp = 19.4  # above 19.3 -> heater stops
+        assert env.is_too_hot("_target_temp_low") is True
 
     @pytest.mark.asyncio
     async def test_legacy_fallback_when_heat_tolerance_none(

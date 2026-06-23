@@ -364,93 +364,68 @@ class EnvironmentManager(StateManager):
         _LOGGER.debug("Setting HVAC mode for tolerance selection: %s", hvac_mode)
         self._hvac_mode = hvac_mode
 
-    def _get_active_tolerance_for_mode(self) -> tuple[float, float]:
-        """Get active cold and hot tolerance values for current HVAC mode.
+    def _get_active_tolerance_for_mode(
+        self, target_attr: str = "_target_temp"
+    ) -> tuple[float, float]:
+        """Get active (cold, hot) tolerance values for the current check.
 
-        Implements priority-based tolerance selection:
-          Priority 1: Mode-specific tolerance (heat_tolerance or cool_tolerance)
-          Priority 2: Legacy tolerances (cold_tolerance, hot_tolerance)
+        ``cold`` is used by ``is_too_cold`` (current temp below target) and
+        ``hot`` by ``is_too_hot`` (current temp above target). The cold/hot
+        legacy tolerances are *directional* (they always describe the
+        below/above-target side); the mode tolerances are the per-mode
+        hysteresis.
 
-        Returns:
-            tuple[float, float]: (cold_tolerance, hot_tolerance) to use for comparisons
-                Both values are always valid floats (never None)
-
-        Notes:
-            - For HEAT mode: Returns (heat_tol, heat_tol) if set, else legacy
-            - For COOL mode: Returns (cool_tol, cool_tol) if set, else legacy
-            - For HEAT_COOL: Checks current vs target temp to determine operation
-            - For FAN_ONLY: Uses cool_tolerance (fan behaves like cooling)
-            - For DRY/OFF: Returns legacy (no active tolerance checks)
-            - If _hvac_mode is None: Returns legacy (safe fallback)
+        Selection (issue #612):
+            - HEAT_COOL has two independent loops keyed by ``target_attr``:
+                * ``_target_temp_low`` (heater): start below low uses
+                  ``cold_tolerance``; stop above low uses ``heat_tolerance``
+                  (falls back to legacy hot tolerance when unset).
+                * ``_target_temp_high`` (cooler): start above high uses
+                  ``hot_tolerance``; stop below high uses ``cool_tolerance``
+                  (falls back to legacy cold tolerance when unset).
+            - HEAT: symmetric ``heat_tolerance`` if configured.
+            - COOL / FAN_ONLY: symmetric ``cool_tolerance`` if configured.
+            - Otherwise: legacy directional tolerances.
+        Both returned values are always valid floats (never None).
         """
-        # HEAT mode: Use heat_tolerance if configured
-        if self._hvac_mode == HVACMode.HEAT:
-            if self._heat_tolerance is not None:
-                _LOGGER.debug(
-                    "Using heat_tolerance for HEAT mode: %s", self._heat_tolerance
-                )
-                return (self._heat_tolerance, self._heat_tolerance)
-
-        # COOL mode: Use cool_tolerance if configured
-        elif self._hvac_mode == HVACMode.COOL:
-            if self._cool_tolerance is not None:
-                _LOGGER.debug(
-                    "Using cool_tolerance for COOL mode: %s", self._cool_tolerance
-                )
-                return (self._cool_tolerance, self._cool_tolerance)
-
-        # FAN_ONLY: Use cool_tolerance (fan behaves like cooling)
-        elif self._hvac_mode == HVACMode.FAN_ONLY:
-            if self._cool_tolerance is not None:
-                _LOGGER.debug(
-                    "Using cool_tolerance for FAN_ONLY mode: %s", self._cool_tolerance
-                )
-                return (self._cool_tolerance, self._cool_tolerance)
-
-        # HEAT_COOL (Auto): Determine operation from the dual setpoints.
-        # Below target_temp_low -> heating; above target_temp_high -> cooling;
-        # inside the deadband -> no active demand (falls through to legacy).
-        elif self._hvac_mode == HVACMode.HEAT_COOL and self._cur_temp is not None:
-            # Currently heating (below low setpoint)
-            if (
-                self._target_temp_low is not None
-                and self._cur_temp < self._target_temp_low
-                and self._heat_tolerance is not None
-            ):
-                _LOGGER.debug(
-                    "Using heat_tolerance for HEAT_COOL mode (heating): %s",
-                    self._heat_tolerance,
-                )
-                return (self._heat_tolerance, self._heat_tolerance)
-            # Currently cooling (above high setpoint)
-            if (
-                self._target_temp_high is not None
-                and self._cur_temp > self._target_temp_high
-                and self._cool_tolerance is not None
-            ):
-                _LOGGER.debug(
-                    "Using cool_tolerance for HEAT_COOL mode (cooling): %s",
-                    self._cool_tolerance,
-                )
-                return (self._cool_tolerance, self._cool_tolerance)
-
-        # Fallback: Use legacy tolerances (with defaults if not configured)
-        cold_tol = (
+        legacy_cold = (
             self._cold_tolerance
             if self._cold_tolerance is not None
             else DEFAULT_TOLERANCE
         )
-        hot_tol = (
+        legacy_hot = (
             self._hot_tolerance
             if self._hot_tolerance is not None
             else DEFAULT_TOLERANCE
         )
-        _LOGGER.debug(
-            "Using legacy tolerances (or defaults): cold=%s, hot=%s",
-            cold_tol,
-            hot_tol,
-        )
-        return (cold_tol, hot_tol)
+
+        if self._hvac_mode == HVACMode.HEAT_COOL:
+            if target_attr == "_target_temp_low":
+                hot = (
+                    self._heat_tolerance
+                    if self._heat_tolerance is not None
+                    else legacy_hot
+                )
+                return (legacy_cold, hot)
+            if target_attr == "_target_temp_high":
+                cold = (
+                    self._cool_tolerance
+                    if self._cool_tolerance is not None
+                    else legacy_cold
+                )
+                return (cold, legacy_hot)
+            return (legacy_cold, legacy_hot)
+
+        if self._hvac_mode == HVACMode.HEAT and self._heat_tolerance is not None:
+            return (self._heat_tolerance, self._heat_tolerance)
+
+        if (
+            self._hvac_mode in (HVACMode.COOL, HVACMode.FAN_ONLY)
+            and self._cool_tolerance is not None
+        ):
+            return (self._cool_tolerance, self._cool_tolerance)
+
+        return (legacy_cold, legacy_hot)
 
     def set_temperature_range_from_saved(self) -> None:
         self.target_temp_low = self.saved_target_temp_low
@@ -547,7 +522,7 @@ class EnvironmentManager(StateManager):
         if self._cur_temp is None or target_temp is None:
             return False
 
-        cold_tolerance, _ = self._get_active_tolerance_for_mode()
+        cold_tolerance, _ = self._get_active_tolerance_for_mode(target_attr)
 
         _LOGGER.debug(
             "is_too_cold - target temp attr: %s, Target temp: %s, current temp: %s, tolerance: %s",
@@ -571,7 +546,7 @@ class EnvironmentManager(StateManager):
         if active_temp is None or target_temp is None:
             return False
 
-        _, hot_tolerance = self._get_active_tolerance_for_mode()
+        _, hot_tolerance = self._get_active_tolerance_for_mode(target_attr)
 
         _LOGGER.debug(
             "is_too_hot - target temp attr: %s, Target temp: %s, "
