@@ -9,7 +9,7 @@ services:
       args:
         # Change this to test with specific Home Assistant versions
         # Examples: 2025.1.0, 2025.2.0, latest
-        HA_VERSION: ${HA_VERSION:-2026.3.2}
+        HA_VERSION: ${HA_VERSION:-2026.6.4}
         PYTHON_VERSION: ${PYTHON_VERSION:-3.14}
     image: dual-smart-thermostat:dev
     container_name: dual_thermostat_dev

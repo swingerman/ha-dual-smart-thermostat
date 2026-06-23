@@ -15,7 +15,7 @@ LABEL maintainer="Dual Smart Thermostat Contributors"
 LABEL description="Development environment for Dual Smart Thermostat Home Assistant integration"
 
 # Build arguments
-ARG HA_VERSION=2026.3.2
+ARG HA_VERSION=2026.6.4
 ARG DEBIAN_FRONTEND=noninteractive
 
 # Environment variables
