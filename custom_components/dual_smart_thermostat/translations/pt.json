@@ -1,0 +1,1027 @@
+{
+  "title": "Dual Smart Thermostat",
+  "entity": {
+    "sensor": {
+      "hvac_action_reason": {
+        "state": {
+          "none": "Nenhum",
+          "min_cycle_duration_not_reached": "Duração mínima do ciclo não atingida",
+          "target_temp_not_reached": "Temperatura alvo não atingida",
+          "target_temp_reached": "Temperatura alvo atingida",
+          "target_temp_not_reached_with_fan": "Temperatura alvo não atingida (auxílio da ventoinha)",
+          "target_humidity_not_reached": "Humidade alvo não atingida",
+          "target_humidity_reached": "Humidade alvo atingida",
+          "misconfiguration": "Configuração incorreta",
+          "opening": "Abertura detetada",
+          "limit": "Limite atingido",
+          "overheat": "Proteção contra sobreaquecimento",
+          "temperature_sensor_stalled": "Sensor de temperatura bloqueado",
+          "humidity_sensor_stalled": "Sensor de humidade bloqueado",
+          "presence": "Presença",
+          "schedule": "Agendamento",
+          "emergency": "Emergência",
+          "malfunction": "Avaria",
+          "auto_priority_humidity": "Auto: prioridade à humidade",
+          "auto_priority_temperature": "Auto: prioridade à temperatura",
+          "auto_priority_comfort": "Auto: prioridade ao conforto"
+        }
+      }
+    }
+  },
+  "selector": {
+    "hac_action_reason": {
+      "options": {
+        "presence": "Presença",
+        "schedule": "Agendamento",
+        "emergency": "Emergência",
+        "malfunction": "Avaria",
+        "misconfiguration": "Configuração incorreta"
+      }
+    },
+    "openings_scope": {
+      "options": {
+        "all": "Todos os modos HVAC",
+        "cool": "Apenas arrefecimento",
+        "heat": "Apenas aquecimento",
+        "fan_only": "Apenas ventoinha",
+        "heat_cool": "Modo aquecimento/arrefecimento",
+        "dry": "Modo de desumidificação"
+      }
+    }
+  },
+  "services": {
+    "set_hvac_action_reason": {
+      "name": "Definir motivo da ação HVAC",
+      "description": "Define o motivo da ação HVAC.",
+      "fields": {
+        "hvac_action_reason": {
+          "name": "Motivo da ação HVAC",
+          "description": "O motivo pelo qual a última ação HVAC foi executada."
+        }
+      }
+    }
+  },
+  "config": {
+    "error": {
+      "same_heater_sensor": "O aquecedor e o sensor de temperatura não podem ser a mesma entidade",
+      "same_heater_cooler": "O aquecedor e o arrefecedor não podem ser a mesma entidade",
+      "aux_heater_timeout_required": "O tempo limite do aquecedor auxiliar é obrigatório quando o aquecedor auxiliar está configurado",
+      "aux_heater_entity_required": "A entidade do aquecedor auxiliar é obrigatória quando o tempo limite está configurado"
+    },
+    "step": {
+      "user": {
+        "title": "Seleção do tipo de sistema",
+        "description": "Escolha o tipo de sistema de termóstato que pretende configurar.",
+        "data": {
+          "system_type": "Tipo de sistema"
+        },
+        "data_description": {
+          "system_type": "Selecione o tipo de sistema que melhor corresponde à sua instalação HVAC."
+        }
+      },
+      "reconfigure_confirm": {
+        "title": "Reconfigurar {name}",
+        "description": "Está prestes a reconfigurar **{name}**.\n\nTipo de sistema atual: **{current_system}**\n\nPode manter o tipo de sistema atual ou mudar para um diferente. Nota: alterar o tipo de sistema irá limpar a sua configuração atual e começar de novo.\n\nA integração será recarregada após a reconfiguração.",
+        "data": {
+          "system_type": "Tipo de sistema"
+        },
+        "data_description": {
+          "system_type": "Selecione o tipo de sistema. Mantenha o tipo atual para modificar as definições, ou escolha um tipo diferente para começar com uma configuração nova."
+        }
+      },
+      "basic": {
+        "title": "Configuração básica",
+        "description": "Configure as definições do seu termóstato organizadas por categoria: informação básica, sensores, dispositivos de controlo e definições de temperatura.",
+        "data": {
+          "name": "Nome",
+          "heater": "Interruptor do aquecedor",
+          "target_sensor": "Sensor de temperatura",
+          "heat_cool_mode": "Modo aquecimento/arrefecimento",
+          "cold_tolerance": "Tolerância de frio",
+          "hot_tolerance": "Tolerância de calor",
+          "min_cycle_duration": "Duração mínima do ciclo"
+        },
+        "data_description": {
+          "name": "[Informação básica] Nome da entidade do termóstato (predefinição: Dual Smart).",
+          "target_sensor": "[Sensores] ID da entidade do sensor de temperatura que reflete a temperatura atual. O estado do sensor tem de ser temperatura.",
+          "heater": "[Dispositivos de controlo] ID da entidade do interruptor do aquecedor, tem de ser um dispositivo comutável. Torna-se o interruptor do ar condicionado quando o modo AC está ativado.",
+          "heat_cool_mode": "[Definições de controlo] Ative o modo aquecimento/arrefecimento com controlo de temperatura dupla. Quando ativado, permite a alternância automática entre aquecimento e arrefecimento para manter uma faixa de temperatura confortável.",
+          "cold_tolerance": "[Definições de temperatura] Diferença mínima de temperatura entre a leitura do sensor e o alvo antes de ligar o aquecimento. Por exemplo, se o alvo for 25°C e a tolerância 0,5°C, o aquecedor liga quando o sensor atinge 24,5°C ou menos (predefinição: 0,3°C).",
+          "hot_tolerance": "[Definições de temperatura] Diferença mínima de temperatura entre a leitura do sensor e o alvo antes de desligar o aquecimento ou ligar o arrefecimento. Por exemplo, se o alvo for 25°C e a tolerância 0,5°C, o aquecedor desliga quando o sensor atinge 25,5°C ou mais (predefinição: 0,3°C).",
+          "min_cycle_duration": "[Definições de temperatura] Tempo mínimo que o interruptor tem de permanecer no seu estado atual antes de ser comutado. Evita ciclos rápidos de ligar/desligar e protege o equipamento."
+        },
+        "sections": {
+          "advanced_settings": {
+            "name": "Definições avançadas",
+            "description": "Configure as tolerâncias de temperatura e as definições de proteção de ciclo para um controlo de aquecimento ideal.",
+            "data": {
+              "cold_tolerance": "Tolerância de frio",
+              "hot_tolerance": "Tolerância de calor",
+              "min_cycle_duration": "Duração mínima do ciclo"
+            },
+            "data_description": {
+              "cold_tolerance": "Diferença mínima de temperatura entre a leitura do sensor e o alvo antes de ligar o aquecimento. Por exemplo, se o alvo for 25°C e a tolerância 0,5°C, o aquecedor liga quando o sensor atinge 24,5°C ou menos (predefinição: 0,3°C).",
+              "hot_tolerance": "Diferença mínima de temperatura entre a leitura do sensor e o alvo antes de desligar o aquecimento. Por exemplo, se o alvo for 25°C e a tolerância 0,5°C, o aquecedor desliga quando o sensor atinge 25,5°C ou mais (predefinição: 0,3°C).",
+              "min_cycle_duration": "Tempo mínimo que o interruptor do aquecedor tem de permanecer no seu estado atual antes de ser comutado. Evita ciclos rápidos de ligar/desligar e protege o equipamento de aquecimento (predefinição: 300 segundos)."
+            }
+          }
+        }
+      },
+      "basic_ac_only": {
+        "title": "Configuração básica",
+        "description": "Configure o seu sistema de ar condicionado, organizado por categoria.",
+        "data": {
+          "name": "Nome",
+          "heater": "Interruptor do ar condicionado",
+          "target_sensor": "Sensor de temperatura",
+          "cold_tolerance": "Tolerância de frio",
+          "hot_tolerance": "Tolerância de calor",
+          "min_cycle_duration": "Duração mínima do ciclo"
+        },
+        "data_description": {
+          "name": "[Informação básica] Nome da entidade do termóstato (predefinição: Dual Smart).",
+          "target_sensor": "[Sensores] ID da entidade do sensor de temperatura que reflete a temperatura atual. O estado do sensor tem de ser temperatura.",
+          "heater": "[Dispositivos de controlo] ID da entidade do interruptor do ar condicionado, tem de ser um dispositivo comutável. Usado para arrefecimento quando a temperatura sobe acima do alvo.",
+          "cold_tolerance": "[Definições de temperatura] Diferença mínima de temperatura entre a leitura do sensor e o alvo antes de ligar o aquecimento. Por exemplo, se o alvo for 25°C e a tolerância 0,5°C, o aquecedor liga quando o sensor atinge 24,5°C ou menos (predefinição: 0,3°C).",
+          "hot_tolerance": "[Definições de temperatura] Diferença mínima de temperatura entre a leitura do sensor e o alvo antes de desligar o aquecimento ou ligar o arrefecimento. Por exemplo, se o alvo for 25°C e a tolerância 0,5°C, o aquecedor desliga quando o sensor atinge 25,5°C ou mais (predefinição: 0,3°C).",
+          "min_cycle_duration": "[Definições de temperatura] Tempo mínimo que o interruptor tem de permanecer no seu estado atual antes de ser comutado. Evita ciclos rápidos de ligar/desligar e protege o equipamento."
+        },
+        "sections": {
+          "advanced_settings": {
+            "name": "Definições avançadas",
+            "description": "Configure as tolerâncias de temperatura e as opções avançadas de proteção de ciclo e comunicação com o dispositivo.",
+            "data": {
+              "cold_tolerance": "Tolerância de frio",
+              "hot_tolerance": "Tolerância de calor",
+              "min_cycle_duration": "Duração mínima do ciclo",
+              "keep_alive": "Intervalo de manutenção de atividade"
+            },
+            "data_description": {
+              "cold_tolerance": "Diferença mínima de temperatura entre a leitura do sensor e o alvo antes de desligar o arrefecimento. Por exemplo, se o alvo for 25°C e a tolerância 0,5°C, o arrefecimento para quando o sensor atinge 24,5°C ou menos (predefinição: 0,3°C).",
+              "hot_tolerance": "Diferença mínima de temperatura entre a leitura do sensor e o alvo antes de ligar o arrefecimento. Por exemplo, se o alvo for 25°C e a tolerância 0,5°C, o arrefecimento começa quando o sensor atinge 25,5°C ou mais (predefinição: 0,3°C).",
+              "min_cycle_duration": "Tempo mínimo que o interruptor de arrefecimento tem de permanecer no seu estado atual antes de ser comutado. Evita ciclos rápidos de ligar/desligar e protege o equipamento de arrefecimento (predefinição: 300 segundos).",
+              "keep_alive": "Tempo máximo entre atualizações para o sensor de temperatura alvo. Força a comutação periódica para garantir que o dispositivo de arrefecimento não se desliga inesperadamente (predefinição: 300 segundos)."
+            }
+          }
+        }
+      },
+      "features": {
+        "title": "Configuração de funcionalidades",
+        "description": "Escolha quais as funcionalidades a configurar para o seu sistema. Isto determina quais as opções de configuração que ficarão disponíveis.",
+        "data": {
+          "configure_fan": "Configurar definições da ventoinha",
+          "configure_humidity": "Configurar controlo de humidade",
+          "configure_openings": "Configurar sensores de janelas/portas",
+          "configure_presets": "Configurar predefinições de temperatura",
+          "configure_floor_heating": "Configurar proteção do aquecimento de piso"
+        },
+        "data_description": {
+          "configure_fan": "Ative a configuração das definições da ventoinha. Isto permite-lhe configurar uma entidade de ventoinha separada que pode funcionar de forma independente para circulação de ar.",
+          "configure_humidity": "Ative a configuração da monitorização e controlo de humidade. Isto permite-lhe configurar sensores de humidade e o funcionamento do modo de desumidificação.",
+          "configure_openings": "Ative a configuração de sensores de janelas e portas para que o termóstato possa pausar o funcionamento quando forem detetadas aberturas.",
+          "configure_presets": "Ative a configuração de predefinições de temperatura como Ausente, Conforto e Eco para mudanças rápidas de modo.",
+          "configure_floor_heating": "Ative a configuração da proteção da temperatura do piso. Quando ativada, pode definir um sensor de piso e limites máximo/mínimo para proteger o seu pavimento."
+        }
+      },
+      "heater_cooler": {
+        "title": "Configuração básica",
+        "description": "Configure o seu sistema de aquecimento e arrefecimento com interruptores separados, organizado por categoria.",
+        "data": {
+          "name": "Nome",
+          "heater": "Interruptor do aquecedor",
+          "cooler": "Interruptor do arrefecedor",
+          "target_sensor": "Sensor de temperatura",
+          "heat_cool_mode": "Modo aquecimento/arrefecimento",
+          "cold_tolerance": "Tolerância de frio",
+          "hot_tolerance": "Tolerância de calor",
+          "min_cycle_duration": "Duração mínima do ciclo"
+        },
+        "data_description": {
+          "name": "[Informação básica] Nome da entidade do termóstato (predefinição: Dual Smart).",
+          "target_sensor": "[Sensores] ID da entidade do sensor de temperatura que reflete a temperatura atual. O estado do sensor tem de ser temperatura.",
+          "heater": "[Dispositivos de controlo] ID da entidade do interruptor do aquecedor, tem de ser um dispositivo comutável. Usado para aquecimento quando a temperatura desce abaixo do alvo.",
+          "cooler": "[Dispositivos de controlo] ID da entidade do interruptor do arrefecedor/AC, tem de ser um dispositivo comutável. Usado para arrefecimento quando a temperatura sobe acima do alvo. Pode ser o mesmo que o aquecedor em sistemas de bomba de calor.",
+          "heat_cool_mode": "[Definições de controlo] Ative o modo aquecimento/arrefecimento com controlo de temperatura dupla. Quando ativado, permite a alternância automática entre aquecimento e arrefecimento para manter uma faixa de temperatura confortável.",
+          "cold_tolerance": "[Definições de temperatura] Diferença mínima de temperatura entre a leitura do sensor e o alvo antes de ligar o aquecimento. Cria uma zona de amortecimento para evitar comutações frequentes.",
+          "hot_tolerance": "[Definições de temperatura] Diferença mínima de temperatura entre a leitura do sensor e o alvo antes de ligar o arrefecimento. Cria uma zona de amortecimento para evitar comutações frequentes.",
+          "min_cycle_duration": "[Definições de temperatura] Tempo mínimo que os interruptores têm de permanecer no seu estado atual antes de serem comutados. Evita ciclos rápidos de ligar/desligar e protege o equipamento de danos."
+        },
+        "sections": {
+          "advanced_settings": {
+            "name": "Definições avançadas",
+            "description": "Configure as tolerâncias de temperatura e as definições de proteção de ciclo para um controlo ideal do sistema.",
+            "data": {
+              "cold_tolerance": "Tolerância de frio",
+              "hot_tolerance": "Tolerância de calor",
+              "heat_tolerance": "Tolerância de aquecimento",
+              "cool_tolerance": "Tolerância de arrefecimento",
+              "min_cycle_duration": "Duração mínima do ciclo"
+            },
+            "data_description": {
+              "cold_tolerance": "Diferença mínima de temperatura entre a leitura do sensor e o alvo antes de ativar o aquecimento ou desativar o arrefecimento. Por exemplo, se o alvo for 25°C e a tolerância 0,5°C, as alterações ocorrem quando o sensor atinge 24,5°C ou menos (predefinição: 0,3°C).",
+              "hot_tolerance": "Diferença mínima de temperatura entre a leitura do sensor e o alvo antes de ativar o arrefecimento ou desativar o aquecimento. Por exemplo, se o alvo for 25°C e a tolerância 0,5°C, as alterações ocorrem quando o sensor atinge 25,5°C ou mais (predefinição: 0,3°C).",
+              "heat_tolerance": "Tolerância específica do modo para operações de aquecimento. Substitui cold_tolerance no modo de aquecimento para um controlo mais fino. Quando definida, este valor determina quando o aquecimento é ativado em vez de usar cold_tolerance (predefinição: usa cold_tolerance se não for especificado).",
+              "cool_tolerance": "Tolerância específica do modo para operações de arrefecimento. Substitui hot_tolerance no modo de arrefecimento para um controlo mais fino. Quando definida, este valor determina quando o arrefecimento é ativado em vez de usar hot_tolerance (predefinição: usa hot_tolerance se não for especificado).",
+              "min_cycle_duration": "Tempo mínimo que o interruptor do sistema tem de permanecer no seu estado atual antes de ser comutado. Evita ciclos rápidos de ligar/desligar e protege o equipamento (predefinição: 300 segundos)."
+            }
+          }
+        }
+      },
+      "heat_pump": {
+        "title": "Configuração da bomba de calor",
+        "description": "Configure o seu sistema de bomba de calor. Um único interruptor controla tanto o aquecimento como o arrefecimento, sendo o modo determinado por um sensor de estado de arrefecimento.",
+        "data": {
+          "name": "Nome",
+          "heater": "Interruptor da bomba de calor",
+          "target_sensor": "Sensor de temperatura",
+          "heat_pump_cooling": "Sensor de estado de arrefecimento",
+          "cold_tolerance": "Tolerância de frio",
+          "hot_tolerance": "Tolerância de calor",
+          "min_cycle_duration": "Duração mínima do ciclo"
+        },
+        "data_description": {
+          "name": "[Informação básica] Nome da entidade do termóstato (predefinição: Dual Smart).",
+          "heater": "[Dispositivos de controlo] ID da entidade do interruptor da bomba de calor. Controla a unidade da bomba de calor tanto para aquecimento como para arrefecimento. É usado o mesmo interruptor independentemente do modo.",
+          "target_sensor": "[Sensores] ID da entidade do sensor de temperatura que reflete a temperatura atual. O estado do sensor tem de ser temperatura.",
+          "heat_pump_cooling": "[Dispositivos de controlo] ID da entidade do sensor de estado de arrefecimento (sensor, binary_sensor ou input_boolean). Quando 'on', a bomba de calor opera em modo de arrefecimento. Quando 'off', opera em modo de aquecimento. Este sensor determina qual o modo que a bomba de calor utiliza. Pode ser um input_boolean manual para controlo ou uma entidade fornecida pelo seu sistema de bomba de calor.",
+          "cold_tolerance": "[Definições de temperatura] Diferença mínima de temperatura entre a leitura do sensor e o alvo antes de mudar a bomba de calor para o modo de aquecimento. Por exemplo, se o alvo for 25°C e a tolerância 0,5°C, o aquecimento começa quando o sensor atinge 24,5°C ou menos (predefinição: 0,3°C).",
+          "hot_tolerance": "[Definições de temperatura] Diferença mínima de temperatura entre a leitura do sensor e o alvo antes de mudar a bomba de calor para o modo de arrefecimento. Por exemplo, se o alvo for 25°C e a tolerância 0,5°C, o arrefecimento começa quando o sensor atinge 25,5°C ou mais (predefinição: 0,3°C).",
+          "min_cycle_duration": "[Definições de temperatura] Tempo mínimo que a bomba de calor tem de permanecer no seu estado atual antes de ser comutada. Fundamental para a proteção da bomba de calor, pois a comutação frequente pode danificar o compressor (predefinição: 300 segundos)."
+        },
+        "sections": {
+          "advanced_settings": {
+            "name": "Definições avançadas",
+            "description": "Configure as tolerâncias de temperatura e as definições de proteção de ciclo para um funcionamento ideal da bomba de calor.",
+            "data": {
+              "cold_tolerance": "Tolerância de frio",
+              "hot_tolerance": "Tolerância de calor",
+              "heat_tolerance": "Tolerância de aquecimento",
+              "cool_tolerance": "Tolerância de arrefecimento",
+              "min_cycle_duration": "Duração mínima do ciclo"
+            },
+            "data_description": {
+              "cold_tolerance": "Diferença mínima de temperatura entre a leitura do sensor e o alvo antes de mudar a bomba de calor para o modo de aquecimento. Por exemplo, se o alvo for 25°C e a tolerância 0,5°C, o aquecimento começa quando o sensor atinge 24,5°C ou menos (predefinição: 0,3°C).",
+              "hot_tolerance": "Diferença mínima de temperatura entre a leitura do sensor e o alvo antes de mudar a bomba de calor para o modo de arrefecimento. Por exemplo, se o alvo for 25°C e a tolerância 0,5°C, o arrefecimento começa quando o sensor atinge 25,5°C ou mais (predefinição: 0,3°C).",
+              "heat_tolerance": "Tolerância específica do modo para operações de aquecimento. Substitui cold_tolerance no modo de aquecimento para um controlo mais fino. Quando definida, este valor determina quando o aquecimento é ativado em vez de usar cold_tolerance (predefinição: usa cold_tolerance se não for especificado).",
+              "cool_tolerance": "Tolerância específica do modo para operações de arrefecimento. Substitui hot_tolerance no modo de arrefecimento para um controlo mais fino. Quando definida, este valor determina quando o arrefecimento é ativado em vez de usar hot_tolerance (predefinição: usa hot_tolerance se não for especificado).",
+              "min_cycle_duration": "Tempo mínimo que a bomba de calor tem de permanecer no seu estado atual antes de ser comutada. Fundamental para a proteção da bomba de calor, pois a comutação frequente pode danificar o compressor (predefinição: 300 segundos)."
+            }
+          }
+        }
+      },
+      "dual_stage": {
+        "title": "Configuração básica",
+        "description": "Configure as definições básicas do seu sistema de aquecimento de duplo estágio.",
+        "data": {
+          "name": "Nome",
+          "heater": "Interruptor do aquecedor principal",
+          "target_sensor": "Sensor de temperatura",
+          "cold_tolerance": "Tolerância de frio",
+          "hot_tolerance": "Tolerância de calor",
+          "min_cycle_duration": "Duração mínima do ciclo"
+        },
+        "data_description": {
+          "name": "Nome da entidade do termóstato (predefinição: Dual Smart).",
+          "heater": "ID da entidade do interruptor do aquecedor principal, tem de ser um dispositivo comutável. Este será o aquecedor de primeiro estágio que opera a maior parte do tempo.",
+          "target_sensor": "ID da entidade do sensor de temperatura que reflete a temperatura atual. O estado do sensor tem de ser temperatura.",
+          "cold_tolerance": "Diferença mínima de temperatura entre a leitura do sensor e o alvo antes de ligar o aquecimento principal. Por exemplo, se o alvo for 25°C e a tolerância 0,5°C, o aquecedor principal liga quando o sensor atinge 24,5°C ou menos (predefinição: 0,3°C).",
+          "hot_tolerance": "Diferença mínima de temperatura entre a leitura do sensor e o alvo antes de desligar o aquecimento. Por exemplo, se o alvo for 25°C e a tolerância 0,5°C, o aquecedor desliga quando o sensor atinge 25,5°C ou mais (predefinição: 0,3°C).",
+          "min_cycle_duration": "Tempo mínimo que o aquecedor principal tem de permanecer no seu estado atual antes de ser comutado. Evita ciclos rápidos de ligar/desligar e protege o equipamento."
+        }
+      },
+      "two_stage": {
+        "title": "Configuração de aquecimento de duplo estágio",
+        "description": "Configure o sistema de aquecimento de duplo estágio com aquecimento principal e auxiliar.",
+        "data": {
+          "heater_2": "Interruptor do aquecedor de segundo estágio",
+          "heat_cool_mode": "Modo aquecimento/arrefecimento",
+          "dual_mode_tolerance": "Tolerância do modo duplo"
+        },
+        "data_description": {
+          "heater_2": "ID da entidade do interruptor do aquecedor de segundo estágio. Usado quando é necessária capacidade de aquecimento adicional. No modo duplo, este é o interruptor de aquecimento, enquanto o 'heater' passa a ser o interruptor de arrefecimento.",
+          "heat_cool_mode": "Ative o modo aquecimento/arrefecimento. O aquecedor de primeiro estágio 'heater' passa a arrefecimento e o de segundo estágio 'heater_2' passa a aquecimento. Permite o controlo simultâneo de aquecimento e arrefecimento.",
+          "dual_mode_tolerance": "Tolerância de temperatura para o funcionamento em modo duplo. Define a zona de amortecimento onde nem o aquecimento nem o arrefecimento operam, evitando comutações rápidas entre aquecimento e arrefecimento."
+        }
+      },
+      "dual_stage_config": {
+        "title": "Configuração do aquecedor secundário",
+        "description": "Configure as definições do seu aquecedor auxiliar/secundário.",
+        "data": {
+          "secondary_heater": "Interruptor do aquecedor secundário",
+          "secondary_heater_timeout": "Tempo limite do aquecedor secundário",
+          "secondary_heater_dual_mode": "Funcionamento em modo duplo"
+        },
+        "data_description": {
+          "secondary_heater": "ID da entidade do interruptor do aquecedor auxiliar/secundário. Ativado quando o aquecedor principal não consegue manter a temperatura, fornecendo capacidade de aquecimento adicional para condições de frio extremo.",
+          "secondary_heater_timeout": "Tempo de espera antes de ativar o aquecedor secundário após o arranque do aquecedor principal. Evita que ambos os aquecedores arranquem em simultâneo e dá ao aquecedor principal tempo para atingir a temperatura alvo.",
+          "secondary_heater_dual_mode": "Permita que o aquecedor principal e o secundário funcionem em simultâneo quando necessário. Quando desativado, o aquecedor secundário só é ativado quando o aquecedor principal sozinho é insuficiente."
+        }
+      },
+      "floor_heating": {
+        "title": "Configuração do aquecimento de piso",
+        "description": "Configure o sensor e os limites de temperatura do piso para sistemas de aquecimento de piso.",
+        "data": {
+          "floor_sensor": "Sensor de temperatura do piso",
+          "max_floor_temp": "Temperatura máxima do piso"
+        },
+        "data_description": {
+          "floor_sensor": "ID da entidade do sensor de temperatura do piso. Quando configurado, fornece proteção da temperatura do piso e controlo do aquecimento de piso independentemente da temperatura ambiente.",
+          "max_floor_temp": "Temperatura máxima permitida do piso. O aquecimento de piso desliga-se automaticamente quando esta temperatura é excedida, independentemente do alvo de temperatura ambiente, para proteger os materiais do pavimento e evitar o sobreaquecimento."
+        }
+      },
+      "floor_config": {
+        "title": "Proteção da temperatura do piso",
+        "description": "Configure a monitorização e os limites de temperatura do piso.",
+        "data": {
+          "floor_sensor": "Sensor de temperatura do piso",
+          "max_floor_temp": "Temperatura máxima do piso",
+          "min_floor_temp": "Temperatura mínima do piso"
+        },
+        "data_description": {
+          "floor_sensor": "ID da entidade do sensor de temperatura do piso. Monitoriza a temperatura do piso para garantir um funcionamento seguro e proteger os materiais do pavimento de sobreaquecimento ou frio extremo.",
+          "max_floor_temp": "Temperatura máxima permitida do piso para proteção. O aquecimento de piso desliga-se quando esta temperatura é atingida, independentemente da temperatura ambiente, para evitar danos nos materiais do pavimento. (Predefinição: 28°C)",
+          "min_floor_temp": "Temperatura mínima do piso a manter. O aquecimento de piso é ativado quando a temperatura do piso desce abaixo deste valor, fornecendo proteção contra congelamento para o sistema de aquecimento de piso. (Predefinição: 5°C)"
+        }
+      },
+      "openings_toggle": {
+        "title": "Configuração de sensores de janelas/portas",
+        "description": "Ative o controlo automático do HVAC com base em sensores de janelas e portas.",
+        "data": {
+          "enable_openings": "Ativar deteção de aberturas"
+        },
+        "data_description": {
+          "enable_openings": "Ative a integração de sensores de janelas e portas. Quando ativada, o termóstato desliga automaticamente o aquecimento/arrefecimento quando janelas ou portas são abertas e retoma o funcionamento quando são fechadas, poupando energia e melhorando a eficiência."
+        }
+      },
+      "openings_selection": {
+        "title": "Seleção de sensores de janelas/portas",
+        "description": "Selecione os sensores de janelas e portas e configure o respetivo âmbito de funcionamento.",
+        "data": {
+          "selected_openings": "Sensores de janelas/portas",
+          "openings_scope": "Modos HVAC afetados pelas aberturas"
+        },
+        "data_description": {
+          "selected_openings": "Selecione as entidades que detetam quando janelas ou portas estão abertas. Podem ser sensores binários, sensores, interruptores ou input booleans. A entidade deve indicar o estado 'open' quando a janela/porta está aberta e o estado 'closed' quando fechada.",
+          "openings_scope": "Selecione quais os modos HVAC que devem ser afetados quando janelas/portas estão abertas. Se 'Todos os modos HVAC' for selecionado ou nenhum for selecionado, todo o sistema desliga-se quando qualquer abertura for detetada. Selecione modos específicos para afetar apenas essas operações (por exemplo, apenas aquecimento ou apenas arrefecimento)."
+        }
+      },
+      "openings_config": {
+        "title": "Definições de tempo limite de abertura/fecho",
+        "description": "Configure atrasos de tempo limite opcionais para quando janelas/portas abrem e fecham. Deixe vazio para resposta imediata.\n\nAberturas selecionadas:\n{selected_entities}",
+        "data": {
+          "openings_scope": "Modos HVAC afetados pelas aberturas",
+          "opening_1_timeout_open": "Abertura 1 - Tempo limite de abertura (segundos)",
+          "opening_1_timeout_close": "Abertura 1 - Tempo limite de fecho (segundos)",
+          "opening_2_timeout_open": "Abertura 2 - Tempo limite de abertura (segundos)",
+          "opening_2_timeout_close": "Abertura 2 - Tempo limite de fecho (segundos)",
+          "opening_3_timeout_open": "Abertura 3 - Tempo limite de abertura (segundos)",
+          "opening_3_timeout_close": "Abertura 3 - Tempo limite de fecho (segundos)",
+          "opening_4_timeout_open": "Abertura 4 - Tempo limite de abertura (segundos)",
+          "opening_4_timeout_close": "Abertura 4 - Tempo limite de fecho (segundos)",
+          "opening_5_timeout_open": "Abertura 5 - Tempo limite de abertura (segundos)",
+          "opening_5_timeout_close": "Abertura 5 - Tempo limite de fecho (segundos)",
+          "opening_6_timeout_open": "Abertura 6 - Tempo limite de abertura (segundos)",
+          "opening_6_timeout_close": "Abertura 6 - Tempo limite de fecho (segundos)",
+          "opening_7_timeout_open": "Abertura 7 - Tempo limite de abertura (segundos)",
+          "opening_7_timeout_close": "Abertura 7 - Tempo limite de fecho (segundos)",
+          "opening_8_timeout_open": "Abertura 8 - Tempo limite de abertura (segundos)",
+          "opening_8_timeout_close": "Abertura 8 - Tempo limite de fecho (segundos)",
+          "opening_9_timeout_open": "Abertura 9 - Tempo limite de abertura (segundos)",
+          "opening_9_timeout_close": "Abertura 9 - Tempo limite de fecho (segundos)",
+          "opening_10_timeout_open": "Abertura 10 - Tempo limite de abertura (segundos)",
+          "opening_10_timeout_close": "Abertura 10 - Tempo limite de fecho (segundos)"
+        },
+        "data_description": {
+          "openings_scope": "Selecione quais os modos HVAC que devem ser afetados quando janelas/portas estão abertas. Quando nenhum âmbito é selecionado ou 'Todos os modos HVAC' é escolhido, todo o sistema será afetado.",
+          "opening_1_timeout_open": "Tempo de espera após esta abertura ser ativada antes de desligar o HVAC. Defina como 0 para resposta imediata.",
+          "opening_1_timeout_close": "Tempo de espera após esta abertura fechar antes de voltar a ligar o HVAC. Defina como 0 para resposta imediata.",
+          "opening_2_timeout_open": "Tempo de espera após esta abertura ser ativada antes de desligar o HVAC. Defina como 0 para resposta imediata.",
+          "opening_2_timeout_close": "Tempo de espera após esta abertura fechar antes de voltar a ligar o HVAC. Defina como 0 para resposta imediata.",
+          "opening_3_timeout_open": "Tempo de espera após esta abertura ser ativada antes de desligar o HVAC. Defina como 0 para resposta imediata.",
+          "opening_3_timeout_close": "Tempo de espera após esta abertura fechar antes de voltar a ligar o HVAC. Defina como 0 para resposta imediata.",
+          "opening_4_timeout_open": "Tempo de espera após esta abertura ser ativada antes de desligar o HVAC. Defina como 0 para resposta imediata.",
+          "opening_4_timeout_close": "Tempo de espera após esta abertura fechar antes de voltar a ligar o HVAC. Defina como 0 para resposta imediata.",
+          "opening_5_timeout_open": "Tempo de espera após esta abertura ser ativada antes de desligar o HVAC. Defina como 0 para resposta imediata.",
+          "opening_5_timeout_close": "Tempo de espera após esta abertura fechar antes de voltar a ligar o HVAC. Defina como 0 para resposta imediata.",
+          "opening_6_timeout_open": "Tempo de espera após esta abertura ser ativada antes de desligar o HVAC. Defina como 0 para resposta imediata.",
+          "opening_6_timeout_close": "Tempo de espera após esta abertura fechar antes de voltar a ligar o HVAC. Defina como 0 para resposta imediata.",
+          "opening_7_timeout_open": "Tempo de espera após esta abertura ser ativada antes de desligar o HVAC. Defina como 0 para resposta imediata.",
+          "opening_7_timeout_close": "Tempo de espera após esta abertura fechar antes de voltar a ligar o HVAC. Defina como 0 para resposta imediata.",
+          "opening_8_timeout_open": "Tempo de espera após esta abertura ser ativada antes de desligar o HVAC. Defina como 0 para resposta imediata.",
+          "opening_8_timeout_close": "Tempo de espera após esta abertura fechar antes de voltar a ligar o HVAC. Defina como 0 para resposta imediata.",
+          "opening_9_timeout_open": "Tempo de espera após esta abertura ser ativada antes de desligar o HVAC. Defina como 0 para resposta imediata.",
+          "opening_9_timeout_close": "Tempo de espera após esta abertura fechar antes de voltar a ligar o HVAC. Defina como 0 para resposta imediata.",
+          "opening_10_timeout_open": "Tempo de espera após esta abertura ser ativada antes de desligar o HVAC. Defina como 0 para resposta imediata.",
+          "opening_10_timeout_close": "Tempo de espera após esta abertura fechar antes de voltar a ligar o HVAC. Defina como 0 para resposta imediata."
+        }
+      },
+      "heat_cool_mode": {
+        "title": "Configuração do modo aquecimento/arrefecimento",
+        "description": "Configure a alternância automática do modo aquecimento/arrefecimento.",
+        "data": {
+          "heat_cool_mode": "Ativar modo aquecimento/arrefecimento",
+          "target_temp_low": "Ponto de regulação de temperatura baixa",
+          "target_temp_high": "Ponto de regulação de temperatura alta"
+        },
+        "data_description": {
+          "heat_cool_mode": "Ative a alternância automática entre os modos de aquecimento e arrefecimento com base em dois pontos de regulação de temperatura. Cria uma faixa de temperatura confortável em vez de um único alvo.",
+          "target_temp_low": "Limiar inferior de temperatura para o modo aquecimento/arrefecimento. O aquecimento é ativado quando a temperatura desce abaixo deste valor.",
+          "target_temp_high": "Limiar superior de temperatura para o modo aquecimento/arrefecimento. O arrefecimento é ativado quando a temperatura sobe acima deste valor. Tem de ser superior ao ponto de regulação baixo."
+        }
+      },
+      "fan": {
+        "title": "Configuração da ventoinha",
+        "description": "Configure o controlo e as definições da ventoinha.",
+        "data": {
+          "fan": "Interruptor da ventoinha",
+          "fan_mode": "Modo de ventoinha",
+          "fan_on_with_ac": "Ventoinha com AC",
+          "fan_air_outside": "Ar exterior pela ventoinha",
+          "fan_hot_tolerance": "Tolerância de calor da ventoinha",
+          "fan_hot_tolerance_toggle": "Alternância da tolerância da ventoinha"
+        },
+        "data_description": {
+          "fan": "ID da entidade do interruptor da ventoinha. Usado para controlar a circulação de ar e melhorar a distribuição de temperatura pelo espaço.",
+          "fan_mode": "Ative a ventoinha como um modo HVAC separado. Quando ativado, o modo FAN fica disponível para além dos modos de aquecimento, arrefecimento e automático, permitindo o funcionamento apenas com ventoinha.",
+          "fan_on_with_ac": "Ligue automaticamente a ventoinha quando o arrefecimento (AC) está ativo. Melhora a eficiência do arrefecimento e a circulação de ar durante os ciclos de arrefecimento.",
+          "fan_air_outside": "Ative a circulação de ar exterior quando a temperatura exterior é mais favorável do que a interior. Requer um sensor de temperatura exterior configurado para uma utilização inteligente do ar exterior.",
+          "fan_hot_tolerance": "Faixa de temperatura acima do alvo em que a ventoinha é usada em vez do AC. Por exemplo, com alvo 25°C, hot_tolerance 1°C e fan_hot_tolerance 0,5°C: a ventoinha é ativada a 26°C (alvo + hot_tolerance), o AC é ativado a 26,5°C (alvo + hot_tolerance + fan_hot_tolerance). Predefinição: 0,5°C.",
+          "fan_hot_tolerance_toggle": "ID de entidade opcional para um input_boolean que ativa/desativa dinamicamente a funcionalidade fan_hot_tolerance. Quando desativado, o AC é usado imediatamente em vez de tentar primeiro a ventoinha. Quando não configurado, a funcionalidade fan_hot_tolerance está sempre ativada."
+        }
+      },
+      "humidity": {
+        "title": "Controlo de humidade",
+        "description": "Configure a monitorização e o controlo de humidade.",
+        "data": {
+          "humidity_sensor": "Sensor de humidade",
+          "dryer": "Interruptor do secador/desumidificador",
+          "target_humidity": "Humidade alvo",
+          "min_humidity": "Humidade mínima",
+          "max_humidity": "Humidade máxima",
+          "dry_tolerance": "Tolerância de secura",
+          "moist_tolerance": "Tolerância de humidade"
+        },
+        "data_description": {
+          "humidity_sensor": "ID da entidade do sensor de humidade. Quando configurado, ativa as funcionalidades de controlo de humidade e as predefinições baseadas em humidade. O estado do sensor tem de ser a percentagem de humidade.",
+          "dryer": "ID da entidade do interruptor do secador/desumidificador. Usado para controlar a desumidificação quando os níveis de humidade excedem os alvos.",
+          "target_humidity": "Nível de humidade alvo a manter (percentagem). Alvo de humidade predefinido quando nenhuma predefinição está ativa.",
+          "min_humidity": "Nível mínimo de humidade permitido (percentagem). A humidade será aumentada se descer abaixo deste valor.",
+          "max_humidity": "Nível máximo de humidade permitido (percentagem). A humidade será reduzida se subir acima deste valor.",
+          "dry_tolerance": "Diferença mínima de humidade abaixo do alvo antes de ativar a humidificação ou desativar a desumidificação.",
+          "moist_tolerance": "Diferença mínima de humidade acima do alvo antes de ativar a desumidificação ou desativar a humidificação."
+        }
+      },
+      "additional_sensors": {
+        "title": "Sensores adicionais",
+        "description": "Configure sensores de temperatura adicionais.",
+        "data": {
+          "outside_sensor": "Sensor de temperatura exterior"
+        },
+        "data_description": {
+          "outside_sensor": "ID da entidade do sensor de temperatura exterior. Usado para operações inteligentes como arrefecimento gratuito, utilização de ar exterior com controlo da ventoinha e decisões de aquecimento/arrefecimento baseadas no tempo. Permite que o sistema otimize o consumo de energia com base nas condições exteriores."
+        }
+      },
+      "advanced": {
+        "title": "Definições avançadas",
+        "description": "Configure as definições avançadas do termóstato.",
+        "data": {
+          "advanced_system_type": "Tipo de sistema avançado",
+          "keep_alive": "Duração da manutenção de atividade",
+          "initial_hvac_mode": "Modo HVAC inicial",
+          "precision": "Precisão da temperatura",
+          "target_temp_step": "Incremento de temperatura",
+          "min_temp": "Temperatura mínima",
+          "max_temp": "Temperatura máxima",
+          "target_temp": "Temperatura alvo"
+        },
+        "data_description": {
+          "advanced_system_type": "Selecione a configuração avançada do sistema. Escolha standard para um termóstato normal, duplo estágio para aquecimento de dois estágios com aquecedor auxiliar, ou aquecimento de piso para sistemas de proteção de temperatura.",
+          "keep_alive": "Duração da manutenção de atividade para comutação periódica. Defina isto se o seu interruptor precisar de um sinal periódico para se manter 'ativo'. Por exemplo, alguns interruptores desligam-se automaticamente após um período de tempo.",
+          "initial_hvac_mode": "Modo HVAC inicial ao iniciar o Home Assistant. Define o modo de funcionamento predefinido no arranque (aquecimento, arrefecimento, automático, desligado, etc.).",
+          "precision": "Precisão da temperatura para visualização e controlo. Determina a precisão decimal dos valores de temperatura (0,1, 0,5, 1,0 graus).",
+          "target_temp_step": "Tamanho do incremento de temperatura para ajustes. Controla o quanto a temperatura alvo muda a cada ajuste (por exemplo, incrementos de 0,5°C ou 1°C).",
+          "min_temp": "Definição de temperatura mínima permitida. Define o limite inferior da temperatura alvo para evitar um funcionamento inseguro ou ineficiente.",
+          "max_temp": "Definição de temperatura máxima permitida. Define o limite superior da temperatura alvo para evitar um funcionamento inseguro ou ineficiente.",
+          "target_temp": "Temperatura alvo inicial quando o termóstato é configurado pela primeira vez. Torna-se a temperatura predefinida quando nenhuma predefinição está ativa."
+        }
+      },
+      "presets": {
+        "title": "Configuração das predefinições de temperatura",
+        "description": "Configure predefinições de temperatura para diferentes cenários. Os campos estão organizados por tipo de predefinição - temperatura básica, definições de humidade, faixas de temperatura dupla, limites de aquecimento de piso e modos de ventoinha, com base nas funcionalidades que configurou.",
+        "data": {
+          "away": "▼ PREDEFINIÇÃO AUSENTE",
+          "away_temp": "Temperatura (Ausente)",
+          "away_humidity": "Humidade (Ausente)",
+          "away_temp_low": "Temperatura baixa (Ausente)",
+          "away_temp_high": "Temperatura alta (Ausente)",
+          "away_max_floor_temp": "Temperatura máxima do piso (Ausente)",
+          "away_min_floor_temp": "Temperatura mínima do piso (Ausente)",
+          "away_fan_mode": "Modo de ventoinha (Ausente)",
+          "comfort": "▼ PREDEFINIÇÃO CONFORTO",
+          "comfort_temp": "Temperatura (Conforto)",
+          "comfort_humidity": "Humidade (Conforto)",
+          "comfort_temp_low": "Temperatura baixa (Conforto)",
+          "comfort_temp_high": "Temperatura alta (Conforto)",
+          "comfort_max_floor_temp": "Temperatura máxima do piso (Conforto)",
+          "comfort_min_floor_temp": "Temperatura mínima do piso (Conforto)",
+          "comfort_fan_mode": "Modo de ventoinha (Conforto)",
+          "eco": "▼ PREDEFINIÇÃO ECO",
+          "eco_temp": "Temperatura (Eco)",
+          "eco_humidity": "Humidade (Eco)",
+          "eco_temp_low": "Temperatura baixa (Eco)",
+          "eco_temp_high": "Temperatura alta (Eco)",
+          "eco_max_floor_temp": "Temperatura máxima do piso (Eco)",
+          "eco_min_floor_temp": "Temperatura mínima do piso (Eco)",
+          "eco_fan_mode": "Modo de ventoinha (Eco)",
+          "home": "▼ PREDEFINIÇÃO EM CASA",
+          "home_temp": "Temperatura (Em casa)",
+          "home_humidity": "Humidade (Em casa)",
+          "home_temp_low": "Temperatura baixa (Em casa)",
+          "home_temp_high": "Temperatura alta (Em casa)",
+          "home_max_floor_temp": "Temperatura máxima do piso (Em casa)",
+          "home_min_floor_temp": "Temperatura mínima do piso (Em casa)",
+          "home_fan_mode": "Modo de ventoinha (Em casa)",
+          "sleep": "▼ PREDEFINIÇÃO DORMIR",
+          "sleep_temp": "Temperatura (Dormir)",
+          "sleep_humidity": "Humidade (Dormir)",
+          "sleep_temp_low": "Temperatura baixa (Dormir)",
+          "sleep_temp_high": "Temperatura alta (Dormir)",
+          "sleep_max_floor_temp": "Temperatura máxima do piso (Dormir)",
+          "sleep_min_floor_temp": "Temperatura mínima do piso (Dormir)",
+          "sleep_fan_mode": "Modo de ventoinha (Dormir)",
+          "anti_freeze": "▼ PREDEFINIÇÃO ANTICONGELAMENTO",
+          "anti_freeze_temp": "Temperatura (Anticongelamento)",
+          "anti_freeze_humidity": "Humidade (Anticongelamento)",
+          "anti_freeze_temp_low": "Temperatura baixa (Anticongelamento)",
+          "anti_freeze_temp_high": "Temperatura alta (Anticongelamento)",
+          "anti_freeze_max_floor_temp": "Temperatura máxima do piso (Anticongelamento)",
+          "anti_freeze_min_floor_temp": "Temperatura mínima do piso (Anticongelamento)",
+          "anti_freeze_fan_mode": "Modo de ventoinha (Anticongelamento)",
+          "activity": "▼ PREDEFINIÇÃO ATIVIDADE",
+          "activity_temp": "Temperatura (Atividade)",
+          "activity_humidity": "Humidade (Atividade)",
+          "activity_temp_low": "Temperatura baixa (Atividade)",
+          "activity_temp_high": "Temperatura alta (Atividade)",
+          "activity_max_floor_temp": "Temperatura máxima do piso (Atividade)",
+          "activity_min_floor_temp": "Temperatura mínima do piso (Atividade)",
+          "activity_fan_mode": "Modo de ventoinha (Atividade)",
+          "boost": "▼ PREDEFINIÇÃO REFORÇO",
+          "boost_temp": "Temperatura (Reforço)",
+          "boost_humidity": "Humidade (Reforço)",
+          "boost_temp_low": "Temperatura baixa (Reforço)",
+          "boost_temp_high": "Temperatura alta (Reforço)",
+          "boost_max_floor_temp": "Temperatura máxima do piso (Reforço)",
+          "boost_min_floor_temp": "Temperatura mínima do piso (Reforço)",
+          "boost_fan_mode": "Modo de ventoinha (Reforço)"
+        },
+        "data_description": {
+          "away": "Predefinição Ausente - Temperatura alvo quando a predefinição Ausente está selecionada. Normalmente definida mais baixa para poupar energia quando não há ninguém em casa.",
+          "away_temp": "Temperatura alvo para a predefinição Ausente. Aceita um valor estático (por exemplo, 18), uma referência a entidade (por exemplo, states('input_number.away_temp')) ou um template.",
+          "away_humidity": "Predefinição Ausente - Humidade alvo quando a predefinição Ausente está selecionada. Usada com o controlo de humidade para manter condições ideais.",
+          "away_temp_low": "Predefinição Ausente - Limite inferior de temperatura no modo de temperatura dupla. Aceita um valor estático (por exemplo, 18) ou um template (por exemplo, {{ states('sensor.outdoor_temp') | float - 2 }}).",
+          "away_temp_high": "Predefinição Ausente - Limite superior de temperatura no modo de temperatura dupla. Aceita um valor estático (por exemplo, 24) ou um template (por exemplo, {{ states('sensor.outdoor_temp') | float + 4 }}).",
+          "away_max_floor_temp": "Predefinição Ausente - Temperatura máxima do piso quando a predefinição Ausente está selecionada, para sistemas de aquecimento de piso.",
+          "away_min_floor_temp": "Predefinição Ausente - Temperatura mínima do piso quando a predefinição Ausente está selecionada, para sistemas de aquecimento de piso.",
+          "away_fan_mode": "Predefinição Ausente - Definição do modo de ventoinha quando a predefinição Ausente está selecionada.",
+          "comfort": "Predefinição Conforto - Temperatura alvo quando a predefinição Conforto está selecionada. Definição de conforto máximo.",
+          "comfort_temp": "Temperatura alvo para a predefinição Conforto. Aceita um valor estático (por exemplo, 22), uma referência a entidade (por exemplo, states('input_number.comfort_temp')) ou um template.",
+          "comfort_humidity": "Predefinição Conforto - Humidade alvo quando a predefinição Conforto está selecionada.",
+          "comfort_temp_low": "Predefinição Conforto - Limite inferior de temperatura no modo de temperatura dupla. Aceita um valor estático ou um template.",
+          "comfort_temp_high": "Predefinição Conforto - Limite superior de temperatura no modo de temperatura dupla. Aceita um valor estático ou um template.",
+          "comfort_max_floor_temp": "Predefinição Conforto - Temperatura máxima do piso quando a predefinição Conforto está selecionada, para sistemas de aquecimento de piso.",
+          "comfort_min_floor_temp": "Predefinição Conforto - Temperatura mínima do piso quando a predefinição Conforto está selecionada, para sistemas de aquecimento de piso.",
+          "comfort_fan_mode": "Predefinição Conforto - Definição do modo de ventoinha quando a predefinição Conforto está selecionada.",
+          "eco": "Predefinição Eco - Temperatura alvo quando a predefinição Eco está selecionada. Definição de temperatura de poupança de energia.",
+          "eco_temp": "Temperatura alvo para a predefinição Eco. Aceita um valor estático (por exemplo, 20), uma referência a entidade (por exemplo, states('input_number.eco_temp')) ou um template.",
+          "eco_humidity": "Predefinição Eco - Humidade alvo quando a predefinição Eco está selecionada. Nível de humidade energeticamente eficiente.",
+          "eco_temp_low": "Predefinição Eco - Limite inferior de temperatura no modo de temperatura dupla. Aceita um valor estático ou um template.",
+          "eco_temp_high": "Predefinição Eco - Limite superior de temperatura no modo de temperatura dupla. Aceita um valor estático ou um template.",
+          "eco_max_floor_temp": "Predefinição Eco - Temperatura máxima do piso quando a predefinição Eco está selecionada, para sistemas de aquecimento de piso.",
+          "eco_min_floor_temp": "Predefinição Eco - Temperatura mínima do piso quando a predefinição Eco está selecionada, para sistemas de aquecimento de piso.",
+          "eco_fan_mode": "Predefinição Eco - Definição do modo de ventoinha quando a predefinição Eco está selecionada.",
+          "home": "Predefinição Em casa - Temperatura alvo quando a predefinição Em casa está selecionada. Temperatura confortável para as atividades diárias.",
+          "home_temp": "Temperatura alvo para a predefinição Em casa. Aceita um valor estático (por exemplo, 21), uma referência a entidade (por exemplo, states('input_number.home_temp')) ou um template.",
+          "home_humidity": "Predefinição Em casa - Humidade alvo quando a predefinição Em casa está selecionada. Humidade ideal para conforto e saúde.",
+          "home_temp_low": "Predefinição Em casa - Limite inferior de temperatura no modo de temperatura dupla. Aceita um valor estático ou um template.",
+          "home_temp_high": "Predefinição Em casa - Limite superior de temperatura no modo de temperatura dupla. Aceita um valor estático ou um template.",
+          "home_max_floor_temp": "Predefinição Em casa - Temperatura máxima do piso quando a predefinição Em casa está selecionada, para sistemas de aquecimento de piso.",
+          "home_min_floor_temp": "Predefinição Em casa - Temperatura mínima do piso quando a predefinição Em casa está selecionada, para sistemas de aquecimento de piso.",
+          "home_fan_mode": "Predefinição Em casa - Definição do modo de ventoinha quando a predefinição Em casa está selecionada.",
+          "sleep": "Predefinição Dormir - Temperatura alvo quando a predefinição Dormir está selecionada. Frequentemente definida um pouco mais fresca para uma melhor qualidade do sono.",
+          "sleep_temp": "Temperatura alvo para a predefinição Dormir. Aceita um valor estático (por exemplo, 18), uma referência a entidade (por exemplo, states('input_number.sleep_temp')) ou um template.",
+          "sleep_humidity": "Predefinição Dormir - Humidade alvo quando a predefinição Dormir está selecionada. Humidade ideal para condições de sono.",
+          "sleep_temp_low": "Predefinição Dormir - Limite inferior de temperatura no modo de temperatura dupla. Aceita um valor estático ou um template.",
+          "sleep_temp_high": "Predefinição Dormir - Limite superior de temperatura no modo de temperatura dupla. Aceita um valor estático ou um template.",
+          "sleep_max_floor_temp": "Predefinição Dormir - Temperatura máxima do piso quando a predefinição Dormir está selecionada, para sistemas de aquecimento de piso.",
+          "sleep_min_floor_temp": "Predefinição Dormir - Temperatura mínima do piso quando a predefinição Dormir está selecionada, para sistemas de aquecimento de piso.",
+          "sleep_fan_mode": "Predefinição Dormir - Definição do modo de ventoinha quando a predefinição Dormir está selecionada.",
+          "anti_freeze": "Predefinição Anticongelamento - Temperatura alvo quando a predefinição Anticongelamento está selecionada. Temperatura mínima para evitar o congelamento.",
+          "anti_freeze_temp": "Temperatura alvo para a predefinição Anticongelamento. Aceita um valor estático (por exemplo, 7), uma referência a entidade (por exemplo, states('input_number.antifreeze_temp')) ou um template.",
+          "anti_freeze_humidity": "Predefinição Anticongelamento - Humidade alvo quando a predefinição Anticongelamento está selecionada.",
+          "anti_freeze_temp_low": "Predefinição Anticongelamento - Limite inferior de temperatura no modo de temperatura dupla. Aceita um valor estático ou um template.",
+          "anti_freeze_temp_high": "Predefinição Anticongelamento - Limite superior de temperatura no modo de temperatura dupla. Aceita um valor estático ou um template.",
+          "anti_freeze_max_floor_temp": "Predefinição Anticongelamento - Temperatura máxima do piso quando a predefinição Anticongelamento está selecionada, para sistemas de aquecimento de piso.",
+          "anti_freeze_min_floor_temp": "Predefinição Anticongelamento - Temperatura mínima do piso quando a predefinição Anticongelamento está selecionada, para sistemas de aquecimento de piso.",
+          "anti_freeze_fan_mode": "Predefinição Anticongelamento - Definição do modo de ventoinha quando a predefinição Anticongelamento está selecionada.",
+          "activity": "Predefinição Atividade - Temperatura alvo quando a predefinição Atividade está selecionada. Pode ser definida mais alta para períodos de atividade.",
+          "activity_temp": "Temperatura alvo para a predefinição Atividade. Aceita um valor estático (por exemplo, 23), uma referência a entidade (por exemplo, states('input_number.activity_temp')) ou um template.",
+          "activity_humidity": "Predefinição Atividade - Humidade alvo quando a predefinição Atividade está selecionada.",
+          "activity_temp_low": "Predefinição Atividade - Limite inferior de temperatura no modo de temperatura dupla. Aceita um valor estático ou um template.",
+          "activity_temp_high": "Predefinição Atividade - Limite superior de temperatura no modo de temperatura dupla. Aceita um valor estático ou um template.",
+          "activity_max_floor_temp": "Predefinição Atividade - Temperatura máxima do piso quando a predefinição Atividade está selecionada, para sistemas de aquecimento de piso.",
+          "activity_min_floor_temp": "Predefinição Atividade - Temperatura mínima do piso quando a predefinição Atividade está selecionada, para sistemas de aquecimento de piso.",
+          "activity_fan_mode": "Predefinição Atividade - Definição do modo de ventoinha quando a predefinição Atividade está selecionada.",
+          "boost": "Predefinição Reforço - Temperatura alvo quando a predefinição Reforço está selecionada. Temperatura mais alta para aquecimento rápido.",
+          "boost_temp": "Temperatura alvo para a predefinição Reforço. Aceita um valor estático (por exemplo, 25), uma referência a entidade (por exemplo, states('input_number.boost_temp')) ou um template.",
+          "boost_humidity": "Predefinição Reforço - Humidade alvo quando a predefinição Reforço está selecionada.",
+          "boost_temp_low": "Predefinição Reforço - Limite inferior de temperatura no modo de temperatura dupla. Aceita um valor estático ou um template.",
+          "boost_temp_high": "Predefinição Reforço - Limite superior de temperatura no modo de temperatura dupla. Aceita um valor estático ou um template.",
+          "boost_max_floor_temp": "Predefinição Reforço - Temperatura máxima do piso quando a predefinição Reforço está selecionada, para sistemas de aquecimento de piso.",
+          "boost_min_floor_temp": "Predefinição Reforço - Temperatura mínima do piso quando a predefinição Reforço está selecionada, para sistemas de aquecimento de piso.",
+          "boost_fan_mode": "Predefinição Reforço - Definição do modo de ventoinha quando a predefinição Reforço está selecionada."
+        }
+      },
+      "preset_selection": {
+        "data": {
+          "away": "Predefinição Ausente",
+          "comfort": "Predefinição Conforto",
+          "eco": "Predefinição Eco",
+          "home": "Predefinição Em casa",
+          "sleep": "Predefinição Dormir",
+          "anti_freeze": "Predefinição Anticongelamento",
+          "activity": "Predefinição Atividade",
+          "boost": "Predefinição Reforço"
+        },
+        "data_description": {
+          "away": "Predefinição de poupança de energia para quando não há ninguém em casa. Normalmente definida para temperaturas mais baixas para poupar energia.",
+          "comfort": "Predefinição de conforto máximo para um controlo de temperatura ideal quando o conforto é a prioridade.",
+          "eco": "Predefinição energeticamente eficiente que equilibra o conforto com a poupança de energia.",
+          "home": "Predefinição padrão para as atividades diárias quando há pessoas em casa e ativas.",
+          "sleep": "Otimizada para condições de sono, frequentemente definida um pouco mais fresca para uma melhor qualidade do sono.",
+          "anti_freeze": "Predefinição de temperatura mínima para evitar o congelamento em espaços desocupados ou durante ausências prolongadas.",
+          "activity": "Predefinição de temperatura mais alta para períodos de grande atividade ou quando é necessário calor extra.",
+          "boost": "Predefinição de aquecimento rápido para elevar rapidamente a temperatura para um nível mais alto."
+        }
+      },
+      "system_features": {
+        "title": "Configuração das funcionalidades do sistema",
+        "description": "Escolha quais as funcionalidades a configurar para o seu sistema de termóstato. Selecione apenas as funcionalidades que pretende configurar - as funcionalidades não selecionadas não serão configuradas."
+      },
+      "ac_only_features": {
+        "title": "Configuração das funcionalidades de AC",
+        "description": "Escolha quais as funcionalidades a configurar para o seu sistema de ar condicionado. Selecione apenas as funcionalidades que pretende configurar - as funcionalidades não selecionadas não serão configuradas.",
+        "data": {
+          "heater": "Interruptor do ar condicionado",
+          "keep_alive": "Intervalo de manutenção de atividade",
+          "initial_hvac_mode": "Modo HVAC inicial",
+          "precision": "Precisão da temperatura",
+          "target_temp_step": "Tamanho do incremento de temperatura",
+          "min_temp": "Temperatura mínima",
+          "max_temp": "Temperatura máxima",
+          "target_temp": "Temperatura alvo inicial"
+        },
+        "data_description": {
+          "keep_alive": "Defina um intervalo de manutenção de atividade para os interruptores. Use com aquecedores e unidades de AC que se desligam se não receberem um sinal do comando durante algum tempo.",
+          "initial_hvac_mode": "Defina o modo HVAC inicial quando o termóstato arranca. Escolha o modo predefinido que deve estar ativo quando o Home Assistant arranca.",
+          "precision": "Precisão da temperatura para o termóstato. Determina o menor incremento de temperatura que pode ser apresentado e definido.",
+          "target_temp_step": "Tamanho do incremento de temperatura para os controlos do termóstato. Determina o quanto a temperatura muda ao usar os botões para cima/para baixo.",
+          "min_temp": "Limite de temperatura mínima para o termóstato. Os utilizadores não poderão definir a temperatura alvo abaixo deste valor.",
+          "max_temp": "Limite de temperatura máxima para o termóstato. Os utilizadores não poderão definir a temperatura alvo acima deste valor.",
+          "target_temp": "Temperatura alvo inicial quando o termóstato é configurado pela primeira vez. Esta será a definição de temperatura predefinida."
+        }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Ajuste de funcionamento para {name}",
+        "description": "Ajuste os parâmetros de funcionamento e as tolerâncias do seu termóstato. Para alterações estruturais (tipo de sistema, entidades, funcionalidades), use antes a opção **Reconfigurar**.\n\n**Dica**: As alterações aqui são aplicadas imediatamente sem recarregar a integração.",
+        "data": {
+          "cold_tolerance": "Tolerância de frio",
+          "hot_tolerance": "Tolerância de calor",
+          "min_temp": "Temperatura mínima",
+          "max_temp": "Temperatura máxima",
+          "target_temp": "Temperatura alvo",
+          "precision": "Precisão da temperatura",
+          "target_temp_step": "Incremento de temperatura",
+          "min_cycle_duration": "Duração mínima do ciclo",
+          "keep_alive": "Intervalo de manutenção de atividade"
+        },
+        "data_description": {
+          "cold_tolerance": "Diferença mínima de temperatura abaixo do alvo antes de ativar o aquecimento. Valores mais baixos tornam o aquecimento mais reativo (predefinição: 0,3°C).",
+          "hot_tolerance": "Diferença mínima de temperatura acima do alvo antes de ativar o arrefecimento. Valores mais baixos tornam o arrefecimento mais reativo (predefinição: 0,3°C).",
+          "min_temp": "Definição de temperatura mínima permitida. Define o limite inferior para os ajustes da temperatura alvo.",
+          "max_temp": "Definição de temperatura máxima permitida. Define o limite superior para os ajustes da temperatura alvo.",
+          "target_temp": "Temperatura alvo predefinida quando nenhuma predefinição está ativa.",
+          "precision": "Precisão da temperatura para visualização e controlo. Determina a precisão decimal dos valores de temperatura (0,1, 0,5 ou 1,0 graus).",
+          "target_temp_step": "Tamanho do incremento de temperatura para ajustes. Controla o quanto a temperatura alvo muda a cada ajuste.",
+          "min_cycle_duration": "Tempo mínimo que o equipamento tem de funcionar antes de se desligar. Evita ciclos rápidos de ligar/desligar e protege o equipamento de danos (predefinição: 5 minutos).",
+          "keep_alive": "Duração da manutenção de atividade para comutação periódica. Defina isto se o seu interruptor precisar de um sinal periódico para se manter 'ativo'."
+        },
+        "sections": {
+          "advanced_settings": {
+            "name": "Definições avançadas",
+            "description": "Definições avançadas opcionais para afinar o comportamento do termóstato.",
+            "data": {
+              "initial_hvac_mode": "Modo HVAC inicial",
+              "target_temp_high": "Temperatura alvo (alta)",
+              "target_temp_low": "Temperatura alvo (baixa)",
+              "heat_cool_mode": "Modo aquecimento/arrefecimento",
+              "heat_tolerance": "Tolerância de aquecimento",
+              "cool_tolerance": "Tolerância de arrefecimento",
+              "auto_outside_delta_boost": "Auto: limiar de urgência do delta exterior",
+              "use_apparent_temp": "Usar temperatura aparente (\"sensação térmica\") para decisões de arrefecimento"
+            },
+            "data_description": {
+              "initial_hvac_mode": "Modo HVAC inicial ao iniciar o Home Assistant. Define o modo de funcionamento predefinido no arranque.",
+              "target_temp_high": "Temperatura alvo superior para sistemas de temperatura dupla (modo aquecimento/arrefecimento).",
+              "target_temp_low": "Temperatura alvo inferior para sistemas de temperatura dupla (modo aquecimento/arrefecimento).",
+              "heat_cool_mode": "Ative o modo aquecimento/arrefecimento com controlo de temperatura dupla. Quando ativado, permite a alternância automática entre aquecimento e arrefecimento para manter uma faixa de temperatura confortável.",
+              "heat_tolerance": "Tolerância para operações de aquecimento. Substitui a definição antiga cold_tolerance especificamente para o modo de aquecimento. Quando definida, este valor é usado em vez de cold_tolerance para determinar quando o aquecimento é ativado (predefinição: usa cold_tolerance se não for especificado).",
+              "cool_tolerance": "Tolerância para operações de arrefecimento. Substitui a definição antiga hot_tolerance especificamente para o modo de arrefecimento. Quando definida, este valor é usado em vez de hot_tolerance para determinar quando o arrefecimento é ativado (predefinição: usa hot_tolerance se não for especificado).",
+              "auto_outside_delta_boost": "Quando o modo AUTO está ativo e a diferença de temperatura interior/exterior atinge este limiar, o aquecimento ou arrefecimento de nível normal é tratado como urgente. Só está ativo quando um sensor exterior está configurado. Predefinição: 8°C / 14°F.",
+              "use_apparent_temp": "Quando ativado e um sensor de humidade está configurado, os modos AUTO e COOL autónomo decidem com base no índice de calor em vez da temperatura bruta. Acima de 27°C / 80°F, a humidade faz o ambiente parecer mais quente, pelo que o arrefecedor funciona de forma mais agressiva. A temperatura real do sensor continua a ser apresentada na interface."
+            }
+          }
+        }
+      },
+      "features": {
+        "title": "Configuração de funcionalidades",
+        "description": "Escolha quais as funcionalidades a configurar para o seu sistema. Isto determina quais as opções de configuração que ficarão disponíveis.",
+        "data": {
+          "configure_fan": "Configurar definições da ventoinha",
+          "configure_humidity": "Configurar controlo de humidade",
+          "configure_openings": "Configurar sensores de janelas/portas",
+          "configure_presets": "Configurar predefinições de temperatura",
+          "configure_floor_heating": "Configurar proteção do aquecimento de piso"
+        },
+        "data_description": {
+          "configure_fan": "Ative a configuração das definições da ventoinha. Isto permite-lhe configurar uma entidade de ventoinha separada que pode funcionar de forma independente para circulação de ar.",
+          "configure_humidity": "Ative a configuração da monitorização e controlo de humidade. Isto permite-lhe configurar sensores de humidade e o funcionamento do modo de desumidificação.",
+          "configure_openings": "Ative a configuração de sensores de janelas e portas para que o termóstato possa pausar o funcionamento quando forem detetadas aberturas.",
+          "configure_presets": "Ative a configuração de predefinições de temperatura como Ausente, Conforto e Eco para mudanças rápidas de modo.",
+          "configure_floor_heating": "Ative a configuração da proteção da temperatura do piso. Quando ativada, pode definir um sensor de piso e limites máximo/mínimo para proteger o seu pavimento."
+        }
+      },
+      "basic": {
+        "title": "Configuração básica",
+        "description": "Modifique as definições básicas do termóstato, incluindo as entidades do sistema e os parâmetros básicos de controlo de temperatura.",
+        "data": {
+          "heater": "Interruptor do ar condicionado",
+          "sensor": "Sensor de temperatura",
+          "target_sensor": "Sensor de temperatura",
+          "cold_tolerance": "Tolerância de frio",
+          "hot_tolerance": "Tolerância de calor",
+          "heat_cool_mode": "Modo aquecimento/arrefecimento",
+          "min_cycle_duration": "Duração mínima do ciclo"
+        },
+        "data_description": {
+          "heater": "ID da entidade do interruptor do ar condicionado, tem de ser um dispositivo comutável. Usado para arrefecimento quando a temperatura sobe acima do alvo.",
+          "sensor": "ID da entidade do sensor de temperatura que reflete a temperatura atual. O estado do sensor tem de ser temperatura.",
+          "target_sensor": "ID da entidade do sensor de temperatura que reflete a temperatura atual. O estado do sensor tem de ser temperatura.",
+          "cold_tolerance": "Diferença mínima de temperatura entre a leitura do sensor e o alvo antes de desligar o arrefecimento. Por exemplo, se o alvo for 25°C e a tolerância 0,5°C, o arrefecimento para quando o sensor atinge 24,5°C ou menos (predefinição: 0,3°C).",
+          "hot_tolerance": "Diferença mínima de temperatura entre a leitura do sensor e o alvo antes de ligar o arrefecimento. Por exemplo, se o alvo for 25°C e a tolerância 0,5°C, o arrefecimento começa quando o sensor atinge 25,5°C ou mais (predefinição: 0,3°C).",
+          "heat_cool_mode": "Ative o modo aquecimento/arrefecimento. O aquecedor de primeiro estágio 'heater' passa a arrefecimento e o de segundo estágio 'heater_2' passa a aquecimento. Permite o controlo simultâneo de aquecimento e arrefecimento.",
+          "min_cycle_duration": "Tempo mínimo que o interruptor de arrefecimento tem de permanecer no seu estado atual antes de ser comutado. Evita ciclos rápidos de ligar/desligar e protege o equipamento de arrefecimento."
+        },
+        "sections": {
+          "advanced_settings": {
+            "name": "Definições avançadas",
+            "description": "Configure as tolerâncias de temperatura e as definições de proteção de ciclo para um controlo ideal do sistema.",
+            "data": {
+              "cold_tolerance": "Tolerância de frio",
+              "hot_tolerance": "Tolerância de calor",
+              "min_cycle_duration": "Duração mínima do ciclo"
+            },
+            "data_description": {
+              "cold_tolerance": "Diferença mínima de temperatura entre a leitura do sensor e o alvo antes de ativar o aquecimento ou desativar o arrefecimento. Por exemplo, se o alvo for 25°C e a tolerância 0,5°C, as alterações ocorrem quando o sensor atinge 24,5°C ou menos (predefinição: 0,3°C).",
+              "hot_tolerance": "Diferença mínima de temperatura entre a leitura do sensor e o alvo antes de ativar o arrefecimento ou desativar o aquecimento. Por exemplo, se o alvo for 25°C e a tolerância 0,5°C, as alterações ocorrem quando o sensor atinge 25,5°C ou mais (predefinição: 0,3°C).",
+              "min_cycle_duration": "Tempo mínimo que o interruptor do sistema tem de permanecer no seu estado atual antes de ser comutado. Evita ciclos rápidos de ligar/desligar e protege o equipamento (predefinição: 300 segundos)."
+            }
+          }
+        }
+      },
+      "dual_stage_options": {
+        "title": "Opções de duplo estágio",
+        "description": "Modifique as definições de aquecimento de duplo estágio.",
+        "data": {
+          "secondary_heater": "Interruptor do aquecedor secundário",
+          "secondary_heater_timeout": "Tempo limite do aquecedor secundário",
+          "secondary_heater_dual_mode": "Funcionamento em modo duplo"
+        },
+        "data_description": {
+          "secondary_heater": "ID da entidade do interruptor do aquecedor auxiliar/secundário. Fornece capacidade de aquecimento adicional quando necessário.",
+          "secondary_heater_timeout": "Tempo de espera antes de ativar o aquecedor secundário após o arranque do aquecedor principal.",
+          "secondary_heater_dual_mode": "Permita que o aquecedor principal e o secundário funcionem em simultâneo quando necessário."
+        }
+      },
+      "floor_options": {
+        "title": "Opções de aquecimento de piso",
+        "description": "Modifique as definições de aquecimento de piso.",
+        "data": {
+          "floor_sensor": "Sensor de temperatura do piso",
+          "max_floor_temp": "Temperatura máxima do piso",
+          "min_floor_temp": "Temperatura mínima do piso"
+        },
+        "data_description": {
+          "floor_sensor": "ID da entidade do sensor de temperatura do piso. Monitoriza a temperatura do piso para segurança e controlo.",
+          "max_floor_temp": "Temperatura máxima permitida do piso para proteção. Evita danos nos materiais do pavimento. (Predefinição: 28°C)",
+          "min_floor_temp": "Temperatura mínima do piso a manter. Fornece proteção contra congelamento para o sistema de aquecimento de piso. (Predefinição: 5°C)"
+        }
+      },
+      "fan_options": {
+        "title": "Opções da ventoinha",
+        "description": "Modifique as definições de controlo da ventoinha.",
+        "data": {
+          "fan": "Interruptor da ventoinha",
+          "fan_mode": "Modo de ventoinha",
+          "fan_on_with_ac": "Ventoinha com AC",
+          "fan_air_outside": "Ar exterior pela ventoinha",
+          "fan_hot_tolerance": "Tolerância de calor da ventoinha",
+          "fan_hot_tolerance_toggle": "Alternância da tolerância da ventoinha"
+        },
+        "data_description": {
+          "fan": "ID da entidade do interruptor da ventoinha. Usado para controlar a circulação de ar e melhorar a distribuição de temperatura.",
+          "fan_mode": "Ative a ventoinha como um modo HVAC separado. Permite o funcionamento apenas com ventoinha.",
+          "fan_on_with_ac": "Ligue automaticamente a ventoinha quando o arrefecimento (AC) está ativo. Melhora a eficiência do arrefecimento.",
+          "fan_air_outside": "Ative a circulação de ar exterior quando a temperatura exterior é mais favorável do que a interior.",
+          "fan_hot_tolerance": "Faixa de temperatura acima do alvo em que a ventoinha é usada em vez do AC. Predefinição: 0,5°C.",
+          "fan_hot_tolerance_toggle": "ID de entidade opcional para um input_boolean que ativa/desativa a funcionalidade fan_hot_tolerance."
+        }
+      },
+      "humidity_options": {
+        "title": "Opções de humidade",
+        "description": "Modifique as definições de controlo de humidade.",
+        "data": {
+          "humidity_sensor": "Sensor de humidade",
+          "dryer": "Interruptor do secador/desumidificador",
+          "target_humidity": "Humidade alvo",
+          "min_humidity": "Humidade mínima",
+          "max_humidity": "Humidade máxima",
+          "dry_tolerance": "Tolerância de secura",
+          "moist_tolerance": "Tolerância de humidade"
+        },
+        "data_description": {
+          "humidity_sensor": "ID da entidade do sensor de humidade. Ativa as funcionalidades de controlo de humidade e as predefinições baseadas em humidade.",
+          "dryer": "ID da entidade do interruptor do secador/desumidificador. Usado para controlar a desumidificação quando os níveis de humidade excedem os alvos.",
+          "target_humidity": "Nível de humidade alvo a manter (percentagem). Alvo de humidade predefinido quando nenhuma predefinição está ativa.",
+          "min_humidity": "Nível mínimo de humidade permitido (percentagem). A humidade será aumentada se descer abaixo deste valor.",
+          "max_humidity": "Nível máximo de humidade permitido (percentagem). A humidade será reduzida se subir acima deste valor.",
+          "dry_tolerance": "Diferença mínima de humidade abaixo do alvo antes de ativar a humidificação ou desativar a desumidificação.",
+          "moist_tolerance": "Diferença mínima de humidade acima do alvo antes de ativar a desumidificação ou desativar a humidificação."
+        }
+      },
+      "preset_selection": {
+        "data": {
+          "away": "Predefinição Ausente",
+          "comfort": "Predefinição Conforto",
+          "eco": "Predefinição Eco",
+          "home": "Predefinição Em casa",
+          "sleep": "Predefinição Dormir",
+          "anti_freeze": "Predefinição Anticongelamento",
+          "activity": "Predefinição Atividade",
+          "boost": "Predefinição Reforço"
+        },
+        "data_description": {
+          "away": "Predefinição de poupança de energia para quando não há ninguém em casa. Normalmente definida para temperaturas mais baixas para poupar energia.",
+          "comfort": "Predefinição de conforto máximo para um controlo de temperatura ideal quando o conforto é a prioridade.",
+          "eco": "Predefinição energeticamente eficiente que equilibra o conforto com a poupança de energia.",
+          "home": "Predefinição padrão para as atividades diárias quando há pessoas em casa e ativas.",
+          "sleep": "Otimizada para condições de sono, frequentemente definida um pouco mais fresca para uma melhor qualidade do sono.",
+          "anti_freeze": "Predefinição de temperatura mínima para evitar o congelamento em espaços desocupados ou durante ausências prolongadas.",
+          "activity": "Predefinição de temperatura mais alta para períodos de grande atividade ou quando é necessário calor extra.",
+          "boost": "Predefinição de aquecimento rápido para elevar rapidamente a temperatura para um nível mais alto."
+        }
+      },
+      "openings_options": {
+        "title": "Configuração de aberturas",
+        "description": "Configure sensores de portas e janelas para controlar automaticamente o termóstato quando forem detetadas aberturas.",
+        "data": {
+          "selected_openings": "Sensores de janelas/portas"
+        },
+        "data_description": {
+          "selected_openings": "Escolha sensores de portas/janelas, interruptores ou outras entidades que indiquem quando são detetadas aberturas. Quando qualquer entidade selecionada estiver em 'open', 'on' ou 'true', o termóstato será desligado automaticamente para poupar energia."
+        }
+      },
+      "openings_config": {
+        "title": "Definições de tempo limite de abertura/fecho",
+        "description": "Configure atrasos de tempo limite opcionais para quando janelas/portas abrem e fecham. Deixe vazio para resposta imediata.\n\nAberturas selecionadas:\n{selected_entities}",
+        "data": {
+          "openings_scope": "Modos HVAC afetados pelas aberturas",
+          "opening_1_label": "Abertura 1",
+          "opening_1_timeout_open": "Tempo limite de abertura (segundos)",
+          "opening_1_timeout_close": "Tempo limite de fecho (segundos)",
+          "opening_2_label": "Abertura 2",
+          "opening_2_timeout_open": "Tempo limite de abertura (segundos)",
+          "opening_2_timeout_close": "Tempo limite de fecho (segundos)",
+          "opening_3_label": "Abertura 3",
+          "opening_3_timeout_open": "Tempo limite de abertura (segundos)",
+          "opening_3_timeout_close": "Tempo limite de fecho (segundos)",
+          "opening_4_label": "Abertura 4",
+          "opening_4_timeout_open": "Tempo limite de abertura (segundos)",
+          "opening_4_timeout_close": "Tempo limite de fecho (segundos)",
+          "opening_5_label": "Abertura 5",
+          "opening_5_timeout_open": "Tempo limite de abertura (segundos)",
+          "opening_5_timeout_close": "Tempo limite de fecho (segundos)",
+          "opening_6_label": "Abertura 6",
+          "opening_6_timeout_open": "Tempo limite de abertura (segundos)",
+          "opening_6_timeout_close": "Tempo limite de fecho (segundos)",
+          "opening_7_label": "Abertura 7",
+          "opening_7_timeout_open": "Tempo limite de abertura (segundos)",
+          "opening_7_timeout_close": "Tempo limite de fecho (segundos)",
+          "opening_8_label": "Abertura 8",
+          "opening_8_timeout_open": "Tempo limite de abertura (segundos)",
+          "opening_8_timeout_close": "Tempo limite de fecho (segundos)",
+          "opening_9_label": "Abertura 9",
+          "opening_9_timeout_open": "Tempo limite de abertura (segundos)",
+          "opening_9_timeout_close": "Tempo limite de fecho (segundos)",
+          "opening_10_label": "Abertura 10",
+          "opening_10_timeout_open": "Tempo limite de abertura (segundos)",
+          "opening_10_timeout_close": "Tempo limite de fecho (segundos)"
+        },
+        "data_description": {
+          "openings_scope": "Selecione quais os modos HVAC que devem ser afetados quando janelas/portas estão abertas. Quando nenhum âmbito é selecionado ou 'Todos os modos HVAC' é escolhido, todo o sistema será afetado.",
+          "opening_1_timeout_open": "Tempo de espera após esta abertura ser ativada antes de desligar o HVAC. Defina como 0 para resposta imediata.",
+          "opening_1_timeout_close": "Tempo de espera após esta abertura fechar antes de voltar a ligar o HVAC. Defina como 0 para resposta imediata.",
+          "opening_2_timeout_open": "Tempo de espera após esta abertura ser ativada antes de desligar o HVAC. Defina como 0 para resposta imediata.",
+          "opening_2_timeout_close": "Tempo de espera após esta abertura fechar antes de voltar a ligar o HVAC. Defina como 0 para resposta imediata.",
+          "opening_3_timeout_open": "Tempo de espera após esta abertura ser ativada antes de desligar o HVAC. Defina como 0 para resposta imediata.",
+          "opening_3_timeout_close": "Tempo de espera após esta abertura fechar antes de voltar a ligar o HVAC. Defina como 0 para resposta imediata.",
+          "opening_4_timeout_open": "Tempo de espera após esta abertura ser ativada antes de desligar o HVAC. Defina como 0 para resposta imediata.",
+          "opening_4_timeout_close": "Tempo de espera após esta abertura fechar antes de voltar a ligar o HVAC. Defina como 0 para resposta imediata.",
+          "opening_5_timeout_open": "Tempo de espera após esta abertura ser ativada antes de desligar o HVAC. Defina como 0 para resposta imediata.",
+          "opening_5_timeout_close": "Tempo de espera após esta abertura fechar antes de voltar a ligar o HVAC. Defina como 0 para resposta imediata.",
+          "opening_6_timeout_open": "Tempo de espera após esta abertura ser ativada antes de desligar o HVAC. Defina como 0 para resposta imediata.",
+          "opening_6_timeout_close": "Tempo de espera após esta abertura fechar antes de voltar a ligar o HVAC. Defina como 0 para resposta imediata.",
+          "opening_7_timeout_open": "Tempo de espera após esta abertura ser ativada antes de desligar o HVAC. Defina como 0 para resposta imediata.",
+          "opening_7_timeout_close": "Tempo de espera após esta abertura fechar antes de voltar a ligar o HVAC. Defina como 0 para resposta imediata.",
+          "opening_8_timeout_open": "Tempo de espera após esta abertura ser ativada antes de desligar o HVAC. Defina como 0 para resposta imediata.",
+          "opening_8_timeout_close": "Tempo de espera após esta abertura fechar antes de voltar a ligar o HVAC. Defina como 0 para resposta imediata.",
+          "opening_9_timeout_open": "Tempo de espera após esta abertura ser ativada antes de desligar o HVAC. Defina como 0 para resposta imediata.",
+          "opening_9_timeout_close": "Tempo de espera após esta abertura fechar antes de voltar a ligar o HVAC. Defina como 0 para resposta imediata.",
+          "opening_10_timeout_open": "Tempo de espera após esta abertura ser ativada antes de desligar o HVAC. Defina como 0 para resposta imediata.",
+          "opening_10_timeout_close": "Tempo de espera após esta abertura fechar antes de voltar a ligar o HVAC. Defina como 0 para resposta imediata."
+        }
+      },
+      "advanced_options": {
+        "title": "Opções avançadas",
+        "description": "Modifique as definições avançadas do termóstato e afine o comportamento do controlo de temperatura.",
+        "data": {
+          "min_temp": "Temperatura mínima",
+          "max_temp": "Temperatura máxima",
+          "target_temp": "Temperatura alvo",
+          "cold_tolerance": "Tolerância de frio",
+          "hot_tolerance": "Tolerância de calor",
+          "precision": "Precisão da temperatura",
+          "target_temp_step": "Incremento de temperatura",
+          "min_cycle_duration": "Duração mínima do ciclo",
+          "keep_alive": "Duração da manutenção de atividade",
+          "initial_hvac_mode": "Modo HVAC inicial",
+          "target_temp_high": "Temperatura alvo (alta)",
+          "target_temp_low": "Temperatura alvo (baixa)",
+          "heat_cool_mode": "Limiar do modo aquecimento/arrefecimento"
+        },
+        "data_description": {
+          "min_temp": "Definição de temperatura mínima permitida. Define o limite inferior para os ajustes da temperatura alvo.",
+          "max_temp": "Definição de temperatura máxima permitida. Define o limite superior para os ajustes da temperatura alvo.",
+          "target_temp": "Temperatura alvo inicial quando o termóstato é configurado pela primeira vez ou reposto.",
+          "cold_tolerance": "Diferença de temperatura abaixo do alvo antes de o aquecimento ser ativado. Valores mais baixos tornam o aquecimento mais reativo.",
+          "hot_tolerance": "Diferença de temperatura acima do alvo antes de o arrefecimento ser ativado. Valores mais baixos tornam o arrefecimento mais reativo.",
+          "precision": "Precisão da temperatura para visualização e controlo. Determina a precisão decimal dos valores de temperatura.",
+          "target_temp_step": "Tamanho do incremento de temperatura para ajustes. Controla o quanto a temperatura alvo muda a cada ajuste.",
+          "min_cycle_duration": "Tempo mínimo que o equipamento tem de funcionar antes de se desligar. Ajuda a evitar ciclos curtos e danos no equipamento.",
+          "keep_alive": "Duração da manutenção de atividade para comutação periódica. Defina isto se o seu interruptor precisar de um sinal periódico para se manter 'ativo'.",
+          "initial_hvac_mode": "Modo HVAC inicial ao iniciar o Home Assistant. Define o modo de funcionamento predefinido no arranque.",
+          "target_temp_high": "Temperatura alvo superior para sistemas de aquecimento/arrefecimento de duplo estágio.",
+          "target_temp_low": "Temperatura alvo inferior para sistemas de aquecimento/arrefecimento de duplo estágio.",
+          "heat_cool_mode": "Limiar de diferença de temperatura para alternar entre aquecimento e arrefecimento no modo aquecimento/arrefecimento."
+        }
+      },
+      "presets": {
+        "title": "Configuração de predefinições",
+        "description": "Configure as definições de temperatura e do sistema para cada predefinição selecionada. Estas definições serão aplicadas automaticamente quando ativar o modo de predefinição correspondente.",
+        "data": {
+          "away_temp": "Temperatura (Ausente)",
+          "comfort_temp": "Temperatura (Conforto)",
+          "eco_temp": "Temperatura (Eco)",
+          "home_temp": "Temperatura (Em casa)",
+          "sleep_temp": "Temperatura (Dormir)",
+          "anti_freeze_temp": "Temperatura (Anticongelamento)",
+          "activity_temp": "Temperatura (Atividade)",
+          "boost_temp": "Temperatura (Reforço)"
+        },
+        "data_description": {
+          "away_temp": "Temperatura alvo para a predefinição Ausente. Aceita um valor estático (por exemplo, 18), uma referência a entidade ou um template condicional.",
+          "comfort_temp": "Temperatura alvo para a predefinição Conforto. Aceita um valor estático (por exemplo, 22), uma referência a entidade ou um template.",
+          "eco_temp": "Temperatura alvo para a predefinição Eco. Aceita um valor estático (por exemplo, 20), uma referência a entidade ou um template.",
+          "home_temp": "Temperatura alvo para a predefinição Em casa. Aceita um valor estático (por exemplo, 21), uma referência a entidade ou um template.",
+          "sleep_temp": "Temperatura alvo para a predefinição Dormir. Aceita um valor estático (por exemplo, 18), uma referência a entidade ou um template.",
+          "anti_freeze_temp": "Temperatura alvo para a predefinição Anticongelamento. Aceita um valor estático (por exemplo, 7), uma referência a entidade ou um template.",
+          "activity_temp": "Temperatura alvo para a predefinição Atividade. Aceita um valor estático (por exemplo, 23), uma referência a entidade ou um template.",
+          "boost_temp": "Temperatura alvo para a predefinição Reforço. Aceita um valor estático (por exemplo, 25), uma referência a entidade ou um template."
+        }
+      }
+    }
+  }
+}

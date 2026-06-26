@@ -1,0 +1,1027 @@
+{
+  "title": "Dual Smart Thermostat",
+  "entity": {
+    "sensor": {
+      "hvac_action_reason": {
+        "state": {
+          "none": "Nincs",
+          "min_cycle_duration_not_reached": "A minimális ciklusidő nincs elérve",
+          "target_temp_not_reached": "A célhőmérséklet nincs elérve",
+          "target_temp_reached": "A célhőmérséklet elérve",
+          "target_temp_not_reached_with_fan": "A célhőmérséklet nincs elérve (ventilátoros segédlet)",
+          "target_humidity_not_reached": "A célpáratartalom nincs elérve",
+          "target_humidity_reached": "A célpáratartalom elérve",
+          "misconfiguration": "Hibás konfiguráció",
+          "opening": "Nyílászáró nyitva észlelve",
+          "limit": "Határérték elérve",
+          "overheat": "Túlmelegedés elleni védelem",
+          "temperature_sensor_stalled": "A hőmérséklet-érzékelő nem frissül",
+          "humidity_sensor_stalled": "A páratartalom-érzékelő nem frissül",
+          "presence": "Jelenlét",
+          "schedule": "Ütemezés",
+          "emergency": "Vészhelyzet",
+          "malfunction": "Meghibásodás",
+          "auto_priority_humidity": "Automatikus: páratartalom elsőbbsége",
+          "auto_priority_temperature": "Automatikus: hőmérséklet elsőbbsége",
+          "auto_priority_comfort": "Automatikus: komfort elsőbbsége"
+        }
+      }
+    }
+  },
+  "selector": {
+    "hac_action_reason": {
+      "options": {
+        "presence": "Jelenlét",
+        "schedule": "Ütemezés",
+        "emergency": "Vészhelyzet",
+        "malfunction": "Meghibásodás",
+        "misconfiguration": "Hibás konfiguráció"
+      }
+    },
+    "openings_scope": {
+      "options": {
+        "all": "Minden HVAC-üzemmód",
+        "cool": "Csak hűtés",
+        "heat": "Csak fűtés",
+        "fan_only": "Csak ventilátor",
+        "heat_cool": "Fűtés/hűtés üzemmód",
+        "dry": "Párátlanító üzemmód"
+      }
+    }
+  },
+  "services": {
+    "set_hvac_action_reason": {
+      "name": "HVAC-művelet okának beállítása",
+      "description": "Beállítja a HVAC-művelet okát.",
+      "fields": {
+        "hvac_action_reason": {
+          "name": "HVAC-művelet oka",
+          "description": "A legutóbbi HVAC-művelet végrehajtásának oka."
+        }
+      }
+    }
+  },
+  "config": {
+    "error": {
+      "same_heater_sensor": "A fűtés és a hőmérséklet-érzékelő nem lehet ugyanaz az entitás",
+      "same_heater_cooler": "A fűtés és a hűtés nem lehet ugyanaz az entitás",
+      "aux_heater_timeout_required": "Kiegészítő fűtés konfigurálásakor meg kell adni a kiegészítő fűtés időtúllépését",
+      "aux_heater_entity_required": "Az időtúllépés konfigurálásakor meg kell adni a kiegészítő fűtés entitását"
+    },
+    "step": {
+      "user": {
+        "title": "Rendszertípus kiválasztása",
+        "description": "Válaszd ki a konfigurálni kívánt termosztátrendszer típusát.",
+        "data": {
+          "system_type": "Rendszertípus"
+        },
+        "data_description": {
+          "system_type": "Válaszd ki azt a rendszertípust, amely leginkább megfelel a HVAC-elrendezésednek."
+        }
+      },
+      "reconfigure_confirm": {
+        "title": "{name} újrakonfigurálása",
+        "description": "A(z) **{name}** újrakonfigurálására készülsz.\n\nJelenlegi rendszertípus: **{current_system}**\n\nMegtarthatod a jelenlegi rendszertípust, vagy válthatsz egy másikra. Megjegyzés: a rendszertípus módosítása törli a jelenlegi konfigurációt, és újrakezdi a beállítást.\n\nAz integráció az újrakonfigurálás után újratöltődik.",
+        "data": {
+          "system_type": "Rendszertípus"
+        },
+        "data_description": {
+          "system_type": "Válaszd ki a rendszertípust. Tartsd meg a jelenlegi típust a beállítások módosításához, vagy válassz másik típust a teljesen új konfigurációhoz."
+        }
+      },
+      "basic": {
+        "title": "Alapkonfiguráció",
+        "description": "Kategóriák szerint rendezve állíthatod be a termosztátot: alapadatok, érzékelők, vezérlőeszközök és hőmérséklet-beállítások.",
+        "data": {
+          "name": "Név",
+          "heater": "Fűtés kapcsolója",
+          "target_sensor": "Hőmérséklet-érzékelő",
+          "heat_cool_mode": "Fűtés/hűtés üzemmód",
+          "cold_tolerance": "Hideg tűréshatár",
+          "hot_tolerance": "Meleg tűréshatár",
+          "min_cycle_duration": "Minimális ciklusidő"
+        },
+        "data_description": {
+          "name": "[Alapadatok] A termosztát entitás neve (alapértelmezett: Dual Smart).",
+          "target_sensor": "[Érzékelők] A jelenlegi hőmérsékletet tükröző hőmérséklet-érzékelő entitásazonosítója. Az érzékelő állapotának hőmérsékletnek kell lennie.",
+          "heater": "[Vezérlőeszközök] A fűtés kapcsolójának entitásazonosítója, kapcsolható eszköznek kell lennie. AC-üzemmód bekapcsolásakor légkondicionáló kapcsolójává válik.",
+          "heat_cool_mode": "[Vezérlési beállítások] Fűtés/hűtés üzemmód engedélyezése kettős hőmérséklet-szabályozással. Bekapcsolva automatikus váltást tesz lehetővé fűtés és hűtés között a kényelmes hőmérséklet-tartomány fenntartásához.",
+          "cold_tolerance": "[Hőmérséklet-beállítások] Az érzékelő mért értéke és a célérték közötti minimális különbség a fűtés bekapcsolása előtt. Például ha a cél 25°C és a tűréshatár 0,5°C, a fűtés akkor indul, amikor az érzékelő eléri a 24,5°C-ot vagy az alá kerül (alapértelmezett: 0,3°C).",
+          "hot_tolerance": "[Hőmérséklet-beállítások] Az érzékelő mért értéke és a célérték közötti minimális különbség a fűtés kikapcsolása vagy a hűtés bekapcsolása előtt. Például ha a cél 25°C és a tűréshatár 0,5°C, a fűtés akkor áll le, amikor az érzékelő eléri a 25,5°C-ot vagy fölé kerül (alapértelmezett: 0,3°C).",
+          "min_cycle_duration": "[Hőmérséklet-beállítások] Az a minimális idő, ameddig a kapcsolónak az aktuális állapotában kell maradnia, mielőtt átkapcsolna. Megakadályozza a gyors be-/kikapcsolgatást, és védi a berendezést."
+        },
+        "sections": {
+          "advanced_settings": {
+            "name": "Speciális beállítások",
+            "description": "Állítsd be a hőmérséklet-tűréshatárokat és a ciklusvédelmet az optimális fűtésszabályozáshoz.",
+            "data": {
+              "cold_tolerance": "Hideg tűréshatár",
+              "hot_tolerance": "Meleg tűréshatár",
+              "min_cycle_duration": "Minimális ciklusidő"
+            },
+            "data_description": {
+              "cold_tolerance": "Az érzékelő mért értéke és a célérték közötti minimális különbség a fűtés bekapcsolása előtt. Például ha a cél 25°C és a tűréshatár 0,5°C, a fűtés akkor indul, amikor az érzékelő eléri a 24,5°C-ot vagy az alá kerül (alapértelmezett: 0,3°C).",
+              "hot_tolerance": "Az érzékelő mért értéke és a célérték közötti minimális különbség a fűtés kikapcsolása előtt. Például ha a cél 25°C és a tűréshatár 0,5°C, a fűtés akkor áll le, amikor az érzékelő eléri a 25,5°C-ot vagy fölé kerül (alapértelmezett: 0,3°C).",
+              "min_cycle_duration": "Az a minimális idő, ameddig a fűtés kapcsolójának az aktuális állapotában kell maradnia, mielőtt átkapcsolna. Megakadályozza a gyors be-/kikapcsolgatást, és védi a fűtőberendezést (alapértelmezett: 300 másodperc)."
+            }
+          }
+        }
+      },
+      "basic_ac_only": {
+        "title": "Alapkonfiguráció",
+        "description": "Állítsd be a légkondicionáló rendszered, kategóriák szerint rendezve.",
+        "data": {
+          "name": "Név",
+          "heater": "Légkondicionáló kapcsolója",
+          "target_sensor": "Hőmérséklet-érzékelő",
+          "cold_tolerance": "Hideg tűréshatár",
+          "hot_tolerance": "Meleg tűréshatár",
+          "min_cycle_duration": "Minimális ciklusidő"
+        },
+        "data_description": {
+          "name": "[Alapadatok] A termosztát entitás neve (alapértelmezett: Dual Smart).",
+          "target_sensor": "[Érzékelők] A jelenlegi hőmérsékletet tükröző hőmérséklet-érzékelő entitásazonosítója. Az érzékelő állapotának hőmérsékletnek kell lennie.",
+          "heater": "[Vezérlőeszközök] A légkondicionáló kapcsolójának entitásazonosítója, kapcsolható eszköznek kell lennie. Hűtésre szolgál, amikor a hőmérséklet a célérték fölé emelkedik.",
+          "cold_tolerance": "[Hőmérséklet-beállítások] Az érzékelő mért értéke és a célérték közötti minimális különbség a fűtés bekapcsolása előtt. Például ha a cél 25°C és a tűréshatár 0,5°C, a fűtés akkor indul, amikor az érzékelő eléri a 24,5°C-ot vagy az alá kerül (alapértelmezett: 0,3°C).",
+          "hot_tolerance": "[Hőmérséklet-beállítások] Az érzékelő mért értéke és a célérték közötti minimális különbség a fűtés kikapcsolása vagy a hűtés bekapcsolása előtt. Például ha a cél 25°C és a tűréshatár 0,5°C, a fűtés akkor áll le, amikor az érzékelő eléri a 25,5°C-ot vagy fölé kerül (alapértelmezett: 0,3°C).",
+          "min_cycle_duration": "[Hőmérséklet-beállítások] Az a minimális idő, ameddig a kapcsolónak az aktuális állapotában kell maradnia, mielőtt átkapcsolna. Megakadályozza a gyors be-/kikapcsolgatást, és védi a berendezést."
+        },
+        "sections": {
+          "advanced_settings": {
+            "name": "Speciális beállítások",
+            "description": "Állítsd be a hőmérséklet-tűréshatárokat és a speciális beállításokat a ciklusvédelemhez és az eszközkommunikációhoz.",
+            "data": {
+              "cold_tolerance": "Hideg tűréshatár",
+              "hot_tolerance": "Meleg tűréshatár",
+              "min_cycle_duration": "Minimális ciklusidő",
+              "keep_alive": "Életben tartási időköz"
+            },
+            "data_description": {
+              "cold_tolerance": "Az érzékelő mért értéke és a célérték közötti minimális különbség a hűtés kikapcsolása előtt. Például ha a cél 25°C és a tűréshatár 0,5°C, a hűtés akkor áll le, amikor az érzékelő eléri a 24,5°C-ot vagy az alá kerül (alapértelmezett: 0,3°C).",
+              "hot_tolerance": "Az érzékelő mért értéke és a célérték közötti minimális különbség a hűtés bekapcsolása előtt. Például ha a cél 25°C és a tűréshatár 0,5°C, a hűtés akkor indul, amikor az érzékelő eléri a 25,5°C-ot vagy fölé kerül (alapértelmezett: 0,3°C).",
+              "min_cycle_duration": "Az a minimális idő, ameddig a hűtés kapcsolójának az aktuális állapotában kell maradnia, mielőtt átkapcsolna. Megakadályozza a gyors be-/kikapcsolgatást, és védi a hűtőberendezést (alapértelmezett: 300 másodperc).",
+              "keep_alive": "A célhőmérséklet-érzékelő frissítései közötti maximális idő. Időszakos átkapcsolást kényszerít, hogy a hűtőeszköz ne kapcsoljon ki váratlanul (alapértelmezett: 300 másodperc)."
+            }
+          }
+        }
+      },
+      "features": {
+        "title": "Funkciók konfigurálása",
+        "description": "Válaszd ki, mely funkciókat szeretnéd konfigurálni a rendszeredhez. Ez határozza meg, hogy mely konfigurációs beállítások lesznek elérhetők.",
+        "data": {
+          "configure_fan": "Ventilátorbeállítások konfigurálása",
+          "configure_humidity": "Páratartalom-szabályozás konfigurálása",
+          "configure_openings": "Ablak-/ajtóérzékelők konfigurálása",
+          "configure_presets": "Hőmérséklet-előbeállítások konfigurálása",
+          "configure_floor_heating": "Padlófűtés-védelem konfigurálása"
+        },
+        "data_description": {
+          "configure_fan": "Engedélyezi a ventilátorbeállítások konfigurálását. Lehetővé teszi egy különálló ventilátor entitás beállítását, amely önállóan működhet a levegő keringetéséhez.",
+          "configure_humidity": "Engedélyezi a páratartalom figyelésének és szabályozásának konfigurálását. Lehetővé teszi páratartalom-érzékelők és a párátlanító üzemmód beállítását.",
+          "configure_openings": "Engedélyezi az ablak- és ajtóérzékelők konfigurálását, hogy a termosztát szüneteltethesse a működést nyílászárók észlelésekor.",
+          "configure_presets": "Engedélyezi a hőmérséklet-előbeállítások (például Távol, Komfort és Eco) konfigurálását a gyors üzemmódváltáshoz.",
+          "configure_floor_heating": "Engedélyezi a padlóhőmérséklet-védelem konfigurálását. Bekapcsolva beállíthatsz egy padlóérzékelőt, valamint maximális/minimális határértékeket a padló védelméhez."
+        }
+      },
+      "heater_cooler": {
+        "title": "Alapkonfiguráció",
+        "description": "Állítsd be a fűtő- és hűtőrendszered különálló kapcsolókkal, kategóriák szerint rendezve.",
+        "data": {
+          "name": "Név",
+          "heater": "Fűtés kapcsolója",
+          "cooler": "Hűtés kapcsolója",
+          "target_sensor": "Hőmérséklet-érzékelő",
+          "heat_cool_mode": "Fűtés/hűtés üzemmód",
+          "cold_tolerance": "Hideg tűréshatár",
+          "hot_tolerance": "Meleg tűréshatár",
+          "min_cycle_duration": "Minimális ciklusidő"
+        },
+        "data_description": {
+          "name": "[Alapadatok] A termosztát entitás neve (alapértelmezett: Dual Smart).",
+          "target_sensor": "[Érzékelők] A jelenlegi hőmérsékletet tükröző hőmérséklet-érzékelő entitásazonosítója. Az érzékelő állapotának hőmérsékletnek kell lennie.",
+          "heater": "[Vezérlőeszközök] A fűtés kapcsolójának entitásazonosítója, kapcsolható eszköznek kell lennie. Fűtésre szolgál, amikor a hőmérséklet a célérték alá esik.",
+          "cooler": "[Vezérlőeszközök] A hűtés/AC kapcsolójának entitásazonosítója, kapcsolható eszköznek kell lennie. Hűtésre szolgál, amikor a hőmérséklet a célérték fölé emelkedik. Hőszivattyús rendszereknél megegyezhet a fűtéssel.",
+          "heat_cool_mode": "[Vezérlési beállítások] Fűtés/hűtés üzemmód engedélyezése kettős hőmérséklet-szabályozással. Bekapcsolva automatikus váltást tesz lehetővé fűtés és hűtés között a kényelmes hőmérséklet-tartomány fenntartásához.",
+          "cold_tolerance": "[Hőmérséklet-beállítások] Az érzékelő mért értéke és a célérték közötti minimális különbség a fűtés bekapcsolása előtt. Pufferzónát hoz létre a gyakori átkapcsolás megelőzésére.",
+          "hot_tolerance": "[Hőmérséklet-beállítások] Az érzékelő mért értéke és a célérték közötti minimális különbség a hűtés bekapcsolása előtt. Pufferzónát hoz létre a gyakori átkapcsolás megelőzésére.",
+          "min_cycle_duration": "[Hőmérséklet-beállítások] Az a minimális idő, ameddig a kapcsolóknak az aktuális állapotukban kell maradniuk, mielőtt átkapcsolnának. Megakadályozza a gyors be-/kikapcsolgatást, és megóvja a berendezést a károsodástól."
+        },
+        "sections": {
+          "advanced_settings": {
+            "name": "Speciális beállítások",
+            "description": "Állítsd be a hőmérséklet-tűréshatárokat és a ciklusvédelmet az optimális rendszerszabályozáshoz.",
+            "data": {
+              "cold_tolerance": "Hideg tűréshatár",
+              "hot_tolerance": "Meleg tűréshatár",
+              "heat_tolerance": "Fűtési tűréshatár",
+              "cool_tolerance": "Hűtési tűréshatár",
+              "min_cycle_duration": "Minimális ciklusidő"
+            },
+            "data_description": {
+              "cold_tolerance": "Az érzékelő mért értéke és a célérték közötti minimális különbség a fűtés bekapcsolása vagy a hűtés kikapcsolása előtt. Például ha a cél 25°C és a tűréshatár 0,5°C, a változás akkor következik be, amikor az érzékelő eléri a 24,5°C-ot vagy az alá kerül (alapértelmezett: 0,3°C).",
+              "hot_tolerance": "Az érzékelő mért értéke és a célérték közötti minimális különbség a hűtés bekapcsolása vagy a fűtés kikapcsolása előtt. Például ha a cél 25°C és a tűréshatár 0,5°C, a változás akkor következik be, amikor az érzékelő eléri a 25,5°C-ot vagy fölé kerül (alapértelmezett: 0,3°C).",
+              "heat_tolerance": "Üzemmód-specifikus tűréshatár a fűtéshez. Fűtési üzemmódban felülírja a cold_tolerance értékét a finomabb szabályozásért. Ha be van állítva, ez az érték határozza meg, mikor indul a fűtés, a cold_tolerance helyett (alapértelmezett: a cold_tolerance értékét használja, ha nincs megadva).",
+              "cool_tolerance": "Üzemmód-specifikus tűréshatár a hűtéshez. Hűtési üzemmódban felülírja a hot_tolerance értékét a finomabb szabályozásért. Ha be van állítva, ez az érték határozza meg, mikor indul a hűtés, a hot_tolerance helyett (alapértelmezett: a hot_tolerance értékét használja, ha nincs megadva).",
+              "min_cycle_duration": "Az a minimális idő, ameddig a rendszer kapcsolójának az aktuális állapotában kell maradnia, mielőtt átkapcsolna. Megakadályozza a gyors be-/kikapcsolgatást, és védi a berendezést (alapértelmezett: 300 másodperc)."
+            }
+          }
+        }
+      },
+      "heat_pump": {
+        "title": "Hőszivattyú konfigurálása",
+        "description": "Állítsd be a hőszivattyús rendszered. Egyetlen kapcsoló vezérli a fűtést és a hűtést is, az üzemmódot pedig egy hűtésállapot-érzékelő határozza meg.",
+        "data": {
+          "name": "Név",
+          "heater": "Hőszivattyú kapcsolója",
+          "target_sensor": "Hőmérséklet-érzékelő",
+          "heat_pump_cooling": "Hűtésállapot-érzékelő",
+          "cold_tolerance": "Hideg tűréshatár",
+          "hot_tolerance": "Meleg tűréshatár",
+          "min_cycle_duration": "Minimális ciklusidő"
+        },
+        "data_description": {
+          "name": "[Alapadatok] A termosztát entitás neve (alapértelmezett: Dual Smart).",
+          "heater": "[Vezérlőeszközök] A hőszivattyú kapcsolójának entitásazonosítója. A hőszivattyú egységét vezérli fűtéshez és hűtéshez is. Üzemmódtól függetlenül ugyanazt a kapcsolót használja.",
+          "target_sensor": "[Érzékelők] A jelenlegi hőmérsékletet tükröző hőmérséklet-érzékelő entitásazonosítója. Az érzékelő állapotának hőmérsékletnek kell lennie.",
+          "heat_pump_cooling": "[Vezérlőeszközök] A hűtésállapot-érzékelő (sensor, binary_sensor vagy input_boolean) entitásazonosítója. „On” állapotban a hőszivattyú hűtési üzemmódban működik, „off” állapotban fűtési üzemmódban. Ez az érzékelő határozza meg, melyik üzemmódot használja a hőszivattyú. Lehet manuális input_boolean a vezérléshez, vagy a hőszivattyús rendszered által biztosított entitás.",
+          "cold_tolerance": "[Hőmérséklet-beállítások] Az érzékelő mért értéke és a célérték közötti minimális különbség, mielőtt a hőszivattyú fűtési üzemmódra váltana. Például ha a cél 25°C és a tűréshatár 0,5°C, a fűtés akkor indul, amikor az érzékelő eléri a 24,5°C-ot vagy az alá kerül (alapértelmezett: 0,3°C).",
+          "hot_tolerance": "[Hőmérséklet-beállítások] Az érzékelő mért értéke és a célérték közötti minimális különbség, mielőtt a hőszivattyú hűtési üzemmódra váltana. Például ha a cél 25°C és a tűréshatár 0,5°C, a hűtés akkor indul, amikor az érzékelő eléri a 25,5°C-ot vagy fölé kerül (alapértelmezett: 0,3°C).",
+          "min_cycle_duration": "[Hőmérséklet-beállítások] Az a minimális idő, ameddig a hőszivattyúnak az aktuális állapotában kell maradnia, mielőtt átkapcsolna. Kritikus a hőszivattyú védelme szempontjából, mivel a gyakori átkapcsolás károsíthatja a kompresszort (alapértelmezett: 300 másodperc)."
+        },
+        "sections": {
+          "advanced_settings": {
+            "name": "Speciális beállítások",
+            "description": "Állítsd be a hőmérséklet-tűréshatárokat és a ciklusvédelmet a hőszivattyú optimális működéséhez.",
+            "data": {
+              "cold_tolerance": "Hideg tűréshatár",
+              "hot_tolerance": "Meleg tűréshatár",
+              "heat_tolerance": "Fűtési tűréshatár",
+              "cool_tolerance": "Hűtési tűréshatár",
+              "min_cycle_duration": "Minimális ciklusidő"
+            },
+            "data_description": {
+              "cold_tolerance": "Az érzékelő mért értéke és a célérték közötti minimális különbség, mielőtt a hőszivattyú fűtési üzemmódra váltana. Például ha a cél 25°C és a tűréshatár 0,5°C, a fűtés akkor indul, amikor az érzékelő eléri a 24,5°C-ot vagy az alá kerül (alapértelmezett: 0,3°C).",
+              "hot_tolerance": "Az érzékelő mért értéke és a célérték közötti minimális különbség, mielőtt a hőszivattyú hűtési üzemmódra váltana. Például ha a cél 25°C és a tűréshatár 0,5°C, a hűtés akkor indul, amikor az érzékelő eléri a 25,5°C-ot vagy fölé kerül (alapértelmezett: 0,3°C).",
+              "heat_tolerance": "Üzemmód-specifikus tűréshatár a fűtéshez. Fűtési üzemmódban felülírja a cold_tolerance értékét a finomabb szabályozásért. Ha be van állítva, ez az érték határozza meg, mikor indul a fűtés, a cold_tolerance helyett (alapértelmezett: a cold_tolerance értékét használja, ha nincs megadva).",
+              "cool_tolerance": "Üzemmód-specifikus tűréshatár a hűtéshez. Hűtési üzemmódban felülírja a hot_tolerance értékét a finomabb szabályozásért. Ha be van állítva, ez az érték határozza meg, mikor indul a hűtés, a hot_tolerance helyett (alapértelmezett: a hot_tolerance értékét használja, ha nincs megadva).",
+              "min_cycle_duration": "Az a minimális idő, ameddig a hőszivattyúnak az aktuális állapotában kell maradnia, mielőtt átkapcsolna. Kritikus a hőszivattyú védelme szempontjából, mivel a gyakori átkapcsolás károsíthatja a kompresszort (alapértelmezett: 300 másodperc)."
+            }
+          }
+        }
+      },
+      "dual_stage": {
+        "title": "Alapkonfiguráció",
+        "description": "Állítsd be a kétfokozatú fűtőrendszered alapbeállításait.",
+        "data": {
+          "name": "Név",
+          "heater": "Elsődleges fűtés kapcsolója",
+          "target_sensor": "Hőmérséklet-érzékelő",
+          "cold_tolerance": "Hideg tűréshatár",
+          "hot_tolerance": "Meleg tűréshatár",
+          "min_cycle_duration": "Minimális ciklusidő"
+        },
+        "data_description": {
+          "name": "A termosztát entitás neve (alapértelmezett: Dual Smart).",
+          "heater": "Az elsődleges fűtés kapcsolójának entitásazonosítója, kapcsolható eszköznek kell lennie. Ez lesz az első fokozatú fűtés, amely az idő nagy részében működik.",
+          "target_sensor": "A jelenlegi hőmérsékletet tükröző hőmérséklet-érzékelő entitásazonosítója. Az érzékelő állapotának hőmérsékletnek kell lennie.",
+          "cold_tolerance": "Az érzékelő mért értéke és a célérték közötti minimális különbség az elsődleges fűtés bekapcsolása előtt. Például ha a cél 25°C és a tűréshatár 0,5°C, az elsődleges fűtés akkor indul, amikor az érzékelő eléri a 24,5°C-ot vagy az alá kerül (alapértelmezett: 0,3°C).",
+          "hot_tolerance": "Az érzékelő mért értéke és a célérték közötti minimális különbség a fűtés kikapcsolása előtt. Például ha a cél 25°C és a tűréshatár 0,5°C, a fűtés akkor áll le, amikor az érzékelő eléri a 25,5°C-ot vagy fölé kerül (alapértelmezett: 0,3°C).",
+          "min_cycle_duration": "Az a minimális idő, ameddig az elsődleges fűtésnek az aktuális állapotában kell maradnia, mielőtt átkapcsolna. Megakadályozza a gyors be-/kikapcsolgatást, és védi a berendezést."
+        }
+      },
+      "two_stage": {
+        "title": "Kétfokozatú fűtés konfigurálása",
+        "description": "Állítsd be a kétfokozatú fűtőrendszert elsődleges és kiegészítő fűtéssel.",
+        "data": {
+          "heater_2": "Második fokozatú fűtés kapcsolója",
+          "heat_cool_mode": "Fűtés/hűtés üzemmód",
+          "dual_mode_tolerance": "Kettős üzemmód tűréshatára"
+        },
+        "data_description": {
+          "heater_2": "A második fokozatú fűtés kapcsolójának entitásazonosítója. Akkor használatos, amikor további fűtőteljesítményre van szükség. Kettős üzemmódban ez a fűtés kapcsolója, míg a „heater” a hűtés kapcsolójává válik.",
+          "heat_cool_mode": "Fűtés/hűtés üzemmód engedélyezése. Az első fokozatú fűtés („heater”) hűtéssé, a második fokozat („heater_2”) fűtéssé válik. Egyidejű fűtés- és hűtésszabályozást tesz lehetővé.",
+          "dual_mode_tolerance": "Hőmérséklet-tűréshatár a kettős üzemmódhoz. Beállítja azt a pufferzónát, ahol sem a fűtés, sem a hűtés nem működik, megakadályozva a fűtés és hűtés közötti gyors átkapcsolást."
+        }
+      },
+      "dual_stage_config": {
+        "title": "Másodlagos fűtés konfigurálása",
+        "description": "Állítsd be a kiegészítő/másodlagos fűtés beállításait.",
+        "data": {
+          "secondary_heater": "Másodlagos fűtés kapcsolója",
+          "secondary_heater_timeout": "Másodlagos fűtés időtúllépése",
+          "secondary_heater_dual_mode": "Kettős üzemmódú működés"
+        },
+        "data_description": {
+          "secondary_heater": "A kiegészítő/másodlagos fűtés kapcsolójának entitásazonosítója. Akkor aktiválódik, amikor az elsődleges fűtés nem tudja tartani a hőmérsékletet, és extrém hideg viszonyok között további fűtőteljesítményt biztosít.",
+          "secondary_heater_timeout": "Az elsődleges fűtés elindulása után a másodlagos fűtés aktiválása előtt megvárandó idő. Megakadályozza, hogy mindkét fűtés egyszerre induljon el, és időt ad az elsődleges fűtésnek a célhőmérséklet elérésére.",
+          "secondary_heater_dual_mode": "Engedélyezi, hogy az elsődleges és a másodlagos fűtés szükség esetén egyszerre működjön. Kikapcsolva a másodlagos fűtés csak akkor aktiválódik, ha az elsődleges fűtés önmagában nem elegendő."
+        }
+      },
+      "floor_heating": {
+        "title": "Padlófűtés konfigurálása",
+        "description": "Állítsd be a padlóhőmérséklet-érzékelőt és a határértékeket a padlófűtéses rendszerekhez.",
+        "data": {
+          "floor_sensor": "Padlóhőmérséklet-érzékelő",
+          "max_floor_temp": "Maximális padlóhőmérséklet"
+        },
+        "data_description": {
+          "floor_sensor": "A padlóhőmérséklet-érzékelő entitásazonosítója. Beállítva padlóhőmérséklet-védelmet és a szobahőmérséklettől független padlófűtés-szabályozást biztosít.",
+          "max_floor_temp": "A megengedett legmagasabb padlóhőmérséklet. A padlófűtés automatikusan kikapcsol, ha ezt a hőmérsékletet túllépi, a szobahőmérséklet céljától függetlenül, a padlóburkolat védelme és a túlmelegedés megelőzése érdekében."
+        }
+      },
+      "floor_config": {
+        "title": "Padlóhőmérséklet-védelem",
+        "description": "Állítsd be a padlóhőmérséklet figyelését és határértékeit.",
+        "data": {
+          "floor_sensor": "Padlóhőmérséklet-érzékelő",
+          "max_floor_temp": "Maximális padlóhőmérséklet",
+          "min_floor_temp": "Minimális padlóhőmérséklet"
+        },
+        "data_description": {
+          "floor_sensor": "A padlóhőmérséklet-érzékelő entitásazonosítója. Figyeli a padló hőmérsékletét a biztonságos működés érdekében, és megóvja a padlóburkolatot a túlmelegedéstől vagy a túlzott hidegtől.",
+          "max_floor_temp": "A megengedett legmagasabb padlóhőmérséklet a védelemhez. A padlófűtés kikapcsol, amikor ezt a hőmérsékletet eléri, a szobahőmérséklettől függetlenül, hogy megelőzze a padlóburkolat károsodását. (Alapértelmezett: 28°C)",
+          "min_floor_temp": "A fenntartandó legalacsonyabb padlóhőmérséklet. A padlófűtés akkor aktiválódik, amikor a padló hőmérséklete ez alá az érték alá esik, fagyvédelmet biztosítva a padlófűtési rendszer számára. (Alapértelmezett: 5°C)"
+        }
+      },
+      "openings_toggle": {
+        "title": "Ablak-/ajtóérzékelő konfigurálása",
+        "description": "Engedélyezd az automatikus HVAC-vezérlést ablak- és ajtóérzékelők alapján.",
+        "data": {
+          "enable_openings": "Nyílászáró-érzékelés engedélyezése"
+        },
+        "data_description": {
+          "enable_openings": "Az ablak- és ajtóérzékelők integrációjának engedélyezése. Bekapcsolva a termosztát automatikusan kikapcsolja a fűtést/hűtést, amikor ablakot vagy ajtót nyitnak, és folytatja a működést, amikor azokat becsukják, energiát takarítva meg és javítva a hatékonyságot."
+        }
+      },
+      "openings_selection": {
+        "title": "Ablak-/ajtóérzékelők kiválasztása",
+        "description": "Válaszd ki az ablak- és ajtóérzékelőket, és állítsd be a működési hatókörüket.",
+        "data": {
+          "selected_openings": "Ablak-/ajtóérzékelők",
+          "openings_scope": "A nyílászárók által érintett HVAC-üzemmódok"
+        },
+        "data_description": {
+          "selected_openings": "Válaszd ki azokat az entitásokat, amelyek érzékelik, ha ablak vagy ajtó nyitva van. Lehetnek bináris érzékelők, érzékelők, kapcsolók vagy input boolean entitások. Az entitásnak „nyitva” állapotot kell jeleznie, amikor az ablak/ajtó nyitva van, és „zárva” állapotot, amikor zárva.",
+          "openings_scope": "Válaszd ki, mely HVAC-üzemmódokat érintse, ha ablak/ajtó nyitva van. Ha a „Minden HVAC-üzemmód” van kiválasztva, vagy nincs kiválasztva semmi, az egész rendszer kikapcsol bármely nyílászáró észlelésekor. Válassz konkrét üzemmódokat, hogy csak azokra legyen hatással (például csak fűtés vagy csak hűtés)."
+        }
+      },
+      "openings_config": {
+        "title": "Nyitási/zárási időtúllépés beállításai",
+        "description": "Állíts be opcionális időtúllépési késleltetéseket az ablakok/ajtók nyitásához és zárásához. Hagyd üresen az azonnali reagáláshoz.\n\nKiválasztott nyílászárók:\n{selected_entities}",
+        "data": {
+          "openings_scope": "A nyílászárók által érintett HVAC-üzemmódok",
+          "opening_1_timeout_open": "1. nyílászáró – Nyitási időtúllépés (másodperc)",
+          "opening_1_timeout_close": "1. nyílászáró – Zárási időtúllépés (másodperc)",
+          "opening_2_timeout_open": "2. nyílászáró – Nyitási időtúllépés (másodperc)",
+          "opening_2_timeout_close": "2. nyílászáró – Zárási időtúllépés (másodperc)",
+          "opening_3_timeout_open": "3. nyílászáró – Nyitási időtúllépés (másodperc)",
+          "opening_3_timeout_close": "3. nyílászáró – Zárási időtúllépés (másodperc)",
+          "opening_4_timeout_open": "4. nyílászáró – Nyitási időtúllépés (másodperc)",
+          "opening_4_timeout_close": "4. nyílászáró – Zárási időtúllépés (másodperc)",
+          "opening_5_timeout_open": "5. nyílászáró – Nyitási időtúllépés (másodperc)",
+          "opening_5_timeout_close": "5. nyílászáró – Zárási időtúllépés (másodperc)",
+          "opening_6_timeout_open": "6. nyílászáró – Nyitási időtúllépés (másodperc)",
+          "opening_6_timeout_close": "6. nyílászáró – Zárási időtúllépés (másodperc)",
+          "opening_7_timeout_open": "7. nyílászáró – Nyitási időtúllépés (másodperc)",
+          "opening_7_timeout_close": "7. nyílászáró – Zárási időtúllépés (másodperc)",
+          "opening_8_timeout_open": "8. nyílászáró – Nyitási időtúllépés (másodperc)",
+          "opening_8_timeout_close": "8. nyílászáró – Zárási időtúllépés (másodperc)",
+          "opening_9_timeout_open": "9. nyílászáró – Nyitási időtúllépés (másodperc)",
+          "opening_9_timeout_close": "9. nyílászáró – Zárási időtúllépés (másodperc)",
+          "opening_10_timeout_open": "10. nyílászáró – Nyitási időtúllépés (másodperc)",
+          "opening_10_timeout_close": "10. nyílászáró – Zárási időtúllépés (másodperc)"
+        },
+        "data_description": {
+          "openings_scope": "Válaszd ki, mely HVAC-üzemmódokat érintse, ha ablak/ajtó nyitva van. Ha nincs hatókör kiválasztva, vagy a „Minden HVAC-üzemmód” van kiválasztva, az egész rendszer érintett lesz.",
+          "opening_1_timeout_open": "Az az idő, ameddig a HVAC kikapcsolása előtt várni kell, miután ez a nyílászáró aktiválódik. Állítsd 0-ra az azonnali reagáláshoz.",
+          "opening_1_timeout_close": "Az az idő, ameddig a HVAC visszakapcsolása előtt várni kell, miután ez a nyílászáró bezárul. Állítsd 0-ra az azonnali reagáláshoz.",
+          "opening_2_timeout_open": "Az az idő, ameddig a HVAC kikapcsolása előtt várni kell, miután ez a nyílászáró aktiválódik. Állítsd 0-ra az azonnali reagáláshoz.",
+          "opening_2_timeout_close": "Az az idő, ameddig a HVAC visszakapcsolása előtt várni kell, miután ez a nyílászáró bezárul. Állítsd 0-ra az azonnali reagáláshoz.",
+          "opening_3_timeout_open": "Az az idő, ameddig a HVAC kikapcsolása előtt várni kell, miután ez a nyílászáró aktiválódik. Állítsd 0-ra az azonnali reagáláshoz.",
+          "opening_3_timeout_close": "Az az idő, ameddig a HVAC visszakapcsolása előtt várni kell, miután ez a nyílászáró bezárul. Állítsd 0-ra az azonnali reagáláshoz.",
+          "opening_4_timeout_open": "Az az idő, ameddig a HVAC kikapcsolása előtt várni kell, miután ez a nyílászáró aktiválódik. Állítsd 0-ra az azonnali reagáláshoz.",
+          "opening_4_timeout_close": "Az az idő, ameddig a HVAC visszakapcsolása előtt várni kell, miután ez a nyílászáró bezárul. Állítsd 0-ra az azonnali reagáláshoz.",
+          "opening_5_timeout_open": "Az az idő, ameddig a HVAC kikapcsolása előtt várni kell, miután ez a nyílászáró aktiválódik. Állítsd 0-ra az azonnali reagáláshoz.",
+          "opening_5_timeout_close": "Az az idő, ameddig a HVAC visszakapcsolása előtt várni kell, miután ez a nyílászáró bezárul. Állítsd 0-ra az azonnali reagáláshoz.",
+          "opening_6_timeout_open": "Az az idő, ameddig a HVAC kikapcsolása előtt várni kell, miután ez a nyílászáró aktiválódik. Állítsd 0-ra az azonnali reagáláshoz.",
+          "opening_6_timeout_close": "Az az idő, ameddig a HVAC visszakapcsolása előtt várni kell, miután ez a nyílászáró bezárul. Állítsd 0-ra az azonnali reagáláshoz.",
+          "opening_7_timeout_open": "Az az idő, ameddig a HVAC kikapcsolása előtt várni kell, miután ez a nyílászáró aktiválódik. Állítsd 0-ra az azonnali reagáláshoz.",
+          "opening_7_timeout_close": "Az az idő, ameddig a HVAC visszakapcsolása előtt várni kell, miután ez a nyílászáró bezárul. Állítsd 0-ra az azonnali reagáláshoz.",
+          "opening_8_timeout_open": "Az az idő, ameddig a HVAC kikapcsolása előtt várni kell, miután ez a nyílászáró aktiválódik. Állítsd 0-ra az azonnali reagáláshoz.",
+          "opening_8_timeout_close": "Az az idő, ameddig a HVAC visszakapcsolása előtt várni kell, miután ez a nyílászáró bezárul. Állítsd 0-ra az azonnali reagáláshoz.",
+          "opening_9_timeout_open": "Az az idő, ameddig a HVAC kikapcsolása előtt várni kell, miután ez a nyílászáró aktiválódik. Állítsd 0-ra az azonnali reagáláshoz.",
+          "opening_9_timeout_close": "Az az idő, ameddig a HVAC visszakapcsolása előtt várni kell, miután ez a nyílászáró bezárul. Állítsd 0-ra az azonnali reagáláshoz.",
+          "opening_10_timeout_open": "Az az idő, ameddig a HVAC kikapcsolása előtt várni kell, miután ez a nyílászáró aktiválódik. Állítsd 0-ra az azonnali reagáláshoz.",
+          "opening_10_timeout_close": "Az az idő, ameddig a HVAC visszakapcsolása előtt várni kell, miután ez a nyílászáró bezárul. Állítsd 0-ra az azonnali reagáláshoz."
+        }
+      },
+      "heat_cool_mode": {
+        "title": "Fűtés/hűtés üzemmód konfigurálása",
+        "description": "Állítsd be az automatikus fűtés/hűtés üzemmódváltást.",
+        "data": {
+          "heat_cool_mode": "Fűtés/hűtés üzemmód engedélyezése",
+          "target_temp_low": "Alsó hőmérséklet-beállítási pont",
+          "target_temp_high": "Felső hőmérséklet-beállítási pont"
+        },
+        "data_description": {
+          "heat_cool_mode": "Engedélyezi az automatikus váltást fűtés és hűtés között két hőmérséklet-beállítási pont alapján. Egyetlen célérték helyett kényelmes hőmérséklet-tartományt hoz létre.",
+          "target_temp_low": "Alsó hőmérsékletküszöb a fűtés/hűtés üzemmódhoz. A fűtés akkor aktiválódik, amikor a hőmérséklet ez alá az érték alá esik.",
+          "target_temp_high": "Felső hőmérsékletküszöb a fűtés/hűtés üzemmódhoz. A hűtés akkor aktiválódik, amikor a hőmérséklet ez fölé az érték fölé emelkedik. Magasabbnak kell lennie az alsó beállítási pontnál."
+        }
+      },
+      "fan": {
+        "title": "Ventilátor konfigurálása",
+        "description": "Állítsd be a ventilátor vezérlését és beállításait.",
+        "data": {
+          "fan": "Ventilátor kapcsolója",
+          "fan_mode": "Ventilátor üzemmód",
+          "fan_on_with_ac": "Ventilátor AC-vel",
+          "fan_air_outside": "Ventilátor külső levegővel",
+          "fan_hot_tolerance": "Ventilátor meleg tűréshatára",
+          "fan_hot_tolerance_toggle": "Ventilátor tűréshatár kapcsolója"
+        },
+        "data_description": {
+          "fan": "A ventilátor kapcsolójának entitásazonosítója. A levegő keringetésének szabályozására és a hőmérséklet egyenletesebb eloszlásának javítására szolgál a térben.",
+          "fan_mode": "A ventilátor engedélyezése külön HVAC-üzemmódként. Bekapcsolva a FAN üzemmód a fűtés, hűtés és automatikus üzemmódok mellett is elérhetővé válik, lehetővé téve a csak ventilátoros működést.",
+          "fan_on_with_ac": "Automatikusan bekapcsolja a ventilátort, amikor a hűtés (AC) aktív. Javítja a hűtés hatékonyságát és a levegő keringetését a hűtési ciklusok alatt.",
+          "fan_air_outside": "Engedélyezi a külső levegő keringetését, amikor a külső hőmérséklet kedvezőbb a belsőnél. Az intelligens külsőlevegő-használathoz külső hőmérséklet-érzékelő konfigurálása szükséges.",
+          "fan_hot_tolerance": "A célérték feletti hőmérséklet-tartomány, ahol AC helyett ventilátort használ. Például 25°C célérték, 1°C hot_tolerance és 0,5°C fan_hot_tolerance esetén: a ventilátor 26°C-on (cél + hot_tolerance), az AC 26,5°C-on (cél + hot_tolerance + fan_hot_tolerance) aktiválódik. Alapértelmezett: 0,5°C.",
+          "fan_hot_tolerance_toggle": "Opcionális input_boolean entitásazonosító a fan_hot_tolerance funkció dinamikus be-/kikapcsolásához. Kikapcsolva azonnal AC-t használ ahelyett, hogy előbb a ventilátort próbálná. Ha nincs konfigurálva, a fan_hot_tolerance funkció mindig engedélyezve van."
+        }
+      },
+      "humidity": {
+        "title": "Páratartalom-szabályozás",
+        "description": "Állítsd be a páratartalom figyelését és szabályozását.",
+        "data": {
+          "humidity_sensor": "Páratartalom-érzékelő",
+          "dryer": "Szárító/párátlanító kapcsolója",
+          "target_humidity": "Cél páratartalom",
+          "min_humidity": "Minimális páratartalom",
+          "max_humidity": "Maximális páratartalom",
+          "dry_tolerance": "Száraz tűréshatár",
+          "moist_tolerance": "Nedves tűréshatár"
+        },
+        "data_description": {
+          "humidity_sensor": "A páratartalom-érzékelő entitásazonosítója. Beállítva engedélyezi a páratartalom-szabályozási funkciókat és a páratartalom-alapú előbeállításokat. Az érzékelő állapotának páratartalom-százaléknak kell lennie.",
+          "dryer": "A szárító/párátlanító kapcsolójának entitásazonosítója. A párátlanítás szabályozására szolgál, amikor a páratartalom meghaladja a célértékeket.",
+          "target_humidity": "A fenntartandó cél páratartalom-szint (százalék). Alapértelmezett páratartalom-cél, amikor nincs aktív előbeállítás.",
+          "min_humidity": "A megengedett legalacsonyabb páratartalom-szint (százalék). A páratartalom növelésre kerül, ha ez alá az érték alá esik.",
+          "max_humidity": "A megengedett legmagasabb páratartalom-szint (százalék). A páratartalom csökkentésre kerül, ha ez fölé az érték fölé emelkedik.",
+          "dry_tolerance": "A cél alatti minimális páratartalom-különbség a párásítás bekapcsolása vagy a párátlanítás kikapcsolása előtt.",
+          "moist_tolerance": "A cél feletti minimális páratartalom-különbség a párátlanítás bekapcsolása vagy a párásítás kikapcsolása előtt."
+        }
+      },
+      "additional_sensors": {
+        "title": "További érzékelők",
+        "description": "Állíts be további hőmérséklet-érzékelőket.",
+        "data": {
+          "outside_sensor": "Külső hőmérséklet-érzékelő"
+        },
+        "data_description": {
+          "outside_sensor": "A külső hőmérséklet-érzékelő entitásazonosítója. Intelligens műveletekhez használatos, például szabad hűtéshez, külső levegő használatához ventilátorvezérléssel, valamint időjárás alapú fűtési/hűtési döntésekhez. Lehetővé teszi, hogy a rendszer a kültéri körülmények alapján optimalizálja az energiafelhasználást."
+        }
+      },
+      "advanced": {
+        "title": "Speciális beállítások",
+        "description": "Állítsd be a termosztát speciális beállításait.",
+        "data": {
+          "advanced_system_type": "Speciális rendszertípus",
+          "keep_alive": "Életben tartás időtartama",
+          "initial_hvac_mode": "Kezdeti HVAC-üzemmód",
+          "precision": "Hőmérséklet pontossága",
+          "target_temp_step": "Hőmérséklet lépésköze",
+          "min_temp": "Minimális hőmérséklet",
+          "max_temp": "Maximális hőmérséklet",
+          "target_temp": "Célhőmérséklet"
+        },
+        "data_description": {
+          "advanced_system_type": "Válaszd ki a speciális rendszerkonfigurációt. Válaszd a standardot a hagyományos termosztáthoz, a kétfokozatút a kiegészítő fűtéssel rendelkező kétfokozatú fűtéshez, vagy a padlófűtést a hőmérséklet-védelmi rendszerekhez.",
+          "keep_alive": "Életben tartás időtartama az időszakos átkapcsoláshoz. Állítsd be, ha a kapcsolódnak szívritmusra van szüksége, hogy „életben” maradjon. Például egyes kapcsolók bizonyos idő után automatikusan kikapcsolnak.",
+          "initial_hvac_mode": "Kezdeti HVAC-üzemmód a Home Assistant indításakor. Beállítja az alapértelmezett működési módot induláskor (fűtés, hűtés, automatikus, ki stb.).",
+          "precision": "Hőmérséklet pontossága a megjelenítéshez és a szabályozáshoz. Meghatározza a hőmérséklet-értékek tizedes pontosságát (0,1, 0,5, 1,0 fok).",
+          "target_temp_step": "Hőmérséklet lépésközének mérete a beállításokhoz. Szabályozza, hogy a célhőmérséklet mennyit változik egy-egy beállításnál (például 0,5°C-os vagy 1°C-os lépések).",
+          "min_temp": "A megengedett legalacsonyabb hőmérséklet-beállítás. Beállítja a célhőmérséklet alsó határát a nem biztonságos vagy nem hatékony működés megelőzésére.",
+          "max_temp": "A megengedett legmagasabb hőmérséklet-beállítás. Beállítja a célhőmérséklet felső határát a nem biztonságos vagy nem hatékony működés megelőzésére.",
+          "target_temp": "A kezdeti célhőmérséklet a termosztát első konfigurálásakor. Ez lesz az alapértelmezett hőmérséklet, amikor nincs aktív előbeállítás."
+        }
+      },
+      "presets": {
+        "title": "Hőmérséklet-előbeállítások konfigurálása",
+        "description": "Állítsd be a hőmérséklet-előbeállításokat a különböző helyzetekhez. A mezők előbeállítás-típus szerint vannak rendezve – alaphőmérséklet, páratartalom-beállítások, kettős hőmérséklet-tartományok, padlófűtés-határértékek és ventilátor-üzemmódok – a konfigurált funkcióid alapján.",
+        "data": {
+          "away": "▼ TÁVOL ELŐBEÁLLÍTÁS",
+          "away_temp": "Távol hőmérséklet",
+          "away_humidity": "Távol páratartalom",
+          "away_temp_low": "Távol alsó hőmérséklet",
+          "away_temp_high": "Távol felső hőmérséklet",
+          "away_max_floor_temp": "Távol max. padlóhőmérséklet",
+          "away_min_floor_temp": "Távol min. padlóhőmérséklet",
+          "away_fan_mode": "Távol ventilátor üzemmód",
+          "comfort": "▼ KOMFORT ELŐBEÁLLÍTÁS",
+          "comfort_temp": "Komfort hőmérséklet",
+          "comfort_humidity": "Komfort páratartalom",
+          "comfort_temp_low": "Komfort alsó hőmérséklet",
+          "comfort_temp_high": "Komfort felső hőmérséklet",
+          "comfort_max_floor_temp": "Komfort max. padlóhőmérséklet",
+          "comfort_min_floor_temp": "Komfort min. padlóhőmérséklet",
+          "comfort_fan_mode": "Komfort ventilátor üzemmód",
+          "eco": "▼ ECO ELŐBEÁLLÍTÁS",
+          "eco_temp": "Eco hőmérséklet",
+          "eco_humidity": "Eco páratartalom",
+          "eco_temp_low": "Eco alsó hőmérséklet",
+          "eco_temp_high": "Eco felső hőmérséklet",
+          "eco_max_floor_temp": "Eco max. padlóhőmérséklet",
+          "eco_min_floor_temp": "Eco min. padlóhőmérséklet",
+          "eco_fan_mode": "Eco ventilátor üzemmód",
+          "home": "▼ OTTHON ELŐBEÁLLÍTÁS",
+          "home_temp": "Otthon hőmérséklet",
+          "home_humidity": "Otthon páratartalom",
+          "home_temp_low": "Otthon alsó hőmérséklet",
+          "home_temp_high": "Otthon felső hőmérséklet",
+          "home_max_floor_temp": "Otthon max. padlóhőmérséklet",
+          "home_min_floor_temp": "Otthon min. padlóhőmérséklet",
+          "home_fan_mode": "Otthon ventilátor üzemmód",
+          "sleep": "▼ ALVÁS ELŐBEÁLLÍTÁS",
+          "sleep_temp": "Alvás hőmérséklet",
+          "sleep_humidity": "Alvás páratartalom",
+          "sleep_temp_low": "Alvás alsó hőmérséklet",
+          "sleep_temp_high": "Alvás felső hőmérséklet",
+          "sleep_max_floor_temp": "Alvás max. padlóhőmérséklet",
+          "sleep_min_floor_temp": "Alvás min. padlóhőmérséklet",
+          "sleep_fan_mode": "Alvás ventilátor üzemmód",
+          "anti_freeze": "▼ FAGYVÉDELEM ELŐBEÁLLÍTÁS",
+          "anti_freeze_temp": "Fagyvédelem hőmérséklet",
+          "anti_freeze_humidity": "Fagyvédelem páratartalom",
+          "anti_freeze_temp_low": "Fagyvédelem alsó hőmérséklet",
+          "anti_freeze_temp_high": "Fagyvédelem felső hőmérséklet",
+          "anti_freeze_max_floor_temp": "Fagyvédelem max. padlóhőmérséklet",
+          "anti_freeze_min_floor_temp": "Fagyvédelem min. padlóhőmérséklet",
+          "anti_freeze_fan_mode": "Fagyvédelem ventilátor üzemmód",
+          "activity": "▼ AKTIVITÁS ELŐBEÁLLÍTÁS",
+          "activity_temp": "Aktivitás hőmérséklet",
+          "activity_humidity": "Aktivitás páratartalom",
+          "activity_temp_low": "Aktivitás alsó hőmérséklet",
+          "activity_temp_high": "Aktivitás felső hőmérséklet",
+          "activity_max_floor_temp": "Aktivitás max. padlóhőmérséklet",
+          "activity_min_floor_temp": "Aktivitás min. padlóhőmérséklet",
+          "activity_fan_mode": "Aktivitás ventilátor üzemmód",
+          "boost": "▼ BOOST ELŐBEÁLLÍTÁS",
+          "boost_temp": "Boost hőmérséklet",
+          "boost_humidity": "Boost páratartalom",
+          "boost_temp_low": "Boost alsó hőmérséklet",
+          "boost_temp_high": "Boost felső hőmérséklet",
+          "boost_max_floor_temp": "Boost max. padlóhőmérséklet",
+          "boost_min_floor_temp": "Boost min. padlóhőmérséklet",
+          "boost_fan_mode": "Boost ventilátor üzemmód"
+        },
+        "data_description": {
+          "away": "Távol előbeállítás – Célhőmérséklet, amikor a Távol előbeállítás aktív. Általában alacsonyabbra állítva energiatakarékosság céljából, amikor senki sincs otthon.",
+          "away_temp": "Célhőmérséklet a(z) Távol előbeállításhoz. Statikus értéket (pl. 18), entitáshivatkozást (pl. states('input_number.away_temp')) vagy sablont fogad el.",
+          "away_humidity": "Távol előbeállítás – Cél páratartalom, amikor a Távol előbeállítás aktív. Páratartalom-szabályozással együtt használva az optimális körülmények fenntartására.",
+          "away_temp_low": "Távol előbeállítás – Alsó hőmérséklethatár kettős hőmérsékletű üzemmódban. Statikus értéket (pl. 18) vagy sablont (pl. {{ states('sensor.outdoor_temp') | float - 2 }}) fogad el.",
+          "away_temp_high": "Távol előbeállítás – Felső hőmérséklethatár kettős hőmérsékletű üzemmódban. Statikus értéket (pl. 24) vagy sablont (pl. {{ states('sensor.outdoor_temp') | float + 4 }}) fogad el.",
+          "away_max_floor_temp": "Távol előbeállítás – Maximális padlóhőmérséklet, amikor a(z) Távol előbeállítás aktív, padlófűtéses rendszerekhez.",
+          "away_min_floor_temp": "Távol előbeállítás – Minimális padlóhőmérséklet, amikor a(z) Távol előbeállítás aktív, padlófűtéses rendszerekhez.",
+          "away_fan_mode": "Távol előbeállítás – Ventilátor üzemmód beállítása, amikor a(z) Távol előbeállítás aktív.",
+          "comfort": "Komfort előbeállítás – Célhőmérséklet, amikor a Komfort előbeállítás aktív. Maximális komfortbeállítás.",
+          "comfort_temp": "Célhőmérséklet a(z) Komfort előbeállításhoz. Statikus értéket (pl. 22), entitáshivatkozást (pl. states('input_number.comfort_temp')) vagy sablont fogad el.",
+          "comfort_humidity": "Komfort előbeállítás – Cél páratartalom, amikor a Komfort előbeállítás aktív.",
+          "comfort_temp_low": "Komfort előbeállítás – Alsó hőmérséklethatár kettős hőmérsékletű üzemmódban. Statikus értéket vagy sablont fogad el.",
+          "comfort_temp_high": "Komfort előbeállítás – Felső hőmérséklethatár kettős hőmérsékletű üzemmódban. Statikus értéket vagy sablont fogad el.",
+          "comfort_max_floor_temp": "Komfort előbeállítás – Maximális padlóhőmérséklet, amikor a(z) Komfort előbeállítás aktív, padlófűtéses rendszerekhez.",
+          "comfort_min_floor_temp": "Komfort előbeállítás – Minimális padlóhőmérséklet, amikor a(z) Komfort előbeállítás aktív, padlófűtéses rendszerekhez.",
+          "comfort_fan_mode": "Komfort előbeállítás – Ventilátor üzemmód beállítása, amikor a(z) Komfort előbeállítás aktív.",
+          "eco": "Eco előbeállítás – Célhőmérséklet, amikor az Eco előbeállítás aktív. Energiatakarékos hőmérséklet-beállítás.",
+          "eco_temp": "Célhőmérséklet a(z) Eco előbeállításhoz. Statikus értéket (pl. 20), entitáshivatkozást (pl. states('input_number.eco_temp')) vagy sablont fogad el.",
+          "eco_humidity": "Eco előbeállítás – Cél páratartalom, amikor az Eco előbeállítás aktív. Energiatakarékos páratartalom-szint.",
+          "eco_temp_low": "Eco előbeállítás – Alsó hőmérséklethatár kettős hőmérsékletű üzemmódban. Statikus értéket vagy sablont fogad el.",
+          "eco_temp_high": "Eco előbeállítás – Felső hőmérséklethatár kettős hőmérsékletű üzemmódban. Statikus értéket vagy sablont fogad el.",
+          "eco_max_floor_temp": "Eco előbeállítás – Maximális padlóhőmérséklet, amikor a(z) Eco előbeállítás aktív, padlófűtéses rendszerekhez.",
+          "eco_min_floor_temp": "Eco előbeállítás – Minimális padlóhőmérséklet, amikor a(z) Eco előbeállítás aktív, padlófűtéses rendszerekhez.",
+          "eco_fan_mode": "Eco előbeállítás – Ventilátor üzemmód beállítása, amikor a(z) Eco előbeállítás aktív.",
+          "home": "Otthon előbeállítás – Célhőmérséklet, amikor az Otthon előbeállítás aktív. Kényelmes hőmérséklet a napi tevékenységekhez.",
+          "home_temp": "Célhőmérséklet a(z) Otthon előbeállításhoz. Statikus értéket (pl. 21), entitáshivatkozást (pl. states('input_number.home_temp')) vagy sablont fogad el.",
+          "home_humidity": "Otthon előbeállítás – Cél páratartalom, amikor az Otthon előbeállítás aktív. Optimális páratartalom a komfort és az egészség érdekében.",
+          "home_temp_low": "Otthon előbeállítás – Alsó hőmérséklethatár kettős hőmérsékletű üzemmódban. Statikus értéket vagy sablont fogad el.",
+          "home_temp_high": "Otthon előbeállítás – Felső hőmérséklethatár kettős hőmérsékletű üzemmódban. Statikus értéket vagy sablont fogad el.",
+          "home_max_floor_temp": "Otthon előbeállítás – Maximális padlóhőmérséklet, amikor a(z) Otthon előbeállítás aktív, padlófűtéses rendszerekhez.",
+          "home_min_floor_temp": "Otthon előbeállítás – Minimális padlóhőmérséklet, amikor a(z) Otthon előbeállítás aktív, padlófűtéses rendszerekhez.",
+          "home_fan_mode": "Otthon előbeállítás – Ventilátor üzemmód beállítása, amikor a(z) Otthon előbeállítás aktív.",
+          "sleep": "Alvás előbeállítás – Célhőmérséklet, amikor az Alvás előbeállítás aktív. Gyakran kissé hűvösebbre állítva a jobb alvásminőség érdekében.",
+          "sleep_temp": "Célhőmérséklet a(z) Alvás előbeállításhoz. Statikus értéket (pl. 18), entitáshivatkozást (pl. states('input_number.sleep_temp')) vagy sablont fogad el.",
+          "sleep_humidity": "Alvás előbeállítás – Cél páratartalom, amikor az Alvás előbeállítás aktív. Optimális páratartalom az alváshoz.",
+          "sleep_temp_low": "Alvás előbeállítás – Alsó hőmérséklethatár kettős hőmérsékletű üzemmódban. Statikus értéket vagy sablont fogad el.",
+          "sleep_temp_high": "Alvás előbeállítás – Felső hőmérséklethatár kettős hőmérsékletű üzemmódban. Statikus értéket vagy sablont fogad el.",
+          "sleep_max_floor_temp": "Alvás előbeállítás – Maximális padlóhőmérséklet, amikor a(z) Alvás előbeállítás aktív, padlófűtéses rendszerekhez.",
+          "sleep_min_floor_temp": "Alvás előbeállítás – Minimális padlóhőmérséklet, amikor a(z) Alvás előbeállítás aktív, padlófűtéses rendszerekhez.",
+          "sleep_fan_mode": "Alvás előbeállítás – Ventilátor üzemmód beállítása, amikor a(z) Alvás előbeállítás aktív.",
+          "anti_freeze": "Fagyvédelem előbeállítás – Célhőmérséklet, amikor a Fagyvédelem előbeállítás aktív. Minimális hőmérséklet a fagyás megelőzésére.",
+          "anti_freeze_temp": "Célhőmérséklet a(z) Fagyvédelem előbeállításhoz. Statikus értéket (pl. 7), entitáshivatkozást (pl. states('input_number.antifreeze_temp')) vagy sablont fogad el.",
+          "anti_freeze_humidity": "Fagyvédelem előbeállítás – Cél páratartalom, amikor a Fagyvédelem előbeállítás aktív.",
+          "anti_freeze_temp_low": "Fagyvédelem előbeállítás – Alsó hőmérséklethatár kettős hőmérsékletű üzemmódban. Statikus értéket vagy sablont fogad el.",
+          "anti_freeze_temp_high": "Fagyvédelem előbeállítás – Felső hőmérséklethatár kettős hőmérsékletű üzemmódban. Statikus értéket vagy sablont fogad el.",
+          "anti_freeze_max_floor_temp": "Fagyvédelem előbeállítás – Maximális padlóhőmérséklet, amikor a(z) Fagyvédelem előbeállítás aktív, padlófűtéses rendszerekhez.",
+          "anti_freeze_min_floor_temp": "Fagyvédelem előbeállítás – Minimális padlóhőmérséklet, amikor a(z) Fagyvédelem előbeállítás aktív, padlófűtéses rendszerekhez.",
+          "anti_freeze_fan_mode": "Fagyvédelem előbeállítás – Ventilátor üzemmód beállítása, amikor a(z) Fagyvédelem előbeállítás aktív.",
+          "activity": "Aktivitás előbeállítás – Célhőmérséklet, amikor az Aktivitás előbeállítás aktív. Aktív időszakokra magasabbra állítható.",
+          "activity_temp": "Célhőmérséklet a(z) Aktivitás előbeállításhoz. Statikus értéket (pl. 23), entitáshivatkozást (pl. states('input_number.activity_temp')) vagy sablont fogad el.",
+          "activity_humidity": "Aktivitás előbeállítás – Cél páratartalom, amikor az Aktivitás előbeállítás aktív.",
+          "activity_temp_low": "Aktivitás előbeállítás – Alsó hőmérséklethatár kettős hőmérsékletű üzemmódban. Statikus értéket vagy sablont fogad el.",
+          "activity_temp_high": "Aktivitás előbeállítás – Felső hőmérséklethatár kettős hőmérsékletű üzemmódban. Statikus értéket vagy sablont fogad el.",
+          "activity_max_floor_temp": "Aktivitás előbeállítás – Maximális padlóhőmérséklet, amikor a(z) Aktivitás előbeállítás aktív, padlófűtéses rendszerekhez.",
+          "activity_min_floor_temp": "Aktivitás előbeállítás – Minimális padlóhőmérséklet, amikor a(z) Aktivitás előbeállítás aktív, padlófűtéses rendszerekhez.",
+          "activity_fan_mode": "Aktivitás előbeállítás – Ventilátor üzemmód beállítása, amikor a(z) Aktivitás előbeállítás aktív.",
+          "boost": "Boost előbeállítás – Célhőmérséklet, amikor a Boost előbeállítás aktív. Magasabb hőmérséklet a gyors felfűtéshez.",
+          "boost_temp": "Célhőmérséklet a(z) Boost előbeállításhoz. Statikus értéket (pl. 25), entitáshivatkozást (pl. states('input_number.boost_temp')) vagy sablont fogad el.",
+          "boost_humidity": "Boost előbeállítás – Cél páratartalom, amikor a Boost előbeállítás aktív.",
+          "boost_temp_low": "Boost előbeállítás – Alsó hőmérséklethatár kettős hőmérsékletű üzemmódban. Statikus értéket vagy sablont fogad el.",
+          "boost_temp_high": "Boost előbeállítás – Felső hőmérséklethatár kettős hőmérsékletű üzemmódban. Statikus értéket vagy sablont fogad el.",
+          "boost_max_floor_temp": "Boost előbeállítás – Maximális padlóhőmérséklet, amikor a(z) Boost előbeállítás aktív, padlófűtéses rendszerekhez.",
+          "boost_min_floor_temp": "Boost előbeállítás – Minimális padlóhőmérséklet, amikor a(z) Boost előbeállítás aktív, padlófűtéses rendszerekhez.",
+          "boost_fan_mode": "Boost előbeállítás – Ventilátor üzemmód beállítása, amikor a(z) Boost előbeállítás aktív."
+        }
+      },
+      "preset_selection": {
+        "data": {
+          "away": "Távol előbeállítás",
+          "comfort": "Komfort előbeállítás",
+          "eco": "Eco előbeállítás",
+          "home": "Otthon előbeállítás",
+          "sleep": "Alvás előbeállítás",
+          "anti_freeze": "Fagyvédelem előbeállítás",
+          "activity": "Aktivitás előbeállítás",
+          "boost": "Boost előbeállítás"
+        },
+        "data_description": {
+          "away": "Energiatakarékos előbeállítás, amikor senki sincs otthon. Általában alacsonyabb hőmérsékletre állítva az energiamegtakarítás érdekében.",
+          "comfort": "Maximális komfortot biztosító előbeállítás az optimális hőmérséklet-szabályozáshoz, amikor a komfort az elsődleges.",
+          "eco": "Energiahatékony előbeállítás, amely egyensúlyt teremt a komfort és az energiamegtakarítás között.",
+          "home": "Standard előbeállítás a napi tevékenységekhez, amikor a lakók otthon vannak és aktívak.",
+          "sleep": "Alváshoz optimalizálva, gyakran kissé hűvösebbre állítva a jobb alvásminőség érdekében.",
+          "anti_freeze": "Minimális hőmérsékletű előbeállítás a fagyás megelőzésére lakatlan terekben vagy hosszabb távollét idején.",
+          "activity": "Magasabb hőmérsékletű előbeállítás a fokozott aktivitás időszakaira, vagy amikor extra melegre van szükség.",
+          "boost": "Gyors felfűtési előbeállítás a hőmérséklet magasabb szintre történő gyors emeléséhez."
+        }
+      },
+      "system_features": {
+        "title": "Rendszerfunkciók konfigurálása",
+        "description": "Válaszd ki, mely funkciókat szeretnéd konfigurálni a termosztátrendszeredhez. Csak azokat a funkciókat válaszd ki, amelyeket be szeretnél állítani – a nem kiválasztott funkciók nem lesznek konfigurálva."
+      },
+      "ac_only_features": {
+        "title": "AC-funkciók konfigurálása",
+        "description": "Válaszd ki, mely funkciókat szeretnéd konfigurálni a légkondicionáló rendszeredhez. Csak azokat a funkciókat válaszd ki, amelyeket be szeretnél állítani – a nem kiválasztott funkciók nem lesznek konfigurálva.",
+        "data": {
+          "heater": "Légkondicionáló kapcsolója",
+          "keep_alive": "Életben tartási időköz",
+          "initial_hvac_mode": "Kezdeti HVAC-üzemmód",
+          "precision": "Hőmérséklet pontossága",
+          "target_temp_step": "Hőmérséklet lépésközének mérete",
+          "min_temp": "Minimális hőmérséklet",
+          "max_temp": "Maximális hőmérséklet",
+          "target_temp": "Kezdeti célhőmérséklet"
+        },
+        "data_description": {
+          "keep_alive": "Életben tartási időköz beállítása a kapcsolókhoz. Olyan fűtőkkel és légkondicionálókkal használd, amelyek kikapcsolnak, ha egy ideig nem kapnak jelet a távirányítójuktól.",
+          "initial_hvac_mode": "Beállítja a kezdeti HVAC-üzemmódot a termosztát indulásakor. Válaszd ki az alapértelmezett üzemmódot, amely a Home Assistant indulásakor aktív legyen.",
+          "precision": "A termosztát hőmérsékletének pontossága. Meghatározza a megjeleníthető és beállítható legkisebb hőmérséklet-lépést.",
+          "target_temp_step": "Hőmérséklet lépésközének mérete a termosztát vezérlőihez. Meghatározza, hogy a hőmérséklet mennyit változik a fel/le gombok használatakor.",
+          "min_temp": "A termosztát minimális hőmérséklet-határa. A felhasználók nem állíthatják a célhőmérsékletet ez alá az érték alá.",
+          "max_temp": "A termosztát maximális hőmérséklet-határa. A felhasználók nem állíthatják a célhőmérsékletet ez fölé az érték fölé.",
+          "target_temp": "A kezdeti célhőmérséklet a termosztát első konfigurálásakor. Ez lesz az alapértelmezett hőmérséklet-beállítás."
+        }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Futásidejű hangolás: {name}",
+        "description": "Állítsd be a termosztát futásidejű paramétereit és tűréshatárait. Szerkezeti módosításokhoz (rendszertípus, entitások, funkciók) használd inkább az **Újrakonfigurálás** lehetőséget.\n\n**Tipp**: az itteni módosítások azonnal érvénybe lépnek az integráció újratöltése nélkül.",
+        "data": {
+          "cold_tolerance": "Hideg tűréshatár",
+          "hot_tolerance": "Meleg tűréshatár",
+          "min_temp": "Minimális hőmérséklet",
+          "max_temp": "Maximális hőmérséklet",
+          "target_temp": "Célhőmérséklet",
+          "precision": "Hőmérséklet pontossága",
+          "target_temp_step": "Hőmérséklet lépésköze",
+          "min_cycle_duration": "Minimális ciklusidő",
+          "keep_alive": "Életben tartási időköz"
+        },
+        "data_description": {
+          "cold_tolerance": "A cél alatti minimális hőmérséklet-különbség a fűtés bekapcsolása előtt. Alacsonyabb értékek érzékenyebbé teszik a fűtést (alapértelmezett: 0,3°C).",
+          "hot_tolerance": "A cél feletti minimális hőmérséklet-különbség a hűtés bekapcsolása előtt. Alacsonyabb értékek érzékenyebbé teszik a hűtést (alapértelmezett: 0,3°C).",
+          "min_temp": "A megengedett legalacsonyabb hőmérséklet-beállítás. Beállítja a célhőmérséklet módosításának alsó határát.",
+          "max_temp": "A megengedett legmagasabb hőmérséklet-beállítás. Beállítja a célhőmérséklet módosításának felső határát.",
+          "target_temp": "Alapértelmezett célhőmérséklet, amikor nincs aktív előbeállítás.",
+          "precision": "Hőmérséklet pontossága a megjelenítéshez és a szabályozáshoz. Meghatározza a hőmérséklet-értékek tizedes pontosságát (0,1, 0,5 vagy 1,0 fok).",
+          "target_temp_step": "Hőmérséklet lépésközének mérete a beállításokhoz. Szabályozza, hogy a célhőmérséklet mennyit változik egy-egy beállításnál.",
+          "min_cycle_duration": "Az a minimális idő, ameddig a berendezésnek működnie kell, mielőtt kikapcsolna. Megakadályozza a gyors be-/kikapcsolgatást, és megóvja a berendezést a károsodástól (alapértelmezett: 5 perc).",
+          "keep_alive": "Életben tartás időtartama az időszakos átkapcsoláshoz. Állítsd be, ha a kapcsolódnak szívritmusra van szüksége, hogy „életben” maradjon."
+        },
+        "sections": {
+          "advanced_settings": {
+            "name": "Speciális beállítások",
+            "description": "Opcionális speciális beállítások a termosztát viselkedésének finomhangolásához.",
+            "data": {
+              "initial_hvac_mode": "Kezdeti HVAC-üzemmód",
+              "target_temp_high": "Célhőmérséklet (felső)",
+              "target_temp_low": "Célhőmérséklet (alsó)",
+              "heat_cool_mode": "Fűtés/hűtés üzemmód",
+              "heat_tolerance": "Fűtési tűréshatár",
+              "cool_tolerance": "Hűtési tűréshatár",
+              "auto_outside_delta_boost": "Automatikus: külső-delta sürgősségi küszöb",
+              "use_apparent_temp": "Hőérzet szerinti („érzett”) hőmérséklet használata a hűtési döntésekhez"
+            },
+            "data_description": {
+              "initial_hvac_mode": "Kezdeti HVAC-üzemmód a Home Assistant indításakor. Beállítja az alapértelmezett működési módot induláskor.",
+              "target_temp_high": "Felső célhőmérséklet a kettős hőmérsékletű rendszerekhez (fűtés/hűtés üzemmód).",
+              "target_temp_low": "Alsó célhőmérséklet a kettős hőmérsékletű rendszerekhez (fűtés/hűtés üzemmód).",
+              "heat_cool_mode": "Fűtés/hűtés üzemmód engedélyezése kettős hőmérséklet-szabályozással. Bekapcsolva automatikus váltást tesz lehetővé fűtés és hűtés között a kényelmes hőmérséklet-tartomány fenntartásához.",
+              "heat_tolerance": "Tűréshatár a fűtéshez. Felülírja a régi cold_tolerance beállítást kifejezetten fűtési üzemmódhoz. Ha be van állítva, ezt az értéket használja a cold_tolerance helyett annak meghatározásához, mikor indul a fűtés (alapértelmezett: a cold_tolerance értékét használja, ha nincs megadva).",
+              "cool_tolerance": "Tűréshatár a hűtéshez. Felülírja a régi hot_tolerance beállítást kifejezetten hűtési üzemmódhoz. Ha be van állítva, ezt az értéket használja a hot_tolerance helyett annak meghatározásához, mikor indul a hűtés (alapértelmezett: a hot_tolerance értékét használja, ha nincs megadva).",
+              "auto_outside_delta_boost": "Amikor az AUTO üzemmód be van kapcsolva, és a belső/külső hőmérséklet-különbség eléri ezt a küszöböt, a normál szintű fűtés vagy hűtés sürgősként kezelődik. Csak akkor aktív, ha külső érzékelő van konfigurálva. Alapértelmezett: 8°C / 14°F.",
+              "use_apparent_temp": "Bekapcsolva és páratartalom-érzékelő konfigurálása esetén az AUTO és az önálló COOL üzemmód a hőindex alapján dönt a nyers hőmérséklet helyett. 27°C / 80°F felett a páratartalom melegebbé teszi a szoba érzetét, így a hűtő agresszívebben működik. A tényleges érzékelt hőmérséklet továbbra is megjelenik a felületen."
+            }
+          }
+        }
+      },
+      "features": {
+        "title": "Funkciók konfigurálása",
+        "description": "Válaszd ki, mely funkciókat szeretnéd konfigurálni a rendszeredhez. Ez határozza meg, hogy mely konfigurációs beállítások lesznek elérhetők.",
+        "data": {
+          "configure_fan": "Ventilátorbeállítások konfigurálása",
+          "configure_humidity": "Páratartalom-szabályozás konfigurálása",
+          "configure_openings": "Ablak-/ajtóérzékelők konfigurálása",
+          "configure_presets": "Hőmérséklet-előbeállítások konfigurálása",
+          "configure_floor_heating": "Padlófűtés-védelem konfigurálása"
+        },
+        "data_description": {
+          "configure_fan": "Engedélyezi a ventilátorbeállítások konfigurálását. Lehetővé teszi egy különálló ventilátor entitás beállítását, amely önállóan működhet a levegő keringetéséhez.",
+          "configure_humidity": "Engedélyezi a páratartalom figyelésének és szabályozásának konfigurálását. Lehetővé teszi páratartalom-érzékelők és a párátlanító üzemmód beállítását.",
+          "configure_openings": "Engedélyezi az ablak- és ajtóérzékelők konfigurálását, hogy a termosztát szüneteltethesse a működést nyílászárók észlelésekor.",
+          "configure_presets": "Engedélyezi a hőmérséklet-előbeállítások (például Távol, Komfort és Eco) konfigurálását a gyors üzemmódváltáshoz.",
+          "configure_floor_heating": "Engedélyezi a padlóhőmérséklet-védelem konfigurálását. Bekapcsolva beállíthatsz egy padlóérzékelőt, valamint maximális/minimális határértékeket a padló védelméhez."
+        }
+      },
+      "basic": {
+        "title": "Alapkonfiguráció",
+        "description": "Módosítsd az alapvető termosztátbeállításokat, beleértve a rendszerentitásokat és az alapvető hőmérséklet-szabályozási paramétereket.",
+        "data": {
+          "heater": "Légkondicionáló kapcsolója",
+          "sensor": "Hőmérséklet-érzékelő",
+          "target_sensor": "Hőmérséklet-érzékelő",
+          "cold_tolerance": "Hideg tűréshatár",
+          "hot_tolerance": "Meleg tűréshatár",
+          "heat_cool_mode": "Fűtés/hűtés üzemmód",
+          "min_cycle_duration": "Minimális ciklusidő"
+        },
+        "data_description": {
+          "heater": "A légkondicionáló kapcsolójának entitásazonosítója, kapcsolható eszköznek kell lennie. Hűtésre szolgál, amikor a hőmérséklet a célérték fölé emelkedik.",
+          "sensor": "A jelenlegi hőmérsékletet tükröző hőmérséklet-érzékelő entitásazonosítója. Az érzékelő állapotának hőmérsékletnek kell lennie.",
+          "target_sensor": "A jelenlegi hőmérsékletet tükröző hőmérséklet-érzékelő entitásazonosítója. Az érzékelő állapotának hőmérsékletnek kell lennie.",
+          "cold_tolerance": "Az érzékelő mért értéke és a célérték közötti minimális különbség a hűtés kikapcsolása előtt. Például ha a cél 25°C és a tűréshatár 0,5°C, a hűtés akkor áll le, amikor az érzékelő eléri a 24,5°C-ot vagy az alá kerül (alapértelmezett: 0,3°C).",
+          "hot_tolerance": "Az érzékelő mért értéke és a célérték közötti minimális különbség a hűtés bekapcsolása előtt. Például ha a cél 25°C és a tűréshatár 0,5°C, a hűtés akkor indul, amikor az érzékelő eléri a 25,5°C-ot vagy fölé kerül (alapértelmezett: 0,3°C).",
+          "heat_cool_mode": "Fűtés/hűtés üzemmód engedélyezése. Az első fokozatú fűtés („heater”) hűtéssé, a második fokozat („heater_2”) fűtéssé válik. Egyidejű fűtés- és hűtésszabályozást tesz lehetővé.",
+          "min_cycle_duration": "Az a minimális idő, ameddig a hűtés kapcsolójának az aktuális állapotában kell maradnia, mielőtt átkapcsolna. Megakadályozza a gyors be-/kikapcsolgatást, és védi a hűtőberendezést."
+        },
+        "sections": {
+          "advanced_settings": {
+            "name": "Speciális beállítások",
+            "description": "Állítsd be a hőmérséklet-tűréshatárokat és a ciklusvédelmet az optimális rendszerszabályozáshoz.",
+            "data": {
+              "cold_tolerance": "Hideg tűréshatár",
+              "hot_tolerance": "Meleg tűréshatár",
+              "min_cycle_duration": "Minimális ciklusidő"
+            },
+            "data_description": {
+              "cold_tolerance": "Az érzékelő mért értéke és a célérték közötti minimális különbség a fűtés bekapcsolása vagy a hűtés kikapcsolása előtt. Például ha a cél 25°C és a tűréshatár 0,5°C, a változás akkor következik be, amikor az érzékelő eléri a 24,5°C-ot vagy az alá kerül (alapértelmezett: 0,3°C).",
+              "hot_tolerance": "Az érzékelő mért értéke és a célérték közötti minimális különbség a hűtés bekapcsolása vagy a fűtés kikapcsolása előtt. Például ha a cél 25°C és a tűréshatár 0,5°C, a változás akkor következik be, amikor az érzékelő eléri a 25,5°C-ot vagy fölé kerül (alapértelmezett: 0,3°C).",
+              "min_cycle_duration": "Az a minimális idő, ameddig a rendszer kapcsolójának az aktuális állapotában kell maradnia, mielőtt átkapcsolna. Megakadályozza a gyors be-/kikapcsolgatást, és védi a berendezést (alapértelmezett: 300 másodperc)."
+            }
+          }
+        }
+      },
+      "dual_stage_options": {
+        "title": "Kétfokozatú beállítások",
+        "description": "Módosítsd a kétfokozatú fűtés beállításait.",
+        "data": {
+          "secondary_heater": "Másodlagos fűtés kapcsolója",
+          "secondary_heater_timeout": "Másodlagos fűtés időtúllépése",
+          "secondary_heater_dual_mode": "Kettős üzemmódú működés"
+        },
+        "data_description": {
+          "secondary_heater": "A kiegészítő/másodlagos fűtés kapcsolójának entitásazonosítója. Szükség esetén további fűtőteljesítményt biztosít.",
+          "secondary_heater_timeout": "Az elsődleges fűtés elindulása után a másodlagos fűtés aktiválása előtt megvárandó idő.",
+          "secondary_heater_dual_mode": "Engedélyezi, hogy az elsődleges és a másodlagos fűtés szükség esetén egyszerre működjön."
+        }
+      },
+      "floor_options": {
+        "title": "Padlófűtés beállításai",
+        "description": "Módosítsd a padlófűtés beállításait.",
+        "data": {
+          "floor_sensor": "Padlóhőmérséklet-érzékelő",
+          "max_floor_temp": "Maximális padlóhőmérséklet",
+          "min_floor_temp": "Minimális padlóhőmérséklet"
+        },
+        "data_description": {
+          "floor_sensor": "A padlóhőmérséklet-érzékelő entitásazonosítója. Figyeli a padló hőmérsékletét a biztonság és a szabályozás érdekében.",
+          "max_floor_temp": "A megengedett legmagasabb padlóhőmérséklet a védelemhez. Megelőzi a padlóburkolat károsodását. (Alapértelmezett: 28°C)",
+          "min_floor_temp": "A fenntartandó legalacsonyabb padlóhőmérséklet. Fagyvédelmet biztosít a padlófűtési rendszer számára. (Alapértelmezett: 5°C)"
+        }
+      },
+      "fan_options": {
+        "title": "Ventilátor beállításai",
+        "description": "Módosítsd a ventilátor vezérlési beállításait.",
+        "data": {
+          "fan": "Ventilátor kapcsolója",
+          "fan_mode": "Ventilátor üzemmód",
+          "fan_on_with_ac": "Ventilátor AC-vel",
+          "fan_air_outside": "Ventilátor külső levegővel",
+          "fan_hot_tolerance": "Ventilátor meleg tűréshatára",
+          "fan_hot_tolerance_toggle": "Ventilátor tűréshatár kapcsolója"
+        },
+        "data_description": {
+          "fan": "A ventilátor kapcsolójának entitásazonosítója. A levegő keringetésének szabályozására és a hőmérséklet egyenletesebb eloszlásának javítására szolgál.",
+          "fan_mode": "A ventilátor engedélyezése külön HVAC-üzemmódként. Lehetővé teszi a csak ventilátoros működést.",
+          "fan_on_with_ac": "Automatikusan bekapcsolja a ventilátort, amikor a hűtés (AC) aktív. Javítja a hűtés hatékonyságát.",
+          "fan_air_outside": "Engedélyezi a külső levegő keringetését, amikor a külső hőmérséklet kedvezőbb a belsőnél.",
+          "fan_hot_tolerance": "A célérték feletti hőmérséklet-tartomány, ahol AC helyett ventilátort használ. Alapértelmezett: 0,5°C.",
+          "fan_hot_tolerance_toggle": "Opcionális input_boolean entitásazonosító a fan_hot_tolerance funkció be-/kikapcsolásához."
+        }
+      },
+      "humidity_options": {
+        "title": "Páratartalom beállításai",
+        "description": "Módosítsd a páratartalom-szabályozás beállításait.",
+        "data": {
+          "humidity_sensor": "Páratartalom-érzékelő",
+          "dryer": "Szárító/párátlanító kapcsolója",
+          "target_humidity": "Cél páratartalom",
+          "min_humidity": "Minimális páratartalom",
+          "max_humidity": "Maximális páratartalom",
+          "dry_tolerance": "Száraz tűréshatár",
+          "moist_tolerance": "Nedves tűréshatár"
+        },
+        "data_description": {
+          "humidity_sensor": "A páratartalom-érzékelő entitásazonosítója. Engedélyezi a páratartalom-szabályozási funkciókat és a páratartalom-alapú előbeállításokat.",
+          "dryer": "A szárító/párátlanító kapcsolójának entitásazonosítója. A párátlanítás szabályozására szolgál, amikor a páratartalom meghaladja a célértékeket.",
+          "target_humidity": "A fenntartandó cél páratartalom-szint (százalék). Alapértelmezett páratartalom-cél, amikor nincs aktív előbeállítás.",
+          "min_humidity": "A megengedett legalacsonyabb páratartalom-szint (százalék). A páratartalom növelésre kerül, ha ez alá az érték alá esik.",
+          "max_humidity": "A megengedett legmagasabb páratartalom-szint (százalék). A páratartalom csökkentésre kerül, ha ez fölé az érték fölé emelkedik.",
+          "dry_tolerance": "A cél alatti minimális páratartalom-különbség a párásítás bekapcsolása vagy a párátlanítás kikapcsolása előtt.",
+          "moist_tolerance": "A cél feletti minimális páratartalom-különbség a párátlanítás bekapcsolása vagy a párásítás kikapcsolása előtt."
+        }
+      },
+      "preset_selection": {
+        "data": {
+          "away": "Távol előbeállítás",
+          "comfort": "Komfort előbeállítás",
+          "eco": "Eco előbeállítás",
+          "home": "Otthon előbeállítás",
+          "sleep": "Alvás előbeállítás",
+          "anti_freeze": "Fagyvédelem előbeállítás",
+          "activity": "Aktivitás előbeállítás",
+          "boost": "Boost előbeállítás"
+        },
+        "data_description": {
+          "away": "Energiatakarékos előbeállítás, amikor senki sincs otthon. Általában alacsonyabb hőmérsékletre állítva az energiamegtakarítás érdekében.",
+          "comfort": "Maximális komfortot biztosító előbeállítás az optimális hőmérséklet-szabályozáshoz, amikor a komfort az elsődleges.",
+          "eco": "Energiahatékony előbeállítás, amely egyensúlyt teremt a komfort és az energiamegtakarítás között.",
+          "home": "Standard előbeállítás a napi tevékenységekhez, amikor a lakók otthon vannak és aktívak.",
+          "sleep": "Alváshoz optimalizálva, gyakran kissé hűvösebbre állítva a jobb alvásminőség érdekében.",
+          "anti_freeze": "Minimális hőmérsékletű előbeállítás a fagyás megelőzésére lakatlan terekben vagy hosszabb távollét idején.",
+          "activity": "Magasabb hőmérsékletű előbeállítás a fokozott aktivitás időszakaira, vagy amikor extra melegre van szükség.",
+          "boost": "Gyors felfűtési előbeállítás a hőmérséklet magasabb szintre történő gyors emeléséhez."
+        }
+      },
+      "openings_options": {
+        "title": "Nyílászárók konfigurálása",
+        "description": "Állíts be ajtó- és ablakérzékelőket a termosztát automatikus vezérléséhez nyílászárók észlelésekor.",
+        "data": {
+          "selected_openings": "Ablak-/ajtóérzékelők"
+        },
+        "data_description": {
+          "selected_openings": "Válassz ajtó-/ablakérzékelőket, kapcsolókat vagy más entitásokat, amelyek jelzik a nyílászárók észlelését. Amikor bármely kiválasztott entitás „nyitva”, „be” vagy „igaz” állapotú, a termosztát automatikusan kikapcsol az energiamegtakarítás érdekében."
+        }
+      },
+      "openings_config": {
+        "title": "Nyitási/zárási időtúllépés beállításai",
+        "description": "Állíts be opcionális időtúllépési késleltetéseket az ablakok/ajtók nyitásához és zárásához. Hagyd üresen az azonnali reagáláshoz.\n\nKiválasztott nyílászárók:\n{selected_entities}",
+        "data": {
+          "openings_scope": "A nyílászárók által érintett HVAC-üzemmódok",
+          "opening_1_label": "1. nyílászáró",
+          "opening_1_timeout_open": "Nyitási időtúllépés (másodperc)",
+          "opening_1_timeout_close": "Zárási időtúllépés (másodperc)",
+          "opening_2_label": "2. nyílászáró",
+          "opening_2_timeout_open": "Nyitási időtúllépés (másodperc)",
+          "opening_2_timeout_close": "Zárási időtúllépés (másodperc)",
+          "opening_3_label": "3. nyílászáró",
+          "opening_3_timeout_open": "Nyitási időtúllépés (másodperc)",
+          "opening_3_timeout_close": "Zárási időtúllépés (másodperc)",
+          "opening_4_label": "4. nyílászáró",
+          "opening_4_timeout_open": "Nyitási időtúllépés (másodperc)",
+          "opening_4_timeout_close": "Zárási időtúllépés (másodperc)",
+          "opening_5_label": "5. nyílászáró",
+          "opening_5_timeout_open": "Nyitási időtúllépés (másodperc)",
+          "opening_5_timeout_close": "Zárási időtúllépés (másodperc)",
+          "opening_6_label": "6. nyílászáró",
+          "opening_6_timeout_open": "Nyitási időtúllépés (másodperc)",
+          "opening_6_timeout_close": "Zárási időtúllépés (másodperc)",
+          "opening_7_label": "7. nyílászáró",
+          "opening_7_timeout_open": "Nyitási időtúllépés (másodperc)",
+          "opening_7_timeout_close": "Zárási időtúllépés (másodperc)",
+          "opening_8_label": "8. nyílászáró",
+          "opening_8_timeout_open": "Nyitási időtúllépés (másodperc)",
+          "opening_8_timeout_close": "Zárási időtúllépés (másodperc)",
+          "opening_9_label": "9. nyílászáró",
+          "opening_9_timeout_open": "Nyitási időtúllépés (másodperc)",
+          "opening_9_timeout_close": "Zárási időtúllépés (másodperc)",
+          "opening_10_label": "10. nyílászáró",
+          "opening_10_timeout_open": "Nyitási időtúllépés (másodperc)",
+          "opening_10_timeout_close": "Zárási időtúllépés (másodperc)"
+        },
+        "data_description": {
+          "openings_scope": "Válaszd ki, mely HVAC-üzemmódokat érintse, ha ablak/ajtó nyitva van. Ha nincs hatókör kiválasztva, vagy a „Minden HVAC-üzemmód” van kiválasztva, az egész rendszer érintett lesz.",
+          "opening_1_timeout_open": "Az az idő, ameddig a HVAC kikapcsolása előtt várni kell, miután ez a nyílászáró aktiválódik. Állítsd 0-ra az azonnali reagáláshoz.",
+          "opening_1_timeout_close": "Az az idő, ameddig a HVAC visszakapcsolása előtt várni kell, miután ez a nyílászáró bezárul. Állítsd 0-ra az azonnali reagáláshoz.",
+          "opening_2_timeout_open": "Az az idő, ameddig a HVAC kikapcsolása előtt várni kell, miután ez a nyílászáró aktiválódik. Állítsd 0-ra az azonnali reagáláshoz.",
+          "opening_2_timeout_close": "Az az idő, ameddig a HVAC visszakapcsolása előtt várni kell, miután ez a nyílászáró bezárul. Állítsd 0-ra az azonnali reagáláshoz.",
+          "opening_3_timeout_open": "Az az idő, ameddig a HVAC kikapcsolása előtt várni kell, miután ez a nyílászáró aktiválódik. Állítsd 0-ra az azonnali reagáláshoz.",
+          "opening_3_timeout_close": "Az az idő, ameddig a HVAC visszakapcsolása előtt várni kell, miután ez a nyílászáró bezárul. Állítsd 0-ra az azonnali reagáláshoz.",
+          "opening_4_timeout_open": "Az az idő, ameddig a HVAC kikapcsolása előtt várni kell, miután ez a nyílászáró aktiválódik. Állítsd 0-ra az azonnali reagáláshoz.",
+          "opening_4_timeout_close": "Az az idő, ameddig a HVAC visszakapcsolása előtt várni kell, miután ez a nyílászáró bezárul. Állítsd 0-ra az azonnali reagáláshoz.",
+          "opening_5_timeout_open": "Az az idő, ameddig a HVAC kikapcsolása előtt várni kell, miután ez a nyílászáró aktiválódik. Állítsd 0-ra az azonnali reagáláshoz.",
+          "opening_5_timeout_close": "Az az idő, ameddig a HVAC visszakapcsolása előtt várni kell, miután ez a nyílászáró bezárul. Állítsd 0-ra az azonnali reagáláshoz.",
+          "opening_6_timeout_open": "Az az idő, ameddig a HVAC kikapcsolása előtt várni kell, miután ez a nyílászáró aktiválódik. Állítsd 0-ra az azonnali reagáláshoz.",
+          "opening_6_timeout_close": "Az az idő, ameddig a HVAC visszakapcsolása előtt várni kell, miután ez a nyílászáró bezárul. Állítsd 0-ra az azonnali reagáláshoz.",
+          "opening_7_timeout_open": "Az az idő, ameddig a HVAC kikapcsolása előtt várni kell, miután ez a nyílászáró aktiválódik. Állítsd 0-ra az azonnali reagáláshoz.",
+          "opening_7_timeout_close": "Az az idő, ameddig a HVAC visszakapcsolása előtt várni kell, miután ez a nyílászáró bezárul. Állítsd 0-ra az azonnali reagáláshoz.",
+          "opening_8_timeout_open": "Az az idő, ameddig a HVAC kikapcsolása előtt várni kell, miután ez a nyílászáró aktiválódik. Állítsd 0-ra az azonnali reagáláshoz.",
+          "opening_8_timeout_close": "Az az idő, ameddig a HVAC visszakapcsolása előtt várni kell, miután ez a nyílászáró bezárul. Állítsd 0-ra az azonnali reagáláshoz.",
+          "opening_9_timeout_open": "Az az idő, ameddig a HVAC kikapcsolása előtt várni kell, miután ez a nyílászáró aktiválódik. Állítsd 0-ra az azonnali reagáláshoz.",
+          "opening_9_timeout_close": "Az az idő, ameddig a HVAC visszakapcsolása előtt várni kell, miután ez a nyílászáró bezárul. Állítsd 0-ra az azonnali reagáláshoz.",
+          "opening_10_timeout_open": "Az az idő, ameddig a HVAC kikapcsolása előtt várni kell, miután ez a nyílászáró aktiválódik. Állítsd 0-ra az azonnali reagáláshoz.",
+          "opening_10_timeout_close": "Az az idő, ameddig a HVAC visszakapcsolása előtt várni kell, miután ez a nyílászáró bezárul. Állítsd 0-ra az azonnali reagáláshoz."
+        }
+      },
+      "advanced_options": {
+        "title": "Speciális beállítások",
+        "description": "Módosítsd a termosztát speciális beállításait, és finomhangold a hőmérséklet-szabályozás viselkedését.",
+        "data": {
+          "min_temp": "Minimális hőmérséklet",
+          "max_temp": "Maximális hőmérséklet",
+          "target_temp": "Célhőmérséklet",
+          "cold_tolerance": "Hideg tűréshatár",
+          "hot_tolerance": "Meleg tűréshatár",
+          "precision": "Hőmérséklet pontossága",
+          "target_temp_step": "Hőmérséklet lépésköze",
+          "min_cycle_duration": "Minimális ciklusidő",
+          "keep_alive": "Életben tartás időtartama",
+          "initial_hvac_mode": "Kezdeti HVAC-üzemmód",
+          "target_temp_high": "Célhőmérséklet (felső)",
+          "target_temp_low": "Célhőmérséklet (alsó)",
+          "heat_cool_mode": "Fűtés/hűtés üzemmód küszöbe"
+        },
+        "data_description": {
+          "min_temp": "A megengedett legalacsonyabb hőmérséklet-beállítás. Beállítja a célhőmérséklet módosításának alsó határát.",
+          "max_temp": "A megengedett legmagasabb hőmérséklet-beállítás. Beállítja a célhőmérséklet módosításának felső határát.",
+          "target_temp": "A kezdeti célhőmérséklet a termosztát első konfigurálásakor vagy visszaállításakor.",
+          "cold_tolerance": "A cél alatti hőmérséklet-különbség a fűtés bekapcsolása előtt. Alacsonyabb értékek érzékenyebbé teszik a fűtést.",
+          "hot_tolerance": "A cél feletti hőmérséklet-különbség a hűtés bekapcsolása előtt. Alacsonyabb értékek érzékenyebbé teszik a hűtést.",
+          "precision": "Hőmérséklet pontossága a megjelenítéshez és a szabályozáshoz. Meghatározza a hőmérséklet-értékek tizedes pontosságát.",
+          "target_temp_step": "Hőmérséklet lépésközének mérete a beállításokhoz. Szabályozza, hogy a célhőmérséklet mennyit változik egy-egy beállításnál.",
+          "min_cycle_duration": "Az a minimális idő, ameddig a berendezésnek működnie kell, mielőtt kikapcsolna. Segít megelőzni a gyakori ki-be kapcsolást és a berendezés károsodását.",
+          "keep_alive": "Életben tartás időtartama az időszakos átkapcsoláshoz. Állítsd be, ha a kapcsolódnak szívritmusra van szüksége, hogy „életben” maradjon.",
+          "initial_hvac_mode": "Kezdeti HVAC-üzemmód a Home Assistant indításakor. Beállítja az alapértelmezett működési módot induláskor.",
+          "target_temp_high": "Felső célhőmérséklet a kétfokozatú fűtő-/hűtőrendszerekhez.",
+          "target_temp_low": "Alsó célhőmérséklet a kétfokozatú fűtő-/hűtőrendszerekhez.",
+          "heat_cool_mode": "Hőmérséklet-különbségi küszöb a fűtés és hűtés közötti váltáshoz a fűtés/hűtés üzemmódban."
+        }
+      },
+      "presets": {
+        "title": "Előbeállítások konfigurálása",
+        "description": "Állítsd be a hőmérsékletet és a rendszerbeállításokat minden egyes kiválasztott előbeállításhoz. Ezek a beállítások automatikusan érvénybe lépnek, amikor aktiválod a megfelelő előbeállítási üzemmódot.",
+        "data": {
+          "away_temp": "Távol hőmérséklet",
+          "comfort_temp": "Komfort hőmérséklet",
+          "eco_temp": "Eco hőmérséklet",
+          "home_temp": "Otthon hőmérséklet",
+          "sleep_temp": "Alvás hőmérséklet",
+          "anti_freeze_temp": "Fagyvédelem hőmérséklet",
+          "activity_temp": "Aktivitás hőmérséklet",
+          "boost_temp": "Boost hőmérséklet"
+        },
+        "data_description": {
+          "away_temp": "Célhőmérséklet a Távol előbeállításhoz. Statikus értéket (pl. 18), entitáshivatkozást vagy feltételes sablont fogad el.",
+          "comfort_temp": "Célhőmérséklet a Komfort előbeállításhoz. Statikus értéket (pl. 22), entitáshivatkozást vagy sablont fogad el.",
+          "eco_temp": "Célhőmérséklet az Eco előbeállításhoz. Statikus értéket (pl. 20), entitáshivatkozást vagy sablont fogad el.",
+          "home_temp": "Célhőmérséklet az Otthon előbeállításhoz. Statikus értéket (pl. 21), entitáshivatkozást vagy sablont fogad el.",
+          "sleep_temp": "Célhőmérséklet az Alvás előbeállításhoz. Statikus értéket (pl. 18), entitáshivatkozást vagy sablont fogad el.",
+          "anti_freeze_temp": "Célhőmérséklet a Fagyvédelem előbeállításhoz. Statikus értéket (pl. 7), entitáshivatkozást vagy sablont fogad el.",
+          "activity_temp": "Célhőmérséklet az Aktivitás előbeállításhoz. Statikus értéket (pl. 23), entitáshivatkozást vagy sablont fogad el.",
+          "boost_temp": "Célhőmérséklet a Boost előbeállításhoz. Statikus értéket (pl. 25), entitáshivatkozást vagy sablont fogad el."
+        }
+      }
+    }
+  }
+}

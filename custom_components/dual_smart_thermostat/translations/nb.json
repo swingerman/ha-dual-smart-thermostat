@@ -1,0 +1,1027 @@
+{
+  "title": "Dual Smart Thermostat",
+  "entity": {
+    "sensor": {
+      "hvac_action_reason": {
+        "state": {
+          "none": "Ingen",
+          "min_cycle_duration_not_reached": "Minimum syklusvarighet ikke nådd",
+          "target_temp_not_reached": "Måltemperatur ikke nådd",
+          "target_temp_reached": "Måltemperatur nådd",
+          "target_temp_not_reached_with_fan": "Måltemperatur ikke nådd (viftehjelp)",
+          "target_humidity_not_reached": "Mål for luftfuktighet ikke nådd",
+          "target_humidity_reached": "Mål for luftfuktighet nådd",
+          "misconfiguration": "Feilkonfigurasjon",
+          "opening": "Åpning oppdaget",
+          "limit": "Grense nådd",
+          "overheat": "Overopphetingsbeskyttelse",
+          "temperature_sensor_stalled": "Temperatursensor stanset",
+          "humidity_sensor_stalled": "Fuktighetssensor stanset",
+          "presence": "Tilstedeværelse",
+          "schedule": "Tidsplan",
+          "emergency": "Nødssituasjon",
+          "malfunction": "Funksjonsfeil",
+          "auto_priority_humidity": "Auto: fuktighetsprioritet",
+          "auto_priority_temperature": "Auto: temperaturprioritet",
+          "auto_priority_comfort": "Auto: komfortprioritet"
+        }
+      }
+    }
+  },
+  "selector": {
+    "hac_action_reason": {
+      "options": {
+        "presence": "Tilstedeværelse",
+        "schedule": "Tidsplan",
+        "emergency": "Nødssituasjon",
+        "malfunction": "Funksjonsfeil",
+        "misconfiguration": "Feilkonfigurasjon"
+      }
+    },
+    "openings_scope": {
+      "options": {
+        "all": "Alle HVAC-moduser",
+        "cool": "Kun kjøling",
+        "heat": "Kun oppvarming",
+        "fan_only": "Kun vifte",
+        "heat_cool": "Varme/kjøle-modus",
+        "dry": "Tørkemodus"
+      }
+    }
+  },
+  "services": {
+    "set_hvac_action_reason": {
+      "name": "Angi HVAC-handlingsårsak",
+      "description": "Angir HVAC-handlingsårsak.",
+      "fields": {
+        "hvac_action_reason": {
+          "name": "HVAC-handlingsårsak",
+          "description": "Årsaken til at den siste HVAC-handlingen ble utført."
+        }
+      }
+    }
+  },
+  "config": {
+    "error": {
+      "same_heater_sensor": "Varmeapparat og temperatursensor kan ikke være samme enhet",
+      "same_heater_cooler": "Varmeapparat og kjøler kan ikke være samme enhet",
+      "aux_heater_timeout_required": "Tidsavbrudd for tilleggsvarmeapparat er påkrevd når tilleggsvarmeapparat er konfigurert",
+      "aux_heater_entity_required": "Enhet for tilleggsvarmeapparat er påkrevd når tidsavbrudd er konfigurert"
+    },
+    "step": {
+      "user": {
+        "title": "Valg av systemtype",
+        "description": "Velg hvilken type termostatsystem du vil konfigurere.",
+        "data": {
+          "system_type": "Systemtype"
+        },
+        "data_description": {
+          "system_type": "Velg systemtypen som best passer ditt HVAC-oppsett."
+        }
+      },
+      "reconfigure_confirm": {
+        "title": "Konfigurer {name} på nytt",
+        "description": "Du er i ferd med å konfigurere **{name}** på nytt.\n\nNåværende systemtype: **{current_system}**\n\nDu kan beholde den nåværende systemtypen eller endre til en annen. Merk: Å endre systemtypen vil slette din nåværende konfigurasjon og starte på nytt.\n\nIntegrasjonen lastes inn på nytt etter omkonfigurering.",
+        "data": {
+          "system_type": "Systemtype"
+        },
+        "data_description": {
+          "system_type": "Velg systemtypen. Behold den nåværende typen for å endre innstillinger, eller velg en annen type for å starte med en ny konfigurasjon."
+        }
+      },
+      "basic": {
+        "title": "Grunnleggende konfigurasjon",
+        "description": "Konfigurer termostatinnstillingene dine organisert etter kategori: grunnleggende informasjon, sensorer, kontrollenheter og temperaturinnstillinger.",
+        "data": {
+          "name": "Navn",
+          "heater": "Varmebryter",
+          "target_sensor": "Temperatursensor",
+          "heat_cool_mode": "Varme/kjøle-modus",
+          "cold_tolerance": "Kuldetoleranse",
+          "hot_tolerance": "Varmetoleranse",
+          "min_cycle_duration": "Minimum syklusvarighet"
+        },
+        "data_description": {
+          "name": "[Grunnleggende informasjon] Navn på termostatenheten (standard: Dual Smart).",
+          "target_sensor": "[Sensorer] Enhets-ID for temperatursensor som gjenspeiler den aktuelle temperaturen. Sensortilstanden må være temperatur.",
+          "heater": "[Kontrollenheter] Enhets-ID for varmebryter, må være en av/på-enhet. Blir klimaanleggets bryter når AC-modus er aktivert.",
+          "heat_cool_mode": "[Kontrollinnstillinger] Aktiver varme/kjøle-modus med dobbel temperaturkontroll. Når aktivert, tillates automatisk veksling mellom oppvarming og kjøling for å opprettholde et behagelig temperaturområde.",
+          "cold_tolerance": "[Temperaturinnstillinger] Minste temperaturforskjell mellom sensoravlesning og mål før oppvarming slås på. For eksempel, hvis målet er 25°C og toleransen er 0,5°C, starter varmeapparatet når sensoren når 24,5°C eller lavere (standard: 0,3°C).",
+          "hot_tolerance": "[Temperaturinnstillinger] Minste temperaturforskjell mellom sensoravlesning og mål før oppvarming slås av eller kjøling slås på. For eksempel, hvis målet er 25°C og toleransen er 0,5°C, stopper varmeapparatet når sensoren når 25,5°C eller høyere (standard: 0,3°C).",
+          "min_cycle_duration": "[Temperaturinnstillinger] Minste tid bryteren må forbli i sin nåværende tilstand før den byttes. Hindrer rask av/på-veksling og beskytter utstyret."
+        },
+        "sections": {
+          "advanced_settings": {
+            "name": "Avanserte innstillinger",
+            "description": "Konfigurer temperaturtoleranser og syklusbeskyttelse for optimal oppvarmingsstyring.",
+            "data": {
+              "cold_tolerance": "Kuldetoleranse",
+              "hot_tolerance": "Varmetoleranse",
+              "min_cycle_duration": "Minimum syklusvarighet"
+            },
+            "data_description": {
+              "cold_tolerance": "Minste temperaturforskjell mellom sensoravlesning og mål før oppvarming slås på. For eksempel, hvis målet er 25°C og toleransen er 0,5°C, starter varmeapparatet når sensoren når 24,5°C eller lavere (standard: 0,3°C).",
+              "hot_tolerance": "Minste temperaturforskjell mellom sensoravlesning og mål før oppvarming slås av. For eksempel, hvis målet er 25°C og toleransen er 0,5°C, stopper varmeapparatet når sensoren når 25,5°C eller høyere (standard: 0,3°C).",
+              "min_cycle_duration": "Minste tid varmebryteren må forbli i sin nåværende tilstand før den byttes. Hindrer rask av/på-veksling og beskytter oppvarmingsutstyret (standard: 300 sekunder)."
+            }
+          }
+        }
+      },
+      "basic_ac_only": {
+        "title": "Grunnleggende konfigurasjon",
+        "description": "Konfigurer klimaanlegget ditt, organisert etter kategori.",
+        "data": {
+          "name": "Navn",
+          "heater": "Klimaanleggsbryter",
+          "target_sensor": "Temperatursensor",
+          "cold_tolerance": "Kuldetoleranse",
+          "hot_tolerance": "Varmetoleranse",
+          "min_cycle_duration": "Minimum syklusvarighet"
+        },
+        "data_description": {
+          "name": "[Grunnleggende informasjon] Navn på termostatenheten (standard: Dual Smart).",
+          "target_sensor": "[Sensorer] Enhets-ID for temperatursensor som gjenspeiler den aktuelle temperaturen. Sensortilstanden må være temperatur.",
+          "heater": "[Kontrollenheter] Enhets-ID for klimaanleggsbryter, må være en av/på-enhet. Brukes til kjøling når temperaturen stiger over målet.",
+          "cold_tolerance": "[Temperaturinnstillinger] Minste temperaturforskjell mellom sensoravlesning og mål før oppvarming slås på. For eksempel, hvis målet er 25°C og toleransen er 0,5°C, starter varmeapparatet når sensoren når 24,5°C eller lavere (standard: 0,3°C).",
+          "hot_tolerance": "[Temperaturinnstillinger] Minste temperaturforskjell mellom sensoravlesning og mål før oppvarming slås av eller kjøling slås på. For eksempel, hvis målet er 25°C og toleransen er 0,5°C, stopper varmeapparatet når sensoren når 25,5°C eller høyere (standard: 0,3°C).",
+          "min_cycle_duration": "[Temperaturinnstillinger] Minste tid bryteren må forbli i sin nåværende tilstand før den byttes. Hindrer rask av/på-veksling og beskytter utstyret."
+        },
+        "sections": {
+          "advanced_settings": {
+            "name": "Avanserte innstillinger",
+            "description": "Konfigurer temperaturtoleranser og avanserte alternativer for syklusbeskyttelse og enhetskommunikasjon.",
+            "data": {
+              "cold_tolerance": "Kuldetoleranse",
+              "hot_tolerance": "Varmetoleranse",
+              "min_cycle_duration": "Minimum syklusvarighet",
+              "keep_alive": "Hold-i-live-intervall"
+            },
+            "data_description": {
+              "cold_tolerance": "Minste temperaturforskjell mellom sensoravlesning og mål før kjøling slås av. For eksempel, hvis målet er 25°C og toleransen er 0,5°C, stopper kjøling når sensoren når 24,5°C eller lavere (standard: 0,3°C).",
+              "hot_tolerance": "Minste temperaturforskjell mellom sensoravlesning og mål før kjøling slås på. For eksempel, hvis målet er 25°C og toleransen er 0,5°C, starter kjøling når sensoren når 25,5°C eller høyere (standard: 0,3°C).",
+              "min_cycle_duration": "Minste tid kjølebryteren må forbli i sin nåværende tilstand før den byttes. Hindrer rask av/på-veksling og beskytter kjøleutstyret (standard: 300 sekunder).",
+              "keep_alive": "Maksimal tid mellom oppdateringer for måltemperatursensoren. Tvinger periodisk veksling for å sikre at kjøleenheten ikke slår seg av uventet (standard: 300 sekunder)."
+            }
+          }
+        }
+      },
+      "features": {
+        "title": "Konfigurasjon av funksjoner",
+        "description": "Velg hvilke funksjoner du vil konfigurere for systemet ditt. Dette bestemmer hvilke konfigurasjonsalternativer som blir tilgjengelige.",
+        "data": {
+          "configure_fan": "Konfigurer vifteinnstillinger",
+          "configure_humidity": "Konfigurer fuktighetskontroll",
+          "configure_openings": "Konfigurer vindus-/dørsensorer",
+          "configure_presets": "Konfigurer temperaturforhåndsinnstillinger",
+          "configure_floor_heating": "Konfigurer beskyttelse for gulvvarme"
+        },
+        "data_description": {
+          "configure_fan": "Aktiver konfigurasjon av vifteinnstillinger. Dette lar deg sette opp en egen vifteenhet som kan kjøre uavhengig for luftsirkulasjon.",
+          "configure_humidity": "Aktiver konfigurasjon av fuktighetsovervåking og -kontroll. Dette lar deg sette opp fuktighetssensorer og tørkemodus.",
+          "configure_openings": "Aktiver konfigurasjon av vindus- og dørsensorer slik at termostaten kan pause driften når åpninger oppdages.",
+          "configure_presets": "Aktiver konfigurasjon av temperaturforhåndsinnstillinger som Borte, Komfort og Øko for raske modusendringer.",
+          "configure_floor_heating": "Aktiver konfigurasjon av gulvtemperaturbeskyttelse. Når aktivert kan du angi en gulvsensor og maks/min-grenser for å beskytte gulvet ditt."
+        }
+      },
+      "heater_cooler": {
+        "title": "Grunnleggende konfigurasjon",
+        "description": "Konfigurer varme- og kjølesystemet ditt med separate brytere, organisert etter kategori.",
+        "data": {
+          "name": "Navn",
+          "heater": "Varmebryter",
+          "cooler": "Kjølebryter",
+          "target_sensor": "Temperatursensor",
+          "heat_cool_mode": "Varme/kjøle-modus",
+          "cold_tolerance": "Kuldetoleranse",
+          "hot_tolerance": "Varmetoleranse",
+          "min_cycle_duration": "Minimum syklusvarighet"
+        },
+        "data_description": {
+          "name": "[Grunnleggende informasjon] Navn på termostatenheten (standard: Dual Smart).",
+          "target_sensor": "[Sensorer] Enhets-ID for temperatursensor som gjenspeiler den aktuelle temperaturen. Sensortilstanden må være temperatur.",
+          "heater": "[Kontrollenheter] Enhets-ID for varmebryter, må være en av/på-enhet. Brukes til oppvarming når temperaturen faller under målet.",
+          "cooler": "[Kontrollenheter] Enhets-ID for kjøle-/AC-bryter, må være en av/på-enhet. Brukes til kjøling når temperaturen stiger over målet. Kan være den samme som varmeapparatet for varmepumpesystemer.",
+          "heat_cool_mode": "[Kontrollinnstillinger] Aktiver varme/kjøle-modus med dobbel temperaturkontroll. Når aktivert, tillates automatisk veksling mellom oppvarming og kjøling for å opprettholde et behagelig temperaturområde.",
+          "cold_tolerance": "[Temperaturinnstillinger] Minste temperaturforskjell mellom sensoravlesning og mål før oppvarming slås på. Skaper en buffersone for å hindre hyppig veksling.",
+          "hot_tolerance": "[Temperaturinnstillinger] Minste temperaturforskjell mellom sensoravlesning og mål før kjøling slås på. Skaper en buffersone for å hindre hyppig veksling.",
+          "min_cycle_duration": "[Temperaturinnstillinger] Minste tid bryterne må forbli i sin nåværende tilstand før de byttes. Hindrer rask av/på-veksling og beskytter utstyret mot skade."
+        },
+        "sections": {
+          "advanced_settings": {
+            "name": "Avanserte innstillinger",
+            "description": "Konfigurer temperaturtoleranser og syklusbeskyttelse for optimal systemstyring.",
+            "data": {
+              "cold_tolerance": "Kuldetoleranse",
+              "hot_tolerance": "Varmetoleranse",
+              "heat_tolerance": "Oppvarmingstoleranse",
+              "cool_tolerance": "Kjøletoleranse",
+              "min_cycle_duration": "Minimum syklusvarighet"
+            },
+            "data_description": {
+              "cold_tolerance": "Minste temperaturforskjell mellom sensoravlesning og mål før oppvarming aktiveres eller kjøling deaktiveres. For eksempel, hvis målet er 25°C og toleransen er 0,5°C, skjer endringer når sensoren når 24,5°C eller lavere (standard: 0,3°C).",
+              "hot_tolerance": "Minste temperaturforskjell mellom sensoravlesning og mål før kjøling aktiveres eller oppvarming deaktiveres. For eksempel, hvis målet er 25°C og toleransen er 0,5°C, skjer endringer når sensoren når 25,5°C eller høyere (standard: 0,3°C).",
+              "heat_tolerance": "Modusspesifikk toleranse for oppvarmingsoperasjoner. Overstyrer cold_tolerance i oppvarmingsmodus for finere kontroll. Når satt, bestemmer denne verdien når oppvarming aktiveres i stedet for å bruke cold_tolerance (standard: bruker cold_tolerance hvis ikke angitt).",
+              "cool_tolerance": "Modusspesifikk toleranse for kjøleoperasjoner. Overstyrer hot_tolerance i kjølemodus for finere kontroll. Når satt, bestemmer denne verdien når kjøling aktiveres i stedet for å bruke hot_tolerance (standard: bruker hot_tolerance hvis ikke angitt).",
+              "min_cycle_duration": "Minste tid systembryteren må forbli i sin nåværende tilstand før den byttes. Hindrer rask av/på-veksling og beskytter utstyret (standard: 300 sekunder)."
+            }
+          }
+        }
+      },
+      "heat_pump": {
+        "title": "Konfigurasjon av varmepumpe",
+        "description": "Konfigurer varmepumpesystemet ditt. En enkelt bryter styrer både oppvarming og kjøling, der modusen bestemmes av en kjøletilstandssensor.",
+        "data": {
+          "name": "Navn",
+          "heater": "Varmepumpebryter",
+          "target_sensor": "Temperatursensor",
+          "heat_pump_cooling": "Kjøletilstandssensor",
+          "cold_tolerance": "Kuldetoleranse",
+          "hot_tolerance": "Varmetoleranse",
+          "min_cycle_duration": "Minimum syklusvarighet"
+        },
+        "data_description": {
+          "name": "[Grunnleggende informasjon] Navn på termostatenheten (standard: Dual Smart).",
+          "heater": "[Kontrollenheter] Enhets-ID for varmepumpebryter. Styrer varmepumpeenheten for både oppvarming og kjøling. Den samme bryteren brukes uansett modus.",
+          "target_sensor": "[Sensorer] Enhets-ID for temperatursensor som gjenspeiler den aktuelle temperaturen. Sensortilstanden må være temperatur.",
+          "heat_pump_cooling": "[Kontrollenheter] Enhets-ID for kjøletilstandssensor (sensor, binary_sensor eller input_boolean). Når 'on', kjører varmepumpen i kjølemodus. Når 'off', kjører den i oppvarmingsmodus. Denne sensoren bestemmer hvilken modus varmepumpen bruker. Kan være en manuell input_boolean for styring eller en enhet levert av varmepumpesystemet ditt.",
+          "cold_tolerance": "[Temperaturinnstillinger] Minste temperaturforskjell mellom sensoravlesning og mål før varmepumpen byttes til oppvarmingsmodus. For eksempel, hvis målet er 25°C og toleransen er 0,5°C, starter oppvarming når sensoren når 24,5°C eller lavere (standard: 0,3°C).",
+          "hot_tolerance": "[Temperaturinnstillinger] Minste temperaturforskjell mellom sensoravlesning og mål før varmepumpen byttes til kjølemodus. For eksempel, hvis målet er 25°C og toleransen er 0,5°C, starter kjøling når sensoren når 25,5°C eller høyere (standard: 0,3°C).",
+          "min_cycle_duration": "[Temperaturinnstillinger] Minste tid varmepumpen må forbli i sin nåværende tilstand før den byttes. Kritisk for varmepumpebeskyttelse, da hyppig veksling kan skade kompressoren (standard: 300 sekunder)."
+        },
+        "sections": {
+          "advanced_settings": {
+            "name": "Avanserte innstillinger",
+            "description": "Konfigurer temperaturtoleranser og syklusbeskyttelse for optimal varmepumpedrift.",
+            "data": {
+              "cold_tolerance": "Kuldetoleranse",
+              "hot_tolerance": "Varmetoleranse",
+              "heat_tolerance": "Oppvarmingstoleranse",
+              "cool_tolerance": "Kjøletoleranse",
+              "min_cycle_duration": "Minimum syklusvarighet"
+            },
+            "data_description": {
+              "cold_tolerance": "Minste temperaturforskjell mellom sensoravlesning og mål før varmepumpen byttes til oppvarmingsmodus. For eksempel, hvis målet er 25°C og toleransen er 0,5°C, starter oppvarming når sensoren når 24,5°C eller lavere (standard: 0,3°C).",
+              "hot_tolerance": "Minste temperaturforskjell mellom sensoravlesning og mål før varmepumpen byttes til kjølemodus. For eksempel, hvis målet er 25°C og toleransen er 0,5°C, starter kjøling når sensoren når 25,5°C eller høyere (standard: 0,3°C).",
+              "heat_tolerance": "Modusspesifikk toleranse for oppvarmingsoperasjoner. Overstyrer cold_tolerance i oppvarmingsmodus for finere kontroll. Når satt, bestemmer denne verdien når oppvarming aktiveres i stedet for å bruke cold_tolerance (standard: bruker cold_tolerance hvis ikke angitt).",
+              "cool_tolerance": "Modusspesifikk toleranse for kjøleoperasjoner. Overstyrer hot_tolerance i kjølemodus for finere kontroll. Når satt, bestemmer denne verdien når kjøling aktiveres i stedet for å bruke hot_tolerance (standard: bruker hot_tolerance hvis ikke angitt).",
+              "min_cycle_duration": "Minste tid varmepumpen må forbli i sin nåværende tilstand før den byttes. Kritisk for varmepumpebeskyttelse, da hyppig veksling kan skade kompressoren (standard: 300 sekunder)."
+            }
+          }
+        }
+      },
+      "dual_stage": {
+        "title": "Grunnleggende konfigurasjon",
+        "description": "Konfigurer de grunnleggende innstillingene for ditt totrinns oppvarmingssystem.",
+        "data": {
+          "name": "Navn",
+          "heater": "Primær varmebryter",
+          "target_sensor": "Temperatursensor",
+          "cold_tolerance": "Kuldetoleranse",
+          "hot_tolerance": "Varmetoleranse",
+          "min_cycle_duration": "Minimum syklusvarighet"
+        },
+        "data_description": {
+          "name": "Navn på termostatenheten (standard: Dual Smart).",
+          "heater": "Enhets-ID for primær varmebryter, må være en av/på-enhet. Dette blir det første trinnets varmeapparat som er i drift mesteparten av tiden.",
+          "target_sensor": "Enhets-ID for temperatursensor som gjenspeiler den aktuelle temperaturen. Sensortilstanden må være temperatur.",
+          "cold_tolerance": "Minste temperaturforskjell mellom sensoravlesning og mål før primær oppvarming slås på. For eksempel, hvis målet er 25°C og toleransen er 0,5°C, starter det primære varmeapparatet når sensoren når 24,5°C eller lavere (standard: 0,3°C).",
+          "hot_tolerance": "Minste temperaturforskjell mellom sensoravlesning og mål før oppvarming slås av. For eksempel, hvis målet er 25°C og toleransen er 0,5°C, stopper varmeapparatet når sensoren når 25,5°C eller høyere (standard: 0,3°C).",
+          "min_cycle_duration": "Minste tid det primære varmeapparatet må forbli i sin nåværende tilstand før det byttes. Hindrer rask av/på-veksling og beskytter utstyret."
+        }
+      },
+      "two_stage": {
+        "title": "Konfigurasjon av totrinns oppvarming",
+        "description": "Konfigurer totrinns oppvarmingssystem med primær og hjelpeoppvarming.",
+        "data": {
+          "heater_2": "Varmebryter for andre trinn",
+          "heat_cool_mode": "Varme/kjøle-modus",
+          "dual_mode_tolerance": "Toleranse for dual-modus"
+        },
+        "data_description": {
+          "heater_2": "Enhets-ID for varmebryter for andre trinn. Brukes når ekstra oppvarmingskapasitet er nødvendig. I dual-modus er dette varmebryteren mens 'heater' blir kjølebryteren.",
+          "heat_cool_mode": "Aktiver varme/kjøle-modus. Det første trinnets varmeapparat 'heater' blir kjøling og det andre trinnet 'heater_2' blir oppvarming. Tillater samtidig styring av oppvarming og kjøling.",
+          "dual_mode_tolerance": "Temperaturtoleranse for drift i dual-modus. Setter buffersonen der verken oppvarming eller kjøling er i drift, og hindrer rask veksling mellom oppvarming og kjøling."
+        }
+      },
+      "dual_stage_config": {
+        "title": "Konfigurasjon av sekundært varmeapparat",
+        "description": "Konfigurer innstillingene for hjelpe-/sekundærvarmeapparatet ditt.",
+        "data": {
+          "secondary_heater": "Bryter for sekundært varmeapparat",
+          "secondary_heater_timeout": "Tidsavbrudd for sekundært varmeapparat",
+          "secondary_heater_dual_mode": "Drift i dual-modus"
+        },
+        "data_description": {
+          "secondary_heater": "Enhets-ID for hjelpe-/sekundærvarmeapparatets bryter. Aktiveres når det primære varmeapparatet ikke kan opprettholde temperaturen, og gir ekstra oppvarmingskapasitet under ekstremt kalde forhold.",
+          "secondary_heater_timeout": "Tid å vente før det sekundære varmeapparatet aktiveres etter at det primære varmeapparatet starter. Hindrer at begge varmeapparatene starter samtidig og gir det primære varmeapparatet tid til å nå måltemperaturen.",
+          "secondary_heater_dual_mode": "Aktiver at både primært og sekundært varmeapparat kan arbeide samtidig ved behov. Når deaktivert, aktiveres det sekundære varmeapparatet kun når det primære varmeapparatet alene er utilstrekkelig."
+        }
+      },
+      "floor_heating": {
+        "title": "Konfigurasjon av gulvvarme",
+        "description": "Konfigurer gulvtemperatursensor og grenser for gulvvarmesystemer.",
+        "data": {
+          "floor_sensor": "Gulvtemperatursensor",
+          "max_floor_temp": "Maksimal gulvtemperatur"
+        },
+        "data_description": {
+          "floor_sensor": "Enhets-ID for gulvtemperatursensor. Når konfigurert, gir den gulvtemperaturbeskyttelse og gulvvarmestyring uavhengig av romtemperaturen.",
+          "max_floor_temp": "Maksimal tillatt gulvtemperatur. Gulvvarmen slås automatisk av når denne temperaturen overskrides, uavhengig av romtemperaturmålet, for å beskytte gulvmaterialer og hindre overoppheting."
+        }
+      },
+      "floor_config": {
+        "title": "Gulvtemperaturbeskyttelse",
+        "description": "Konfigurer overvåking og grenser for gulvtemperatur.",
+        "data": {
+          "floor_sensor": "Gulvtemperatursensor",
+          "max_floor_temp": "Maksimal gulvtemperatur",
+          "min_floor_temp": "Minimum gulvtemperatur"
+        },
+        "data_description": {
+          "floor_sensor": "Enhets-ID for gulvtemperatursensor. Overvåker gulvtemperaturen for å sikre trygg drift og beskytte gulvmaterialer mot overoppheting eller ekstrem kulde.",
+          "max_floor_temp": "Maksimal tillatt gulvtemperatur for beskyttelse. Gulvvarmen slås av når denne temperaturen nås, uavhengig av romtemperaturen, for å hindre skade på gulvmaterialer. (Standard: 28°C)",
+          "min_floor_temp": "Minimum gulvtemperatur som skal opprettholdes. Gulvvarmen aktiveres når gulvtemperaturen faller under denne verdien, og gir frostbeskyttelse for gulvvarmesystemet. (Standard: 5°C)"
+        }
+      },
+      "openings_toggle": {
+        "title": "Konfigurasjon av vindus-/dørsensor",
+        "description": "Aktiver automatisk HVAC-styring basert på vindus- og dørsensorer.",
+        "data": {
+          "enable_openings": "Aktiver deteksjon av åpninger"
+        },
+        "data_description": {
+          "enable_openings": "Aktiver integrasjon av vindus- og dørsensorer. Når aktivert, slår termostaten automatisk av oppvarming/kjøling når vinduer eller dører åpnes, og gjenopptar driften når de lukkes, noe som sparer energi og forbedrer effektiviteten."
+        }
+      },
+      "openings_selection": {
+        "title": "Valg av vindus-/dørsensor",
+        "description": "Velg vindus- og dørsensorer og konfigurer deres driftsomfang.",
+        "data": {
+          "selected_openings": "Vindus-/dørsensorer",
+          "openings_scope": "HVAC-moduser som påvirkes av åpninger"
+        },
+        "data_description": {
+          "selected_openings": "Velg enheter som registrerer når vinduer eller dører er åpne. Kan være binærsensorer, sensorer, brytere eller input-booleans. Enheten bør indikere 'open'-tilstand når vinduet/døren er åpen og 'closed'-tilstand når lukket.",
+          "openings_scope": "Velg hvilke HVAC-moduser som skal påvirkes når vinduer/dører er åpne. Hvis 'Alle HVAC-moduser' er valgt eller ingen er valgt, slås hele systemet av når en åpning oppdages. Velg spesifikke moduser for kun å påvirke de operasjonene (f.eks. kun oppvarming eller kun kjøling)."
+        }
+      },
+      "openings_config": {
+        "title": "Innstillinger for tidsavbrudd ved åpning/lukking",
+        "description": "Konfigurer valgfrie forsinkelser for tidsavbrudd når vinduer/dører åpnes og lukkes. La stå tomt for umiddelbar respons.\n\nValgte åpninger:\n{selected_entities}",
+        "data": {
+          "openings_scope": "HVAC-moduser som påvirkes av åpninger",
+          "opening_1_timeout_open": "Åpning 1 – Tidsavbrudd ved åpning (sekunder)",
+          "opening_1_timeout_close": "Åpning 1 – Tidsavbrudd ved lukking (sekunder)",
+          "opening_2_timeout_open": "Åpning 2 – Tidsavbrudd ved åpning (sekunder)",
+          "opening_2_timeout_close": "Åpning 2 – Tidsavbrudd ved lukking (sekunder)",
+          "opening_3_timeout_open": "Åpning 3 – Tidsavbrudd ved åpning (sekunder)",
+          "opening_3_timeout_close": "Åpning 3 – Tidsavbrudd ved lukking (sekunder)",
+          "opening_4_timeout_open": "Åpning 4 – Tidsavbrudd ved åpning (sekunder)",
+          "opening_4_timeout_close": "Åpning 4 – Tidsavbrudd ved lukking (sekunder)",
+          "opening_5_timeout_open": "Åpning 5 – Tidsavbrudd ved åpning (sekunder)",
+          "opening_5_timeout_close": "Åpning 5 – Tidsavbrudd ved lukking (sekunder)",
+          "opening_6_timeout_open": "Åpning 6 – Tidsavbrudd ved åpning (sekunder)",
+          "opening_6_timeout_close": "Åpning 6 – Tidsavbrudd ved lukking (sekunder)",
+          "opening_7_timeout_open": "Åpning 7 – Tidsavbrudd ved åpning (sekunder)",
+          "opening_7_timeout_close": "Åpning 7 – Tidsavbrudd ved lukking (sekunder)",
+          "opening_8_timeout_open": "Åpning 8 – Tidsavbrudd ved åpning (sekunder)",
+          "opening_8_timeout_close": "Åpning 8 – Tidsavbrudd ved lukking (sekunder)",
+          "opening_9_timeout_open": "Åpning 9 – Tidsavbrudd ved åpning (sekunder)",
+          "opening_9_timeout_close": "Åpning 9 – Tidsavbrudd ved lukking (sekunder)",
+          "opening_10_timeout_open": "Åpning 10 – Tidsavbrudd ved åpning (sekunder)",
+          "opening_10_timeout_close": "Åpning 10 – Tidsavbrudd ved lukking (sekunder)"
+        },
+        "data_description": {
+          "openings_scope": "Velg hvilke HVAC-moduser som skal påvirkes når vinduer/dører er åpne. Når ingen omfang er valgt eller 'Alle HVAC-moduser' er valgt, påvirkes hele systemet.",
+          "opening_1_timeout_open": "Tid å vente etter at denne åpningen aktiveres før HVAC slås av. Sett til 0 for umiddelbar respons.",
+          "opening_1_timeout_close": "Tid å vente etter at denne åpningen lukkes før HVAC slås på igjen. Sett til 0 for umiddelbar respons.",
+          "opening_2_timeout_open": "Tid å vente etter at denne åpningen aktiveres før HVAC slås av. Sett til 0 for umiddelbar respons.",
+          "opening_2_timeout_close": "Tid å vente etter at denne åpningen lukkes før HVAC slås på igjen. Sett til 0 for umiddelbar respons.",
+          "opening_3_timeout_open": "Tid å vente etter at denne åpningen aktiveres før HVAC slås av. Sett til 0 for umiddelbar respons.",
+          "opening_3_timeout_close": "Tid å vente etter at denne åpningen lukkes før HVAC slås på igjen. Sett til 0 for umiddelbar respons.",
+          "opening_4_timeout_open": "Tid å vente etter at denne åpningen aktiveres før HVAC slås av. Sett til 0 for umiddelbar respons.",
+          "opening_4_timeout_close": "Tid å vente etter at denne åpningen lukkes før HVAC slås på igjen. Sett til 0 for umiddelbar respons.",
+          "opening_5_timeout_open": "Tid å vente etter at denne åpningen aktiveres før HVAC slås av. Sett til 0 for umiddelbar respons.",
+          "opening_5_timeout_close": "Tid å vente etter at denne åpningen lukkes før HVAC slås på igjen. Sett til 0 for umiddelbar respons.",
+          "opening_6_timeout_open": "Tid å vente etter at denne åpningen aktiveres før HVAC slås av. Sett til 0 for umiddelbar respons.",
+          "opening_6_timeout_close": "Tid å vente etter at denne åpningen lukkes før HVAC slås på igjen. Sett til 0 for umiddelbar respons.",
+          "opening_7_timeout_open": "Tid å vente etter at denne åpningen aktiveres før HVAC slås av. Sett til 0 for umiddelbar respons.",
+          "opening_7_timeout_close": "Tid å vente etter at denne åpningen lukkes før HVAC slås på igjen. Sett til 0 for umiddelbar respons.",
+          "opening_8_timeout_open": "Tid å vente etter at denne åpningen aktiveres før HVAC slås av. Sett til 0 for umiddelbar respons.",
+          "opening_8_timeout_close": "Tid å vente etter at denne åpningen lukkes før HVAC slås på igjen. Sett til 0 for umiddelbar respons.",
+          "opening_9_timeout_open": "Tid å vente etter at denne åpningen aktiveres før HVAC slås av. Sett til 0 for umiddelbar respons.",
+          "opening_9_timeout_close": "Tid å vente etter at denne åpningen lukkes før HVAC slås på igjen. Sett til 0 for umiddelbar respons.",
+          "opening_10_timeout_open": "Tid å vente etter at denne åpningen aktiveres før HVAC slås av. Sett til 0 for umiddelbar respons.",
+          "opening_10_timeout_close": "Tid å vente etter at denne åpningen lukkes før HVAC slås på igjen. Sett til 0 for umiddelbar respons."
+        }
+      },
+      "heat_cool_mode": {
+        "title": "Konfigurasjon av varme/kjøle-modus",
+        "description": "Konfigurer automatisk veksling i varme/kjøle-modus.",
+        "data": {
+          "heat_cool_mode": "Aktiver varme/kjøle-modus",
+          "target_temp_low": "Lavt temperatursettpunkt",
+          "target_temp_high": "Høyt temperatursettpunkt"
+        },
+        "data_description": {
+          "heat_cool_mode": "Aktiver automatisk veksling mellom oppvarmings- og kjølemoduser basert på doble temperatursettpunkter. Skaper et behagelig temperaturområde i stedet for et enkelt mål.",
+          "target_temp_low": "Nedre temperaturterskel for varme/kjøle-modus. Oppvarming aktiveres når temperaturen faller under denne verdien.",
+          "target_temp_high": "Øvre temperaturterskel for varme/kjøle-modus. Kjøling aktiveres når temperaturen stiger over denne verdien. Må være høyere enn det lave settpunktet."
+        }
+      },
+      "fan": {
+        "title": "Konfigurasjon av vifte",
+        "description": "Konfigurer viftestyring og -innstillinger.",
+        "data": {
+          "fan": "Viftebryter",
+          "fan_mode": "Viftemodus",
+          "fan_on_with_ac": "Vifte med AC",
+          "fan_air_outside": "Vifte med uteluft",
+          "fan_hot_tolerance": "Varmetoleranse for vifte",
+          "fan_hot_tolerance_toggle": "Veksling for viftetoleranse"
+        },
+        "data_description": {
+          "fan": "Enhets-ID for viftebryter. Brukes til å styre luftsirkulasjon og forbedre temperaturfordelingen i rommet.",
+          "fan_mode": "Aktiver vifte som en egen HVAC-modus. Når aktivert, blir VIFTE-modus tilgjengelig i tillegg til varme-, kjøle- og auto-moduser, noe som tillater kun viftedrift.",
+          "fan_on_with_ac": "Slå automatisk på viften når kjøling (AC) er aktiv. Forbedrer kjøleeffektivitet og luftsirkulasjon under kjølesykluser.",
+          "fan_air_outside": "Aktiver sirkulasjon av uteluft når utetemperaturen er gunstigere enn innetemperaturen. Krever at en utetemperatursensor er konfigurert for intelligent bruk av uteluft.",
+          "fan_hot_tolerance": "Temperaturområde over målet der viften brukes i stedet for AC. For eksempel, med mål 25°C, hot_tolerance 1°C og fan_hot_tolerance 0,5°C: viften aktiveres ved 26°C (mål + hot_tolerance), AC aktiveres ved 26,5°C (mål + hot_tolerance + fan_hot_tolerance). Standard: 0,5°C.",
+          "fan_hot_tolerance_toggle": "Valgfri enhets-ID for en input_boolean for dynamisk å aktivere/deaktivere fan_hot_tolerance-funksjonen. Når av, brukes AC umiddelbart i stedet for å prøve viften først. Når ikke konfigurert, er fan_hot_tolerance-funksjonen alltid aktivert."
+        }
+      },
+      "humidity": {
+        "title": "Fuktighetskontroll",
+        "description": "Konfigurer overvåking og kontroll av luftfuktighet.",
+        "data": {
+          "humidity_sensor": "Fuktighetssensor",
+          "dryer": "Bryter for tørker/avfukter",
+          "target_humidity": "Målfuktighet",
+          "min_humidity": "Minimum fuktighet",
+          "max_humidity": "Maksimal fuktighet",
+          "dry_tolerance": "Tørketoleranse",
+          "moist_tolerance": "Fukttoleranse"
+        },
+        "data_description": {
+          "humidity_sensor": "Enhets-ID for fuktighetssensor. Når konfigurert, aktiverer den fuktighetskontrollfunksjoner og fuktighetsbaserte forhåndsinnstillinger. Sensortilstanden må være fuktighetsprosent.",
+          "dryer": "Enhets-ID for bryter for tørker/avfukter. Brukes til å styre avfukting når fuktighetsnivåene overstiger målene.",
+          "target_humidity": "Målfuktighetsnivå som skal opprettholdes (prosent). Standard fuktighetsmål når ingen forhåndsinnstilling er aktiv.",
+          "min_humidity": "Minste tillatte fuktighetsnivå (prosent). Fuktigheten økes hvis den faller under denne verdien.",
+          "max_humidity": "Maksimalt tillatte fuktighetsnivå (prosent). Fuktigheten reduseres hvis den stiger over denne verdien.",
+          "dry_tolerance": "Minste fuktighetsforskjell under målet før befuktning aktiveres eller avfukting deaktiveres.",
+          "moist_tolerance": "Minste fuktighetsforskjell over målet før avfukting aktiveres eller befuktning deaktiveres."
+        }
+      },
+      "additional_sensors": {
+        "title": "Ekstra sensorer",
+        "description": "Konfigurer ekstra temperatursensorer.",
+        "data": {
+          "outside_sensor": "Utetemperatursensor"
+        },
+        "data_description": {
+          "outside_sensor": "Enhets-ID for utetemperatursensor. Brukes til intelligente operasjoner som frikjøling, bruk av uteluft med viftestyring og vær-baserte beslutninger om oppvarming/kjøling. Lar systemet optimalisere energibruken basert på utendørsforhold."
+        }
+      },
+      "advanced": {
+        "title": "Avanserte innstillinger",
+        "description": "Konfigurer avanserte termostatinnstillinger.",
+        "data": {
+          "advanced_system_type": "Avansert systemtype",
+          "keep_alive": "Hold-i-live-varighet",
+          "initial_hvac_mode": "Innledende HVAC-modus",
+          "precision": "Temperaturpresisjon",
+          "target_temp_step": "Temperaturtrinn",
+          "min_temp": "Minimum temperatur",
+          "max_temp": "Maksimal temperatur",
+          "target_temp": "Måltemperatur"
+        },
+        "data_description": {
+          "advanced_system_type": "Velg avansert systemkonfigurasjon. Velg standard for vanlig termostat, totrinns for totrinns oppvarming med hjelpevarmeapparat, eller gulvvarme for temperaturbeskyttelsessystemer.",
+          "keep_alive": "Hold-i-live-varighet for periodisk veksling. Sett dette hvis bryteren din trenger et hjerteslag for å holde den 'i live'. For eksempel slår noen brytere seg av automatisk etter en viss tid.",
+          "initial_hvac_mode": "Innledende HVAC-modus ved oppstart av Home Assistant. Setter standard driftsmodus ved oppstart (varme, kjøle, auto, av osv.).",
+          "precision": "Temperaturpresisjon for visning og kontroll. Bestemmer desimalpresisjonen for temperaturverdier (0,1, 0,5, 1,0 grader).",
+          "target_temp_step": "Temperaturtrinnstørrelse for justeringer. Styrer hvor mye måltemperaturen endres med hver justering (f.eks. trinn på 0,5°C eller 1°C).",
+          "min_temp": "Minste tillatte temperaturinnstilling. Setter den nedre grensen for måltemperatur for å hindre utrygg eller ineffektiv drift.",
+          "max_temp": "Maksimalt tillatte temperaturinnstilling. Setter den øvre grensen for måltemperatur for å hindre utrygg eller ineffektiv drift.",
+          "target_temp": "Innledende måltemperatur når termostaten konfigureres for første gang. Dette blir standardtemperaturen når ingen forhåndsinnstilling er aktiv."
+        }
+      },
+      "presets": {
+        "title": "Konfigurasjon av temperaturforhåndsinnstillinger",
+        "description": "Konfigurer temperaturforhåndsinnstillinger for ulike scenarier. Feltene er organisert etter forhåndsinnstillingstype – grunnleggende temperatur, fuktighetsinnstillinger, doble temperaturområder, grenser for gulvvarme og viftemoduser basert på dine konfigurerte funksjoner.",
+        "data": {
+          "away": "▼ BORTE-FORHÅNDSINNSTILLING",
+          "away_temp": "Borte-temperatur",
+          "away_humidity": "Borte-fuktighet",
+          "away_temp_low": "Borte lav temperatur",
+          "away_temp_high": "Borte høy temperatur",
+          "away_max_floor_temp": "Borte maks gulvtemperatur",
+          "away_min_floor_temp": "Borte min gulvtemperatur",
+          "away_fan_mode": "Borte viftemodus",
+          "comfort": "▼ KOMFORT-FORHÅNDSINNSTILLING",
+          "comfort_temp": "Komfort-temperatur",
+          "comfort_humidity": "Komfort-fuktighet",
+          "comfort_temp_low": "Komfort lav temperatur",
+          "comfort_temp_high": "Komfort høy temperatur",
+          "comfort_max_floor_temp": "Komfort maks gulvtemperatur",
+          "comfort_min_floor_temp": "Komfort min gulvtemperatur",
+          "comfort_fan_mode": "Komfort viftemodus",
+          "eco": "▼ ØKO-FORHÅNDSINNSTILLING",
+          "eco_temp": "Øko-temperatur",
+          "eco_humidity": "Øko-fuktighet",
+          "eco_temp_low": "Øko lav temperatur",
+          "eco_temp_high": "Øko høy temperatur",
+          "eco_max_floor_temp": "Øko maks gulvtemperatur",
+          "eco_min_floor_temp": "Øko min gulvtemperatur",
+          "eco_fan_mode": "Øko viftemodus",
+          "home": "▼ HJEMME-FORHÅNDSINNSTILLING",
+          "home_temp": "Hjemme-temperatur",
+          "home_humidity": "Hjemme-fuktighet",
+          "home_temp_low": "Hjemme lav temperatur",
+          "home_temp_high": "Hjemme høy temperatur",
+          "home_max_floor_temp": "Hjemme maks gulvtemperatur",
+          "home_min_floor_temp": "Hjemme min gulvtemperatur",
+          "home_fan_mode": "Hjemme viftemodus",
+          "sleep": "▼ SØVN-FORHÅNDSINNSTILLING",
+          "sleep_temp": "Søvn-temperatur",
+          "sleep_humidity": "Søvn-fuktighet",
+          "sleep_temp_low": "Søvn lav temperatur",
+          "sleep_temp_high": "Søvn høy temperatur",
+          "sleep_max_floor_temp": "Søvn maks gulvtemperatur",
+          "sleep_min_floor_temp": "Søvn min gulvtemperatur",
+          "sleep_fan_mode": "Søvn viftemodus",
+          "anti_freeze": "▼ FROSTSIKRING-FORHÅNDSINNSTILLING",
+          "anti_freeze_temp": "Frostsikring-temperatur",
+          "anti_freeze_humidity": "Frostsikring-fuktighet",
+          "anti_freeze_temp_low": "Frostsikring lav temperatur",
+          "anti_freeze_temp_high": "Frostsikring høy temperatur",
+          "anti_freeze_max_floor_temp": "Frostsikring maks gulvtemperatur",
+          "anti_freeze_min_floor_temp": "Frostsikring min gulvtemperatur",
+          "anti_freeze_fan_mode": "Frostsikring viftemodus",
+          "activity": "▼ AKTIVITET-FORHÅNDSINNSTILLING",
+          "activity_temp": "Aktivitet-temperatur",
+          "activity_humidity": "Aktivitet-fuktighet",
+          "activity_temp_low": "Aktivitet lav temperatur",
+          "activity_temp_high": "Aktivitet høy temperatur",
+          "activity_max_floor_temp": "Aktivitet maks gulvtemperatur",
+          "activity_min_floor_temp": "Aktivitet min gulvtemperatur",
+          "activity_fan_mode": "Aktivitet viftemodus",
+          "boost": "▼ BOOST-FORHÅNDSINNSTILLING",
+          "boost_temp": "Boost-temperatur",
+          "boost_humidity": "Boost-fuktighet",
+          "boost_temp_low": "Boost lav temperatur",
+          "boost_temp_high": "Boost høy temperatur",
+          "boost_max_floor_temp": "Boost maks gulvtemperatur",
+          "boost_min_floor_temp": "Boost min gulvtemperatur",
+          "boost_fan_mode": "Boost viftemodus"
+        },
+        "data_description": {
+          "away": "Borte-forhåndsinnstilling – Måltemperatur når Borte-forhåndsinnstillingen er valgt. Settes vanligvis lavere for energisparing når ingen er hjemme.",
+          "away_temp": "Måltemperatur for Borte-forhåndsinnstilling. Godtar statisk verdi (f.eks. 18), enhetsreferanse (f.eks. states('input_number.away_temp')) eller mal.",
+          "away_humidity": "Borte-forhåndsinnstilling – Målfuktighet når Borte-forhåndsinnstillingen er valgt. Brukes med fuktighetskontroll for å opprettholde optimale forhold.",
+          "away_temp_low": "Borte-forhåndsinnstilling – Nedre temperaturgrense i dual-temperatur-modus. Godtar statisk verdi (f.eks. 18) eller mal (f.eks. {{ states('sensor.outdoor_temp') | float - 2 }}).",
+          "away_temp_high": "Borte-forhåndsinnstilling – Øvre temperaturgrense i dual-temperatur-modus. Godtar statisk verdi (f.eks. 24) eller mal (f.eks. {{ states('sensor.outdoor_temp') | float + 4 }}).",
+          "away_max_floor_temp": "Borte-forhåndsinnstilling – Maksimal gulvtemperatur når Borte-forhåndsinnstillingen er valgt for gulvvarmesystemer.",
+          "away_min_floor_temp": "Borte-forhåndsinnstilling – Minimum gulvtemperatur når Borte-forhåndsinnstillingen er valgt for gulvvarmesystemer.",
+          "away_fan_mode": "Borte-forhåndsinnstilling – Innstilling for viftemodus når Borte-forhåndsinnstillingen er valgt.",
+          "comfort": "Komfort-forhåndsinnstilling – Måltemperatur når Komfort-forhåndsinnstillingen er valgt. Maksimal komfortinnstilling.",
+          "comfort_temp": "Måltemperatur for Komfort-forhåndsinnstilling. Godtar statisk verdi (f.eks. 22), enhetsreferanse (f.eks. states('input_number.comfort_temp')) eller mal.",
+          "comfort_humidity": "Komfort-forhåndsinnstilling – Målfuktighet når Komfort-forhåndsinnstillingen er valgt.",
+          "comfort_temp_low": "Komfort-forhåndsinnstilling – Nedre temperaturgrense i dual-temperatur-modus. Godtar statisk verdi eller mal.",
+          "comfort_temp_high": "Komfort-forhåndsinnstilling – Øvre temperaturgrense i dual-temperatur-modus. Godtar statisk verdi eller mal.",
+          "comfort_max_floor_temp": "Komfort-forhåndsinnstilling – Maksimal gulvtemperatur når Komfort-forhåndsinnstillingen er valgt for gulvvarmesystemer.",
+          "comfort_min_floor_temp": "Komfort-forhåndsinnstilling – Minimum gulvtemperatur når Komfort-forhåndsinnstillingen er valgt for gulvvarmesystemer.",
+          "comfort_fan_mode": "Komfort-forhåndsinnstilling – Innstilling for viftemodus når Komfort-forhåndsinnstillingen er valgt.",
+          "eco": "Øko-forhåndsinnstilling – Måltemperatur når Øko-forhåndsinnstillingen er valgt. Energibesparende temperaturinnstilling.",
+          "eco_temp": "Måltemperatur for Øko-forhåndsinnstilling. Godtar statisk verdi (f.eks. 20), enhetsreferanse (f.eks. states('input_number.eco_temp')) eller mal.",
+          "eco_humidity": "Øko-forhåndsinnstilling – Målfuktighet når Øko-forhåndsinnstillingen er valgt. Energieffektivt fuktighetsnivå.",
+          "eco_temp_low": "Øko-forhåndsinnstilling – Nedre temperaturgrense i dual-temperatur-modus. Godtar statisk verdi eller mal.",
+          "eco_temp_high": "Øko-forhåndsinnstilling – Øvre temperaturgrense i dual-temperatur-modus. Godtar statisk verdi eller mal.",
+          "eco_max_floor_temp": "Øko-forhåndsinnstilling – Maksimal gulvtemperatur når Øko-forhåndsinnstillingen er valgt for gulvvarmesystemer.",
+          "eco_min_floor_temp": "Øko-forhåndsinnstilling – Minimum gulvtemperatur når Øko-forhåndsinnstillingen er valgt for gulvvarmesystemer.",
+          "eco_fan_mode": "Øko-forhåndsinnstilling – Innstilling for viftemodus når Øko-forhåndsinnstillingen er valgt.",
+          "home": "Hjemme-forhåndsinnstilling – Måltemperatur når Hjemme-forhåndsinnstillingen er valgt. Behagelig temperatur for daglige aktiviteter.",
+          "home_temp": "Måltemperatur for Hjemme-forhåndsinnstilling. Godtar statisk verdi (f.eks. 21), enhetsreferanse (f.eks. states('input_number.home_temp')) eller mal.",
+          "home_humidity": "Hjemme-forhåndsinnstilling – Målfuktighet når Hjemme-forhåndsinnstillingen er valgt. Optimal fuktighet for komfort og helse.",
+          "home_temp_low": "Hjemme-forhåndsinnstilling – Nedre temperaturgrense i dual-temperatur-modus. Godtar statisk verdi eller mal.",
+          "home_temp_high": "Hjemme-forhåndsinnstilling – Øvre temperaturgrense i dual-temperatur-modus. Godtar statisk verdi eller mal.",
+          "home_max_floor_temp": "Hjemme-forhåndsinnstilling – Maksimal gulvtemperatur når Hjemme-forhåndsinnstillingen er valgt for gulvvarmesystemer.",
+          "home_min_floor_temp": "Hjemme-forhåndsinnstilling – Minimum gulvtemperatur når Hjemme-forhåndsinnstillingen er valgt for gulvvarmesystemer.",
+          "home_fan_mode": "Hjemme-forhåndsinnstilling – Innstilling for viftemodus når Hjemme-forhåndsinnstillingen er valgt.",
+          "sleep": "Søvn-forhåndsinnstilling – Måltemperatur når Søvn-forhåndsinnstillingen er valgt. Ofte satt litt kjøligere for bedre søvnkvalitet.",
+          "sleep_temp": "Måltemperatur for Søvn-forhåndsinnstilling. Godtar statisk verdi (f.eks. 18), enhetsreferanse (f.eks. states('input_number.sleep_temp')) eller mal.",
+          "sleep_humidity": "Søvn-forhåndsinnstilling – Målfuktighet når Søvn-forhåndsinnstillingen er valgt. Optimal fuktighet for sovekomfort.",
+          "sleep_temp_low": "Søvn-forhåndsinnstilling – Nedre temperaturgrense i dual-temperatur-modus. Godtar statisk verdi eller mal.",
+          "sleep_temp_high": "Søvn-forhåndsinnstilling – Øvre temperaturgrense i dual-temperatur-modus. Godtar statisk verdi eller mal.",
+          "sleep_max_floor_temp": "Søvn-forhåndsinnstilling – Maksimal gulvtemperatur når Søvn-forhåndsinnstillingen er valgt for gulvvarmesystemer.",
+          "sleep_min_floor_temp": "Søvn-forhåndsinnstilling – Minimum gulvtemperatur når Søvn-forhåndsinnstillingen er valgt for gulvvarmesystemer.",
+          "sleep_fan_mode": "Søvn-forhåndsinnstilling – Innstilling for viftemodus når Søvn-forhåndsinnstillingen er valgt.",
+          "anti_freeze": "Frostsikring-forhåndsinnstilling – Måltemperatur når Frostsikring-forhåndsinnstillingen er valgt. Minimumstemperatur for å hindre frysing.",
+          "anti_freeze_temp": "Måltemperatur for Frostsikring-forhåndsinnstilling. Godtar statisk verdi (f.eks. 7), enhetsreferanse (f.eks. states('input_number.antifreeze_temp')) eller mal.",
+          "anti_freeze_humidity": "Frostsikring-forhåndsinnstilling – Målfuktighet når Frostsikring-forhåndsinnstillingen er valgt.",
+          "anti_freeze_temp_low": "Frostsikring-forhåndsinnstilling – Nedre temperaturgrense i dual-temperatur-modus. Godtar statisk verdi eller mal.",
+          "anti_freeze_temp_high": "Frostsikring-forhåndsinnstilling – Øvre temperaturgrense i dual-temperatur-modus. Godtar statisk verdi eller mal.",
+          "anti_freeze_max_floor_temp": "Frostsikring-forhåndsinnstilling – Maksimal gulvtemperatur når Frostsikring-forhåndsinnstillingen er valgt for gulvvarmesystemer.",
+          "anti_freeze_min_floor_temp": "Frostsikring-forhåndsinnstilling – Minimum gulvtemperatur når Frostsikring-forhåndsinnstillingen er valgt for gulvvarmesystemer.",
+          "anti_freeze_fan_mode": "Frostsikring-forhåndsinnstilling – Innstilling for viftemodus når Frostsikring-forhåndsinnstillingen er valgt.",
+          "activity": "Aktivitet-forhåndsinnstilling – Måltemperatur når Aktivitet-forhåndsinnstillingen er valgt. Kan settes høyere for aktive perioder.",
+          "activity_temp": "Måltemperatur for Aktivitet-forhåndsinnstilling. Godtar statisk verdi (f.eks. 23), enhetsreferanse (f.eks. states('input_number.activity_temp')) eller mal.",
+          "activity_humidity": "Aktivitet-forhåndsinnstilling – Målfuktighet når Aktivitet-forhåndsinnstillingen er valgt.",
+          "activity_temp_low": "Aktivitet-forhåndsinnstilling – Nedre temperaturgrense i dual-temperatur-modus. Godtar statisk verdi eller mal.",
+          "activity_temp_high": "Aktivitet-forhåndsinnstilling – Øvre temperaturgrense i dual-temperatur-modus. Godtar statisk verdi eller mal.",
+          "activity_max_floor_temp": "Aktivitet-forhåndsinnstilling – Maksimal gulvtemperatur når Aktivitet-forhåndsinnstillingen er valgt for gulvvarmesystemer.",
+          "activity_min_floor_temp": "Aktivitet-forhåndsinnstilling – Minimum gulvtemperatur når Aktivitet-forhåndsinnstillingen er valgt for gulvvarmesystemer.",
+          "activity_fan_mode": "Aktivitet-forhåndsinnstilling – Innstilling for viftemodus når Aktivitet-forhåndsinnstillingen er valgt.",
+          "boost": "Boost-forhåndsinnstilling – Måltemperatur når Boost-forhåndsinnstillingen er valgt. Høyere temperatur for rask oppvarming.",
+          "boost_temp": "Måltemperatur for Boost-forhåndsinnstilling. Godtar statisk verdi (f.eks. 25), enhetsreferanse (f.eks. states('input_number.boost_temp')) eller mal.",
+          "boost_humidity": "Boost-forhåndsinnstilling – Målfuktighet når Boost-forhåndsinnstillingen er valgt.",
+          "boost_temp_low": "Boost-forhåndsinnstilling – Nedre temperaturgrense i dual-temperatur-modus. Godtar statisk verdi eller mal.",
+          "boost_temp_high": "Boost-forhåndsinnstilling – Øvre temperaturgrense i dual-temperatur-modus. Godtar statisk verdi eller mal.",
+          "boost_max_floor_temp": "Boost-forhåndsinnstilling – Maksimal gulvtemperatur når Boost-forhåndsinnstillingen er valgt for gulvvarmesystemer.",
+          "boost_min_floor_temp": "Boost-forhåndsinnstilling – Minimum gulvtemperatur når Boost-forhåndsinnstillingen er valgt for gulvvarmesystemer.",
+          "boost_fan_mode": "Boost-forhåndsinnstilling – Innstilling for viftemodus når Boost-forhåndsinnstillingen er valgt."
+        }
+      },
+      "preset_selection": {
+        "data": {
+          "away": "Borte-forhåndsinnstilling",
+          "comfort": "Komfort-forhåndsinnstilling",
+          "eco": "Øko-forhåndsinnstilling",
+          "home": "Hjemme-forhåndsinnstilling",
+          "sleep": "Søvn-forhåndsinnstilling",
+          "anti_freeze": "Frostsikring-forhåndsinnstilling",
+          "activity": "Aktivitet-forhåndsinnstilling",
+          "boost": "Boost-forhåndsinnstilling"
+        },
+        "data_description": {
+          "away": "Energibesparende forhåndsinnstilling for når ingen er hjemme. Settes vanligvis til lavere temperaturer for å spare energi.",
+          "comfort": "Maksimal komfort-forhåndsinnstilling for optimal temperaturkontroll når komfort er prioriteten.",
+          "eco": "Energieffektiv forhåndsinnstilling som balanserer komfort med energisparing.",
+          "home": "Standard forhåndsinnstilling for daglige aktiviteter når folk er hjemme og aktive.",
+          "sleep": "Optimalisert for sovekomfort, ofte satt litt kjøligere for bedre søvnkvalitet.",
+          "anti_freeze": "Forhåndsinnstilling for minimumstemperatur for å hindre frysing i ubebodde rom eller ved lengre fravær.",
+          "activity": "Forhåndsinnstilling med høyere temperatur for perioder med høy aktivitet eller når ekstra varme trengs.",
+          "boost": "Forhåndsinnstilling for rask oppvarming for raskt å heve temperaturen til et høyere nivå."
+        }
+      },
+      "system_features": {
+        "title": "Konfigurasjon av systemfunksjoner",
+        "description": "Velg hvilke funksjoner du vil konfigurere for termostatsystemet ditt. Velg kun funksjonene du vil sette opp – ikke-valgte funksjoner blir ikke konfigurert."
+      },
+      "ac_only_features": {
+        "title": "Konfigurasjon av AC-funksjoner",
+        "description": "Velg hvilke funksjoner du vil konfigurere for klimaanlegget ditt. Velg kun funksjonene du vil sette opp – ikke-valgte funksjoner blir ikke konfigurert.",
+        "data": {
+          "heater": "Klimaanleggsbryter",
+          "keep_alive": "Hold-i-live-intervall",
+          "initial_hvac_mode": "Innledende HVAC-modus",
+          "precision": "Temperaturpresisjon",
+          "target_temp_step": "Temperaturtrinnstørrelse",
+          "min_temp": "Minimum temperatur",
+          "max_temp": "Maksimal temperatur",
+          "target_temp": "Innledende måltemperatur"
+        },
+        "data_description": {
+          "keep_alive": "Sett et hold-i-live-intervall for brytere. Bruk med varmeapparater og A/C-enheter som slår seg av hvis de ikke mottar et signal fra fjernkontrollen på en stund.",
+          "initial_hvac_mode": "Sett innledende HVAC-modus når termostaten starter. Velg standardmodusen som skal være aktiv når Home Assistant starter.",
+          "precision": "Temperaturpresisjon for termostaten. Dette bestemmer det minste temperaturtrinnet som kan vises og angis.",
+          "target_temp_step": "Temperaturtrinnstørrelse for termostatkontrollene. Dette bestemmer hvor mye temperaturen endres når opp/ned-knappene brukes.",
+          "min_temp": "Minste temperaturgrense for termostaten. Brukere kan ikke sette måltemperaturen under denne verdien.",
+          "max_temp": "Maksimal temperaturgrense for termostaten. Brukere kan ikke sette måltemperaturen over denne verdien.",
+          "target_temp": "Innledende måltemperatur når termostaten konfigureres for første gang. Dette blir standardtemperaturinnstillingen."
+        }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Finjustering av driftstid for {name}",
+        "description": "Juster driftsparametere og toleranser for termostaten din. For strukturelle endringer (systemtype, enheter, funksjoner), bruk **Konfigurer på nytt**-alternativet i stedet.\n\n**Tips**: Endringer her oppdateres umiddelbart uten å laste integrasjonen inn på nytt.",
+        "data": {
+          "cold_tolerance": "Kuldetoleranse",
+          "hot_tolerance": "Varmetoleranse",
+          "min_temp": "Minimum temperatur",
+          "max_temp": "Maksimal temperatur",
+          "target_temp": "Måltemperatur",
+          "precision": "Temperaturpresisjon",
+          "target_temp_step": "Temperaturtrinn",
+          "min_cycle_duration": "Minimum syklusvarighet",
+          "keep_alive": "Hold-i-live-intervall"
+        },
+        "data_description": {
+          "cold_tolerance": "Minste temperaturforskjell under målet før oppvarming aktiveres. Lavere verdier gjør oppvarmingen mer responsiv (standard: 0,3°C).",
+          "hot_tolerance": "Minste temperaturforskjell over målet før kjøling aktiveres. Lavere verdier gjør kjølingen mer responsiv (standard: 0,3°C).",
+          "min_temp": "Minste tillatte temperaturinnstilling. Setter den nedre grensen for justeringer av måltemperatur.",
+          "max_temp": "Maksimalt tillatte temperaturinnstilling. Setter den øvre grensen for justeringer av måltemperatur.",
+          "target_temp": "Standard måltemperatur når ingen forhåndsinnstilling er aktiv.",
+          "precision": "Temperaturpresisjon for visning og kontroll. Bestemmer desimalpresisjonen for temperaturverdier (0,1, 0,5 eller 1,0 grader).",
+          "target_temp_step": "Temperaturtrinnstørrelse for justeringer. Styrer hvor mye måltemperaturen endres med hver justering.",
+          "min_cycle_duration": "Minste tid utstyret må kjøre før det slås av. Hindrer rask av/på-veksling og beskytter utstyret mot skade (standard: 5 minutter).",
+          "keep_alive": "Hold-i-live-varighet for periodisk veksling. Sett dette hvis bryteren din trenger et hjerteslag for å holde den 'i live'."
+        },
+        "sections": {
+          "advanced_settings": {
+            "name": "Avanserte innstillinger",
+            "description": "Valgfrie avanserte innstillinger for finjustering av termostatens oppførsel.",
+            "data": {
+              "initial_hvac_mode": "Innledende HVAC-modus",
+              "target_temp_high": "Måltemperatur (høy)",
+              "target_temp_low": "Måltemperatur (lav)",
+              "heat_cool_mode": "Varme/kjøle-modus",
+              "heat_tolerance": "Oppvarmingstoleranse",
+              "cool_tolerance": "Kjøletoleranse",
+              "auto_outside_delta_boost": "Auto: hastegradsterskel for utendørsdelta",
+              "use_apparent_temp": "Bruk opplevd («føles som»-) temperatur for kjølebeslutninger"
+            },
+            "data_description": {
+              "initial_hvac_mode": "Innledende HVAC-modus ved oppstart av Home Assistant. Setter standard driftsmodus ved oppstart.",
+              "target_temp_high": "Øvre måltemperatur for doble temperatursystemer (varme/kjøle-modus).",
+              "target_temp_low": "Nedre måltemperatur for doble temperatursystemer (varme/kjøle-modus).",
+              "heat_cool_mode": "Aktiver varme/kjøle-modus med dobbel temperaturkontroll. Når aktivert, tillates automatisk veksling mellom oppvarming og kjøling for å opprettholde et behagelig temperaturområde.",
+              "heat_tolerance": "Toleranse for oppvarmingsoperasjoner. Overstyrer den eldre cold_tolerance-innstillingen spesifikt for oppvarmingsmodus. Når satt, brukes denne verdien i stedet for cold_tolerance for å bestemme når oppvarming aktiveres (standard: bruker cold_tolerance hvis ikke angitt).",
+              "cool_tolerance": "Toleranse for kjøleoperasjoner. Overstyrer den eldre hot_tolerance-innstillingen spesifikt for kjølemodus. Når satt, brukes denne verdien i stedet for hot_tolerance for å bestemme når kjøling aktiveres (standard: bruker hot_tolerance hvis ikke angitt).",
+              "auto_outside_delta_boost": "Når AUTO-modus er på og temperaturforskjellen mellom inne og ute når denne terskelen, behandles normalnivå oppvarming eller kjøling som hastende. Kun aktiv når en utesensor er konfigurert. Standard: 8°C / 14°F.",
+              "use_apparent_temp": "Når aktivert og en fuktighetssensor er konfigurert, baserer AUTO og frittstående KJØL beslutninger på varmeindeksen i stedet for rå temperatur. Over 27°C / 80°F gjør fuktighet at rommet føles varmere, så kjøleren kjører mer aggressivt. Den faktiske sensortemperaturen vises fortsatt i grensesnittet."
+            }
+          }
+        }
+      },
+      "features": {
+        "title": "Konfigurasjon av funksjoner",
+        "description": "Velg hvilke funksjoner du vil konfigurere for systemet ditt. Dette bestemmer hvilke konfigurasjonsalternativer som blir tilgjengelige.",
+        "data": {
+          "configure_fan": "Konfigurer vifteinnstillinger",
+          "configure_humidity": "Konfigurer fuktighetskontroll",
+          "configure_openings": "Konfigurer vindus-/dørsensorer",
+          "configure_presets": "Konfigurer temperaturforhåndsinnstillinger",
+          "configure_floor_heating": "Konfigurer beskyttelse for gulvvarme"
+        },
+        "data_description": {
+          "configure_fan": "Aktiver konfigurasjon av vifteinnstillinger. Dette lar deg sette opp en egen vifteenhet som kan kjøre uavhengig for luftsirkulasjon.",
+          "configure_humidity": "Aktiver konfigurasjon av fuktighetsovervåking og -kontroll. Dette lar deg sette opp fuktighetssensorer og tørkemodus.",
+          "configure_openings": "Aktiver konfigurasjon av vindus- og dørsensorer slik at termostaten kan pause driften når åpninger oppdages.",
+          "configure_presets": "Aktiver konfigurasjon av temperaturforhåndsinnstillinger som Borte, Komfort og Øko for raske modusendringer.",
+          "configure_floor_heating": "Aktiver konfigurasjon av gulvtemperaturbeskyttelse. Når aktivert kan du angi en gulvsensor og maks/min-grenser for å beskytte gulvet ditt."
+        }
+      },
+      "basic": {
+        "title": "Grunnleggende konfigurasjon",
+        "description": "Endre grunnleggende termostatinnstillinger inkludert systemenheter og grunnleggende parametere for temperaturkontroll.",
+        "data": {
+          "heater": "Klimaanleggsbryter",
+          "sensor": "Temperatursensor",
+          "target_sensor": "Temperatursensor",
+          "cold_tolerance": "Kuldetoleranse",
+          "hot_tolerance": "Varmetoleranse",
+          "heat_cool_mode": "Varme/kjøle-modus",
+          "min_cycle_duration": "Minimum syklusvarighet"
+        },
+        "data_description": {
+          "heater": "Enhets-ID for klimaanleggsbryter, må være en av/på-enhet. Brukes til kjøling når temperaturen stiger over målet.",
+          "sensor": "Enhets-ID for temperatursensor som gjenspeiler den aktuelle temperaturen. Sensortilstanden må være temperatur.",
+          "target_sensor": "Enhets-ID for temperatursensor som gjenspeiler den aktuelle temperaturen. Sensortilstanden må være temperatur.",
+          "cold_tolerance": "Minste temperaturforskjell mellom sensoravlesning og mål før kjøling slås av. For eksempel, hvis målet er 25°C og toleransen er 0,5°C, stopper kjøling når sensoren når 24,5°C eller lavere (standard: 0,3°C).",
+          "hot_tolerance": "Minste temperaturforskjell mellom sensoravlesning og mål før kjøling slås på. For eksempel, hvis målet er 25°C og toleransen er 0,5°C, starter kjøling når sensoren når 25,5°C eller høyere (standard: 0,3°C).",
+          "heat_cool_mode": "Aktiver varme/kjøle-modus. Det første trinnets varmeapparat 'heater' blir kjøling og det andre trinnet 'heater_2' blir oppvarming. Tillater samtidig styring av oppvarming og kjøling.",
+          "min_cycle_duration": "Minste tid kjølebryteren må forbli i sin nåværende tilstand før den byttes. Hindrer rask av/på-veksling og beskytter kjøleutstyret."
+        },
+        "sections": {
+          "advanced_settings": {
+            "name": "Avanserte innstillinger",
+            "description": "Konfigurer temperaturtoleranser og syklusbeskyttelse for optimal systemstyring.",
+            "data": {
+              "cold_tolerance": "Kuldetoleranse",
+              "hot_tolerance": "Varmetoleranse",
+              "min_cycle_duration": "Minimum syklusvarighet"
+            },
+            "data_description": {
+              "cold_tolerance": "Minste temperaturforskjell mellom sensoravlesning og mål før oppvarming aktiveres eller kjøling deaktiveres. For eksempel, hvis målet er 25°C og toleransen er 0,5°C, skjer endringer når sensoren når 24,5°C eller lavere (standard: 0,3°C).",
+              "hot_tolerance": "Minste temperaturforskjell mellom sensoravlesning og mål før kjøling aktiveres eller oppvarming deaktiveres. For eksempel, hvis målet er 25°C og toleransen er 0,5°C, skjer endringer når sensoren når 25,5°C eller høyere (standard: 0,3°C).",
+              "min_cycle_duration": "Minste tid systembryteren må forbli i sin nåværende tilstand før den byttes. Hindrer rask av/på-veksling og beskytter utstyret (standard: 300 sekunder)."
+            }
+          }
+        }
+      },
+      "dual_stage_options": {
+        "title": "Alternativer for totrinns",
+        "description": "Endre innstillinger for totrinns oppvarming.",
+        "data": {
+          "secondary_heater": "Bryter for sekundært varmeapparat",
+          "secondary_heater_timeout": "Tidsavbrudd for sekundært varmeapparat",
+          "secondary_heater_dual_mode": "Drift i dual-modus"
+        },
+        "data_description": {
+          "secondary_heater": "Enhets-ID for hjelpe-/sekundærvarmeapparatets bryter. Gir ekstra oppvarmingskapasitet ved behov.",
+          "secondary_heater_timeout": "Tid å vente før det sekundære varmeapparatet aktiveres etter at det primære varmeapparatet starter.",
+          "secondary_heater_dual_mode": "Aktiver at både primært og sekundært varmeapparat kan arbeide samtidig ved behov."
+        }
+      },
+      "floor_options": {
+        "title": "Alternativer for gulvvarme",
+        "description": "Endre innstillinger for gulvvarme.",
+        "data": {
+          "floor_sensor": "Gulvtemperatursensor",
+          "max_floor_temp": "Maksimal gulvtemperatur",
+          "min_floor_temp": "Minimum gulvtemperatur"
+        },
+        "data_description": {
+          "floor_sensor": "Enhets-ID for gulvtemperatursensor. Overvåker gulvtemperaturen for sikkerhet og kontroll.",
+          "max_floor_temp": "Maksimal tillatt gulvtemperatur for beskyttelse. Hindrer skade på gulvmaterialer. (Standard: 28°C)",
+          "min_floor_temp": "Minimum gulvtemperatur som skal opprettholdes. Gir frostbeskyttelse for gulvvarmesystemet. (Standard: 5°C)"
+        }
+      },
+      "fan_options": {
+        "title": "Viftealternativer",
+        "description": "Endre innstillinger for viftestyring.",
+        "data": {
+          "fan": "Viftebryter",
+          "fan_mode": "Viftemodus",
+          "fan_on_with_ac": "Vifte med AC",
+          "fan_air_outside": "Vifte med uteluft",
+          "fan_hot_tolerance": "Varmetoleranse for vifte",
+          "fan_hot_tolerance_toggle": "Veksling for viftetoleranse"
+        },
+        "data_description": {
+          "fan": "Enhets-ID for viftebryter. Brukes til å styre luftsirkulasjon og forbedre temperaturfordelingen.",
+          "fan_mode": "Aktiver vifte som en egen HVAC-modus. Tillater kun viftedrift.",
+          "fan_on_with_ac": "Slå automatisk på viften når kjøling (AC) er aktiv. Forbedrer kjøleeffektiviteten.",
+          "fan_air_outside": "Aktiver sirkulasjon av uteluft når utetemperaturen er gunstigere enn innetemperaturen.",
+          "fan_hot_tolerance": "Temperaturområde over målet der viften brukes i stedet for AC. Standard: 0,5°C.",
+          "fan_hot_tolerance_toggle": "Valgfri enhets-ID for en input_boolean for å slå fan_hot_tolerance-funksjonen av/på."
+        }
+      },
+      "humidity_options": {
+        "title": "Fuktighetsalternativer",
+        "description": "Endre innstillinger for fuktighetskontroll.",
+        "data": {
+          "humidity_sensor": "Fuktighetssensor",
+          "dryer": "Bryter for tørker/avfukter",
+          "target_humidity": "Målfuktighet",
+          "min_humidity": "Minimum fuktighet",
+          "max_humidity": "Maksimal fuktighet",
+          "dry_tolerance": "Tørketoleranse",
+          "moist_tolerance": "Fukttoleranse"
+        },
+        "data_description": {
+          "humidity_sensor": "Enhets-ID for fuktighetssensor. Aktiverer fuktighetskontrollfunksjoner og fuktighetsbaserte forhåndsinnstillinger.",
+          "dryer": "Enhets-ID for bryter for tørker/avfukter. Brukes til å styre avfukting når fuktighetsnivåene overstiger målene.",
+          "target_humidity": "Målfuktighetsnivå som skal opprettholdes (prosent). Standard fuktighetsmål når ingen forhåndsinnstilling er aktiv.",
+          "min_humidity": "Minste tillatte fuktighetsnivå (prosent). Fuktigheten økes hvis den faller under denne verdien.",
+          "max_humidity": "Maksimalt tillatte fuktighetsnivå (prosent). Fuktigheten reduseres hvis den stiger over denne verdien.",
+          "dry_tolerance": "Minste fuktighetsforskjell under målet før befuktning aktiveres eller avfukting deaktiveres.",
+          "moist_tolerance": "Minste fuktighetsforskjell over målet før avfukting aktiveres eller befuktning deaktiveres."
+        }
+      },
+      "preset_selection": {
+        "data": {
+          "away": "Borte-forhåndsinnstilling",
+          "comfort": "Komfort-forhåndsinnstilling",
+          "eco": "Øko-forhåndsinnstilling",
+          "home": "Hjemme-forhåndsinnstilling",
+          "sleep": "Søvn-forhåndsinnstilling",
+          "anti_freeze": "Frostsikring-forhåndsinnstilling",
+          "activity": "Aktivitet-forhåndsinnstilling",
+          "boost": "Boost-forhåndsinnstilling"
+        },
+        "data_description": {
+          "away": "Energibesparende forhåndsinnstilling for når ingen er hjemme. Settes vanligvis til lavere temperaturer for å spare energi.",
+          "comfort": "Maksimal komfort-forhåndsinnstilling for optimal temperaturkontroll når komfort er prioriteten.",
+          "eco": "Energieffektiv forhåndsinnstilling som balanserer komfort med energisparing.",
+          "home": "Standard forhåndsinnstilling for daglige aktiviteter når folk er hjemme og aktive.",
+          "sleep": "Optimalisert for sovekomfort, ofte satt litt kjøligere for bedre søvnkvalitet.",
+          "anti_freeze": "Forhåndsinnstilling for minimumstemperatur for å hindre frysing i ubebodde rom eller ved lengre fravær.",
+          "activity": "Forhåndsinnstilling med høyere temperatur for perioder med høy aktivitet eller når ekstra varme trengs.",
+          "boost": "Forhåndsinnstilling for rask oppvarming for raskt å heve temperaturen til et høyere nivå."
+        }
+      },
+      "openings_options": {
+        "title": "Konfigurasjon av åpninger",
+        "description": "Konfigurer dør- og vindussensorer for automatisk å styre termostaten når åpninger oppdages.",
+        "data": {
+          "selected_openings": "Vindus-/dørsensorer"
+        },
+        "data_description": {
+          "selected_openings": "Velg dør-/vindussensorer, brytere eller andre enheter som indikerer når åpninger oppdages. Når en valgt enhet er 'open', 'on' eller 'true', slås termostaten automatisk av for å spare energi."
+        }
+      },
+      "openings_config": {
+        "title": "Innstillinger for tidsavbrudd ved åpning/lukking",
+        "description": "Konfigurer valgfrie forsinkelser for tidsavbrudd når vinduer/dører åpnes og lukkes. La stå tomt for umiddelbar respons.\n\nValgte åpninger:\n{selected_entities}",
+        "data": {
+          "openings_scope": "HVAC-moduser som påvirkes av åpninger",
+          "opening_1_label": "Åpning 1",
+          "opening_1_timeout_open": "Tidsavbrudd ved åpning (sekunder)",
+          "opening_1_timeout_close": "Tidsavbrudd ved lukking (sekunder)",
+          "opening_2_label": "Åpning 2",
+          "opening_2_timeout_open": "Tidsavbrudd ved åpning (sekunder)",
+          "opening_2_timeout_close": "Tidsavbrudd ved lukking (sekunder)",
+          "opening_3_label": "Åpning 3",
+          "opening_3_timeout_open": "Tidsavbrudd ved åpning (sekunder)",
+          "opening_3_timeout_close": "Tidsavbrudd ved lukking (sekunder)",
+          "opening_4_label": "Åpning 4",
+          "opening_4_timeout_open": "Tidsavbrudd ved åpning (sekunder)",
+          "opening_4_timeout_close": "Tidsavbrudd ved lukking (sekunder)",
+          "opening_5_label": "Åpning 5",
+          "opening_5_timeout_open": "Tidsavbrudd ved åpning (sekunder)",
+          "opening_5_timeout_close": "Tidsavbrudd ved lukking (sekunder)",
+          "opening_6_label": "Åpning 6",
+          "opening_6_timeout_open": "Tidsavbrudd ved åpning (sekunder)",
+          "opening_6_timeout_close": "Tidsavbrudd ved lukking (sekunder)",
+          "opening_7_label": "Åpning 7",
+          "opening_7_timeout_open": "Tidsavbrudd ved åpning (sekunder)",
+          "opening_7_timeout_close": "Tidsavbrudd ved lukking (sekunder)",
+          "opening_8_label": "Åpning 8",
+          "opening_8_timeout_open": "Tidsavbrudd ved åpning (sekunder)",
+          "opening_8_timeout_close": "Tidsavbrudd ved lukking (sekunder)",
+          "opening_9_label": "Åpning 9",
+          "opening_9_timeout_open": "Tidsavbrudd ved åpning (sekunder)",
+          "opening_9_timeout_close": "Tidsavbrudd ved lukking (sekunder)",
+          "opening_10_label": "Åpning 10",
+          "opening_10_timeout_open": "Tidsavbrudd ved åpning (sekunder)",
+          "opening_10_timeout_close": "Tidsavbrudd ved lukking (sekunder)"
+        },
+        "data_description": {
+          "openings_scope": "Velg hvilke HVAC-moduser som skal påvirkes når vinduer/dører er åpne. Når ingen omfang er valgt eller 'Alle HVAC-moduser' er valgt, påvirkes hele systemet.",
+          "opening_1_timeout_open": "Tid å vente etter at denne åpningen aktiveres før HVAC slås av. Sett til 0 for umiddelbar respons.",
+          "opening_1_timeout_close": "Tid å vente etter at denne åpningen lukkes før HVAC slås på igjen. Sett til 0 for umiddelbar respons.",
+          "opening_2_timeout_open": "Tid å vente etter at denne åpningen aktiveres før HVAC slås av. Sett til 0 for umiddelbar respons.",
+          "opening_2_timeout_close": "Tid å vente etter at denne åpningen lukkes før HVAC slås på igjen. Sett til 0 for umiddelbar respons.",
+          "opening_3_timeout_open": "Tid å vente etter at denne åpningen aktiveres før HVAC slås av. Sett til 0 for umiddelbar respons.",
+          "opening_3_timeout_close": "Tid å vente etter at denne åpningen lukkes før HVAC slås på igjen. Sett til 0 for umiddelbar respons.",
+          "opening_4_timeout_open": "Tid å vente etter at denne åpningen aktiveres før HVAC slås av. Sett til 0 for umiddelbar respons.",
+          "opening_4_timeout_close": "Tid å vente etter at denne åpningen lukkes før HVAC slås på igjen. Sett til 0 for umiddelbar respons.",
+          "opening_5_timeout_open": "Tid å vente etter at denne åpningen aktiveres før HVAC slås av. Sett til 0 for umiddelbar respons.",
+          "opening_5_timeout_close": "Tid å vente etter at denne åpningen lukkes før HVAC slås på igjen. Sett til 0 for umiddelbar respons.",
+          "opening_6_timeout_open": "Tid å vente etter at denne åpningen aktiveres før HVAC slås av. Sett til 0 for umiddelbar respons.",
+          "opening_6_timeout_close": "Tid å vente etter at denne åpningen lukkes før HVAC slås på igjen. Sett til 0 for umiddelbar respons.",
+          "opening_7_timeout_open": "Tid å vente etter at denne åpningen aktiveres før HVAC slås av. Sett til 0 for umiddelbar respons.",
+          "opening_7_timeout_close": "Tid å vente etter at denne åpningen lukkes før HVAC slås på igjen. Sett til 0 for umiddelbar respons.",
+          "opening_8_timeout_open": "Tid å vente etter at denne åpningen aktiveres før HVAC slås av. Sett til 0 for umiddelbar respons.",
+          "opening_8_timeout_close": "Tid å vente etter at denne åpningen lukkes før HVAC slås på igjen. Sett til 0 for umiddelbar respons.",
+          "opening_9_timeout_open": "Tid å vente etter at denne åpningen aktiveres før HVAC slås av. Sett til 0 for umiddelbar respons.",
+          "opening_9_timeout_close": "Tid å vente etter at denne åpningen lukkes før HVAC slås på igjen. Sett til 0 for umiddelbar respons.",
+          "opening_10_timeout_open": "Tid å vente etter at denne åpningen aktiveres før HVAC slås av. Sett til 0 for umiddelbar respons.",
+          "opening_10_timeout_close": "Tid å vente etter at denne åpningen lukkes før HVAC slås på igjen. Sett til 0 for umiddelbar respons."
+        }
+      },
+      "advanced_options": {
+        "title": "Avanserte alternativer",
+        "description": "Endre avanserte termostatinnstillinger og finjuster oppførselen for temperaturkontroll.",
+        "data": {
+          "min_temp": "Minimum temperatur",
+          "max_temp": "Maksimal temperatur",
+          "target_temp": "Måltemperatur",
+          "cold_tolerance": "Kuldetoleranse",
+          "hot_tolerance": "Varmetoleranse",
+          "precision": "Temperaturpresisjon",
+          "target_temp_step": "Temperaturtrinn",
+          "min_cycle_duration": "Minimum syklusvarighet",
+          "keep_alive": "Hold-i-live-varighet",
+          "initial_hvac_mode": "Innledende HVAC-modus",
+          "target_temp_high": "Måltemperatur (høy)",
+          "target_temp_low": "Måltemperatur (lav)",
+          "heat_cool_mode": "Terskel for varme/kjøle-modus"
+        },
+        "data_description": {
+          "min_temp": "Minste tillatte temperaturinnstilling. Setter den nedre grensen for justeringer av måltemperatur.",
+          "max_temp": "Maksimalt tillatte temperaturinnstilling. Setter den øvre grensen for justeringer av måltemperatur.",
+          "target_temp": "Innledende måltemperatur når termostaten konfigureres for første gang eller tilbakestilles.",
+          "cold_tolerance": "Temperaturforskjell under målet før oppvarming aktiveres. Lavere verdier gjør oppvarmingen mer responsiv.",
+          "hot_tolerance": "Temperaturforskjell over målet før kjøling aktiveres. Lavere verdier gjør kjølingen mer responsiv.",
+          "precision": "Temperaturpresisjon for visning og kontroll. Bestemmer desimalpresisjonen for temperaturverdier.",
+          "target_temp_step": "Temperaturtrinnstørrelse for justeringer. Styrer hvor mye måltemperaturen endres med hver justering.",
+          "min_cycle_duration": "Minste tid utstyret må kjøre før det slås av. Bidrar til å hindre kortsyklusdrift og skade på utstyret.",
+          "keep_alive": "Hold-i-live-varighet for periodisk veksling. Sett dette hvis bryteren din trenger et hjerteslag for å holde den 'i live'.",
+          "initial_hvac_mode": "Innledende HVAC-modus ved oppstart av Home Assistant. Setter standard driftsmodus ved oppstart.",
+          "target_temp_high": "Øvre måltemperatur for totrinns oppvarmings-/kjølesystemer.",
+          "target_temp_low": "Nedre måltemperatur for totrinns oppvarmings-/kjølesystemer.",
+          "heat_cool_mode": "Terskel for temperaturforskjell for veksling mellom oppvarming og kjøling i varme/kjøle-modus."
+        }
+      },
+      "presets": {
+        "title": "Konfigurasjon av forhåndsinnstillinger",
+        "description": "Konfigurer temperatur- og systeminnstillinger for hver valgt forhåndsinnstilling. Disse innstillingene brukes automatisk når du aktiverer den tilsvarende forhåndsinnstillingsmodusen.",
+        "data": {
+          "away_temp": "Borte-temperatur",
+          "comfort_temp": "Komfort-temperatur",
+          "eco_temp": "Øko-temperatur",
+          "home_temp": "Hjemme-temperatur",
+          "sleep_temp": "Søvn-temperatur",
+          "anti_freeze_temp": "Frostsikring-temperatur",
+          "activity_temp": "Aktivitet-temperatur",
+          "boost_temp": "Boost-temperatur"
+        },
+        "data_description": {
+          "away_temp": "Måltemperatur for Borte-forhåndsinnstilling. Godtar statisk verdi (f.eks. 18), enhetsreferanse eller betinget mal.",
+          "comfort_temp": "Måltemperatur for Komfort-forhåndsinnstilling. Godtar statisk verdi (f.eks. 22), enhetsreferanse eller mal.",
+          "eco_temp": "Måltemperatur for Øko-forhåndsinnstilling. Godtar statisk verdi (f.eks. 20), enhetsreferanse eller mal.",
+          "home_temp": "Måltemperatur for Hjemme-forhåndsinnstilling. Godtar statisk verdi (f.eks. 21), enhetsreferanse eller mal.",
+          "sleep_temp": "Måltemperatur for Søvn-forhåndsinnstilling. Godtar statisk verdi (f.eks. 18), enhetsreferanse eller mal.",
+          "anti_freeze_temp": "Måltemperatur for Frostsikring-forhåndsinnstilling. Godtar statisk verdi (f.eks. 7), enhetsreferanse eller mal.",
+          "activity_temp": "Måltemperatur for Aktivitet-forhåndsinnstilling. Godtar statisk verdi (f.eks. 23), enhetsreferanse eller mal.",
+          "boost_temp": "Måltemperatur for Boost-forhåndsinnstilling. Godtar statisk verdi (f.eks. 25), enhetsreferanse eller mal."
+        }
+      }
+    }
+  }
+}

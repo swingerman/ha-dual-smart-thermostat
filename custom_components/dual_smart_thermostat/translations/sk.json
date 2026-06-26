@@ -1,34 +1,51 @@
 {
+  "title": "Dual Smart Thermostat",
   "entity": {
     "sensor": {
       "hvac_action_reason": {
         "state": {
-          "none": "None",
-          "min_cycle_duration_not_reached": "Min cycle duration not reached",
-          "target_temp_not_reached": "Target temperature not reached",
-          "target_temp_reached": "Target temperature reached",
-          "target_temp_not_reached_with_fan": "Target temperature not reached (fan assist)",
-          "target_humidity_not_reached": "Target humidity not reached",
-          "target_humidity_reached": "Target humidity reached",
-          "misconfiguration": "Misconfiguration",
-          "opening": "Opening detected",
-          "limit": "Limit reached",
-          "overheat": "Overheat protection",
-          "temperature_sensor_stalled": "Temperature sensor stalled",
-          "humidity_sensor_stalled": "Humidity sensor stalled",
-          "presence": "Presence",
-          "schedule": "Schedule",
-          "emergency": "Emergency",
-          "malfunction": "Malfunction",
-          "auto_priority_humidity": "Auto: humidity priority",
-          "auto_priority_temperature": "Auto: temperature priority",
-          "auto_priority_comfort": "Auto: comfort priority"
+          "none": "Žiadny",
+          "min_cycle_duration_not_reached": "Minimálne trvanie cyklu nedosiahnuté",
+          "target_temp_not_reached": "Cieľová teplota nedosiahnutá",
+          "target_temp_reached": "Cieľová teplota dosiahnutá",
+          "target_temp_not_reached_with_fan": "Cieľová teplota nedosiahnutá (asistencia ventilátora)",
+          "target_humidity_not_reached": "Cieľová vlhkosť nedosiahnutá",
+          "target_humidity_reached": "Cieľová vlhkosť dosiahnutá",
+          "misconfiguration": "Nesprávna konfigurácia",
+          "opening": "Zistený otvor",
+          "limit": "Dosiahnutý limit",
+          "overheat": "Ochrana proti prehriatiu",
+          "temperature_sensor_stalled": "Senzor teploty nereaguje",
+          "humidity_sensor_stalled": "Senzor vlhkosti nereaguje",
+          "presence": "Prítomnosť",
+          "schedule": "Rozvrh",
+          "emergency": "Núdzový stav",
+          "malfunction": "Porucha",
+          "auto_priority_humidity": "Auto: priorita vlhkosti",
+          "auto_priority_temperature": "Auto: priorita teploty",
+          "auto_priority_comfort": "Auto: priorita komfortu"
         }
       }
     }
   },
-  "shared": {
+  "config": {
+    "error": {
+      "same_heater_sensor": "Ohrievač a senzor teploty nemôžu byť rovnaká entita",
+      "same_heater_cooler": "Ohrievač a chladič nemôžu byť rovnaká entita",
+      "aux_heater_timeout_required": "Časový limit pomocného ohrievača je vyžadovaný, keď je pomocný ohrievač nakonfigurovaný",
+      "aux_heater_entity_required": "Entita pomocného ohrievača je vyžadovaná, keď je nakonfigurovaný časový limit"
+    },
     "step": {
+      "user": {
+        "title": "Výber typu systému",
+        "description": "Vyberte typ termostatového systému, ktorý chcete nakonfigurovať.",
+        "data": {
+          "system_type": "Typ systému"
+        },
+        "data_description": {
+          "system_type": "Vyberte typ systému, ktorý najlepšie zodpovedá vášmu nastaveniu HVAC."
+        }
+      },
       "reconfigure_confirm": {
         "title": "Prekonfigurovať {name}",
         "description": "Chystáte sa prekonfigurovať **{name}**.\n\nAktuálny typ systému: **{current_system}**\n\nMôžete ponechať aktuálny typ systému alebo zmeniť na iný. Poznámka: Zmena typu systému vymaže vašu aktuálnu konfiguráciu a začne odznova.\n\nIntegrácia bude po prekonfigurovaní znovu načítaná.",
@@ -39,7 +56,85 @@
           "system_type": "Vyberte typ systému. Ponechajte aktuálny typ pre úpravu nastavení, alebo vyberte iný typ pre začatie s novou konfiguráciou."
         }
       },
+      "basic": {
+        "title": "Základná konfigurácia",
+        "description": "Nakonfigurujte nastavenia termostatu usporiadané podľa kategórií: základné informácie, senzory, ovládacie zariadenia a nastavenia teploty.",
+        "data": {
+          "name": "Názov",
+          "heater": "Spínač ohrievača",
+          "target_sensor": "Senzor teploty",
+          "heat_cool_mode": "Režim vykurovanie/chladenie",
+          "cold_tolerance": "Tolerancia chladu",
+          "hot_tolerance": "Tolerancia tepla",
+          "min_cycle_duration": "Minimálne trvanie cyklu"
+        },
+        "data_description": {
+          "name": "[Základné informácie] Názov entity termostatu (predvolené: Dual Smart).",
+          "target_sensor": "[Senzory] ID entity senzora teploty, ktorý odráža aktuálnu teplotu. Stav senzora musí byť teplota.",
+          "heater": "[Ovládacie zariadenia] ID entity spínača ohrievača, musí byť prepínacie zariadenie. Po povolení režimu AC sa stáva spínačom klimatizácie.",
+          "heat_cool_mode": "[Nastavenia ovládania] Povoliť režim vykurovanie/chladenie s dvojitou reguláciou teploty. Po povolení umožňuje automatické prepínanie medzi vykurovaním a chladením pre udržanie pohodlného teplotného rozsahu.",
+          "cold_tolerance": "[Nastavenia teploty] Minimálny rozdiel teploty medzi nameranou hodnotou senzora a cieľom pred zapnutím vykurovania. Napríklad, ak je cieľ 25°C a tolerancia 0,5°C, ohrievač sa zapne, keď senzor dosiahne 24,5°C alebo menej (predvolené: 0,3°C).",
+          "hot_tolerance": "[Nastavenia teploty] Minimálny rozdiel teploty medzi nameranou hodnotou senzora a cieľom pred vypnutím vykurovania alebo zapnutím chladenia. Napríklad, ak je cieľ 25°C a tolerancia 0,5°C, ohrievač sa vypne, keď senzor dosiahne 25,5°C alebo viac (predvolené: 0,3°C).",
+          "min_cycle_duration": "[Nastavenia teploty] Minimálny čas, počas ktorého musí spínač zostať v aktuálnom stave pred prepnutím. Zabraňuje rýchlemu zapínaniu/vypínaniu a chráni zariadenie."
+        },
+        "sections": {
+          "advanced_settings": {
+            "name": "Pokročilé nastavenia",
+            "description": "Nakonfigurujte teplotné tolerancie a nastavenia ochrany cyklu pre optimálne ovládanie vykurovania.",
+            "data": {
+              "cold_tolerance": "Tolerancia chladu",
+              "hot_tolerance": "Tolerancia tepla",
+              "min_cycle_duration": "Minimálne trvanie cyklu"
+            },
+            "data_description": {
+              "cold_tolerance": "Minimálny rozdiel teploty medzi nameranou hodnotou senzora a cieľom pred zapnutím vykurovania. Napríklad, ak je cieľ 25°C a tolerancia 0,5°C, ohrievač sa zapne, keď senzor dosiahne 24,5°C alebo menej (predvolené: 0,3°C).",
+              "hot_tolerance": "Minimálny rozdiel teploty medzi nameranou hodnotou senzora a cieľom pred vypnutím vykurovania. Napríklad, ak je cieľ 25°C a tolerancia 0,5°C, ohrievač sa vypne, keď senzor dosiahne 25,5°C alebo viac (predvolené: 0,3°C).",
+              "min_cycle_duration": "Minimálny čas, počas ktorého musí spínač ohrievača zostať v aktuálnom stave pred prepnutím. Zabraňuje rýchlemu zapínaniu/vypínaniu a chráni vykurovacie zariadenie (predvolené: 300 sekúnd)."
+            }
+          }
+        }
+      },
+      "basic_ac_only": {
+        "title": "Základná konfigurácia",
+        "description": "Nakonfigurujte svoj klimatizačný systém usporiadaný podľa kategórií.",
+        "data": {
+          "name": "Názov",
+          "heater": "Spínač klimatizácie",
+          "target_sensor": "Senzor teploty",
+          "cold_tolerance": "Tolerancia chladu",
+          "hot_tolerance": "Tolerancia tepla",
+          "min_cycle_duration": "Minimálne trvanie cyklu"
+        },
+        "data_description": {
+          "name": "[Základné informácie] Názov entity termostatu (predvolené: Dual Smart).",
+          "target_sensor": "[Senzory] ID entity senzora teploty, ktorý odráža aktuálnu teplotu. Stav senzora musí byť teplota.",
+          "heater": "[Ovládacie zariadenia] ID entity spínača klimatizácie, musí byť prepínacie zariadenie. Používa sa na chladenie, keď teplota stúpne nad cieľovú hodnotu.",
+          "cold_tolerance": "[Nastavenia teploty] Minimálny rozdiel teploty medzi nameranou hodnotou senzora a cieľom pred zapnutím vykurovania. Napríklad, ak je cieľ 25°C a tolerancia 0,5°C, ohrievač sa zapne, keď senzor dosiahne 24,5°C alebo menej (predvolené: 0,3°C).",
+          "hot_tolerance": "[Nastavenia teploty] Minimálny rozdiel teploty medzi nameranou hodnotou senzora a cieľom pred vypnutím vykurovania alebo zapnutím chladenia. Napríklad, ak je cieľ 25°C a tolerancia 0,5°C, ohrievač sa vypne, keď senzor dosiahne 25,5°C alebo viac (predvolené: 0,3°C).",
+          "min_cycle_duration": "[Nastavenia teploty] Minimálny čas, počas ktorého musí spínač zostať v aktuálnom stave pred prepnutím. Zabraňuje rýchlemu zapínaniu/vypínaniu a chráni zariadenie."
+        },
+        "sections": {
+          "advanced_settings": {
+            "name": "Pokročilé nastavenia",
+            "description": "Nakonfigurujte teplotné tolerancie a pokročilé možnosti pre ochranu cyklu a komunikáciu zariadenia.",
+            "data": {
+              "cold_tolerance": "Tolerancia chladu",
+              "hot_tolerance": "Tolerancia tepla",
+              "min_cycle_duration": "Minimálne trvanie cyklu",
+              "keep_alive": "Interval udržiavania nažive"
+            },
+            "data_description": {
+              "cold_tolerance": "Minimálny rozdiel teploty medzi nameranou hodnotou senzora a cieľom pred vypnutím chladenia. Napríklad, ak je cieľ 25°C a tolerancia 0,5°C, chladenie sa vypne, keď senzor dosiahne 24,5°C alebo menej (predvolené: 0,3°C).",
+              "hot_tolerance": "Minimálny rozdiel teploty medzi nameranou hodnotou senzora a cieľom pred zapnutím chladenia. Napríklad, ak je cieľ 25°C a tolerancia 0,5°C, chladenie sa zapne, keď senzor dosiahne 25,5°C alebo viac (predvolené: 0,3°C).",
+              "min_cycle_duration": "Minimálny čas, počas ktorého musí spínač chladenia zostať v aktuálnom stave pred prepnutím. Zabraňuje rýchlemu zapínaniu/vypínaniu a chráni chladiace zariadenie (predvolené: 300 sekúnd).",
+              "keep_alive": "Maximálny čas medzi aktualizáciami senzora cieľovej teploty. Vynúti periodické prepínanie, aby sa zabezpečilo, že sa chladiace zariadenie neočakávane nevypne (predvolené: 300 sekúnd)."
+            }
+          }
+        }
+      },
       "features": {
+        "title": "Konfigurácia funkcií",
+        "description": "Vyberte, ktoré funkcie chcete pre svoj systém nakonfigurovať. Tým sa určí, ktoré možnosti konfigurácie budú dostupné.",
         "data": {
           "configure_fan": "Konfigurácia ventilátora",
           "configure_humidity": "Konfigurácia vlhkosti",
@@ -48,11 +143,850 @@
           "configure_floor_heating": "Konfigurácia ochrany podlahového kúrenia"
         },
         "data_description": {
-          "configure_fan": "Povoliť konfiguráciu nastavení ventilátora. Umožňuje nastaviť samostatnú entitu ventilátora pre cirkuláciu vzduchu.",
+          "configure_fan": "Povoliť konfiguráciu nastavení ventilátora. Umožňuje nastaviť samostatnú entitu ventilátora, ktorá môže bežať nezávisle pre cirkuláciu vzduchu.",
           "configure_humidity": "Povoliť konfiguráciu monitorovania a kontroly vlhkosti. Umožňuje nastaviť senzory vlhkosti a prevádzku sušiaceho režimu.",
-          "configure_openings": "Povoliť konfiguráciu senzorov okien a dverí, aby termostat mohl pozastaviť prevádzku pri zistení otvorených otvorov.",
+          "configure_openings": "Povoliť konfiguráciu senzorov okien a dverí, aby termostat mohol pozastaviť prevádzku pri zistení otvorov.",
           "configure_presets": "Povoliť konfiguráciu predvolieb teploty ako Preč, Komfort a Eko pre rýchle zmeny režimu.",
-          "configure_floor_heating": "Povoliť konfiguráciu ochrany teploty podlahy. Po povolení môžete nastaviť podlahový senzor a min/max limity na ochranu podlahy."
+          "configure_floor_heating": "Povoliť konfiguráciu ochrany teploty podlahy. Po povolení môžete nastaviť podlahový senzor a max/min limity na ochranu podlahy."
+        }
+      },
+      "heater_cooler": {
+        "title": "Základná konfigurácia",
+        "description": "Nakonfigurujte svoj systém vykurovania a chladenia so samostatnými spínačmi, usporiadaný podľa kategórií.",
+        "data": {
+          "name": "Názov",
+          "heater": "Spínač ohrievača",
+          "cooler": "Spínač chladiča",
+          "target_sensor": "Senzor teploty",
+          "heat_cool_mode": "Režim vykurovanie/chladenie",
+          "cold_tolerance": "Tolerancia chladu",
+          "hot_tolerance": "Tolerancia tepla",
+          "min_cycle_duration": "Minimálne trvanie cyklu"
+        },
+        "data_description": {
+          "name": "[Základné informácie] Názov entity termostatu (predvolené: Dual Smart).",
+          "target_sensor": "[Senzory] ID entity senzora teploty, ktorý odráža aktuálnu teplotu. Stav senzora musí byť teplota.",
+          "heater": "[Ovládacie zariadenia] ID entity spínača ohrievača, musí byť prepínacie zariadenie. Používa sa na vykurovanie, keď teplota klesne pod cieľovú hodnotu.",
+          "cooler": "[Ovládacie zariadenia] ID entity spínača chladiča/AC, musí byť prepínacie zariadenie. Používa sa na chladenie, keď teplota stúpne nad cieľovú hodnotu. Pri systémoch s tepelným čerpadlom môže byť rovnaký ako ohrievač.",
+          "heat_cool_mode": "[Nastavenia ovládania] Povoliť režim vykurovanie/chladenie s dvojitou reguláciou teploty. Po povolení umožňuje automatické prepínanie medzi vykurovaním a chladením pre udržanie pohodlného teplotného rozsahu.",
+          "cold_tolerance": "[Nastavenia teploty] Minimálny rozdiel teploty medzi nameranou hodnotou senzora a cieľom pred zapnutím vykurovania. Vytvára nárazníkovú zónu, ktorá zabraňuje častému prepínaniu.",
+          "hot_tolerance": "[Nastavenia teploty] Minimálny rozdiel teploty medzi nameranou hodnotou senzora a cieľom pred zapnutím chladenia. Vytvára nárazníkovú zónu, ktorá zabraňuje častému prepínaniu.",
+          "min_cycle_duration": "[Nastavenia teploty] Minimálny čas, počas ktorého musia spínače zostať v aktuálnom stave pred prepnutím. Zabraňuje rýchlemu zapínaniu/vypínaniu a chráni zariadenie pred poškodením."
+        },
+        "sections": {
+          "advanced_settings": {
+            "name": "Pokročilé nastavenia",
+            "description": "Nakonfigurujte teplotné tolerancie a nastavenia ochrany cyklu pre optimálne ovládanie systému.",
+            "data": {
+              "cold_tolerance": "Tolerancia chladu",
+              "hot_tolerance": "Tolerancia tepla",
+              "heat_tolerance": "Tolerancia vykurovania",
+              "cool_tolerance": "Tolerancia chladenia",
+              "min_cycle_duration": "Minimálne trvanie cyklu"
+            },
+            "data_description": {
+              "cold_tolerance": "Minimálny rozdiel teploty medzi nameranou hodnotou senzora a cieľom pred aktiváciou vykurovania alebo deaktiváciou chladenia. Napríklad, ak je cieľ 25°C a tolerancia 0,5°C, zmeny nastanú, keď senzor dosiahne 24,5°C alebo menej (predvolené: 0,3°C).",
+              "hot_tolerance": "Minimálny rozdiel teploty medzi nameranou hodnotou senzora a cieľom pred aktiváciou chladenia alebo deaktiváciou vykurovania. Napríklad, ak je cieľ 25°C a tolerancia 0,5°C, zmeny nastanú, keď senzor dosiahne 25,5°C alebo viac (predvolené: 0,3°C).",
+              "heat_tolerance": "Tolerancia špecifická pre režim vykurovania. Prepíše cold_tolerance v režime vykurovania pre jemnejšie ovládanie. Po nastavení táto hodnota určuje, kedy sa aktivuje vykurovanie namiesto použitia cold_tolerance (predvolené: použije cold_tolerance, ak nie je zadané).",
+              "cool_tolerance": "Tolerancia špecifická pre režim chladenia. Prepíše hot_tolerance v režime chladenia pre jemnejšie ovládanie. Po nastavení táto hodnota určuje, kedy sa aktivuje chladenie namiesto použitia hot_tolerance (predvolené: použije hot_tolerance, ak nie je zadané).",
+              "min_cycle_duration": "Minimálny čas, počas ktorého musí spínač systému zostať v aktuálnom stave pred prepnutím. Zabraňuje rýchlemu zapínaniu/vypínaniu a chráni zariadenie (predvolené: 300 sekúnd)."
+            }
+          }
+        }
+      },
+      "heat_pump": {
+        "title": "Konfigurácia tepelného čerpadla",
+        "description": "Nakonfigurujte svoj systém s tepelným čerpadlom. Jeden spínač ovláda vykurovanie aj chladenie, pričom režim je určený senzorom stavu chladenia.",
+        "data": {
+          "name": "Názov",
+          "heater": "Spínač tepelného čerpadla",
+          "target_sensor": "Senzor teploty",
+          "heat_pump_cooling": "Senzor stavu chladenia",
+          "cold_tolerance": "Tolerancia chladu",
+          "hot_tolerance": "Tolerancia tepla",
+          "min_cycle_duration": "Minimálne trvanie cyklu"
+        },
+        "data_description": {
+          "name": "[Základné informácie] Názov entity termostatu (predvolené: Dual Smart).",
+          "heater": "[Ovládacie zariadenia] ID entity spínača tepelného čerpadla. Ovláda jednotku tepelného čerpadla pre vykurovanie aj chladenie. Rovnaký spínač sa používa bez ohľadu na režim.",
+          "target_sensor": "[Senzory] ID entity senzora teploty, ktorý odráža aktuálnu teplotu. Stav senzora musí byť teplota.",
+          "heat_pump_cooling": "[Ovládacie zariadenia] ID entity senzora stavu chladenia (sensor, binary_sensor alebo input_boolean). Keď je 'on', tepelné čerpadlo pracuje v režime chladenia. Keď je 'off', pracuje v režime vykurovania. Tento senzor určuje, ktorý režim tepelné čerpadlo používa. Môže to byť manuálny input_boolean na ovládanie alebo entita poskytovaná vaším systémom tepelného čerpadla.",
+          "cold_tolerance": "[Nastavenia teploty] Minimálny rozdiel teploty medzi nameranou hodnotou senzora a cieľom pred prepnutím tepelného čerpadla do režimu vykurovania. Napríklad, ak je cieľ 25°C a tolerancia 0,5°C, vykurovanie sa spustí, keď senzor dosiahne 24,5°C alebo menej (predvolené: 0,3°C).",
+          "hot_tolerance": "[Nastavenia teploty] Minimálny rozdiel teploty medzi nameranou hodnotou senzora a cieľom pred prepnutím tepelného čerpadla do režimu chladenia. Napríklad, ak je cieľ 25°C a tolerancia 0,5°C, chladenie sa spustí, keď senzor dosiahne 25,5°C alebo viac (predvolené: 0,3°C).",
+          "min_cycle_duration": "[Nastavenia teploty] Minimálny čas, počas ktorého musí tepelné čerpadlo zostať v aktuálnom stave pred prepnutím. Kritické pre ochranu tepelného čerpadla, pretože časté prepínanie môže poškodiť kompresor (predvolené: 300 sekúnd)."
+        },
+        "sections": {
+          "advanced_settings": {
+            "name": "Pokročilé nastavenia",
+            "description": "Nakonfigurujte teplotné tolerancie a nastavenia ochrany cyklu pre optimálnu prevádzku tepelného čerpadla.",
+            "data": {
+              "cold_tolerance": "Tolerancia chladu",
+              "hot_tolerance": "Tolerancia tepla",
+              "heat_tolerance": "Tolerancia vykurovania",
+              "cool_tolerance": "Tolerancia chladenia",
+              "min_cycle_duration": "Minimálne trvanie cyklu"
+            },
+            "data_description": {
+              "cold_tolerance": "Minimálny rozdiel teploty medzi nameranou hodnotou senzora a cieľom pred prepnutím tepelného čerpadla do režimu vykurovania. Napríklad, ak je cieľ 25°C a tolerancia 0,5°C, vykurovanie sa spustí, keď senzor dosiahne 24,5°C alebo menej (predvolené: 0,3°C).",
+              "hot_tolerance": "Minimálny rozdiel teploty medzi nameranou hodnotou senzora a cieľom pred prepnutím tepelného čerpadla do režimu chladenia. Napríklad, ak je cieľ 25°C a tolerancia 0,5°C, chladenie sa spustí, keď senzor dosiahne 25,5°C alebo viac (predvolené: 0,3°C).",
+              "heat_tolerance": "Tolerancia špecifická pre režim vykurovania. Prepíše cold_tolerance v režime vykurovania pre jemnejšie ovládanie. Po nastavení táto hodnota určuje, kedy sa aktivuje vykurovanie namiesto použitia cold_tolerance (predvolené: použije cold_tolerance, ak nie je zadané).",
+              "cool_tolerance": "Tolerancia špecifická pre režim chladenia. Prepíše hot_tolerance v režime chladenia pre jemnejšie ovládanie. Po nastavení táto hodnota určuje, kedy sa aktivuje chladenie namiesto použitia hot_tolerance (predvolené: použije hot_tolerance, ak nie je zadané).",
+              "min_cycle_duration": "Minimálny čas, počas ktorého musí tepelné čerpadlo zostať v aktuálnom stave pred prepnutím. Kritické pre ochranu tepelného čerpadla, pretože časté prepínanie môže poškodiť kompresor (predvolené: 300 sekúnd)."
+            }
+          }
+        }
+      },
+      "dual_stage": {
+        "title": "Základná konfigurácia",
+        "description": "Nakonfigurujte základné nastavenia pre svoj dvojstupňový vykurovací systém.",
+        "data": {
+          "name": "Názov",
+          "heater": "Spínač primárneho ohrievača",
+          "target_sensor": "Senzor teploty",
+          "cold_tolerance": "Tolerancia chladu",
+          "hot_tolerance": "Tolerancia tepla",
+          "min_cycle_duration": "Minimálne trvanie cyklu"
+        },
+        "data_description": {
+          "name": "Názov entity termostatu (predvolené: Dual Smart).",
+          "heater": "ID entity spínača primárneho ohrievača, musí byť prepínacie zariadenie. Toto bude ohrievač prvého stupňa, ktorý pracuje väčšinu času.",
+          "target_sensor": "ID entity senzora teploty, ktorý odráža aktuálnu teplotu. Stav senzora musí byť teplota.",
+          "cold_tolerance": "Minimálny rozdiel teploty medzi nameranou hodnotou senzora a cieľom pred zapnutím primárneho vykurovania. Napríklad, ak je cieľ 25°C a tolerancia 0,5°C, primárny ohrievač sa zapne, keď senzor dosiahne 24,5°C alebo menej (predvolené: 0,3°C).",
+          "hot_tolerance": "Minimálny rozdiel teploty medzi nameranou hodnotou senzora a cieľom pred vypnutím vykurovania. Napríklad, ak je cieľ 25°C a tolerancia 0,5°C, ohrievač sa vypne, keď senzor dosiahne 25,5°C alebo viac (predvolené: 0,3°C).",
+          "min_cycle_duration": "Minimálny čas, počas ktorého musí primárny ohrievač zostať v aktuálnom stave pred prepnutím. Zabraňuje rýchlemu zapínaniu/vypínaniu a chráni zariadenie."
+        }
+      },
+      "two_stage": {
+        "title": "Konfigurácia dvojstupňového vykurovania",
+        "description": "Nakonfigurujte dvojstupňový vykurovací systém s primárnym a pomocným vykurovaním.",
+        "data": {
+          "heater_2": "Spínač ohrievača druhého stupňa",
+          "heat_cool_mode": "Režim vykurovanie/chladenie",
+          "dual_mode_tolerance": "Tolerancia duálneho režimu"
+        },
+        "data_description": {
+          "heater_2": "ID entity spínača ohrievača druhého stupňa. Používa sa, keď je potrebná dodatočná vykurovacia kapacita. V duálnom režime je toto spínač vykurovania, zatiaľ čo 'heater' sa stáva spínačom chladenia.",
+          "heat_cool_mode": "Povoliť režim vykurovanie/chladenie. Ohrievač prvého stupňa 'heater' sa stáva chladením a druhý stupeň 'heater_2' sa stáva vykurovaním. Umožňuje súčasné ovládanie vykurovania a chladenia.",
+          "dual_mode_tolerance": "Teplotná tolerancia pre prevádzku duálneho režimu. Nastavuje nárazníkovú zónu, kde nepracuje ani vykurovanie ani chladenie, čím sa zabráni rýchlemu prepínaniu medzi vykurovaním a chladením."
+        }
+      },
+      "dual_stage_config": {
+        "title": "Konfigurácia sekundárneho ohrievača",
+        "description": "Nakonfigurujte nastavenia pomocného/sekundárneho ohrievača.",
+        "data": {
+          "secondary_heater": "Spínač sekundárneho ohrievača",
+          "secondary_heater_timeout": "Časový limit sekundárneho ohrievača",
+          "secondary_heater_dual_mode": "Prevádzka v duálnom režime"
+        },
+        "data_description": {
+          "secondary_heater": "ID entity spínača pomocného/sekundárneho ohrievača. Aktivuje sa, keď primárny ohrievač nedokáže udržať teplotu, čím poskytuje dodatočnú vykurovaciu kapacitu pre extrémne chladné podmienky.",
+          "secondary_heater_timeout": "Čas čakania pred aktiváciou sekundárneho ohrievača po spustení primárneho ohrievača. Zabraňuje súčasnému spusteniu oboch ohrievačov a poskytuje primárnemu ohrievaču čas na dosiahnutie cieľovej teploty.",
+          "secondary_heater_dual_mode": "Povoliť súčasnú prácu primárneho aj sekundárneho ohrievača, keď je to potrebné. Po zakázaní sa sekundárny ohrievač aktivuje len vtedy, keď samotný primárny ohrievač nestačí."
+        }
+      },
+      "floor_heating": {
+        "title": "Konfigurácia podlahového kúrenia",
+        "description": "Nakonfigurujte senzor teploty podlahy a limity pre systémy podlahového kúrenia.",
+        "data": {
+          "floor_sensor": "Senzor teploty podlahy",
+          "max_floor_temp": "Maximálna teplota podlahy"
+        },
+        "data_description": {
+          "floor_sensor": "ID entity senzora teploty podlahy. Po nakonfigurovaní poskytuje ochranu teploty podlahy a ovládanie podlahového kúrenia nezávisle od teploty miestnosti.",
+          "max_floor_temp": "Maximálna povolená teplota podlahy. Podlahové kúrenie sa automaticky vypne, keď je táto teplota prekročená, bez ohľadu na cieľovú teplotu miestnosti, aby sa chránili podlahové materiály a zabránilo prehriatiu."
+        }
+      },
+      "floor_config": {
+        "title": "Ochrana teploty podlahy",
+        "description": "Nakonfigurujte monitorovanie a limity teploty podlahy.",
+        "data": {
+          "floor_sensor": "Senzor teploty podlahy",
+          "max_floor_temp": "Maximálna teplota podlahy",
+          "min_floor_temp": "Minimálna teplota podlahy"
+        },
+        "data_description": {
+          "floor_sensor": "ID entity senzora teploty podlahy. Monitoruje teplotu podlahy pre zabezpečenie bezpečnej prevádzky a ochranu podlahových materiálov pred prehriatím alebo extrémnym chladom.",
+          "max_floor_temp": "Maximálna povolená teplota podlahy pre ochranu. Podlahové kúrenie sa vypne, keď sa dosiahne táto teplota, bez ohľadu na teplotu miestnosti, aby sa zabránilo poškodeniu podlahových materiálov. (Predvolené: 28°C)",
+          "min_floor_temp": "Minimálna teplota podlahy, ktorá sa má udržiavať. Podlahové kúrenie sa aktivuje, keď teplota podlahy klesne pod túto hodnotu, čím poskytuje ochranu proti zamrznutiu pre systém podlahového kúrenia. (Predvolené: 5°C)"
+        }
+      },
+      "openings_toggle": {
+        "title": "Konfigurácia senzorov okien/dverí",
+        "description": "Povoliť automatické ovládanie HVAC na základe senzorov okien a dverí.",
+        "data": {
+          "enable_openings": "Povoliť detekciu otvorov"
+        },
+        "data_description": {
+          "enable_openings": "Povoliť integráciu senzorov okien a dverí. Po povolení termostat automaticky vypne vykurovanie/chladenie pri otvorení okien alebo dverí a obnoví prevádzku po ich zatvorení, čím šetrí energiu a zlepšuje efektivitu."
+        }
+      },
+      "openings_selection": {
+        "title": "Výber senzorov okien/dverí",
+        "description": "Vyberte senzory okien a dverí a nakonfigurujte ich prevádzkový rozsah.",
+        "data": {
+          "selected_openings": "Senzory okien/dverí",
+          "openings_scope": "HVAC režimy ovplyvnené otvormi"
+        },
+        "data_description": {
+          "selected_openings": "Vyberte entity, ktoré zisťujú, kedy sú okná alebo dvere otvorené. Môžu to byť binárne senzory, senzory, spínače alebo input booleany. Entita by mala indikovať stav 'otvorené', keď je okno/dvere otvorené, a stav 'zatvorené', keď je zatvorené.",
+          "openings_scope": "Vyberte, ktoré HVAC režimy majú byť ovplyvnené, keď sú okná/dvere otvorené. Ak je vybraté 'Všetky HVAC režimy' alebo nie je vybraté nič, celý systém sa vypne pri zistení akéhokoľvek otvoru. Vyberte konkrétne režimy, aby ovplyvnili len tie operácie (napr. iba vykurovanie alebo iba chladenie)."
+        }
+      },
+      "openings_config": {
+        "title": "Nastavenia časového limitu otvorenia/zatvorenia",
+        "description": "Nakonfigurujte voliteľné oneskorenia časového limitu pre otvorenie a zatvorenie okien/dverí. Nechajte prázdne pre okamžitú reakciu.\n\nVybraté otvory:\n{selected_entities}",
+        "data": {
+          "openings_scope": "HVAC režimy ovplyvnené otvormi",
+          "opening_1_timeout_open": "Otvor 1 - Časový limit otvorenia (sekundy)",
+          "opening_1_timeout_close": "Otvor 1 - Časový limit zatvorenia (sekundy)",
+          "opening_2_timeout_open": "Otvor 2 - Časový limit otvorenia (sekundy)",
+          "opening_2_timeout_close": "Otvor 2 - Časový limit zatvorenia (sekundy)",
+          "opening_3_timeout_open": "Otvor 3 - Časový limit otvorenia (sekundy)",
+          "opening_3_timeout_close": "Otvor 3 - Časový limit zatvorenia (sekundy)",
+          "opening_4_timeout_open": "Otvor 4 - Časový limit otvorenia (sekundy)",
+          "opening_4_timeout_close": "Otvor 4 - Časový limit zatvorenia (sekundy)",
+          "opening_5_timeout_open": "Otvor 5 - Časový limit otvorenia (sekundy)",
+          "opening_5_timeout_close": "Otvor 5 - Časový limit zatvorenia (sekundy)",
+          "opening_6_timeout_open": "Otvor 6 - Časový limit otvorenia (sekundy)",
+          "opening_6_timeout_close": "Otvor 6 - Časový limit zatvorenia (sekundy)",
+          "opening_7_timeout_open": "Otvor 7 - Časový limit otvorenia (sekundy)",
+          "opening_7_timeout_close": "Otvor 7 - Časový limit zatvorenia (sekundy)",
+          "opening_8_timeout_open": "Otvor 8 - Časový limit otvorenia (sekundy)",
+          "opening_8_timeout_close": "Otvor 8 - Časový limit zatvorenia (sekundy)",
+          "opening_9_timeout_open": "Otvor 9 - Časový limit otvorenia (sekundy)",
+          "opening_9_timeout_close": "Otvor 9 - Časový limit zatvorenia (sekundy)",
+          "opening_10_timeout_open": "Otvor 10 - Časový limit otvorenia (sekundy)",
+          "opening_10_timeout_close": "Otvor 10 - Časový limit zatvorenia (sekundy)"
+        },
+        "data_description": {
+          "openings_scope": "Vyberte, ktoré HVAC režimy majú byť ovplyvnené, keď sú okná/dvere otvorené. Keď nie je vybraný žiadny rozsah alebo je zvolené 'Všetky HVAC režimy', bude ovplyvnený celý systém.",
+          "opening_1_timeout_open": "Čas čakania po aktivácii tohto otvoru pred vypnutím HVAC. Nastavte na 0 pre okamžitú reakciu.",
+          "opening_1_timeout_close": "Čas čakania po zatvorení tohto otvoru pred opätovným zapnutím HVAC. Nastavte na 0 pre okamžitú reakciu.",
+          "opening_2_timeout_open": "Čas čakania po aktivácii tohto otvoru pred vypnutím HVAC. Nastavte na 0 pre okamžitú reakciu.",
+          "opening_2_timeout_close": "Čas čakania po zatvorení tohto otvoru pred opätovným zapnutím HVAC. Nastavte na 0 pre okamžitú reakciu.",
+          "opening_3_timeout_open": "Čas čakania po aktivácii tohto otvoru pred vypnutím HVAC. Nastavte na 0 pre okamžitú reakciu.",
+          "opening_3_timeout_close": "Čas čakania po zatvorení tohto otvoru pred opätovným zapnutím HVAC. Nastavte na 0 pre okamžitú reakciu.",
+          "opening_4_timeout_open": "Čas čakania po aktivácii tohto otvoru pred vypnutím HVAC. Nastavte na 0 pre okamžitú reakciu.",
+          "opening_4_timeout_close": "Čas čakania po zatvorení tohto otvoru pred opätovným zapnutím HVAC. Nastavte na 0 pre okamžitú reakciu.",
+          "opening_5_timeout_open": "Čas čakania po aktivácii tohto otvoru pred vypnutím HVAC. Nastavte na 0 pre okamžitú reakciu.",
+          "opening_5_timeout_close": "Čas čakania po zatvorení tohto otvoru pred opätovným zapnutím HVAC. Nastavte na 0 pre okamžitú reakciu.",
+          "opening_6_timeout_open": "Čas čakania po aktivácii tohto otvoru pred vypnutím HVAC. Nastavte na 0 pre okamžitú reakciu.",
+          "opening_6_timeout_close": "Čas čakania po zatvorení tohto otvoru pred opätovným zapnutím HVAC. Nastavte na 0 pre okamžitú reakciu.",
+          "opening_7_timeout_open": "Čas čakania po aktivácii tohto otvoru pred vypnutím HVAC. Nastavte na 0 pre okamžitú reakciu.",
+          "opening_7_timeout_close": "Čas čakania po zatvorení tohto otvoru pred opätovným zapnutím HVAC. Nastavte na 0 pre okamžitú reakciu.",
+          "opening_8_timeout_open": "Čas čakania po aktivácii tohto otvoru pred vypnutím HVAC. Nastavte na 0 pre okamžitú reakciu.",
+          "opening_8_timeout_close": "Čas čakania po zatvorení tohto otvoru pred opätovným zapnutím HVAC. Nastavte na 0 pre okamžitú reakciu.",
+          "opening_9_timeout_open": "Čas čakania po aktivácii tohto otvoru pred vypnutím HVAC. Nastavte na 0 pre okamžitú reakciu.",
+          "opening_9_timeout_close": "Čas čakania po zatvorení tohto otvoru pred opätovným zapnutím HVAC. Nastavte na 0 pre okamžitú reakciu.",
+          "opening_10_timeout_open": "Čas čakania po aktivácii tohto otvoru pred vypnutím HVAC. Nastavte na 0 pre okamžitú reakciu.",
+          "opening_10_timeout_close": "Čas čakania po zatvorení tohto otvoru pred opätovným zapnutím HVAC. Nastavte na 0 pre okamžitú reakciu."
+        }
+      },
+      "heat_cool_mode": {
+        "title": "Konfigurácia režimu vykurovanie/chladenie",
+        "description": "Nakonfigurujte automatické prepínanie režimu vykurovanie/chladenie.",
+        "data": {
+          "heat_cool_mode": "Povoliť režim vykurovanie/chladenie",
+          "target_temp_low": "Dolná požadovaná teplota",
+          "target_temp_high": "Horná požadovaná teplota"
+        },
+        "data_description": {
+          "heat_cool_mode": "Povoliť automatické prepínanie medzi režimami vykurovania a chladenia na základe dvoch teplotných hodnôt. Vytvára pohodlný teplotný rozsah namiesto jednej cieľovej hodnoty.",
+          "target_temp_low": "Dolný teplotný prah pre režim vykurovanie/chladenie. Vykurovanie sa aktivuje, keď teplota klesne pod túto hodnotu.",
+          "target_temp_high": "Horný teplotný prah pre režim vykurovanie/chladenie. Chladenie sa aktivuje, keď teplota stúpne nad túto hodnotu. Musí byť vyššia ako dolná hodnota."
+        }
+      },
+      "fan": {
+        "title": "Konfigurácia ventilátora",
+        "description": "Nakonfigurujte ovládanie a nastavenia ventilátora.",
+        "data": {
+          "fan": "Spínač ventilátora",
+          "fan_mode": "Režim ventilátora",
+          "fan_on_with_ac": "Ventilátor s AC",
+          "fan_air_outside": "Ventilátor s vonkajším vzduchom",
+          "fan_hot_tolerance": "Tolerancia tepla ventilátora",
+          "fan_hot_tolerance_toggle": "Prepínač tolerancie ventilátora"
+        },
+        "data_description": {
+          "fan": "ID entity spínača ventilátora. Používa sa na ovládanie cirkulácie vzduchu a zlepšenie distribúcie teploty v priestore.",
+          "fan_mode": "Povoliť ventilátor ako samostatný HVAC režim. Po povolení je režim VENTILÁTOR dostupný okrem režimov vykurovania, chladenia a automatického režimu, čím umožňuje prevádzku len s ventilátorom.",
+          "fan_on_with_ac": "Automaticky zapnúť ventilátor, keď je aktívne chladenie (AC). Zlepšuje efektivitu chladenia a cirkuláciu vzduchu počas chladiacich cyklov.",
+          "fan_air_outside": "Povoliť cirkuláciu vonkajšieho vzduchu, keď je vonkajšia teplota priaznivejšia ako vnútorná teplota. Vyžaduje nakonfigurovaný senzor vonkajšej teploty pre inteligentné využitie vonkajšieho vzduchu.",
+          "fan_hot_tolerance": "Teplotný rozsah nad cieľom, kde sa používa ventilátor namiesto AC. Napríklad, s cieľom 25°C, hot_tolerance 1°C a fan_hot_tolerance 0,5°C: ventilátor sa aktivuje pri 26°C (cieľ + hot_tolerance), AC sa aktivuje pri 26,5°C (cieľ + hot_tolerance + fan_hot_tolerance). Predvolené: 0,5°C.",
+          "fan_hot_tolerance_toggle": "Voliteľné ID entity pre input_boolean na dynamické povolenie/zakázanie funkcie fan_hot_tolerance. Keď je vypnuté, AC sa použije okamžite namiesto najprv skúšania ventilátora. Keď nie je nakonfigurované, funkcia fan_hot_tolerance je vždy povolená."
+        }
+      },
+      "humidity": {
+        "title": "Kontrola vlhkosti",
+        "description": "Nakonfigurujte monitorovanie a kontrolu vlhkosti.",
+        "data": {
+          "humidity_sensor": "Senzor vlhkosti",
+          "dryer": "Spínač sušiča/odvlhčovača",
+          "target_humidity": "Cieľová vlhkosť",
+          "min_humidity": "Minimálna vlhkosť",
+          "max_humidity": "Maximálna vlhkosť",
+          "dry_tolerance": "Tolerancia sucha",
+          "moist_tolerance": "Tolerancia vlhka"
+        },
+        "data_description": {
+          "humidity_sensor": "ID entity senzora vlhkosti. Po nakonfigurovaní povolí funkcie kontroly vlhkosti a predvoľby založené na vlhkosti. Stav senzora musí byť percento vlhkosti.",
+          "dryer": "ID entity spínača sušiča/odvlhčovača. Používa sa na ovládanie odvlhčovania, keď úrovne vlhkosti prekročia cieľové hodnoty.",
+          "target_humidity": "Cieľová úroveň vlhkosti, ktorá sa má udržiavať (percento). Predvolený cieľ vlhkosti, keď nie je aktívna žiadna predvoľba.",
+          "min_humidity": "Minimálna povolená úroveň vlhkosti (percento). Vlhkosť sa zvýši, ak klesne pod túto hodnotu.",
+          "max_humidity": "Maximálna povolená úroveň vlhkosti (percento). Vlhkosť sa zníži, ak stúpne nad túto hodnotu.",
+          "dry_tolerance": "Minimálny rozdiel vlhkosti pod cieľom pred aktiváciou zvlhčovania alebo deaktiváciou odvlhčovania.",
+          "moist_tolerance": "Minimálny rozdiel vlhkosti nad cieľom pred aktiváciou odvlhčovania alebo deaktiváciou zvlhčovania."
+        }
+      },
+      "additional_sensors": {
+        "title": "Dodatočné senzory",
+        "description": "Nakonfigurujte dodatočné senzory teploty.",
+        "data": {
+          "outside_sensor": "Senzor vonkajšej teploty"
+        },
+        "data_description": {
+          "outside_sensor": "ID entity senzora vonkajšej teploty. Používa sa pre inteligentné operácie ako voľné chladenie, využitie vonkajšieho vzduchu s ovládaním ventilátora a rozhodnutia o vykurovaní/chladení založené na počasí. Umožňuje systému optimalizovať spotrebu energie na základe vonkajších podmienok."
+        }
+      },
+      "advanced": {
+        "title": "Pokročilé nastavenia",
+        "description": "Nakonfigurujte pokročilé nastavenia termostatu.",
+        "data": {
+          "advanced_system_type": "Pokročilý typ systému",
+          "keep_alive": "Trvanie udržiavania nažive",
+          "initial_hvac_mode": "Počiatočný režim HVAC",
+          "precision": "Presnosť teploty",
+          "target_temp_step": "Krok teploty",
+          "min_temp": "Minimálna teplota",
+          "max_temp": "Maximálna teplota",
+          "target_temp": "Cieľová teplota"
+        },
+        "data_description": {
+          "advanced_system_type": "Vyberte pokročilú konfiguráciu systému. Vyberte štandardný pre bežný termostat, dvojstupňový pre dvojstupňové vykurovanie s pomocným ohrievačom alebo podlahové kúrenie pre systémy ochrany teploty.",
+          "keep_alive": "Trvanie udržiavania nažive pre periodické prepínanie. Nastavte to, ak váš spínač potrebuje signál na udržanie v stave 'aktívny'. Napríklad niektoré spínače sa po určitom čase automaticky vypnú.",
+          "initial_hvac_mode": "Počiatočný režim HVAC pri štarte Home Assistant. Nastavuje predvolený režim prevádzky pri štarte (vykurovanie, chladenie, automaticky, vypnuté atď.).",
+          "precision": "Presnosť teploty pre zobrazenie a ovládanie. Určuje desatinnú presnosť pre hodnoty teploty (0,1, 0,5, 1,0 stupňa).",
+          "target_temp_step": "Veľkosť kroku teploty pre úpravy. Ovláda, o koľko sa cieľová teplota zmení pri každej úprave (napr. kroky 0,5°C alebo 1°C).",
+          "min_temp": "Minimálne povolené nastavenie teploty. Nastavuje dolnú hranicu pre cieľovú teplotu, aby sa zabránilo nebezpečnej alebo neefektívnej prevádzke.",
+          "max_temp": "Maximálne povolené nastavenie teploty. Nastavuje hornú hranicu pre cieľovú teplotu, aby sa zabránilo nebezpečnej alebo neefektívnej prevádzke.",
+          "target_temp": "Počiatočná cieľová teplota pri prvej konfigurácii termostatu. Toto sa stáva predvolenou teplotou, keď nie je aktívna žiadna predvoľba."
+        }
+      },
+      "presets": {
+        "title": "Konfigurácia predvolieb teploty",
+        "description": "Nakonfigurujte predvoľby teploty pre rôzne scenáre. Polia sú usporiadané podľa typu predvoľby - základná teplota, nastavenia vlhkosti, rozsahy dvoch teplôt, limity podlahového kúrenia a režimy ventilátora na základe vašich nakonfigurovaných funkcií.",
+        "data": {
+          "away": "▼ PREDVOĽBA PREČ",
+          "away_temp": "Teplota Preč",
+          "away_humidity": "Vlhkosť Preč",
+          "away_temp_low": "Dolná teplota Preč",
+          "away_temp_high": "Horná teplota Preč",
+          "away_max_floor_temp": "Max teplota podlahy Preč",
+          "away_min_floor_temp": "Min teplota podlahy Preč",
+          "away_fan_mode": "Režim ventilátora Preč",
+          "comfort": "▼ PREDVOĽBA KOMFORT",
+          "comfort_temp": "Teplota Komfort",
+          "comfort_humidity": "Vlhkosť Komfort",
+          "comfort_temp_low": "Dolná teplota Komfort",
+          "comfort_temp_high": "Horná teplota Komfort",
+          "comfort_max_floor_temp": "Max teplota podlahy Komfort",
+          "comfort_min_floor_temp": "Min teplota podlahy Komfort",
+          "comfort_fan_mode": "Režim ventilátora Komfort",
+          "eco": "▼ PREDVOĽBA EKO",
+          "eco_temp": "Teplota Eko",
+          "eco_humidity": "Vlhkosť Eko",
+          "eco_temp_low": "Dolná teplota Eko",
+          "eco_temp_high": "Horná teplota Eko",
+          "eco_max_floor_temp": "Max teplota podlahy Eko",
+          "eco_min_floor_temp": "Min teplota podlahy Eko",
+          "eco_fan_mode": "Režim ventilátora Eko",
+          "home": "▼ PREDVOĽBA DOMA",
+          "home_temp": "Teplota Doma",
+          "home_humidity": "Vlhkosť Doma",
+          "home_temp_low": "Dolná teplota Doma",
+          "home_temp_high": "Horná teplota Doma",
+          "home_max_floor_temp": "Max teplota podlahy Doma",
+          "home_min_floor_temp": "Min teplota podlahy Doma",
+          "home_fan_mode": "Režim ventilátora Doma",
+          "sleep": "▼ PREDVOĽBA SPÁNOK",
+          "sleep_temp": "Teplota Spánok",
+          "sleep_humidity": "Vlhkosť Spánok",
+          "sleep_temp_low": "Dolná teplota Spánok",
+          "sleep_temp_high": "Horná teplota Spánok",
+          "sleep_max_floor_temp": "Max teplota podlahy Spánok",
+          "sleep_min_floor_temp": "Min teplota podlahy Spánok",
+          "sleep_fan_mode": "Režim ventilátora Spánok",
+          "anti_freeze": "▼ PREDVOĽBA PROTI ZAMRZNUTIU",
+          "anti_freeze_temp": "Teplota Proti zamrznutiu",
+          "anti_freeze_humidity": "Vlhkosť Proti zamrznutiu",
+          "anti_freeze_temp_low": "Dolná teplota Proti zamrznutiu",
+          "anti_freeze_temp_high": "Horná teplota Proti zamrznutiu",
+          "anti_freeze_max_floor_temp": "Max teplota podlahy Proti zamrznutiu",
+          "anti_freeze_min_floor_temp": "Min teplota podlahy Proti zamrznutiu",
+          "anti_freeze_fan_mode": "Režim ventilátora Proti zamrznutiu",
+          "activity": "▼ PREDVOĽBA AKTIVITA",
+          "activity_temp": "Teplota Aktivita",
+          "activity_humidity": "Vlhkosť Aktivita",
+          "activity_temp_low": "Dolná teplota Aktivita",
+          "activity_temp_high": "Horná teplota Aktivita",
+          "activity_max_floor_temp": "Max teplota podlahy Aktivita",
+          "activity_min_floor_temp": "Min teplota podlahy Aktivita",
+          "activity_fan_mode": "Režim ventilátora Aktivita",
+          "boost": "▼ PREDVOĽBA BOOST",
+          "boost_temp": "Teplota Boost",
+          "boost_humidity": "Vlhkosť Boost",
+          "boost_temp_low": "Dolná teplota Boost",
+          "boost_temp_high": "Horná teplota Boost",
+          "boost_max_floor_temp": "Max teplota podlahy Boost",
+          "boost_min_floor_temp": "Min teplota podlahy Boost",
+          "boost_fan_mode": "Režim ventilátora Boost"
+        },
+        "data_description": {
+          "away": "Predvoľba Preč - Cieľová teplota, keď je vybraná predvoľba Preč. Zvyčajne nastavená nižšie pre úsporu energie, keď nikto nie je doma.",
+          "away_temp": "Cieľová teplota pre predvoľbu Preč. Akceptuje statickú hodnotu (napr. 18), odkaz na entitu (napr. states('input_number.away_temp')) alebo šablónu.",
+          "away_humidity": "Predvoľba Preč - Cieľová vlhkosť, keď je vybraná predvoľba Preč. Používa sa s kontrolou vlhkosti na udržanie optimálnych podmienok.",
+          "away_temp_low": "Predvoľba Preč - Dolná hranica teploty v režime dvoch teplôt. Akceptuje statickú hodnotu (napr. 18) alebo šablónu (napr. {{ states('sensor.outdoor_temp') | float - 2 }}).",
+          "away_temp_high": "Predvoľba Preč - Horná hranica teploty v režime dvoch teplôt. Akceptuje statickú hodnotu (napr. 24) alebo šablónu (napr. {{ states('sensor.outdoor_temp') | float + 4 }}).",
+          "away_max_floor_temp": "Predvoľba Preč - Maximálna teplota podlahy, keď je vybraná predvoľba Preč pre systémy podlahového kúrenia.",
+          "away_min_floor_temp": "Predvoľba Preč - Minimálna teplota podlahy, keď je vybraná predvoľba Preč pre systémy podlahového kúrenia.",
+          "away_fan_mode": "Predvoľba Preč - Nastavenie režimu ventilátora, keď je vybraná predvoľba Preč.",
+          "comfort": "Predvoľba Komfort - Cieľová teplota, keď je vybraná predvoľba Komfort. Nastavenie maximálneho komfortu.",
+          "comfort_temp": "Cieľová teplota pre predvoľbu Komfort. Akceptuje statickú hodnotu (napr. 22), odkaz na entitu (napr. states('input_number.comfort_temp')) alebo šablónu.",
+          "comfort_humidity": "Predvoľba Komfort - Cieľová vlhkosť, keď je vybraná predvoľba Komfort.",
+          "comfort_temp_low": "Predvoľba Komfort - Dolná hranica teploty v režime dvoch teplôt. Akceptuje statickú hodnotu alebo šablónu.",
+          "comfort_temp_high": "Predvoľba Komfort - Horná hranica teploty v režime dvoch teplôt. Akceptuje statickú hodnotu alebo šablónu.",
+          "comfort_max_floor_temp": "Predvoľba Komfort - Maximálna teplota podlahy, keď je vybraná predvoľba Komfort pre systémy podlahového kúrenia.",
+          "comfort_min_floor_temp": "Predvoľba Komfort - Minimálna teplota podlahy, keď je vybraná predvoľba Komfort pre systémy podlahového kúrenia.",
+          "comfort_fan_mode": "Predvoľba Komfort - Nastavenie režimu ventilátora, keď je vybraná predvoľba Komfort.",
+          "eco": "Predvoľba Eko - Cieľová teplota, keď je vybraná predvoľba Eko. Energeticky úsporné nastavenie teploty.",
+          "eco_temp": "Cieľová teplota pre predvoľbu Eko. Akceptuje statickú hodnotu (napr. 20), odkaz na entitu (napr. states('input_number.eco_temp')) alebo šablónu.",
+          "eco_humidity": "Predvoľba Eko - Cieľová vlhkosť, keď je vybraná predvoľba Eko. Energeticky efektívna úroveň vlhkosti.",
+          "eco_temp_low": "Predvoľba Eko - Dolná hranica teploty v režime dvoch teplôt. Akceptuje statickú hodnotu alebo šablónu.",
+          "eco_temp_high": "Predvoľba Eko - Horná hranica teploty v režime dvoch teplôt. Akceptuje statickú hodnotu alebo šablónu.",
+          "eco_max_floor_temp": "Predvoľba Eko - Maximálna teplota podlahy, keď je vybraná predvoľba Eko pre systémy podlahového kúrenia.",
+          "eco_min_floor_temp": "Predvoľba Eko - Minimálna teplota podlahy, keď je vybraná predvoľba Eko pre systémy podlahového kúrenia.",
+          "eco_fan_mode": "Predvoľba Eko - Nastavenie režimu ventilátora, keď je vybraná predvoľba Eko.",
+          "home": "Predvoľba Doma - Cieľová teplota, keď je vybraná predvoľba Doma. Pohodlná teplota pre každodenné aktivity.",
+          "home_temp": "Cieľová teplota pre predvoľbu Doma. Akceptuje statickú hodnotu (napr. 21), odkaz na entitu (napr. states('input_number.home_temp')) alebo šablónu.",
+          "home_humidity": "Predvoľba Doma - Cieľová vlhkosť, keď je vybraná predvoľba Doma. Optimálna vlhkosť pre komfort a zdravie.",
+          "home_temp_low": "Predvoľba Doma - Dolná hranica teploty v režime dvoch teplôt. Akceptuje statickú hodnotu alebo šablónu.",
+          "home_temp_high": "Predvoľba Doma - Horná hranica teploty v režime dvoch teplôt. Akceptuje statickú hodnotu alebo šablónu.",
+          "home_max_floor_temp": "Predvoľba Doma - Maximálna teplota podlahy, keď je vybraná predvoľba Doma pre systémy podlahového kúrenia.",
+          "home_min_floor_temp": "Predvoľba Doma - Minimálna teplota podlahy, keď je vybraná predvoľba Doma pre systémy podlahového kúrenia.",
+          "home_fan_mode": "Predvoľba Doma - Nastavenie režimu ventilátora, keď je vybraná predvoľba Doma.",
+          "sleep": "Predvoľba Spánok - Cieľová teplota, keď je vybraná predvoľba Spánok. Často nastavená o niečo chladnejšie pre lepšiu kvalitu spánku.",
+          "sleep_temp": "Cieľová teplota pre predvoľbu Spánok. Akceptuje statickú hodnotu (napr. 18), odkaz na entitu (napr. states('input_number.sleep_temp')) alebo šablónu.",
+          "sleep_humidity": "Predvoľba Spánok - Cieľová vlhkosť, keď je vybraná predvoľba Spánok. Vlhkosť pre optimálne podmienky spánku.",
+          "sleep_temp_low": "Predvoľba Spánok - Dolná hranica teploty v režime dvoch teplôt. Akceptuje statickú hodnotu alebo šablónu.",
+          "sleep_temp_high": "Predvoľba Spánok - Horná hranica teploty v režime dvoch teplôt. Akceptuje statickú hodnotu alebo šablónu.",
+          "sleep_max_floor_temp": "Predvoľba Spánok - Maximálna teplota podlahy, keď je vybraná predvoľba Spánok pre systémy podlahového kúrenia.",
+          "sleep_min_floor_temp": "Predvoľba Spánok - Minimálna teplota podlahy, keď je vybraná predvoľba Spánok pre systémy podlahového kúrenia.",
+          "sleep_fan_mode": "Predvoľba Spánok - Nastavenie režimu ventilátora, keď je vybraná predvoľba Spánok.",
+          "anti_freeze": "Predvoľba Proti zamrznutiu - Cieľová teplota, keď je vybraná predvoľba Proti zamrznutiu. Minimálna teplota na zabránenie zamrznutiu.",
+          "anti_freeze_temp": "Cieľová teplota pre predvoľbu Proti zamrznutiu. Akceptuje statickú hodnotu (napr. 7), odkaz na entitu (napr. states('input_number.antifreeze_temp')) alebo šablónu.",
+          "anti_freeze_humidity": "Predvoľba Proti zamrznutiu - Cieľová vlhkosť, keď je vybraná predvoľba Proti zamrznutiu.",
+          "anti_freeze_temp_low": "Predvoľba Proti zamrznutiu - Dolná hranica teploty v režime dvoch teplôt. Akceptuje statickú hodnotu alebo šablónu.",
+          "anti_freeze_temp_high": "Predvoľba Proti zamrznutiu - Horná hranica teploty v režime dvoch teplôt. Akceptuje statickú hodnotu alebo šablónu.",
+          "anti_freeze_max_floor_temp": "Predvoľba Proti zamrznutiu - Maximálna teplota podlahy, keď je vybraná predvoľba Proti zamrznutiu pre systémy podlahového kúrenia.",
+          "anti_freeze_min_floor_temp": "Predvoľba Proti zamrznutiu - Minimálna teplota podlahy, keď je vybraná predvoľba Proti zamrznutiu pre systémy podlahového kúrenia.",
+          "anti_freeze_fan_mode": "Predvoľba Proti zamrznutiu - Nastavenie režimu ventilátora, keď je vybraná predvoľba Proti zamrznutiu.",
+          "activity": "Predvoľba Aktivita - Cieľová teplota, keď je vybraná predvoľba Aktivita. Môže byť nastavená vyššie pre obdobia aktivity.",
+          "activity_temp": "Cieľová teplota pre predvoľbu Aktivita. Akceptuje statickú hodnotu (napr. 23), odkaz na entitu (napr. states('input_number.activity_temp')) alebo šablónu.",
+          "activity_humidity": "Predvoľba Aktivita - Cieľová vlhkosť, keď je vybraná predvoľba Aktivita.",
+          "activity_temp_low": "Predvoľba Aktivita - Dolná hranica teploty v režime dvoch teplôt. Akceptuje statickú hodnotu alebo šablónu.",
+          "activity_temp_high": "Predvoľba Aktivita - Horná hranica teploty v režime dvoch teplôt. Akceptuje statickú hodnotu alebo šablónu.",
+          "activity_max_floor_temp": "Predvoľba Aktivita - Maximálna teplota podlahy, keď je vybraná predvoľba Aktivita pre systémy podlahového kúrenia.",
+          "activity_min_floor_temp": "Predvoľba Aktivita - Minimálna teplota podlahy, keď je vybraná predvoľba Aktivita pre systémy podlahového kúrenia.",
+          "activity_fan_mode": "Predvoľba Aktivita - Nastavenie režimu ventilátora, keď je vybraná predvoľba Aktivita.",
+          "boost": "Predvoľba Boost - Cieľová teplota, keď je vybraná predvoľba Boost. Vyššia teplota pre rýchle vykurovanie.",
+          "boost_temp": "Cieľová teplota pre predvoľbu Boost. Akceptuje statickú hodnotu (napr. 25), odkaz na entitu (napr. states('input_number.boost_temp')) alebo šablónu.",
+          "boost_humidity": "Predvoľba Boost - Cieľová vlhkosť, keď je vybraná predvoľba Boost.",
+          "boost_temp_low": "Predvoľba Boost - Dolná hranica teploty v režime dvoch teplôt. Akceptuje statickú hodnotu alebo šablónu.",
+          "boost_temp_high": "Predvoľba Boost - Horná hranica teploty v režime dvoch teplôt. Akceptuje statickú hodnotu alebo šablónu.",
+          "boost_max_floor_temp": "Predvoľba Boost - Maximálna teplota podlahy, keď je vybraná predvoľba Boost pre systémy podlahového kúrenia.",
+          "boost_min_floor_temp": "Predvoľba Boost - Minimálna teplota podlahy, keď je vybraná predvoľba Boost pre systémy podlahového kúrenia.",
+          "boost_fan_mode": "Predvoľba Boost - Nastavenie režimu ventilátora, keď je vybraná predvoľba Boost."
+        }
+      },
+      "preset_selection": {
+        "data": {
+          "away": "Predvoľba Preč",
+          "comfort": "Predvoľba Komfort",
+          "eco": "Predvoľba Eko",
+          "home": "Predvoľba Doma",
+          "sleep": "Predvoľba Spánok",
+          "anti_freeze": "Predvoľba Proti zamrznutiu",
+          "activity": "Predvoľba Aktivita",
+          "boost": "Predvoľba Boost"
+        },
+        "data_description": {
+          "away": "Energeticky úsporná predvoľba pre prípad, keď nikto nie je doma. Zvyčajne nastavená na nižšie teploty pre úsporu energie.",
+          "comfort": "Predvoľba maximálneho komfortu pre optimálne ovládanie teploty, keď je komfort prioritou.",
+          "eco": "Energeticky efektívna predvoľba, ktorá vyvažuje komfort s úsporou energie.",
+          "home": "Štandardná predvoľba pre každodenné aktivity, keď sú ľudia doma a aktívni.",
+          "sleep": "Optimalizovaná pre podmienky spánku, často nastavená o niečo chladnejšie pre lepšiu kvalitu spánku.",
+          "anti_freeze": "Predvoľba minimálnej teploty na zabránenie zamrznutiu v neobsadených priestoroch alebo počas dlhšej neprítomnosti.",
+          "activity": "Predvoľba vyššej teploty pre obdobia vysokej aktivity alebo keď je potrebné extra teplo.",
+          "boost": "Predvoľba rýchleho vykurovania pre rýchle zvýšenie teploty na vyššiu úroveň."
+        }
+      },
+      "system_features": {
+        "title": "Konfigurácia funkcií systému",
+        "description": "Vyberte, ktoré funkcie chcete pre svoj termostatový systém nakonfigurovať. Vyberte len funkcie, ktoré chcete nastaviť - nevybraté funkcie nebudú nakonfigurované."
+      },
+      "ac_only_features": {
+        "title": "Konfigurácia funkcií AC",
+        "description": "Vyberte, ktoré funkcie chcete pre svoj klimatizačný systém nakonfigurovať. Vyberte len funkcie, ktoré chcete nastaviť - nevybraté funkcie nebudú nakonfigurované.",
+        "data": {
+          "heater": "Spínač klimatizácie",
+          "keep_alive": "Interval udržiavania nažive",
+          "initial_hvac_mode": "Počiatočný režim HVAC",
+          "precision": "Presnosť teploty",
+          "target_temp_step": "Veľkosť kroku teploty",
+          "min_temp": "Minimálna teplota",
+          "max_temp": "Maximálna teplota",
+          "target_temp": "Počiatočná cieľová teplota"
+        },
+        "data_description": {
+          "keep_alive": "Nastavte interval udržiavania nažive pre spínače. Použite s ohrievačmi a klimatizačnými jednotkami, ktoré sa vypnú, ak chvíľu nedostanú signál zo svojho ovládača.",
+          "initial_hvac_mode": "Nastavte počiatočný režim HVAC pri štarte termostatu. Vyberte predvolený režim, ktorý má byť aktívny pri štarte Home Assistant.",
+          "precision": "Presnosť teploty pre termostat. Určuje najmenší teplotný prírastok, ktorý je možné zobraziť a nastaviť.",
+          "target_temp_step": "Veľkosť kroku teploty pre ovládacie prvky termostatu. Určuje, o koľko sa teplota zmení pri použití tlačidiel hore/dole.",
+          "min_temp": "Minimálny teplotný limit pre termostat. Používatelia nebudú môcť nastaviť cieľovú teplotu pod túto hodnotu.",
+          "max_temp": "Maximálny teplotný limit pre termostat. Používatelia nebudú môcť nastaviť cieľovú teplotu nad túto hodnotu.",
+          "target_temp": "Počiatočná cieľová teplota pri prvej konfigurácii termostatu. Toto bude predvolené nastavenie teploty."
+        }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Ladenie behu pre {name}",
+        "description": "Upravte parametre behu a tolerancie pre váš termostat. Pre štrukturálne zmeny (typ systému, entity, funkcie) použite namiesto toho možnosť **Prekonfigurovať**.\n\n**Tip**: Zmeny tu sa aktualizujú okamžite bez opätovného načítania integrácie.",
+        "data": {
+          "cold_tolerance": "Tolerancia chladu",
+          "hot_tolerance": "Tolerancia tepla",
+          "min_temp": "Minimálna teplota",
+          "max_temp": "Maximálna teplota",
+          "target_temp": "Cieľová teplota",
+          "precision": "Presnosť teploty",
+          "target_temp_step": "Krok teploty",
+          "min_cycle_duration": "Minimálne trvanie cyklu",
+          "keep_alive": "Interval udržiavania nažive"
+        },
+        "data_description": {
+          "cold_tolerance": "Minimálny rozdiel teploty pod cieľovou hodnotou pred aktiváciou vykurovania. Nižšie hodnoty robia vykurovanie citlivejším (predvolené: 0,3°C).",
+          "hot_tolerance": "Minimálny rozdiel teploty nad cieľovou hodnotou pred aktiváciou chladenia. Nižšie hodnoty robia chladenie citlivejším (predvolené: 0,3°C).",
+          "min_temp": "Minimálne povolené nastavenie teploty. Nastavuje dolnú hranicu pre úpravy cieľovej teploty.",
+          "max_temp": "Maximálne povolené nastavenie teploty. Nastavuje hornú hranicu pre úpravy cieľovej teploty.",
+          "target_temp": "Predvolená cieľová teplota, keď nie je aktívna žiadna predvoľba.",
+          "precision": "Presnosť teploty pre zobrazenie a ovládanie. Určuje desatinnú presnosť pre hodnoty teploty (0,1, 0,5 alebo 1,0 stupňa).",
+          "target_temp_step": "Veľkosť kroku teploty pre úpravy. Ovláda, o koľko sa cieľová teplota zmení pri každej úprave.",
+          "min_cycle_duration": "Minimálny čas, počas ktorého musí zariadenie bežať pred vypnutím. Zabraňuje rýchlemu zapínaniu/vypínaniu a chráni zariadenie pred poškodením (predvolené: 5 minút).",
+          "keep_alive": "Trvanie udržiavania nažive pre periodické prepínanie. Nastavte to, ak váš spínač potrebuje signál na udržanie v stave 'aktívny'."
+        },
+        "sections": {
+          "advanced_settings": {
+            "name": "Pokročilé nastavenia",
+            "description": "Voliteľné pokročilé nastavenia pre jemné ladenie správania termostatu.",
+            "data": {
+              "initial_hvac_mode": "Počiatočný režim HVAC",
+              "target_temp_high": "Cieľová teplota (vysoká)",
+              "target_temp_low": "Cieľová teplota (nízka)",
+              "heat_cool_mode": "Režim vykurovanie/chladenie",
+              "heat_tolerance": "Tolerancia vykurovania",
+              "cool_tolerance": "Tolerancia chladenia",
+              "auto_outside_delta_boost": "Auto: prah naliehavosti vonkajšieho rozdielu",
+              "use_apparent_temp": "Použiť zdanlivú („pocitovú“) teplotu pre rozhodnutia o chladení"
+            },
+            "data_description": {
+              "initial_hvac_mode": "Počiatočný režim HVAC pri štarte Home Assistant. Nastavuje predvolený režim prevádzky pri štarte.",
+              "target_temp_high": "Horná cieľová teplota pre systémy s dvojitou teplotou (režim vykurovanie/chladenie).",
+              "target_temp_low": "Dolná cieľová teplota pre systémy s dvojitou teplotou (režim vykurovanie/chladenie).",
+              "heat_cool_mode": "Povoliť režim vykurovanie/chladenie s dvojitou reguláciou teploty. Po povolení umožňuje automatické prepínanie medzi vykurovaním a chladením pre udržanie pohodlného teplotného rozsahu.",
+              "heat_tolerance": "Tolerancia pre operácie vykurovania. Prepíše staršie nastavenie cold_tolerance špecificky pre režim vykurovania. Po nastavení sa táto hodnota použije namiesto cold_tolerance na určenie, kedy sa aktivuje vykurovanie (predvolené: použije cold_tolerance, ak nie je zadané).",
+              "cool_tolerance": "Tolerancia pre operácie chladenia. Prepíše staršie nastavenie hot_tolerance špecificky pre režim chladenia. Po nastavení sa táto hodnota použije namiesto hot_tolerance na určenie, kedy sa aktivuje chladenie (predvolené: použije hot_tolerance, ak nie je zadané).",
+              "auto_outside_delta_boost": "Keď je zapnutý režim AUTO a rozdiel vnútornej/vonkajšej teploty dosiahne tento prah, normálne vykurovanie alebo chladenie sa považuje za naliehavé. Aktívne len vtedy, keď je nakonfigurovaný vonkajší senzor. Predvolené: 8°C / 14°F.",
+              "use_apparent_temp": "Keď je povolené a je nakonfigurovaný senzor vlhkosti, AUTO a samostatné CHLADENIE rozhodujú na základe tepelného indexu namiesto surovej teploty. Nad 27°C / 80°F robí vlhkosť pocit v miestnosti teplejším, takže chladenie pracuje agresívnejšie. Skutočná teplota senzora sa naďalej zobrazuje v používateľskom rozhraní."
+            }
+          }
+        }
+      },
+      "features": {
+        "title": "Konfigurácia funkcií",
+        "description": "Vyberte, ktoré funkcie chcete pre svoj systém nakonfigurovať. Tým sa určí, ktoré možnosti konfigurácie budú dostupné.",
+        "data": {
+          "configure_fan": "Konfigurácia ventilátora",
+          "configure_humidity": "Konfigurácia vlhkosti",
+          "configure_openings": "Konfigurácia senzorov okien/dverí",
+          "configure_presets": "Konfigurácia predvolieb teploty",
+          "configure_floor_heating": "Konfigurácia ochrany podlahového kúrenia"
+        },
+        "data_description": {
+          "configure_fan": "Povoliť konfiguráciu nastavení ventilátora. Umožňuje nastaviť samostatnú entitu ventilátora, ktorá môže bežať nezávisle pre cirkuláciu vzduchu.",
+          "configure_humidity": "Povoliť konfiguráciu monitorovania a kontroly vlhkosti. Umožňuje nastaviť senzory vlhkosti a prevádzku sušiaceho režimu.",
+          "configure_openings": "Povoliť konfiguráciu senzorov okien a dverí, aby termostat mohol pozastaviť prevádzku pri zistení otvorov.",
+          "configure_presets": "Povoliť konfiguráciu predvolieb teploty ako Preč, Komfort a Eko pre rýchle zmeny režimu.",
+          "configure_floor_heating": "Povoliť konfiguráciu ochrany teploty podlahy. Po povolení môžete nastaviť podlahový senzor a max/min limity na ochranu podlahy."
+        }
+      },
+      "basic": {
+        "title": "Základná konfigurácia",
+        "description": "Upravte základné nastavenia termostatu vrátane systémových entít a základných parametrov regulácie teploty.",
+        "data": {
+          "heater": "Spínač klimatizácie",
+          "sensor": "Senzor teploty",
+          "target_sensor": "Senzor teploty",
+          "cold_tolerance": "Tolerancia chladu",
+          "hot_tolerance": "Tolerancia tepla",
+          "heat_cool_mode": "Režim vykurovanie/chladenie",
+          "min_cycle_duration": "Minimálne trvanie cyklu"
+        },
+        "data_description": {
+          "heater": "ID entity spínača klimatizácie, musí byť prepínacie zariadenie. Používa sa na chladenie, keď teplota stúpne nad cieľovú hodnotu.",
+          "sensor": "ID entity senzora teploty, ktorý odráža aktuálnu teplotu. Stav senzora musí byť teplota.",
+          "target_sensor": "ID entity senzora teploty, ktorý odráža aktuálnu teplotu. Stav senzora musí byť teplota.",
+          "cold_tolerance": "Minimálny rozdiel teploty medzi nameranou hodnotou senzora a cieľom pred vypnutím chladenia. Napríklad, ak je cieľ 25°C a tolerancia 0,5°C, chladenie sa vypne, keď senzor dosiahne 24,5°C alebo menej (predvolené: 0,3°C).",
+          "hot_tolerance": "Minimálny rozdiel teploty medzi nameranou hodnotou senzora a cieľom pred zapnutím chladenia. Napríklad, ak je cieľ 25°C a tolerancia 0,5°C, chladenie sa zapne, keď senzor dosiahne 25,5°C alebo viac (predvolené: 0,3°C).",
+          "heat_cool_mode": "Povoliť režim vykurovanie/chladenie. Ohrievač prvého stupňa 'heater' sa stáva chladením a druhý stupeň 'heater_2' sa stáva vykurovaním. Umožňuje súčasné ovládanie vykurovania a chladenia.",
+          "min_cycle_duration": "Minimálny čas, počas ktorého musí spínač chladenia zostať v aktuálnom stave pred prepnutím. Zabraňuje rýchlemu zapínaniu/vypínaniu a chráni chladiace zariadenie."
+        },
+        "sections": {
+          "advanced_settings": {
+            "name": "Pokročilé nastavenia",
+            "description": "Nakonfigurujte teplotné tolerancie a nastavenia ochrany cyklu pre optimálne ovládanie systému.",
+            "data": {
+              "cold_tolerance": "Tolerancia chladu",
+              "hot_tolerance": "Tolerancia tepla",
+              "min_cycle_duration": "Minimálne trvanie cyklu"
+            },
+            "data_description": {
+              "cold_tolerance": "Minimálny rozdiel teploty medzi nameranou hodnotou senzora a cieľom pred aktiváciou vykurovania alebo deaktiváciou chladenia. Napríklad, ak je cieľ 25°C a tolerancia 0,5°C, zmeny nastanú, keď senzor dosiahne 24,5°C alebo menej (predvolené: 0,3°C).",
+              "hot_tolerance": "Minimálny rozdiel teploty medzi nameranou hodnotou senzora a cieľom pred aktiváciou chladenia alebo deaktiváciou vykurovania. Napríklad, ak je cieľ 25°C a tolerancia 0,5°C, zmeny nastanú, keď senzor dosiahne 25,5°C alebo viac (predvolené: 0,3°C).",
+              "min_cycle_duration": "Minimálny čas, počas ktorého musí spínač systému zostať v aktuálnom stave pred prepnutím. Zabraňuje rýchlemu zapínaniu/vypínaniu a chráni zariadenie (predvolené: 300 sekúnd)."
+            }
+          }
+        }
+      },
+      "dual_stage_options": {
+        "title": "Možnosti dvojstupňového vykurovania",
+        "description": "Upravte nastavenia dvojstupňového vykurovania.",
+        "data": {
+          "secondary_heater": "Spínač sekundárneho ohrievača",
+          "secondary_heater_timeout": "Časový limit sekundárneho ohrievača",
+          "secondary_heater_dual_mode": "Prevádzka v duálnom režime"
+        },
+        "data_description": {
+          "secondary_heater": "ID entity spínača pomocného/sekundárneho ohrievača. Poskytuje dodatočnú vykurovaciu kapacitu, keď je to potrebné.",
+          "secondary_heater_timeout": "Čas čakania pred aktiváciou sekundárneho ohrievača po spustení primárneho ohrievača.",
+          "secondary_heater_dual_mode": "Povoliť súčasnú prácu primárneho aj sekundárneho ohrievača, keď je to potrebné."
+        }
+      },
+      "floor_options": {
+        "title": "Možnosti podlahového kúrenia",
+        "description": "Upravte nastavenia podlahového kúrenia.",
+        "data": {
+          "floor_sensor": "Senzor teploty podlahy",
+          "max_floor_temp": "Maximálna teplota podlahy",
+          "min_floor_temp": "Minimálna teplota podlahy"
+        },
+        "data_description": {
+          "floor_sensor": "ID entity senzora teploty podlahy. Monitoruje teplotu podlahy pre bezpečnosť a ovládanie.",
+          "max_floor_temp": "Maximálna povolená teplota podlahy pre ochranu. Zabraňuje poškodeniu podlahových materiálov. (Predvolené: 28°C)",
+          "min_floor_temp": "Minimálna teplota podlahy, ktorá sa má udržiavať. Poskytuje ochranu proti zamrznutiu pre systém podlahového kúrenia. (Predvolené: 5°C)"
+        }
+      },
+      "fan_options": {
+        "title": "Možnosti ventilátora",
+        "description": "Upravte nastavenia ovládania ventilátora.",
+        "data": {
+          "fan": "Spínač ventilátora",
+          "fan_mode": "Režim ventilátora",
+          "fan_on_with_ac": "Ventilátor s AC",
+          "fan_air_outside": "Ventilátor s vonkajším vzduchom",
+          "fan_hot_tolerance": "Tolerancia tepla ventilátora",
+          "fan_hot_tolerance_toggle": "Prepínač tolerancie ventilátora"
+        },
+        "data_description": {
+          "fan": "ID entity spínača ventilátora. Používa sa na ovládanie cirkulácie vzduchu a zlepšenie distribúcie teploty.",
+          "fan_mode": "Povoliť ventilátor ako samostatný HVAC režim. Umožňuje prevádzku len s ventilátorom.",
+          "fan_on_with_ac": "Automaticky zapnúť ventilátor, keď je aktívne chladenie (AC). Zlepšuje efektivitu chladenia.",
+          "fan_air_outside": "Povoliť cirkuláciu vonkajšieho vzduchu, keď je vonkajšia teplota priaznivejšia ako vnútorná teplota.",
+          "fan_hot_tolerance": "Teplotný rozsah nad cieľom, kde sa používa ventilátor namiesto AC. Predvolené: 0,5°C.",
+          "fan_hot_tolerance_toggle": "Voliteľné ID entity pre input_boolean na zapnutie/vypnutie funkcie fan_hot_tolerance."
+        }
+      },
+      "humidity_options": {
+        "title": "Možnosti vlhkosti",
+        "description": "Upravte nastavenia kontroly vlhkosti.",
+        "data": {
+          "humidity_sensor": "Senzor vlhkosti",
+          "dryer": "Spínač sušiča/odvlhčovača",
+          "target_humidity": "Cieľová vlhkosť",
+          "min_humidity": "Minimálna vlhkosť",
+          "max_humidity": "Maximálna vlhkosť",
+          "dry_tolerance": "Tolerancia sucha",
+          "moist_tolerance": "Tolerancia vlhka"
+        },
+        "data_description": {
+          "humidity_sensor": "ID entity senzora vlhkosti. Povolí funkcie kontroly vlhkosti a predvoľby založené na vlhkosti.",
+          "dryer": "ID entity spínača sušiča/odvlhčovača. Používa sa na ovládanie odvlhčovania, keď úrovne vlhkosti prekročia cieľové hodnoty.",
+          "target_humidity": "Cieľová úroveň vlhkosti, ktorá sa má udržiavať (percento). Predvolený cieľ vlhkosti, keď nie je aktívna žiadna predvoľba.",
+          "min_humidity": "Minimálna povolená úroveň vlhkosti (percento). Vlhkosť sa zvýši, ak klesne pod túto hodnotu.",
+          "max_humidity": "Maximálna povolená úroveň vlhkosti (percento). Vlhkosť sa zníži, ak stúpne nad túto hodnotu.",
+          "dry_tolerance": "Minimálny rozdiel vlhkosti pod cieľom pred aktiváciou zvlhčovania alebo deaktiváciou odvlhčovania.",
+          "moist_tolerance": "Minimálny rozdiel vlhkosti nad cieľom pred aktiváciou odvlhčovania alebo deaktiváciou zvlhčovania."
+        }
+      },
+      "preset_selection": {
+        "data": {
+          "away": "Predvoľba Preč",
+          "comfort": "Predvoľba Komfort",
+          "eco": "Predvoľba Eko",
+          "home": "Predvoľba Doma",
+          "sleep": "Predvoľba Spánok",
+          "anti_freeze": "Predvoľba Proti zamrznutiu",
+          "activity": "Predvoľba Aktivita",
+          "boost": "Predvoľba Boost"
+        },
+        "data_description": {
+          "away": "Energeticky úsporná predvoľba pre prípad, keď nikto nie je doma. Zvyčajne nastavená na nižšie teploty pre úsporu energie.",
+          "comfort": "Predvoľba maximálneho komfortu pre optimálne ovládanie teploty, keď je komfort prioritou.",
+          "eco": "Energeticky efektívna predvoľba, ktorá vyvažuje komfort s úsporou energie.",
+          "home": "Štandardná predvoľba pre každodenné aktivity, keď sú ľudia doma a aktívni.",
+          "sleep": "Optimalizovaná pre podmienky spánku, často nastavená o niečo chladnejšie pre lepšiu kvalitu spánku.",
+          "anti_freeze": "Predvoľba minimálnej teploty na zabránenie zamrznutiu v neobsadených priestoroch alebo počas dlhšej neprítomnosti.",
+          "activity": "Predvoľba vyššej teploty pre obdobia vysokej aktivity alebo keď je potrebné extra teplo.",
+          "boost": "Predvoľba rýchleho vykurovania pre rýchle zvýšenie teploty na vyššiu úroveň."
+        }
+      },
+      "openings_options": {
+        "title": "Konfigurácia otvorov",
+        "description": "Nakonfigurujte senzory dverí a okien na automatické ovládanie termostatu pri zistení otvorov.",
+        "data": {
+          "selected_openings": "Senzory okien/dverí"
+        },
+        "data_description": {
+          "selected_openings": "Vyberte senzory dverí/okien, spínače alebo iné entity, ktoré indikujú, kedy sú zistené otvory. Keď je ktorákoľvek vybraná entita 'otvorená', 'zapnutá' alebo 'true', termostat sa automaticky vypne pre úsporu energie."
+        }
+      },
+      "openings_config": {
+        "title": "Nastavenia časového limitu otvorenia/zatvorenia",
+        "description": "Nakonfigurujte voliteľné oneskorenia časového limitu pre otvorenie a zatvorenie okien/dverí. Nechajte prázdne pre okamžitú reakciu.\n\nVybraté otvory:\n{selected_entities}",
+        "data": {
+          "openings_scope": "HVAC režimy ovplyvnené otvormi",
+          "opening_1_label": "Otvor 1",
+          "opening_1_timeout_open": "Časový limit otvorenia (sekundy)",
+          "opening_1_timeout_close": "Časový limit zatvorenia (sekundy)",
+          "opening_2_label": "Otvor 2",
+          "opening_2_timeout_open": "Časový limit otvorenia (sekundy)",
+          "opening_2_timeout_close": "Časový limit zatvorenia (sekundy)",
+          "opening_3_label": "Otvor 3",
+          "opening_3_timeout_open": "Časový limit otvorenia (sekundy)",
+          "opening_3_timeout_close": "Časový limit zatvorenia (sekundy)",
+          "opening_4_label": "Otvor 4",
+          "opening_4_timeout_open": "Časový limit otvorenia (sekundy)",
+          "opening_4_timeout_close": "Časový limit zatvorenia (sekundy)",
+          "opening_5_label": "Otvor 5",
+          "opening_5_timeout_open": "Časový limit otvorenia (sekundy)",
+          "opening_5_timeout_close": "Časový limit zatvorenia (sekundy)",
+          "opening_6_label": "Otvor 6",
+          "opening_6_timeout_open": "Časový limit otvorenia (sekundy)",
+          "opening_6_timeout_close": "Časový limit zatvorenia (sekundy)",
+          "opening_7_label": "Otvor 7",
+          "opening_7_timeout_open": "Časový limit otvorenia (sekundy)",
+          "opening_7_timeout_close": "Časový limit zatvorenia (sekundy)",
+          "opening_8_label": "Otvor 8",
+          "opening_8_timeout_open": "Časový limit otvorenia (sekundy)",
+          "opening_8_timeout_close": "Časový limit zatvorenia (sekundy)",
+          "opening_9_label": "Otvor 9",
+          "opening_9_timeout_open": "Časový limit otvorenia (sekundy)",
+          "opening_9_timeout_close": "Časový limit zatvorenia (sekundy)",
+          "opening_10_label": "Otvor 10",
+          "opening_10_timeout_open": "Časový limit otvorenia (sekundy)",
+          "opening_10_timeout_close": "Časový limit zatvorenia (sekundy)"
+        },
+        "data_description": {
+          "openings_scope": "Vyberte, ktoré HVAC režimy majú byť ovplyvnené, keď sú okná/dvere otvorené. Keď nie je vybraný žiadny rozsah alebo je zvolené 'Všetky HVAC režimy', bude ovplyvnený celý systém.",
+          "opening_1_timeout_open": "Čas čakania po aktivácii tohto otvoru pred vypnutím HVAC. Nastavte na 0 pre okamžitú reakciu.",
+          "opening_1_timeout_close": "Čas čakania po zatvorení tohto otvoru pred opätovným zapnutím HVAC. Nastavte na 0 pre okamžitú reakciu.",
+          "opening_2_timeout_open": "Čas čakania po aktivácii tohto otvoru pred vypnutím HVAC. Nastavte na 0 pre okamžitú reakciu.",
+          "opening_2_timeout_close": "Čas čakania po zatvorení tohto otvoru pred opätovným zapnutím HVAC. Nastavte na 0 pre okamžitú reakciu.",
+          "opening_3_timeout_open": "Čas čakania po aktivácii tohto otvoru pred vypnutím HVAC. Nastavte na 0 pre okamžitú reakciu.",
+          "opening_3_timeout_close": "Čas čakania po zatvorení tohto otvoru pred opätovným zapnutím HVAC. Nastavte na 0 pre okamžitú reakciu.",
+          "opening_4_timeout_open": "Čas čakania po aktivácii tohto otvoru pred vypnutím HVAC. Nastavte na 0 pre okamžitú reakciu.",
+          "opening_4_timeout_close": "Čas čakania po zatvorení tohto otvoru pred opätovným zapnutím HVAC. Nastavte na 0 pre okamžitú reakciu.",
+          "opening_5_timeout_open": "Čas čakania po aktivácii tohto otvoru pred vypnutím HVAC. Nastavte na 0 pre okamžitú reakciu.",
+          "opening_5_timeout_close": "Čas čakania po zatvorení tohto otvoru pred opätovným zapnutím HVAC. Nastavte na 0 pre okamžitú reakciu.",
+          "opening_6_timeout_open": "Čas čakania po aktivácii tohto otvoru pred vypnutím HVAC. Nastavte na 0 pre okamžitú reakciu.",
+          "opening_6_timeout_close": "Čas čakania po zatvorení tohto otvoru pred opätovným zapnutím HVAC. Nastavte na 0 pre okamžitú reakciu.",
+          "opening_7_timeout_open": "Čas čakania po aktivácii tohto otvoru pred vypnutím HVAC. Nastavte na 0 pre okamžitú reakciu.",
+          "opening_7_timeout_close": "Čas čakania po zatvorení tohto otvoru pred opätovným zapnutím HVAC. Nastavte na 0 pre okamžitú reakciu.",
+          "opening_8_timeout_open": "Čas čakania po aktivácii tohto otvoru pred vypnutím HVAC. Nastavte na 0 pre okamžitú reakciu.",
+          "opening_8_timeout_close": "Čas čakania po zatvorení tohto otvoru pred opätovným zapnutím HVAC. Nastavte na 0 pre okamžitú reakciu.",
+          "opening_9_timeout_open": "Čas čakania po aktivácii tohto otvoru pred vypnutím HVAC. Nastavte na 0 pre okamžitú reakciu.",
+          "opening_9_timeout_close": "Čas čakania po zatvorení tohto otvoru pred opätovným zapnutím HVAC. Nastavte na 0 pre okamžitú reakciu.",
+          "opening_10_timeout_open": "Čas čakania po aktivácii tohto otvoru pred vypnutím HVAC. Nastavte na 0 pre okamžitú reakciu.",
+          "opening_10_timeout_close": "Čas čakania po zatvorení tohto otvoru pred opätovným zapnutím HVAC. Nastavte na 0 pre okamžitú reakciu."
+        }
+      },
+      "advanced_options": {
+        "title": "Pokročilé možnosti",
+        "description": "Upravte pokročilé nastavenia termostatu a jemne dolaďte správanie regulácie teploty.",
+        "data": {
+          "min_temp": "Minimálna teplota",
+          "max_temp": "Maximálna teplota",
+          "target_temp": "Cieľová teplota",
+          "cold_tolerance": "Tolerancia chladu",
+          "hot_tolerance": "Tolerancia tepla",
+          "precision": "Presnosť teploty",
+          "target_temp_step": "Krok teploty",
+          "min_cycle_duration": "Minimálne trvanie cyklu",
+          "keep_alive": "Trvanie udržiavania nažive",
+          "initial_hvac_mode": "Počiatočný režim HVAC",
+          "target_temp_high": "Cieľová teplota (vysoká)",
+          "target_temp_low": "Cieľová teplota (nízka)",
+          "heat_cool_mode": "Prah režimu vykurovanie/chladenie"
+        },
+        "data_description": {
+          "min_temp": "Minimálne povolené nastavenie teploty. Nastavuje dolnú hranicu pre úpravy cieľovej teploty.",
+          "max_temp": "Maximálne povolené nastavenie teploty. Nastavuje hornú hranicu pre úpravy cieľovej teploty.",
+          "target_temp": "Počiatočná cieľová teplota pri prvej konfigurácii alebo resete termostatu.",
+          "cold_tolerance": "Rozdiel teploty pod cieľom pred aktiváciou vykurovania. Nižšie hodnoty robia vykurovanie citlivejším.",
+          "hot_tolerance": "Rozdiel teploty nad cieľom pred aktiváciou chladenia. Nižšie hodnoty robia chladenie citlivejším.",
+          "precision": "Presnosť teploty pre zobrazenie a ovládanie. Určuje desatinnú presnosť pre hodnoty teploty.",
+          "target_temp_step": "Veľkosť kroku teploty pre úpravy. Ovláda, o koľko sa cieľová teplota zmení pri každej úprave.",
+          "min_cycle_duration": "Minimálny čas, počas ktorého musí zariadenie bežať pred vypnutím. Pomáha zabrániť krátkym cyklom a poškodeniu zariadenia.",
+          "keep_alive": "Trvanie udržiavania nažive pre periodické prepínanie. Nastavte to, ak váš spínač potrebuje signál na udržanie v stave 'aktívny'.",
+          "initial_hvac_mode": "Počiatočný režim HVAC pri štarte Home Assistant. Nastavuje predvolený režim prevádzky pri štarte.",
+          "target_temp_high": "Horná cieľová teplota pre dvojstupňové systémy vykurovania/chladenia.",
+          "target_temp_low": "Dolná cieľová teplota pre dvojstupňové systémy vykurovania/chladenia.",
+          "heat_cool_mode": "Prah teplotného rozdielu pre prepínanie medzi vykurovaním a chladením v režime vykurovanie/chladenie."
+        }
+      },
+      "presets": {
+        "title": "Konfigurácia predvolieb",
+        "description": "Nakonfigurujte teplotu a systémové nastavenia pre každú vybranú predvoľbu. Tieto nastavenia sa automaticky použijú, keď aktivujete príslušný režim predvoľby.",
+        "data": {
+          "away_temp": "Teplota Preč",
+          "comfort_temp": "Teplota Komfort",
+          "eco_temp": "Teplota Eko",
+          "home_temp": "Teplota Doma",
+          "sleep_temp": "Teplota Spánok",
+          "anti_freeze_temp": "Teplota Proti zamrznutiu",
+          "activity_temp": "Teplota Aktivita",
+          "boost_temp": "Teplota Boost"
+        },
+        "data_description": {
+          "away_temp": "Cieľová teplota pre predvoľbu Preč. Akceptuje statickú hodnotu (napr. 18), odkaz na entitu alebo podmienenú šablónu.",
+          "comfort_temp": "Cieľová teplota pre predvoľbu Komfort. Akceptuje statickú hodnotu (napr. 22), odkaz na entitu alebo šablónu.",
+          "eco_temp": "Cieľová teplota pre predvoľbu Eko. Akceptuje statickú hodnotu (napr. 20), odkaz na entitu alebo šablónu.",
+          "home_temp": "Cieľová teplota pre predvoľbu Doma. Akceptuje statickú hodnotu (napr. 21), odkaz na entitu alebo šablónu.",
+          "sleep_temp": "Cieľová teplota pre predvoľbu Spánok. Akceptuje statickú hodnotu (napr. 18), odkaz na entitu alebo šablónu.",
+          "anti_freeze_temp": "Cieľová teplota pre predvoľbu Proti zamrznutiu. Akceptuje statickú hodnotu (napr. 7), odkaz na entitu alebo šablónu.",
+          "activity_temp": "Cieľová teplota pre predvoľbu Aktivita. Akceptuje statickú hodnotu (napr. 23), odkaz na entitu alebo šablónu.",
+          "boost_temp": "Cieľová teplota pre predvoľbu Boost. Akceptuje statickú hodnotu (napr. 25), odkaz na entitu alebo šablónu."
         }
       }
     }
@@ -72,55 +1006,9 @@
         "all": "Všetky HVAC režimy",
         "cool": "Iba chladenie",
         "heat": "Iba vykurovanie",
-        "heat_cool": "Režim vykurovanie/chladenie",
         "fan_only": "Iba ventilátor",
+        "heat_cool": "Režim vykurovanie/chladenie",
         "dry": "Režim sušenia"
-      }
-    }
-  },
-  "options": {
-    "step": {
-      "init": {
-        "title": "Ladenie behu pre {name}",
-        "description": "Upravte parametre behu a tolerancie pre váš termostat. Pre štrukturálne zmeny (typ systému, entity, funkcie) použite možnosť **Prekonfigurovať**.\n\n**Tip**: Zmeny tu sa aktualizujú okamžite bez opätovného načítania integrácie.",
-        "data": {
-          "cold_tolerance": "Tolerancia chladu",
-          "hot_tolerance": "Tolerancia tepla",
-          "min_temp": "Minimálna teplota",
-          "max_temp": "Maximálna teplota",
-          "target_temp": "Cieľová teplota",
-          "precision": "Presnosť teploty",
-          "temp_step": "Krok teploty"
-        },
-        "data_description": {
-          "cold_tolerance": "Minimálny rozdiel teploty pod cieľovou hodnotou pred aktiváciou vykurovania. Nižšie hodnoty robia vykurovanie citlivejším (predvolené: 0,3°C).",
-          "hot_tolerance": "Minimálny rozdiel teploty nad cieľovou hodnotou pred aktiváciou chladenia. Nižšie hodnoty robia chladenie citlivejším (predvolené: 0,3°C).",
-          "min_temp": "Minimálne povolené nastavenie teploty. Nastavuje dolnú hranicu pre úpravy cieľovej teploty.",
-          "max_temp": "Maximálne povolené nastavenie teploty. Nastavuje hornú hranicu pre úpravy cieľovej teploty.",
-          "target_temp": "Predvolená cieľová teplota, keď nie je aktívna žiadna predvoľba.",
-          "precision": "Presnosť teploty pre zobrazenie a ovládanie. Určuje desatinnú presnosť pre hodnoty teploty (0,1, 0,5 alebo 1,0 stupňa).",
-          "temp_step": "Veľkosť kroku teploty pre úpravy. Ovláda, o koľko sa cieľová teplota zmení pri každej úprave."
-        },
-        "sections": {
-          "advanced_settings": {
-            "name": "Pokročilé nastavenia",
-            "description": "Voliteľné pokročilé nastavenia pre jemné ladenie správania termostatu.",
-            "data": {
-              "keep_alive": "Interval udržiavania nažive",
-              "initial_hvac_mode": "Počiatočný režim HVAC",
-              "target_temp_high": "Cieľová teplota (vysoká)",
-              "target_temp_low": "Cieľová teplota (nízka)",
-              "heat_cool_mode": "Režim vykurovanie/chladenie"
-            },
-            "data_description": {
-              "keep_alive": "Trvanie udržiavania nažive pre periodické prepínanie. Nastavte to, ak váš vypínač potrebuje signál pre udržanie v stave 'zapnuté'.",
-              "initial_hvac_mode": "Počiatočný režim HVAC pri štarte Home Assistant. Nastavuje predvolený režim prevádzky pri štarte.",
-              "target_temp_high": "Horná cieľová teplota pre systémy s dvojitou teplotou (režim vykurovanie/chladenie).",
-              "target_temp_low": "Dolná cieľová teplota pre systémy s dvojitou teplotou (režim vykurovanie/chladenie).",
-              "heat_cool_mode": "Povoliť režim vykurovanie/chladenie s dvojitou reguláciou teploty. Po povolení umožňuje automatické prepínanie medzi vykurovaním a chladením pre udržanie pohodlného teplotného rozsahu."
-            }
-          }
-        }
       }
     }
   },
