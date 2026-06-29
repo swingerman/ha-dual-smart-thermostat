@@ -30,6 +30,7 @@ from ..const import (
     CONF_FAN_HOT_TOLERANCE_TOGGLE,
     CONF_FAN_MODE,
     CONF_FAN_ON_WITH_AC,
+    CONF_FAN_ON_WITH_HEATER,
     CONF_HEAT_COOL_MODE,
     CONF_HEAT_PUMP_COOLING,
     CONF_HEATER,
@@ -60,6 +61,7 @@ class FeatureManager(StateManager):
         self._fan_mode = config.get(CONF_FAN_MODE)
         self._fan_entity_id = config.get(CONF_FAN)
         self._fan_on_with_cooler = config.get(CONF_FAN_ON_WITH_AC)
+        self._fan_on_with_heater = config.get(CONF_FAN_ON_WITH_HEATER)
         self._fan_tolerance = config.get(CONF_FAN_HOT_TOLERANCE)
         self._fan_air_outside = config.get(CONF_FAN_AIR_OUTSIDE)
         self._fan_tolerance_on_entity_id = config.get(CONF_FAN_HOT_TOLERANCE_TOGGLE)
@@ -190,6 +192,11 @@ class FeatureManager(StateManager):
     def is_configured_for_fan_on_with_cooler(self) -> bool:
         """Determines if the fan mode with cooler is configured."""
         return self._fan_on_with_cooler
+
+    @property
+    def is_configured_for_fan_on_with_heater(self) -> bool:
+        """Whether the fan should run alongside the heater/heat pump."""
+        return bool(self._fan_on_with_heater)
 
     @property
     def is_fan_uses_outside_air(self) -> bool:

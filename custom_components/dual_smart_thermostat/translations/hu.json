@@ -436,6 +436,7 @@
           "fan": "Ventilátor kapcsolója",
           "fan_mode": "Ventilátor üzemmód",
           "fan_on_with_ac": "Ventilátor AC-vel",
+          "fan_on_with_heater": "Ventilátor fűtéssel",
           "fan_air_outside": "Ventilátor külső levegővel",
           "fan_hot_tolerance": "Ventilátor meleg tűréshatára",
           "fan_hot_tolerance_toggle": "Ventilátor tűréshatár kapcsolója"
@@ -444,6 +445,7 @@
           "fan": "A ventilátor kapcsolójának entitásazonosítója. A levegő keringetésének szabályozására és a hőmérséklet egyenletesebb eloszlásának javítására szolgál a térben.",
           "fan_mode": "A ventilátor engedélyezése külön HVAC-üzemmódként. Bekapcsolva a FAN üzemmód a fűtés, hűtés és automatikus üzemmódok mellett is elérhetővé válik, lehetővé téve a csak ventilátoros működést.",
           "fan_on_with_ac": "Automatikusan bekapcsolja a ventilátort, amikor a hűtés (AC) aktív. Javítja a hűtés hatékonyságát és a levegő keringetését a hűtési ciklusok alatt.",
+          "fan_on_with_heater": "Automatikusan bekapcsolja a ventilátort, amíg a fűtés vagy a hőszivattyú aktív (pl. ha a ventilátor a berendezés légkezelője). Kikapcsolva a ventilátor csak ventilátor üzemmódban működik.",
           "fan_air_outside": "Engedélyezi a külső levegő keringetését, amikor a külső hőmérséklet kedvezőbb a belsőnél. Az intelligens külsőlevegő-használathoz külső hőmérséklet-érzékelő konfigurálása szükséges.",
           "fan_hot_tolerance": "A célérték feletti hőmérséklet-tartomány, ahol AC helyett ventilátort használ. Például 25°C célérték, 1°C hot_tolerance és 0,5°C fan_hot_tolerance esetén: a ventilátor 26°C-on (cél + hot_tolerance), az AC 26,5°C-on (cél + hot_tolerance + fan_hot_tolerance) aktiválódik. Alapértelmezett: 0,5°C.",
           "fan_hot_tolerance_toggle": "Opcionális input_boolean entitásazonosító a fan_hot_tolerance funkció dinamikus be-/kikapcsolásához. Kikapcsolva azonnal AC-t használ ahelyett, hogy előbb a ventilátort próbálná. Ha nincs konfigurálva, a fan_hot_tolerance funkció mindig engedélyezve van."
@@ -837,6 +839,7 @@
           "fan": "Ventilátor kapcsolója",
           "fan_mode": "Ventilátor üzemmód",
           "fan_on_with_ac": "Ventilátor AC-vel",
+          "fan_on_with_heater": "Ventilátor fűtéssel",
           "fan_air_outside": "Ventilátor külső levegővel",
           "fan_hot_tolerance": "Ventilátor meleg tűréshatára",
           "fan_hot_tolerance_toggle": "Ventilátor tűréshatár kapcsolója"
@@ -845,6 +848,7 @@
           "fan": "A ventilátor kapcsolójának entitásazonosítója. A levegő keringetésének szabályozására és a hőmérséklet egyenletesebb eloszlásának javítására szolgál.",
           "fan_mode": "A ventilátor engedélyezése külön HVAC-üzemmódként. Lehetővé teszi a csak ventilátoros működést.",
           "fan_on_with_ac": "Automatikusan bekapcsolja a ventilátort, amikor a hűtés (AC) aktív. Javítja a hűtés hatékonyságát.",
+          "fan_on_with_heater": "Automatikusan bekapcsolja a ventilátort, amíg a fűtés vagy a hőszivattyú aktív (pl. ha a ventilátor a berendezés légkezelője). Kikapcsolva a ventilátor csak ventilátor üzemmódban működik.",
           "fan_air_outside": "Engedélyezi a külső levegő keringetését, amikor a külső hőmérséklet kedvezőbb a belsőnél.",
           "fan_hot_tolerance": "A célérték feletti hőmérséklet-tartomány, ahol AC helyett ventilátort használ. Alapértelmezett: 0,5°C.",
           "fan_hot_tolerance_toggle": "Opcionális input_boolean entitásazonosító a fan_hot_tolerance funkció be-/kikapcsolásához."

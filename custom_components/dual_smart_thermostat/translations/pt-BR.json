@@ -436,6 +436,7 @@
           "fan": "Interruptor do ventilador",
           "fan_mode": "Modo do ventilador",
           "fan_on_with_ac": "Ventilador com AC",
+          "fan_on_with_heater": "Ventilador com aquecedor",
           "fan_air_outside": "Ar externo do ventilador",
           "fan_hot_tolerance": "Tolerância de calor do ventilador",
           "fan_hot_tolerance_toggle": "Alternância da tolerância do ventilador"
@@ -444,6 +445,7 @@
           "fan": "ID da entidade do interruptor do ventilador. Usado para controlar a circulação de ar e melhorar a distribuição de temperatura pelo ambiente.",
           "fan_mode": "Ativa o ventilador como um modo HVAC separado. Quando ativado, o modo VENTILADOR fica disponível além dos modos aquecer, resfriar e auto, permitindo a operação apenas com ventilador.",
           "fan_on_with_ac": "Liga automaticamente o ventilador quando o resfriamento (AC) está ativo. Melhora a eficiência do resfriamento e a circulação de ar durante os ciclos de resfriamento.",
+          "fan_on_with_heater": "Ligar automaticamente o ventilador enquanto o aquecedor ou a bomba de calor estiver ativo (por exemplo, quando o ventilador é a unidade de tratamento de ar). Quando desativado, o ventilador só funciona no modo ventilador.",
           "fan_air_outside": "Ativa a circulação de ar externo quando a temperatura externa é mais favorável que a interna. Requer um sensor de temperatura externa configurado para o uso inteligente do ar externo.",
           "fan_hot_tolerance": "Faixa de temperatura acima do alvo onde o ventilador é usado em vez do AC. Por exemplo, com alvo 25°C, hot_tolerance 1°C e fan_hot_tolerance 0.5°C: o ventilador é ativado a 26°C (alvo + hot_tolerance), o AC é ativado a 26.5°C (alvo + hot_tolerance + fan_hot_tolerance). Padrão: 0.5°C.",
           "fan_hot_tolerance_toggle": "ID de entidade opcional para um input_boolean para ativar/desativar dinamicamente o recurso fan_hot_tolerance. Quando desligado, o AC é usado imediatamente em vez de tentar o ventilador primeiro. Quando não configurado, o recurso fan_hot_tolerance fica sempre ativado."
@@ -837,6 +839,7 @@
           "fan": "Interruptor do ventilador",
           "fan_mode": "Modo do ventilador",
           "fan_on_with_ac": "Ventilador com AC",
+          "fan_on_with_heater": "Ventilador com aquecedor",
           "fan_air_outside": "Ar externo do ventilador",
           "fan_hot_tolerance": "Tolerância de calor do ventilador",
           "fan_hot_tolerance_toggle": "Alternância da tolerância do ventilador"
@@ -845,6 +848,7 @@
           "fan": "ID da entidade do interruptor do ventilador. Usado para controlar a circulação de ar e melhorar a distribuição de temperatura.",
           "fan_mode": "Ativa o ventilador como um modo HVAC separado. Permite a operação apenas com ventilador.",
           "fan_on_with_ac": "Liga automaticamente o ventilador quando o resfriamento (AC) está ativo. Melhora a eficiência do resfriamento.",
+          "fan_on_with_heater": "Ligar automaticamente o ventilador enquanto o aquecedor ou a bomba de calor estiver ativo (por exemplo, quando o ventilador é a unidade de tratamento de ar). Quando desativado, o ventilador só funciona no modo ventilador.",
           "fan_air_outside": "Ativa a circulação de ar externo quando a temperatura externa é mais favorável que a interna.",
           "fan_hot_tolerance": "Faixa de temperatura acima do alvo onde o ventilador é usado em vez do AC. Padrão: 0.5°C.",
           "fan_hot_tolerance_toggle": "ID de entidade opcional para um input_boolean para ativar/desativar o recurso fan_hot_tolerance."

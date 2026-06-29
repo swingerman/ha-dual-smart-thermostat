@@ -403,6 +403,7 @@
                     "fan": "Fan switch",
                     "fan_mode": "Fan mode",
                     "fan_on_with_ac": "Fan with AC",
+                    "fan_on_with_heater": "Fan with heater",
                     "fan_air_outside": "Fan air outside",
                     "fan_hot_tolerance": "Fan hot tolerance",
                     "fan_hot_tolerance_toggle": "Fan tolerance toggle"
@@ -411,6 +412,7 @@
                     "fan": "Entity ID for fan switch. Used to control air circulation and improve temperature distribution throughout the space.",
                     "fan_mode": "Enable fan as a separate HVAC mode. When enabled, FAN mode becomes available in addition to heat, cool, and auto modes, allowing fan-only operation.",
                     "fan_on_with_ac": "Automatically turn on fan when cooling (AC) is active. Improves cooling efficiency and air circulation during cooling cycles.",
+                    "fan_on_with_heater": "Automatically run the fan while the heater or heat pump is active (e.g. when the fan is the unit's air handler). When off, the fan only runs in fan mode.",
                     "fan_air_outside": "Enable outside air circulation when outside temperature is more favorable than inside temperature. Requires outside temperature sensor to be configured for intelligent outside air usage.",
                     "fan_hot_tolerance": "Temperature range above target where fan is used instead of AC. For example, with target 25°C, hot_tolerance 1°C, and fan_hot_tolerance 0.5°C: fan activates at 26°C (target + hot_tolerance), AC activates at 26.5°C (target + hot_tolerance + fan_hot_tolerance). Default: 0.5°C.",
                     "fan_hot_tolerance_toggle": "Optional entity ID for input_boolean to dynamically enable/disable the fan_hot_tolerance feature. When off, AC is used immediately instead of trying fan first. When not configured, the fan_hot_tolerance feature is always enabled."
@@ -804,6 +806,7 @@
                     "fan": "Fan switch",
                     "fan_mode": "Fan mode",
                     "fan_on_with_ac": "Fan with AC",
+                    "fan_on_with_heater": "Fan with heater",
                     "fan_air_outside": "Fan air outside",
                     "fan_hot_tolerance": "Fan hot tolerance",
                     "fan_hot_tolerance_toggle": "Fan tolerance toggle"
@@ -812,6 +815,7 @@
                     "fan": "Entity ID for fan switch. Used to control air circulation and improve temperature distribution.",
                     "fan_mode": "Enable fan as a separate HVAC mode. Allows fan-only operation.",
                     "fan_on_with_ac": "Automatically turn on fan when cooling (AC) is active. Improves cooling efficiency.",
+                    "fan_on_with_heater": "Automatically run the fan while the heater or heat pump is active. When off, the fan only runs in fan mode.",
                     "fan_air_outside": "Enable outside air circulation when outside temperature is more favorable than inside temperature.",
                     "fan_hot_tolerance": "Temperature range above target where fan is used instead of AC. Default: 0.5°C.",
                     "fan_hot_tolerance_toggle": "Optional entity ID for input_boolean to toggle the fan_hot_tolerance feature on/off."

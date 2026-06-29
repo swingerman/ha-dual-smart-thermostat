@@ -33,6 +33,7 @@ from .const import (
     CONF_FAN_HOT_TOLERANCE_TOGGLE,
     CONF_FAN_MODE,
     CONF_FAN_ON_WITH_AC,
+    CONF_FAN_ON_WITH_HEATER,
     CONF_FLOOR_SENSOR,
     CONF_HEAT_COOL_MODE,
     CONF_HEAT_PUMP_COOLING,
@@ -960,6 +961,10 @@ def get_fan_schema(hass=None, defaults: dict[str, Any] | None = None):
             ): get_boolean_selector(),
             vol.Optional(
                 CONF_FAN_ON_WITH_AC, default=defaults.get(CONF_FAN_ON_WITH_AC, True)
+            ): get_boolean_selector(),
+            vol.Optional(
+                CONF_FAN_ON_WITH_HEATER,
+                default=defaults.get(CONF_FAN_ON_WITH_HEATER, False),
             ): get_boolean_selector(),
             vol.Optional(
                 CONF_FAN_AIR_OUTSIDE, default=defaults.get(CONF_FAN_AIR_OUTSIDE, False)

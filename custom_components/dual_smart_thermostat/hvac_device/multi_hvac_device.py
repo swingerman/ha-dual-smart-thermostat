@@ -172,14 +172,36 @@ class MultiHvacDevice(HVACDevice, ControlableHVACDevice):
             _LOGGER.warning("Invalid HVAC mode: %s", self._hvac_mode)
             return
 
+        # When opted in, a fan-only sub-device runs alongside the active
+        # heater/heat pump instead of being turned off in HEAT/COOL (issue
+        # #622). Defer those fans until the primary devices are handled.
+        fan_with_heater = self._features.is_configured_for_fan_on_with_heater
+        deferred_fans = []
+        primary_in_mode = False
+
         for device in self.hvac_devices:
+            if fan_with_heater and self._is_fan_companion(device):
+                deferred_fans.append(device)
+                continue
             if self.hvac_mode in device.hvac_modes:
                 await device.async_control_hvac(time, force)
                 self._hvac_action_reason = device.HVACActionReason
+                primary_in_mode = True
             elif device.is_active:
                 await device.async_turn_off()
 
-            # self._hvac_action_reason = device.HVACActionReason
+        for fan in deferred_fans:
+            if primary_in_mode:
+                await fan.async_turn_on()
+            elif fan.is_active:
+                await fan.async_turn_off()
+
+    def _is_fan_companion(self, device) -> bool:
+        """A fan-only sub-device that doesn't support the current heat/cool mode."""
+        return (
+            HVACMode.FAN_ONLY in device.hvac_modes
+            and self._hvac_mode not in device.hvac_modes
+        )
 
     async def async_on_startup(self, async_write_ha_state_cb: Callable = None):
         self._async_write_ha_state_cb = async_write_ha_state_cb

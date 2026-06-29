@@ -403,6 +403,7 @@
           "fan": "Spínač ventilátora",
           "fan_mode": "Režim ventilátora",
           "fan_on_with_ac": "Ventilátor s AC",
+          "fan_on_with_heater": "Ventilátor s kúrením",
           "fan_air_outside": "Ventilátor s vonkajším vzduchom",
           "fan_hot_tolerance": "Tolerancia tepla ventilátora",
           "fan_hot_tolerance_toggle": "Prepínač tolerancie ventilátora"
@@ -411,6 +412,7 @@
           "fan": "ID entity spínača ventilátora. Používa sa na ovládanie cirkulácie vzduchu a zlepšenie distribúcie teploty v priestore.",
           "fan_mode": "Povoliť ventilátor ako samostatný HVAC režim. Po povolení je režim VENTILÁTOR dostupný okrem režimov vykurovania, chladenia a automatického režimu, čím umožňuje prevádzku len s ventilátorom.",
           "fan_on_with_ac": "Automaticky zapnúť ventilátor, keď je aktívne chladenie (AC). Zlepšuje efektivitu chladenia a cirkuláciu vzduchu počas chladiacich cyklov.",
+          "fan_on_with_heater": "Automaticky spustiť ventilátor, kým je aktívne kúrenie alebo tepelné čerpadlo (napr. keď je ventilátor vzduchotechnická jednotka). Keď je vypnuté, ventilátor beží iba v režime ventilátora.",
           "fan_air_outside": "Povoliť cirkuláciu vonkajšieho vzduchu, keď je vonkajšia teplota priaznivejšia ako vnútorná teplota. Vyžaduje nakonfigurovaný senzor vonkajšej teploty pre inteligentné využitie vonkajšieho vzduchu.",
           "fan_hot_tolerance": "Teplotný rozsah nad cieľom, kde sa používa ventilátor namiesto AC. Napríklad, s cieľom 25°C, hot_tolerance 1°C a fan_hot_tolerance 0,5°C: ventilátor sa aktivuje pri 26°C (cieľ + hot_tolerance), AC sa aktivuje pri 26,5°C (cieľ + hot_tolerance + fan_hot_tolerance). Predvolené: 0,5°C.",
           "fan_hot_tolerance_toggle": "Voliteľné ID entity pre input_boolean na dynamické povolenie/zakázanie funkcie fan_hot_tolerance. Keď je vypnuté, AC sa použije okamžite namiesto najprv skúšania ventilátora. Keď nie je nakonfigurované, funkcia fan_hot_tolerance je vždy povolená."
@@ -804,6 +806,7 @@
           "fan": "Spínač ventilátora",
           "fan_mode": "Režim ventilátora",
           "fan_on_with_ac": "Ventilátor s AC",
+          "fan_on_with_heater": "Ventilátor s kúrením",
           "fan_air_outside": "Ventilátor s vonkajším vzduchom",
           "fan_hot_tolerance": "Tolerancia tepla ventilátora",
           "fan_hot_tolerance_toggle": "Prepínač tolerancie ventilátora"
@@ -812,6 +815,7 @@
           "fan": "ID entity spínača ventilátora. Používa sa na ovládanie cirkulácie vzduchu a zlepšenie distribúcie teploty.",
           "fan_mode": "Povoliť ventilátor ako samostatný HVAC režim. Umožňuje prevádzku len s ventilátorom.",
           "fan_on_with_ac": "Automaticky zapnúť ventilátor, keď je aktívne chladenie (AC). Zlepšuje efektivitu chladenia.",
+          "fan_on_with_heater": "Automaticky spustiť ventilátor, kým je aktívne kúrenie alebo tepelné čerpadlo (napr. keď je ventilátor vzduchotechnická jednotka). Keď je vypnuté, ventilátor beží iba v režime ventilátora.",
           "fan_air_outside": "Povoliť cirkuláciu vonkajšieho vzduchu, keď je vonkajšia teplota priaznivejšia ako vnútorná teplota.",
           "fan_hot_tolerance": "Teplotný rozsah nad cieľom, kde sa používa ventilátor namiesto AC. Predvolené: 0,5°C.",
           "fan_hot_tolerance_toggle": "Voliteľné ID entity pre input_boolean na zapnutie/vypnutie funkcie fan_hot_tolerance."

@@ -169,6 +169,7 @@ Fan speed control works seamlessly with all existing fan-related features:
 
 - **FAN_ONLY Mode**: Fan runs at selected speed in fan-only mode
 - **Fan with AC** (`fan_on_with_ac`): Fan runs at selected speed when AC is active
+- **Fan with heater** (`fan_on_with_heater`): Fan runs alongside the heater/heat pump in heating/cooling modes (e.g. when the fan is the unit's air handler)
 - **Fan Hot Tolerance**: Fan activates at selected speed when temperature tolerance is exceeded
 - **Heat Pump Mode**: Fan speed applies to both heating and cooling operations
 
@@ -768,6 +769,12 @@ The reason is grouped into three categories:
 ### fan_on_with_ac
 
   _(optional) (boolean)_ If set to `true` the fan will be turned on together with the AC. This is useful for central AC systems that require the fan to be turned on together with the AC.
+
+  _requires: `fan`_
+
+### fan_on_with_heater
+
+  _(optional) (boolean)_ If set to `true` the fan runs together with the heater or heat pump while in a heating/cooling mode, instead of being turned off. This is useful when the fan is the unit's air handler (e.g. a heat pump configured via `heat_pump_cooling` plus a separate `fan` entity). Defaults to `false` (the fan only runs in fan mode).
 
   _requires: `fan`_
 
