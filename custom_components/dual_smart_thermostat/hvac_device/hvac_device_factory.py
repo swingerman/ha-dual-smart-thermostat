@@ -26,6 +26,7 @@ from ..hvac_device.heat_pump_device import HeatPumpDevice
 from ..hvac_device.heater_aux_heater_device import HeaterAUXHeaterDevice
 from ..hvac_device.heater_cooler_device import HeaterCoolerDevice
 from ..hvac_device.heater_device import HeaterDevice
+from ..hvac_device.heater_fan_device import HeaterFanDevice
 from ..hvac_device.multi_hvac_device import MultiHvacDevice
 from ..managers.environment_manager import EnvironmentManager
 from ..managers.feature_manager import FeatureManager
@@ -229,9 +230,19 @@ class HVACDeviceFactory:
                 return heater_cooler_device
 
         if heater_device:
-            sub_devices = [heater_device]
+            # Combine the heater/heat pump with a fan into a dedicated
+            # cooperative device (mirrors CoolerFanDevice). The fan runs
+            # alongside the heater when fan_on_with_heater is enabled (#622).
             if fan_device:
-                sub_devices.append(fan_device)
+                heater_device = HeaterFanDevice(
+                    self.hass,
+                    [heater_device, fan_device],
+                    self._initial_hvac_mode,
+                    environment,
+                    openings,
+                    self._features,
+                )
+            sub_devices = [heater_device]
             if dryer_device:
                 sub_devices.append(dryer_device)
             if len(sub_devices) > 1:
