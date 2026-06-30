@@ -22,7 +22,13 @@ from homeassistant.components.climate.const import (
     ATTR_TARGET_TEMP_LOW,
     DOMAIN as CLIMATE,
 )
-from homeassistant.const import ATTR_TEMPERATURE, SERVICE_TURN_ON, STATE_OFF, STATE_ON
+from homeassistant.const import (
+    ATTR_TEMPERATURE,
+    SERVICE_TURN_OFF,
+    SERVICE_TURN_ON,
+    STATE_OFF,
+    STATE_ON,
+)
 from homeassistant.core import DOMAIN as HASS_DOMAIN, HomeAssistant
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import entity_registry as er
@@ -375,6 +381,111 @@ async def test_heat_pump_with_fan_follows_cooling_status_heat_to_cool(
 
     state = hass.states.get(common.ENTITY)
     assert state.state == HVACMode.COOL
+
+
+async def test_heat_pump_with_fan_keeps_fan_running_while_heating(
+    hass: HomeAssistant, setup_comp_1  # noqa: F811
+) -> None:
+    """Heat pump + fan must keep the fan running while actively heating.
+
+    Regression test for issue #622: with a heat_pump_cooling heat pump
+    configured together with a fan entity and ``fan_on_with_heater`` enabled,
+    the fan (which only supports FAN_ONLY) must run alongside the heat pump in
+    HEAT/COOL instead of being turned off by MultiHvacDevice.
+    """
+    from . import setup_switch_dual
+
+    setup_heat_pump_cooling_status(hass, False)
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "cold_tolerance": 2,
+                "hot_tolerance": 4,
+                "heater": common.ENT_SWITCH,
+                "fan": common.ENT_FAN,
+                "fan_on_with_heater": True,
+                "heat_pump_cooling": common.ENT_HEAT_PUMP_COOLING,
+                "target_sensor": common.ENT_SENSOR,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    await common.async_set_temperature(hass, 26)
+    setup_sensor(hass, 23)  # below target -> heat pump should heat
+
+    calls = setup_switch_dual(hass, common.ENT_FAN, False, False)
+
+    await common.async_set_hvac_mode(hass, HVACMode.HEAT)
+    await hass.async_block_till_done()
+
+    heater_on = [
+        c
+        for c in calls
+        if c.service == SERVICE_TURN_ON and c.data.get("entity_id") == common.ENT_SWITCH
+    ]
+    fan_on = [
+        c
+        for c in calls
+        if c.service == SERVICE_TURN_ON and c.data.get("entity_id") == common.ENT_FAN
+    ]
+    fan_off = [
+        c
+        for c in calls
+        if c.service == SERVICE_TURN_OFF and c.data.get("entity_id") == common.ENT_FAN
+    ]
+    assert len(heater_on) >= 1, f"heat pump should be heating, got: {calls}"
+    assert len(fan_on) >= 1, f"fan should run while heating, got: {calls}"
+    assert len(fan_off) == 0, f"fan must not be turned off while heating, got: {calls}"
+
+
+async def test_heat_pump_with_fan_off_with_heater_keeps_legacy_behavior(
+    hass: HomeAssistant, setup_comp_1  # noqa: F811
+) -> None:
+    """Without ``fan_on_with_heater`` the fan stays off during HEAT (default).
+
+    Gating guard for #622: the new behavior is opt-in, so existing configs are
+    unchanged — the fan is not turned on while the heat pump heats.
+    """
+    from . import setup_switch_dual
+
+    setup_heat_pump_cooling_status(hass, False)
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "cold_tolerance": 2,
+                "hot_tolerance": 4,
+                "heater": common.ENT_SWITCH,
+                "fan": common.ENT_FAN,
+                "heat_pump_cooling": common.ENT_HEAT_PUMP_COOLING,
+                "target_sensor": common.ENT_SENSOR,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    await common.async_set_temperature(hass, 26)
+    setup_sensor(hass, 23)
+
+    calls = setup_switch_dual(hass, common.ENT_FAN, False, False)
+
+    await common.async_set_hvac_mode(hass, HVACMode.HEAT)
+    await hass.async_block_till_done()
+
+    fan_on = [
+        c
+        for c in calls
+        if c.service == SERVICE_TURN_ON and c.data.get("entity_id") == common.ENT_FAN
+    ]
+    assert len(fan_on) == 0, f"fan must stay off when not opted in, got: {calls}"
 
 
 @pytest.fixture

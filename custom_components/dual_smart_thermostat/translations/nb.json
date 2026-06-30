@@ -436,6 +436,7 @@
           "fan": "Viftebryter",
           "fan_mode": "Viftemodus",
           "fan_on_with_ac": "Vifte med AC",
+          "fan_on_with_heater": "Vifte med varme",
           "fan_air_outside": "Vifte med uteluft",
           "fan_hot_tolerance": "Varmetoleranse for vifte",
           "fan_hot_tolerance_toggle": "Veksling for viftetoleranse"
@@ -444,6 +445,7 @@
           "fan": "Enhets-ID for viftebryter. Brukes til å styre luftsirkulasjon og forbedre temperaturfordelingen i rommet.",
           "fan_mode": "Aktiver vifte som en egen HVAC-modus. Når aktivert, blir VIFTE-modus tilgjengelig i tillegg til varme-, kjøle- og auto-moduser, noe som tillater kun viftedrift.",
           "fan_on_with_ac": "Slå automatisk på viften når kjøling (AC) er aktiv. Forbedrer kjøleeffektivitet og luftsirkulasjon under kjølesykluser.",
+          "fan_on_with_heater": "Kjør viften automatisk mens varmeren eller varmepumpen er aktiv (f.eks. når viften er enhetens luftbehandler). Når av kjører viften bare i viftemodus.",
           "fan_air_outside": "Aktiver sirkulasjon av uteluft når utetemperaturen er gunstigere enn innetemperaturen. Krever at en utetemperatursensor er konfigurert for intelligent bruk av uteluft.",
           "fan_hot_tolerance": "Temperaturområde over målet der viften brukes i stedet for AC. For eksempel, med mål 25°C, hot_tolerance 1°C og fan_hot_tolerance 0,5°C: viften aktiveres ved 26°C (mål + hot_tolerance), AC aktiveres ved 26,5°C (mål + hot_tolerance + fan_hot_tolerance). Standard: 0,5°C.",
           "fan_hot_tolerance_toggle": "Valgfri enhets-ID for en input_boolean for dynamisk å aktivere/deaktivere fan_hot_tolerance-funksjonen. Når av, brukes AC umiddelbart i stedet for å prøve viften først. Når ikke konfigurert, er fan_hot_tolerance-funksjonen alltid aktivert."
@@ -837,6 +839,7 @@
           "fan": "Viftebryter",
           "fan_mode": "Viftemodus",
           "fan_on_with_ac": "Vifte med AC",
+          "fan_on_with_heater": "Vifte med varme",
           "fan_air_outside": "Vifte med uteluft",
           "fan_hot_tolerance": "Varmetoleranse for vifte",
           "fan_hot_tolerance_toggle": "Veksling for viftetoleranse"
@@ -845,6 +848,7 @@
           "fan": "Enhets-ID for viftebryter. Brukes til å styre luftsirkulasjon og forbedre temperaturfordelingen.",
           "fan_mode": "Aktiver vifte som en egen HVAC-modus. Tillater kun viftedrift.",
           "fan_on_with_ac": "Slå automatisk på viften når kjøling (AC) er aktiv. Forbedrer kjøleeffektiviteten.",
+          "fan_on_with_heater": "Kjør viften automatisk mens varmeren eller varmepumpen er aktiv (f.eks. når viften er enhetens luftbehandler). Når av kjører viften bare i viftemodus.",
           "fan_air_outside": "Aktiver sirkulasjon av uteluft når utetemperaturen er gunstigere enn innetemperaturen.",
           "fan_hot_tolerance": "Temperaturområde over målet der viften brukes i stedet for AC. Standard: 0,5°C.",
           "fan_hot_tolerance_toggle": "Valgfri enhets-ID for en input_boolean for å slå fan_hot_tolerance-funksjonen av/på."

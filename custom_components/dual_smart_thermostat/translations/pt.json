@@ -436,6 +436,7 @@
           "fan": "Interruptor da ventoinha",
           "fan_mode": "Modo de ventoinha",
           "fan_on_with_ac": "Ventoinha com AC",
+          "fan_on_with_heater": "Ventoinha com aquecedor",
           "fan_air_outside": "Ar exterior pela ventoinha",
           "fan_hot_tolerance": "Tolerância de calor da ventoinha",
           "fan_hot_tolerance_toggle": "Alternância da tolerância da ventoinha"
@@ -444,6 +445,7 @@
           "fan": "ID da entidade do interruptor da ventoinha. Usado para controlar a circulação de ar e melhorar a distribuição de temperatura pelo espaço.",
           "fan_mode": "Ative a ventoinha como um modo HVAC separado. Quando ativado, o modo FAN fica disponível para além dos modos de aquecimento, arrefecimento e automático, permitindo o funcionamento apenas com ventoinha.",
           "fan_on_with_ac": "Ligue automaticamente a ventoinha quando o arrefecimento (AC) está ativo. Melhora a eficiência do arrefecimento e a circulação de ar durante os ciclos de arrefecimento.",
+          "fan_on_with_heater": "Ligar automaticamente a ventoinha enquanto o aquecedor ou a bomba de calor está ativo (por exemplo, quando a ventoinha é a unidade de tratamento de ar). Quando desativado, a ventoinha só funciona no modo de ventoinha.",
           "fan_air_outside": "Ative a circulação de ar exterior quando a temperatura exterior é mais favorável do que a interior. Requer um sensor de temperatura exterior configurado para uma utilização inteligente do ar exterior.",
           "fan_hot_tolerance": "Faixa de temperatura acima do alvo em que a ventoinha é usada em vez do AC. Por exemplo, com alvo 25°C, hot_tolerance 1°C e fan_hot_tolerance 0,5°C: a ventoinha é ativada a 26°C (alvo + hot_tolerance), o AC é ativado a 26,5°C (alvo + hot_tolerance + fan_hot_tolerance). Predefinição: 0,5°C.",
           "fan_hot_tolerance_toggle": "ID de entidade opcional para um input_boolean que ativa/desativa dinamicamente a funcionalidade fan_hot_tolerance. Quando desativado, o AC é usado imediatamente em vez de tentar primeiro a ventoinha. Quando não configurado, a funcionalidade fan_hot_tolerance está sempre ativada."
@@ -837,6 +839,7 @@
           "fan": "Interruptor da ventoinha",
           "fan_mode": "Modo de ventoinha",
           "fan_on_with_ac": "Ventoinha com AC",
+          "fan_on_with_heater": "Ventoinha com aquecedor",
           "fan_air_outside": "Ar exterior pela ventoinha",
           "fan_hot_tolerance": "Tolerância de calor da ventoinha",
           "fan_hot_tolerance_toggle": "Alternância da tolerância da ventoinha"
@@ -845,6 +848,7 @@
           "fan": "ID da entidade do interruptor da ventoinha. Usado para controlar a circulação de ar e melhorar a distribuição de temperatura.",
           "fan_mode": "Ative a ventoinha como um modo HVAC separado. Permite o funcionamento apenas com ventoinha.",
           "fan_on_with_ac": "Ligue automaticamente a ventoinha quando o arrefecimento (AC) está ativo. Melhora a eficiência do arrefecimento.",
+          "fan_on_with_heater": "Ligar automaticamente a ventoinha enquanto o aquecedor ou a bomba de calor está ativo (por exemplo, quando a ventoinha é a unidade de tratamento de ar). Quando desativado, a ventoinha só funciona no modo de ventoinha.",
           "fan_air_outside": "Ative a circulação de ar exterior quando a temperatura exterior é mais favorável do que a interior.",
           "fan_hot_tolerance": "Faixa de temperatura acima do alvo em que a ventoinha é usada em vez do AC. Predefinição: 0,5°C.",
           "fan_hot_tolerance_toggle": "ID de entidade opcional para um input_boolean que ativa/desativa a funcionalidade fan_hot_tolerance."
