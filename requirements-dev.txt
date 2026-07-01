@@ -15,7 +15,7 @@ isort
 black
 codespell
 mypy
-ruff>=0.15.18
+ruff>=0.15.20
 colorlog
 # Security and quality tools
 safety
