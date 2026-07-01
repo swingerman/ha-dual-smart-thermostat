@@ -1,11 +1,11 @@
 -r requirements.txt
 pip>=26.1.2,<27.0
-pytest-homeassistant-custom-component==0.13.340
+pytest-homeassistant-custom-component==0.13.343
 # Explicit pytest dependencies (may be transitive from pytest-homeassistant-custom-component)
 pytest>=8.4.2
 pytest-cov>=7.1.0
 # NOTE: pytest-asyncio is hard-pinned to ==1.3.0 by
-# pytest-homeassistant-custom-component==0.13.340, so the >=1.4.0 bump
+# pytest-homeassistant-custom-component==0.13.343, so the >=1.4.0 bump
 # (Dependabot PR #603) is incompatible and excluded for now. 1.3.0 is still
 # a 1.x release (the breaking 0.x -> 1.x major), delivered transitively.
 pytest-asyncio>=1.3.0
