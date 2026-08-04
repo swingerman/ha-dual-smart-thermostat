@@ -1805,7 +1805,10 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         if new_state is None:
             return
         if old_state is None:
-            self.hass.create_task(self._check_device_initial_state())
+            # async_create_task (eager) not create_task: we are already on the
+            # event loop, and create_task's call_soon_threadsafe defers the run
+            # by a loop iteration, racing whatever the caller does next.
+            self.hass.async_create_task(self._check_device_initial_state())
 
         self.async_write_ha_state()
 
@@ -1818,7 +1821,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             _LOGGER.debug(
                 "Resuming from state. Old state is None, New State: %s", new_state
             )
-            self.hass.create_task(self._async_control_climate())
+            self.hass.async_create_task(self._async_control_climate())
 
         if old_state is not None and new_state is not None:
             _LOGGER.debug(
@@ -1833,7 +1836,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                 STATE_UNAVAILABLE,
                 STATE_UNKNOWN,
             ):
-                self.hass.create_task(self._async_control_climate())
+                self.hass.async_create_task(self._async_control_climate())
 
     @property
     def _is_device_active(self) -> bool:

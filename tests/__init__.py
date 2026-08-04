@@ -1308,7 +1308,6 @@ def setup_switch(
     hass: HomeAssistant, is_on: bool, entity_id: str = common.ENT_SWITCH
 ) -> None:
     """Set up the test switch."""
-    hass.states.async_set(entity_id, STATE_ON if is_on else STATE_OFF)
     calls = []
 
     @callback
@@ -1316,8 +1315,13 @@ def setup_switch(
         """Log service calls."""
         calls.append(call)
 
+    # Register before setting the state: the state write dispatches the
+    # thermostat's switch-changed callback synchronously, and any service call
+    # it makes must land in `calls` rather than hit an unregistered action.
     hass.services.async_register(ha.DOMAIN, SERVICE_TURN_ON, log_call)
     hass.services.async_register(ha.DOMAIN, SERVICE_TURN_OFF, log_call)
+
+    hass.states.async_set(entity_id, STATE_ON if is_on else STATE_OFF)
 
     return calls
 

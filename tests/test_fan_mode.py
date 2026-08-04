@@ -731,6 +731,10 @@ async def test_set_target_temp_fan_off(
     """Test if target temperature turn fan off."""
     calls = setup_switch(hass, True)
     setup_sensor(hass, 25)
+    await hass.async_block_till_done()
+    # The switch appearing drives a control run of its own; scope the
+    # assertion below to what setting the target temperature does.
+    calls.clear()
     await common.async_set_temperature(hass, 30)
     await hass.async_block_till_done()
     assert len(calls) == 1
