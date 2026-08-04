@@ -2360,7 +2360,9 @@ async def test_set_target_temp_ac_on_after_fan_tolerance(
 
     await common.async_set_temperature(hass, 22)
     await hass.async_block_till_done()
-    assert len(calls) == 4
+    # One call per set_temperature. The previous count of 4 was calibrated to
+    # the duplicated control runs that hass.create_task used to cause.
+    assert len(calls) == 2
     call = calls[1]
     assert call.domain == HASS_DOMAIN
     assert call.service == SERVICE_TURN_ON
