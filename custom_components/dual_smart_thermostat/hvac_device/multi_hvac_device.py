@@ -46,6 +46,13 @@ class MultiHvacDevice(HVACDevice, ControlableHVACDevice):
         for device in self.hvac_devices:
             device.set_context(context)
 
+    # override
+    def reset_hvac_action_reason(self) -> None:
+        """Clear the reason on every sub-device as well as our own."""
+        super().reset_hvac_action_reason()
+        for device in self.hvac_devices:
+            device.reset_hvac_action_reason()
+
     @callback
     def on_entity_state_changed(self, entity_id: str, new_state: State) -> None:
         """Forward state-change notifications to every sub-device.

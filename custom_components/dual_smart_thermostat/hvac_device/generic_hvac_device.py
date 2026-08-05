@@ -129,6 +129,12 @@ class GenericHVACDevice(
         """If the toggleable hvac device is currently active."""
         return self.hvac_controller.is_active
 
+    # override
+    def reset_hvac_action_reason(self) -> None:
+        """Clear the controller's copy too - it is the one control re-reads."""
+        super().reset_hvac_action_reason()
+        self.hvac_controller.hvac_action_reason = HVACActionReason.NONE
+
     @property
     def is_on(self) -> bool:
         return self._entity_state is not None and self._entity_state.state == STATE_ON

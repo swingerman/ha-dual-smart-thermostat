@@ -58,6 +58,10 @@ class GenericHvacController(HvacController):
     def hvac_action_reason(self) -> HVACActionReason:
         return self._hvac_action_reason
 
+    @hvac_action_reason.setter
+    def hvac_action_reason(self, hvac_action_reason: HVACActionReason) -> None:
+        self._hvac_action_reason = hvac_action_reason
+
     @property
     def is_active(self) -> bool:
         """If the toggleable hvac device is currently active."""

@@ -1446,6 +1446,12 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                     self.sensor_entity_id,
                     new_state,
                 )
+                # The reason still held everywhere is the pre-stall one: the
+                # emergency stop turned the device off without a controller
+                # deciding anything. Clear it down the whole device tree so the
+                # control run below starts from a clean slate - if the fresh
+                # reading calls for no action, no stale reason resurfaces.
+                self.hvac_device.reset_hvac_action_reason()
                 self._hvac_action_reason = self.hvac_device.HVACActionReason
                 self._publish_hvac_action_reason(self._hvac_action_reason)
                 self.async_write_ha_state()
