@@ -147,8 +147,21 @@ class CoolerFanDevice(MultiHvacDevice):
             case _:
                 if self._hvac_mode is not None:
                     _LOGGER.warning("Invalid HVAC mode: %s", self._hvac_mode)
+                # Fail-safe: an unhandled/unmapped hvac_mode (e.g. this
+                # sub-device being left in a stale mode by a parent
+                # MultiHvacDevice that doesn't manage a mode it owns, such
+                # as HEAT) must not leave the cooler/fan relays energized
+                # indefinitely. See https://github.com/swingerman/ha-dual-smart-thermostat/issues/632
+                await self.async_turn_off_all(time=time)
+                self.HVACActionReason = HVACActionReason.NONE
 
     async def _async_control_when_fan_on_with_cooler(self, time=None, force=False):
+        # Fix for https://github.com/swingerman/ha-dual-smart-thermostat/issues/632:
+        # the fan sub-device's own hvac_mode must be set before delegating to
+        # its control loop, otherwise it has nothing to act on and silently
+        # leaves the fan in whatever state it was previously (often off, or
+        # stuck on from an unrelated prior fan_only selection).
+        self.fan_device.hvac_mode = HVACMode.FAN_ONLY
         await self.fan_device.async_control_hvac(time, force)
         await self.cooler_device.async_control_hvac(time, force)
         self.HVACActionReason = self.cooler_device.HVACActionReason

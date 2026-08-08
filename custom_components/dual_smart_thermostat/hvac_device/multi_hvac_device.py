@@ -183,7 +183,12 @@ class MultiHvacDevice(HVACDevice, ControlableHVACDevice):
             if self.hvac_mode in device.hvac_modes:
                 await device.async_control_hvac(time, force)
                 self._hvac_action_reason = device.HVACActionReason
-            elif device.is_active:
+            else:
+                # Fix for https://github.com/swingerman/ha-dual-smart-thermostat/issues/632:
+                # unconditionally turn off sub-devices that don't handle the
+                # current top-level hvac_mode, instead of gating on their
+                # is_active cache (which can desync from the real switch
+                # state and leave a relay stuck energized).
                 await device.async_turn_off()
 
             # self._hvac_action_reason = device.HVACActionReason
