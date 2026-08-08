@@ -842,6 +842,15 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
             return self.async_update_reload_and_abort(
                 self._get_reconfigure_entry(),
                 data=cleaned_config,
+                # Fix for https://github.com/swingerman/ha-dual-smart-thermostat/issues/631:
+                # entry.options takes precedence over entry.data at runtime
+                # (see climate.py's {**data, **options} merge). If Options
+                # was ever saved previously, its frozen snapshot silently
+                # shadows every field reconfigure just updated in entry.data
+                # — including target_sensor — with no error shown. Clear the
+                # stale options so a successful reconfigure actually takes
+                # effect.
+                options={},
             )
         else:
             # Config flow: create new entry
