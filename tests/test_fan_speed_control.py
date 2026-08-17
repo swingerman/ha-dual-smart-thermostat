@@ -1856,3 +1856,145 @@ async def test_fan_activates_with_restored_fan_mode(hass: HomeAssistant):
     # Should have set fan mode to "high"
     if len(preset_mode_calls) > 0:
         assert any(call.data.get("preset_mode") == "high" for call in preset_mode_calls)
+
+
+@pytest.mark.asyncio
+async def test_fan_capabilities_redetected_when_entity_appears_late(
+    hass: HomeAssistant,
+):
+    """Fan speed control is picked up when the fan entity shows up after setup.
+
+    Issue #636: integrations that connect asynchronously (ESPHome, MQTT) have
+    no state yet when the thermostat is built, so detection found nothing and
+    speed control stayed unavailable until the user reloaded the integration.
+    """
+    environment = MagicMock(spec=EnvironmentManager)
+    openings = MagicMock(spec=OpeningManager)
+    features = MagicMock(spec=FeatureManager)
+    hvac_power = MagicMock(spec=HvacPowerManager)
+
+    # Entity does not exist yet, exactly as during an async integration's setup
+    fan_device = FanDevice(
+        hass,
+        "fan.late_fan",
+        timedelta(seconds=5),
+        HVACMode.FAN_ONLY,
+        environment,
+        openings,
+        features,
+        hvac_power,
+    )
+
+    assert fan_device.supports_fan_mode is False
+    assert fan_device.fan_modes == []
+
+    # The integration finishes connecting and the entity materialises
+    hass.states.async_set(
+        "fan.late_fan",
+        "off",
+        {"preset_modes": ["quiet", "boost"], "preset_mode": "quiet"},
+    )
+    await hass.async_block_till_done()
+
+    assert fan_device.redetect_fan_capabilities() is True
+    assert fan_device.supports_fan_mode is True
+    assert fan_device.fan_modes == ["quiet", "boost"]
+
+    # Already detected, so a later call reports no change and stays stable
+    assert fan_device.redetect_fan_capabilities() is False
+    assert fan_device.fan_modes == ["quiet", "boost"]
+
+
+@pytest.mark.asyncio
+async def test_fan_capabilities_not_redetected_for_switch(hass: HomeAssistant):
+    """A switch-domain fan still gets no speed control on re-detection."""
+    environment = MagicMock(spec=EnvironmentManager)
+    openings = MagicMock(spec=OpeningManager)
+    features = MagicMock(spec=FeatureManager)
+    hvac_power = MagicMock(spec=HvacPowerManager)
+
+    fan_device = FanDevice(
+        hass,
+        "switch.late_fan",
+        timedelta(seconds=5),
+        HVACMode.FAN_ONLY,
+        environment,
+        openings,
+        features,
+        hvac_power,
+    )
+
+    hass.states.async_set("switch.late_fan", "off")
+    await hass.async_block_till_done()
+
+    assert fan_device.redetect_fan_capabilities() is False
+    assert fan_device.supports_fan_mode is False
+
+
+@pytest.mark.asyncio
+async def test_climate_gains_fan_mode_when_fan_entity_appears_late(
+    hass: HomeAssistant,
+):
+    """End-to-end of issue #636: fan_modes appear without an integration reload."""
+    from homeassistant.components import input_boolean, input_number
+    from homeassistant.components.climate.const import (
+        DOMAIN as CLIMATE,
+        ClimateEntityFeature,
+    )
+    from homeassistant.setup import async_setup_component
+    from homeassistant.util.unit_system import METRIC_SYSTEM
+
+    from custom_components.dual_smart_thermostat.const import DOMAIN
+
+    from . import common
+
+    hass.config.units = METRIC_SYSTEM
+
+    assert await async_setup_component(
+        hass, input_boolean.DOMAIN, {"input_boolean": {"test": None}}
+    )
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {"name": "test", "initial": 10, "min": 0, "max": 40, "step": 1}
+            }
+        },
+    )
+
+    # Deliberately do NOT create fan.late_fan before setting up the thermostat
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "heater": "input_boolean.test",
+                "target_sensor": common.ENT_SENSOR,
+                "fan": "fan.late_fan",
+                "initial_hvac_mode": HVACMode.HEAT,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    state = hass.states.get("climate.test")
+    assert state is not None
+    assert not (
+        state.attributes.get("supported_features") & ClimateEntityFeature.FAN_MODE
+    )
+    assert state.attributes.get("fan_modes") is None
+
+    # The ESPHome/MQTT fan finishes connecting
+    hass.states.async_set(
+        "fan.late_fan",
+        "off",
+        {"preset_modes": ["quiet", "boost"], "preset_mode": "quiet"},
+    )
+    await hass.async_block_till_done()
+
+    state = hass.states.get("climate.test")
+    assert state.attributes.get("supported_features") & ClimateEntityFeature.FAN_MODE
+    assert set(state.attributes.get("fan_modes")) == {"quiet", "boost"}

@@ -1816,6 +1816,12 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             # by a loop iteration, racing whatever the caller does next.
             self.hass.async_create_task(self._check_device_initial_state())
 
+        # A fan provided by an integration that connects asynchronously may
+        # only now have become available, so this is our chance to pick up the
+        # speed control we couldn't see at setup (issue #636).
+        if self.features.redetect_fan_capabilities():
+            self._set_support_flags()
+
         self.async_write_ha_state()
 
         self._resume_from_state(old_state, new_state)

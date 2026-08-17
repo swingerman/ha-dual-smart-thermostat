@@ -363,6 +363,16 @@ class FeatureManager(StateManager):
             return []
         return self._fan_device.fan_modes
 
+    def redetect_fan_capabilities(self) -> bool:
+        """Retry fan speed-control detection, returning True if it succeeded now.
+
+        See ``FanDevice.redetect_fan_capabilities`` - the fan entity may not
+        have existed when the device was built (issue #636).
+        """
+        if self._fan_device is None:
+            return False
+        return self._fan_device.redetect_fan_capabilities()
+
     def _restore_fan_mode(self, old_state: State) -> None:
         """Restore fan mode from old state."""
         if not self.supports_fan_mode:

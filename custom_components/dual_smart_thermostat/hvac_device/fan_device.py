@@ -99,6 +99,33 @@ class FanDevice(CoolerDevice):
 
         _LOGGER.debug("Fan entity %s does not support speed control", self.entity_id)
 
+    def redetect_fan_capabilities(self) -> bool:
+        """Retry detection for a fan that wasn't ready when we were created.
+
+        Integrations that connect asynchronously (ESPHome, MQTT) often have
+        no state, or an unavailable one, at the moment the thermostat is set
+        up. Detection then finds nothing and the fan is left permanently
+        without speed control until the user reloads the integration
+        (issue #636). Called again whenever the fan entity's state changes.
+
+        Returns True only when this call is what discovered speed control,
+        so the caller knows it needs to refresh its supported features.
+        """
+        if self._supports_fan_mode:
+            return False
+
+        self._detect_fan_capabilities()
+
+        if self._supports_fan_mode:
+            _LOGGER.info(
+                "Fan entity %s became available and supports speed control: %s",
+                self.entity_id,
+                self._fan_modes,
+            )
+            return True
+
+        return False
+
     @property
     def supports_fan_mode(self) -> bool:
         """Return if fan supports speed control."""
