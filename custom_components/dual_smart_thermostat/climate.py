@@ -1797,6 +1797,17 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         """Handle heater switch state changes."""
 
         data = event.data
+
+        # The fan entity may only now have turned up (issue #636). Notify the
+        # fan device directly rather than the whole tree: MultiHvacDevice's
+        # hook re-merges hvac_modes, which must not run on every switch event.
+        fan_device = self.features.fan_device
+        if fan_device is not None and data["new_state"] is not None:
+            had_fan_mode = fan_device.supports_fan_mode
+            fan_device.on_entity_state_changed(data["entity_id"], data["new_state"])
+            if fan_device.supports_fan_mode != had_fan_mode:
+                self._set_support_flags()
+
         self._async_switch_changed(data["old_state"], data["new_state"])
 
     @callback
@@ -1815,12 +1826,6 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             # event loop, and create_task's call_soon_threadsafe defers the run
             # by a loop iteration, racing whatever the caller does next.
             self.hass.async_create_task(self._check_device_initial_state())
-
-        # A fan provided by an integration that connects asynchronously may
-        # only now have become available, so this is our chance to pick up the
-        # speed control we couldn't see at setup (issue #636).
-        if self.features.redetect_fan_capabilities():
-            self._set_support_flags()
 
         self.async_write_ha_state()
 

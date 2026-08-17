@@ -2,7 +2,7 @@ from datetime import timedelta
 import logging
 
 from homeassistant.components.climate import HVACAction, HVACMode
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, State, callback
 
 from ..const import FAN_MODE_TO_PERCENTAGE
 from ..hvac_device.cooler_device import CoolerDevice
@@ -49,6 +49,8 @@ class FanDevice(CoolerDevice):
         self._fan_modes = []
         self._uses_preset_modes = False
         self._current_fan_mode = None
+        # Held until the entity turns up and detection succeeds (issue #636).
+        self._pending_fan_mode = None
         self._detect_fan_capabilities()
 
     def _detect_fan_capabilities(self) -> None:
@@ -99,32 +101,21 @@ class FanDevice(CoolerDevice):
 
         _LOGGER.debug("Fan entity %s does not support speed control", self.entity_id)
 
-    def redetect_fan_capabilities(self) -> bool:
-        """Retry detection for a fan that wasn't ready when we were created.
+    # override
+    @callback
+    def on_entity_state_changed(self, entity_id: str, new_state: State) -> None:
+        """Retry detection once our entity shows up (issue #636).
 
-        Integrations that connect asynchronously (ESPHome, MQTT) often have
-        no state, or an unavailable one, at the moment the thermostat is set
-        up. Detection then finds nothing and the fan is left permanently
-        without speed control until the user reloads the integration
-        (issue #636). Called again whenever the fan entity's state changes.
-
-        Returns True only when this call is what discovered speed control,
-        so the caller knows it needs to refresh its supported features.
+        The fan may have had no state when the device was built.
         """
-        if self._supports_fan_mode:
-            return False
+        if entity_id != self.entity_id or self._supports_fan_mode:
+            return
 
         self._detect_fan_capabilities()
 
-        if self._supports_fan_mode:
-            _LOGGER.info(
-                "Fan entity %s became available and supports speed control: %s",
-                self.entity_id,
-                self._fan_modes,
-            )
-            return True
-
-        return False
+        if self._supports_fan_mode and self._pending_fan_mode is not None:
+            self.restore_fan_mode(self._pending_fan_mode)
+            self._pending_fan_mode = None
 
     @property
     def supports_fan_mode(self) -> bool:
@@ -155,6 +146,12 @@ class FanDevice(CoolerDevice):
         This method validates that the fan mode is valid for the current
         fan device before restoring it. Invalid modes are logged and ignored.
         """
+        if not self._supports_fan_mode:
+            # Entity isn't up yet; hold the mode for on_entity_state_changed
+            # rather than dropping it (issue #636).
+            self._pending_fan_mode = fan_mode
+            return
+
         if fan_mode in self._fan_modes:
             self._current_fan_mode = fan_mode
             _LOGGER.info("Restored fan mode %s for entity %s", fan_mode, self.entity_id)
