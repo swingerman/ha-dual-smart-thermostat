@@ -182,10 +182,12 @@ async def test_fan_device_switch_no_speed_control(hass: HomeAssistant):
     assert fan_device.fan_modes == []
 
     # A switch can never gain speed control, so re-detection changes nothing.
-    fan_device.on_entity_state_changed(
-        "switch.test_fan", hass.states.get("switch.test_fan")
+    assert (
+        fan_device.redetect_capabilities(
+            "switch.test_fan", hass.states.get("switch.test_fan")
+        )
+        is False
     )
-    assert fan_device.supports_fan_mode is False
 
 
 @pytest.mark.asyncio
@@ -1865,34 +1867,6 @@ async def test_fan_activates_with_restored_fan_mode(hass: HomeAssistant):
 
 
 @pytest.mark.asyncio
-async def test_fan_capabilities_detected_when_entity_appears_late(hass: HomeAssistant):
-    """Speed control is picked up when the fan entity shows up after setup (#636)."""
-    fan_device = FanDevice(
-        hass,
-        "fan.late_fan",
-        timedelta(seconds=5),
-        HVACMode.FAN_ONLY,
-        MagicMock(spec=EnvironmentManager),
-        MagicMock(spec=OpeningManager),
-        MagicMock(spec=FeatureManager),
-        MagicMock(spec=HvacPowerManager),
-    )
-
-    assert fan_device.supports_fan_mode is False
-
-    # Entity appears
-    hass.states.async_set(
-        "fan.late_fan",
-        "off",
-        {"preset_modes": ["quiet", "boost"], "preset_mode": "quiet"},
-    )
-    fan_device.on_entity_state_changed("fan.late_fan", hass.states.get("fan.late_fan"))
-
-    assert fan_device.supports_fan_mode is True
-    assert fan_device.fan_modes == ["quiet", "boost"]
-
-
-@pytest.mark.asyncio
 async def test_late_fan_ignores_other_entities(hass: HomeAssistant):
     """Only the fan's own entity triggers detection (#636)."""
     fan_device = FanDevice(
@@ -1909,8 +1883,12 @@ async def test_late_fan_ignores_other_entities(hass: HomeAssistant):
     hass.states.async_set(
         "fan.late_fan", "off", {"preset_modes": ["quiet"], "preset_mode": "quiet"}
     )
-    fan_device.on_entity_state_changed("switch.heater", hass.states.get("fan.late_fan"))
-
+    assert (
+        fan_device.redetect_capabilities(
+            "switch.heater", hass.states.get("fan.late_fan")
+        )
+        is False
+    )
     assert fan_device.supports_fan_mode is False
 
 
@@ -1937,8 +1915,14 @@ async def test_restored_fan_mode_applied_when_entity_appears_late(hass: HomeAssi
         "off",
         {"preset_modes": ["quiet", "boost"], "preset_mode": "quiet"},
     )
-    fan_device.on_entity_state_changed("fan.late_fan", hass.states.get("fan.late_fan"))
+    assert (
+        fan_device.redetect_capabilities(
+            "fan.late_fan", hass.states.get("fan.late_fan")
+        )
+        is True
+    )
 
+    assert fan_device.fan_modes == ["quiet", "boost"]
     assert fan_device.current_fan_mode == "boost"
 
 

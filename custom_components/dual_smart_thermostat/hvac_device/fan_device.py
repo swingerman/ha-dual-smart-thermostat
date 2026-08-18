@@ -49,13 +49,12 @@ class FanDevice(CoolerDevice):
         self._fan_modes = []
         self._uses_preset_modes = False
         self._current_fan_mode = None
-        # Held until the entity turns up and detection succeeds (issue #636).
         self._pending_fan_mode = None
         self._detect_fan_capabilities()
 
-    def _detect_fan_capabilities(self) -> None:
+    def _detect_fan_capabilities(self, fan_state: State | None = None) -> None:
         """Detect if fan entity supports speed control."""
-        fan_state = self.hass.states.get(self.entity_id)
+        fan_state = fan_state or self.hass.states.get(self.entity_id)
 
         if not fan_state:
             _LOGGER.debug("Fan entity %s not found, no speed control", self.entity_id)
@@ -101,21 +100,22 @@ class FanDevice(CoolerDevice):
 
         _LOGGER.debug("Fan entity %s does not support speed control", self.entity_id)
 
-    # override
     @callback
-    def on_entity_state_changed(self, entity_id: str, new_state: State) -> None:
-        """Retry detection once our entity shows up (issue #636).
-
-        The fan may have had no state when the device was built.
-        """
+    def redetect_capabilities(self, entity_id: str, new_state: State) -> bool:
+        """Retry detection once our entity shows up, True if it gained speed control."""
         if entity_id != self.entity_id or self._supports_fan_mode:
-            return
+            return False
 
-        self._detect_fan_capabilities()
+        self._detect_fan_capabilities(new_state)
 
-        if self._supports_fan_mode and self._pending_fan_mode is not None:
+        if not self._supports_fan_mode:
+            return False
+
+        if self._pending_fan_mode is not None:
             self.restore_fan_mode(self._pending_fan_mode)
             self._pending_fan_mode = None
+
+        return True
 
     @property
     def supports_fan_mode(self) -> bool:
@@ -147,8 +147,7 @@ class FanDevice(CoolerDevice):
         fan device before restoring it. Invalid modes are logged and ignored.
         """
         if not self._supports_fan_mode:
-            # Entity isn't up yet; hold the mode for on_entity_state_changed
-            # rather than dropping it (issue #636).
+            # Entity isn't up yet; hold it for redetect_capabilities (issue #636).
             self._pending_fan_mode = fan_mode
             return
 
