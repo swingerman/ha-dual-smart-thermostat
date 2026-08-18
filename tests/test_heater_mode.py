@@ -3085,3 +3085,163 @@ async def test_aux_heater_dual_mode_heat_cool_mode_both_stay_on(
 
     assert hass.states.get(heater_switch).state == STATE_OFF
     assert hass.states.get(secondary_heater_switch).state == STATE_OFF
+
+
+async def test_heater_cooler_with_fan_keeps_fan_running_while_heating(
+    hass: HomeAssistant, setup_comp_1  # noqa: F811
+) -> None:
+    """fan_on_with_heater must work when a cooler is configured too.
+
+    Regression test for issue #637: with heater + cooler + fan and
+    ``fan_on_with_heater`` enabled, the fan never ran in HEAT. The factory only
+    wrapped the heater in HeaterFanDevice on the heater-only path, and the
+    cooler's wrapper - which shares the same fan device - turned the fan back
+    off on every control cycle.
+    """
+    from . import setup_switch_dual
+
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "cold_tolerance": 2,
+                "hot_tolerance": 4,
+                "heater": common.ENT_SWITCH,
+                "cooler": common.ENT_COOLER,
+                "fan": common.ENT_FAN,
+                "fan_on_with_ac": True,
+                "fan_on_with_heater": True,
+                "heat_cool_mode": False,
+                "target_sensor": common.ENT_SENSOR,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    await common.async_set_temperature(hass, 26)
+    setup_sensor(hass, 23)  # below target -> should heat
+
+    calls = setup_switch_dual(hass, common.ENT_FAN, False, False)
+
+    await common.async_set_hvac_mode(hass, HVACMode.HEAT)
+    await hass.async_block_till_done()
+
+    heater_on = [
+        c
+        for c in calls
+        if c.service == SERVICE_TURN_ON and c.data.get("entity_id") == common.ENT_SWITCH
+    ]
+    fan_on = [
+        c
+        for c in calls
+        if c.service == SERVICE_TURN_ON and c.data.get("entity_id") == common.ENT_FAN
+    ]
+    fan_off = [
+        c
+        for c in calls
+        if c.service == SERVICE_TURN_OFF and c.data.get("entity_id") == common.ENT_FAN
+    ]
+    assert len(heater_on) >= 1, f"heater should be heating, got: {calls}"
+    assert len(fan_on) >= 1, f"fan should run while heating, got: {calls}"
+    assert len(fan_off) == 0, f"fan must not be turned off while heating, got: {calls}"
+
+
+async def test_heater_cooler_with_fan_does_not_turn_off_running_fan(
+    hass: HomeAssistant, setup_comp_1  # noqa: F811
+) -> None:
+    """The cooler's wrapper must not switch off the fan the heater is using.
+
+    Second half of issue #637: heater and cooler each wrap the *same* fan
+    device, so on every control cycle the cooler wrapper - which does not
+    handle HEAT - saw the running fan as its own and turned it off again.
+    """
+    from . import setup_switch_dual
+
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "cold_tolerance": 2,
+                "hot_tolerance": 4,
+                "heater": common.ENT_SWITCH,
+                "cooler": common.ENT_COOLER,
+                "fan": common.ENT_FAN,
+                "fan_on_with_ac": True,
+                "fan_on_with_heater": True,
+                "heat_cool_mode": False,
+                "target_sensor": common.ENT_SENSOR,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    await common.async_set_temperature(hass, 26)
+    setup_sensor(hass, 23)
+    await common.async_set_hvac_mode(hass, HVACMode.HEAT)
+    await hass.async_block_till_done()
+
+    # Heater and fan are genuinely running, as they would be on real hardware
+    calls = setup_switch_dual(hass, common.ENT_FAN, True, True)
+    await hass.async_block_till_done()
+
+    # A routine temperature update while still below target
+    setup_sensor(hass, 24)
+    await hass.async_block_till_done()
+
+    fan_off = [
+        c
+        for c in calls
+        if c.service == SERVICE_TURN_OFF and c.data.get("entity_id") == common.ENT_FAN
+    ]
+    assert len(fan_off) == 0, f"running fan must not be switched off, got: {calls}"
+
+
+async def test_heater_cooler_with_fan_off_with_heater_keeps_legacy_behavior(
+    hass: HomeAssistant, setup_comp_1  # noqa: F811
+) -> None:
+    """Without ``fan_on_with_heater`` a heater+cooler+fan config is unchanged.
+
+    Gating guard for #637: the heater only takes the fan over when the user
+    opted in, otherwise the fan stays with the cooler as before.
+    """
+    from . import setup_switch_dual
+
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "cold_tolerance": 2,
+                "hot_tolerance": 4,
+                "heater": common.ENT_SWITCH,
+                "cooler": common.ENT_COOLER,
+                "fan": common.ENT_FAN,
+                "heat_cool_mode": False,
+                "target_sensor": common.ENT_SENSOR,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    await common.async_set_temperature(hass, 26)
+    setup_sensor(hass, 23)
+
+    calls = setup_switch_dual(hass, common.ENT_FAN, False, False)
+
+    await common.async_set_hvac_mode(hass, HVACMode.HEAT)
+    await hass.async_block_till_done()
+
+    fan_on = [
+        c
+        for c in calls
+        if c.service == SERVICE_TURN_ON and c.data.get("entity_id") == common.ENT_FAN
+    ]
+    assert len(fan_on) == 0, f"fan must stay off without opt-in, got: {calls}"

@@ -114,6 +114,17 @@ class ControlableHVACDevice(ABC):
     def HVACActionReason(self, hvac_action_reason: HVACActionReason):
         self._hvac_action_reason = hvac_action_reason
 
+    async def async_turn_off_unless_used(self, in_use: set[str]) -> None:
+        """Turn off, unless an entity we own is in use by the active device.
+
+        Wrappers can share an actuator - a heater wrapper and a cooler wrapper
+        may hold the same fan - so stopping a wrapper wholesale would switch
+        off an entity the running mode still needs (#637).
+        """
+        if set(self.get_device_ids()) & in_use:
+            return
+        await self.async_turn_off()
+
     def reset_hvac_action_reason(self) -> None:
         """Forget why the device last acted.
 

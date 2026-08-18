@@ -53,6 +53,12 @@ class MultiHvacDevice(HVACDevice, ControlableHVACDevice):
         for device in self.hvac_devices:
             device.reset_hvac_action_reason()
 
+    # override
+    async def async_turn_off_unless_used(self, in_use: set[str]) -> None:
+        """Push the check down to the sub-devices so shared ones are spared."""
+        for device in self.hvac_devices:
+            await device.async_turn_off_unless_used(in_use)
+
     @callback
     def on_entity_state_changed(self, entity_id: str, new_state: State) -> None:
         """Forward state-change notifications to every sub-device.
@@ -179,14 +185,25 @@ class MultiHvacDevice(HVACDevice, ControlableHVACDevice):
             _LOGGER.warning("Invalid HVAC mode: %s", self._hvac_mode)
             return
 
+        # Stop the devices that do not handle this mode before running the one
+        # that does, and spare any entity the handling device also owns: a
+        # heater wrapper and a cooler wrapper may hold the same fan, and
+        # stopping one would switch that fan off (#637).
+        in_use = {
+            entity_id
+            for device in self.hvac_devices
+            if self.hvac_mode in device.hvac_modes
+            for entity_id in device.get_device_ids()
+        }
+
+        for device in self.hvac_devices:
+            if self.hvac_mode not in device.hvac_modes and device.is_active:
+                await device.async_turn_off_unless_used(in_use)
+
         for device in self.hvac_devices:
             if self.hvac_mode in device.hvac_modes:
                 await device.async_control_hvac(time, force)
                 self._hvac_action_reason = device.HVACActionReason
-            elif device.is_active:
-                await device.async_turn_off()
-
-            # self._hvac_action_reason = device.HVACActionReason
 
     async def async_on_startup(self, async_write_ha_state_cb: Callable = None):
         self._async_write_ha_state_cb = async_write_ha_state_cb
