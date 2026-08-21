@@ -6,8 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Home Assistant Dual Smart Thermostat - An enhanced thermostat component supporting multiple HVAC modes (heating, cooling, heat pump, fan, humidity control), advanced features (floor temperature control, window/door sensors, presets), and sophisticated control logic.
 
-**Target**: Home Assistant 2025.1.0+
-**Language**: Python 3.13
+**Target**: Home Assistant 2026.3.2+ (dev/CI on 2026.7.4)
+**Language**: Python 3.14
 
 ## Essential Commands
 
@@ -79,17 +79,6 @@ HA_VERSION=latest docker-compose build dev
 docker-compose run --rm dev <command>
 ```
 
-### Code Quality Requirements
-
-**ALL code MUST pass linting checks before commit:**
-- `isort` - Import sorting
-- `black` - Code formatting (88 character line length)
-- `flake8` - Style/linting
-- `codespell` - Spell checking
-- `ruff` - Additional linting
-
-**Run `./scripts/docker-lint` before committing. GitHub workflows will reject failing commits.**
-
 ## Architecture Overview
 
 ### Modular Design Pattern
@@ -100,40 +89,6 @@ The codebase uses a **separation of concerns** architecture with distinct layers
 2. **Manager Layer** (`managers/`) - Shared business logic (features, state, environment)
 3. **Controller Layer** (`hvac_controller/`) - Orchestration between devices and managers
 4. **Climate Entity** (`climate.py`) - Home Assistant integration interface
-
-### Core Components
-
-#### Device Types (`hvac_device/`)
-Abstraction layer for different HVAC equipment:
-- `heater_device.py` - Basic heating
-- `cooler_device.py` - Air conditioning
-- `heat_pump_device.py` - Combined heating/cooling (single switch)
-- `heater_cooler_device.py` - Dual heating/cooling (separate switches)
-- `heater_aux_heater_device.py` - Two-stage heating
-- `fan_device.py` - Fan-only operation
-- `dryer_device.py` - Humidity control
-- `hvac_device_factory.py` - **Factory pattern** creates appropriate device based on configuration
-
-#### Managers (`managers/`)
-Shared logic components handling specific responsibilities:
-- `state_manager.py` - Persistence and state restoration
-- `environment_manager.py` - Environmental condition tracking (temperature, humidity, sensors)
-- `feature_manager.py` - Feature enablement and configuration
-- `opening_manager.py` - Window/door sensor handling
-- `preset_manager.py` - Preset mode management
-- `hvac_power_manager.py` - Power cycling and keep-alive logic
-
-#### Controllers (`hvac_controller/`)
-Orchestration of control logic:
-- `generic_controller.py` - Base controller with common logic
-- `heater_controller.py` - Heating-specific control
-- `cooler_controller.py` - Cooling-specific control
-- `hvac_controller.py` - Top-level coordinator
-
-#### HVAC Action Reasons (`hvac_action_reason/`)
-Tracking and reporting why HVAC actions occur:
-- `hvac_action_reason_internal.py` - System-triggered reasons (temp reached, opening detected, etc.)
-- `hvac_action_reason_external.py` - User/automation-triggered reasons (schedule, presence, emergency)
 
 ### Configuration Flow (`config_flow.py`, `options_flow.py`)
 
@@ -172,174 +127,15 @@ Climate entity manages HVAC mode state transitions with validation and callbacks
 
 ### Configuration Flow Integration
 
-**CRITICAL**: Every added or modified configuration option MUST be integrated into the appropriate configuration flows (config, reconfigure, or options flows). This is mandatory for all configuration changes.
+**CRITICAL**: Every added or modified configuration option MUST be integrated into the
+appropriate configuration flows (config, reconfigure, and/or options). A parameter that
+is not wired into a flow is unreachable for UI users.
 
-#### When Flow Integration is Required
+Rule of thumb: needed during initial setup -> config + reconfigure flows; adjustable later
+-> options flow; often both. Flow changes require tests in `tests/config_flow/`.
 
-Flow integration is required whenever you:
-1. Add a new configuration parameter to `const.py` or `schemas.py`
-2. Modify an existing configuration parameter's behavior or validation
-3. Add a new feature that requires user configuration
-4. Change how configuration options interact with each other
-
-#### Which Flow(s) to Update
-
-Determine which flow(s) need updates based on the type of change:
-
-1. **Initial Configuration Flow** (`config_flow.py`):
-   - New system types or HVAC modes
-   - New required entities (heater, cooler, sensors)
-   - New features that should be configured during initial setup
-   - Core system behavior changes
-
-2. **Reconfigure Flow** (`config_flow.py` - reconfigure handlers):
-   - Changes to existing system configuration that require reconfiguration
-   - System type switching
-   - Entity replacement or updates
-   - Any change that affects the initial configuration flow
-
-3. **Options Flow** (`options_flow.py`):
-   - Feature toggles (enabling/disabling features)
-   - Feature-specific settings (thresholds, timeouts, behaviors)
-   - Preset configurations
-   - Advanced settings that don't require reconfiguration
-   - Any setting that users might want to change after initial setup
-
-**Rule of Thumb**: If users need to configure it during initial setup, add it to config/reconfigure flows. If users might want to adjust it later, add it to options flow. Often, you'll need to add to both.
-
-#### How to Integrate Changes into Flows
-
-Follow this process to integrate configuration changes:
-
-1. **Add Constants and Schema**:
-   ```python
-   # In const.py - Add configuration key constant
-   CONF_NEW_FEATURE = "new_feature"
-
-   # In schemas.py - Add to appropriate schema
-   NEW_FEATURE_SCHEMA = vol.Schema({
-       vol.Optional(CONF_NEW_FEATURE, default=False): cv.boolean,
-   })
-   ```
-
-2. **Add Configuration Step** (if needed):
-   ```python
-   # In feature_steps/ - Create new step file if complex feature
-   # Or add to existing step file
-
-   async def async_step_new_feature(self, user_input=None):
-       """Handle new feature configuration."""
-       # Follow existing patterns from other step handlers
-   ```
-
-3. **Update Flow Navigation**:
-   ```python
-   # In config_flow.py or options_flow.py
-   # Update _determine_next_step() or flow handler to include new step
-   # Ensure proper step ordering (see Step Ordering section)
-   ```
-
-4. **Add Data Validation**:
-   ```python
-   # Add validation logic in step handler
-   # Follow existing validation patterns
-   # Provide clear error messages
-   ```
-
-5. **Update Translations**:
-   ```json
-   // In translations/en.json
-   "step": {
-       "new_feature": {
-           "title": "Configure New Feature",
-           "description": "Description of what this configures",
-           "data": {
-               "new_feature": "Enable new feature"
-           }
-       }
-   }
-   ```
-
-#### Testing Flow Integration
-
-**REQUIRED**: All flow changes must be tested:
-
-1. **Unit Tests**: Add to `tests/config_flow/`
-   - Test step handler logic
-   - Test validation
-   - Test error handling
-
-2. **Integration Tests**: Add to appropriate integration test file
-   - Test complete flow with new option
-   - Test persistence (config → options flow)
-   - Test edge cases
-
-3. **Manual Testing**:
-   - Test initial configuration flow
-   - Test reconfigure flow (if applicable)
-   - Test options flow with existing configurations
-   - Test with different system types
-
-#### Example Flow Integration
-
-When adding a new floor temperature feature:
-
-```python
-# 1. Add to const.py
-CONF_MAX_FLOOR_TEMP = "max_floor_temp"
-
-# 2. Add to schemas.py
-FLOOR_TEMP_SCHEMA = vol.Schema({
-    vol.Optional(CONF_MAX_FLOOR_TEMP): vol.Coerce(float),
-})
-
-# 3. Add step in feature_steps/floor_heating_steps.py
-async def async_step_floor_heating(self, user_input=None):
-    """Configure floor heating options."""
-    if user_input is not None:
-        # Validate and store
-        return self.async_create_entry(...)
-
-    # Show form with floor temp options
-    return self.async_show_form(...)
-
-# 4. Update navigation in config_flow.py
-def _determine_next_step(self):
-    if self._has_floor_sensor():
-        return "floor_heating"  # Add to flow sequence
-    return "next_step"
-
-# 5. Add tests in tests/config_flow/test_floor_heating_integration.py
-async def test_floor_heating_config_flow():
-    """Test floor heating configuration in flow."""
-    # Test implementation
-```
-
-#### Clarification Process
-
-If it's unclear how to integrate a configuration change into the flows:
-
-1. **Analyze the Feature**:
-   - What does this configuration control?
-   - Is it a core feature or an optional enhancement?
-   - Does it depend on other configuration?
-
-2. **Review Similar Features**:
-   - Find similar existing features in the codebase
-   - Review their flow integration
-   - Follow the same patterns
-
-3. **Check Dependencies**:
-   - Does this feature require other configuration first?
-   - Should it be in the main flow or a separate step?
-   - Where should it appear in the step ordering?
-
-4. **Ask for Clarification**:
-   - If still unclear, document your analysis
-   - Ask specifically: "Should this be in config or options flow?"
-   - Provide context about the feature and its dependencies
-
-**Remember**: When in doubt, add to both config/reconfigure AND options flows to provide maximum flexibility.
+For the full procedure - which flow to update, how to add a step, validation, translations,
+and a worked example - use the `config-flow-integration` skill.
 
 ### Configuration Dependencies
 
@@ -383,64 +179,6 @@ See `docs/config_flow/step_ordering.md` for detailed rules.
 GitHub workflows will **reject** commits that fail linting.
 
 ## Testing Strategy
-
-### Test Organization
-
-The test suite is organized by functionality with a focus on consolidation and maintainability:
-
-#### Core Functionality Tests
-- `tests/test_<mode>_mode.py` - Mode-specific functionality (heater, cooler, heat pump, fan, dry, dual)
-- `tests/presets/` - Preset functionality tests
-- `tests/openings/` - Opening detection tests
-- `tests/features/` - Feature-specific tests
-- `tests/conftest.py` - Pytest fixtures and test utilities
-
-#### Config Flow Tests (`tests/config_flow/`)
-
-**IMPORTANT**: The config flow tests have been consolidated to reduce duplication. When adding new tests:
-
-1. **Core Flow Tests** - General configuration and options flow behavior
-   - `test_config_flow.py` - Basic config flow, system type selection, validation
-   - `test_options_flow.py` - **CONSOLIDATED** - All options flow tests including:
-     - Basic flow progression and step navigation
-     - Feature persistence (fan, humidity settings pre-filled)
-     - Preset detection and toggles
-     - Complete flow integration tests
-   - `test_advanced_options.py` - Advanced settings configuration
-
-2. **E2E Persistence Tests** - End-to-end config→options flow testing
-   - `test_e2e_simple_heater_persistence.py` - **CONSOLIDATED** - Includes:
-     - Minimal config + all features persistence tests
-     - Openings scope/timeout edge cases
-   - `test_e2e_ac_only_persistence.py` - **CONSOLIDATED** - Minimal + all features
-   - `test_e2e_heat_pump_persistence.py` - **CONSOLIDATED** - Minimal + all features
-   - `test_e2e_heater_cooler_persistence.py` - **CONSOLIDATED** - Includes:
-     - Minimal config + all features persistence tests
-     - Fan mode persistence edge cases
-     - Boolean False value persistence tests
-
-3. **Reconfigure Flow Tests** - System reconfiguration
-   - `test_reconfigure_flow.py` - General reconfigure mechanics
-   - `test_reconfigure_flow_e2e_<system>.py` - Full reconfigure flow per system type
-   - `test_reconfigure_system_type_change.py` - System type switching
-
-4. **Feature Integration Tests** - Feature combinations per system type
-   - `test_simple_heater_features_integration.py` - All feature combos for simple_heater
-   - `test_ac_only_features_integration.py` - All feature combos for ac_only
-   - `test_heat_pump_features_integration.py` - All feature combos for heat_pump
-   - `test_heater_cooler_features_integration.py` - All feature combos for heater_cooler
-
-5. **System-Specific Tests** - Unique system type behaviors
-   - `test_heat_pump_config_flow.py`, `test_heat_pump_options_flow.py`
-   - `test_heater_cooler_flow.py`
-   - `test_ac_only_features.py`, `test_ac_only_advanced_settings.py`
-   - `test_simple_heater_advanced.py`
-
-6. **Utilities and Validation**
-   - `test_integration.py` - **CONSOLIDATED** - Integration tests and transient flag handling
-   - `test_step_ordering.py` - Config step dependency validation
-   - `test_translations.py` - Localization support
-   - `test_options_entry_helpers.py` - Helper function unit tests
 
 ### Adding New Config Flow Tests
 
@@ -596,38 +334,6 @@ Enable debug logging in Home Assistant to trace execution flow.
 - Respect min cycle durations to prevent equipment damage
 - Floor temperature limits prevent overheating
 
-## File Structure Reference
-
-```
-custom_components/dual_smart_thermostat/
-├── climate.py                    # Main climate entity
-├── config_flow.py               # Initial configuration wizard
-├── options_flow.py              # Configuration updates
-├── const.py                     # Constants and config keys
-├── schemas.py                   # Configuration schemas
-├── services.yaml                # Service definitions
-├── manifest.json                # Component metadata
-├── hvac_device/                 # Device abstraction layer
-│   ├── generic_hvac_device.py
-│   ├── hvac_device_factory.py
-│   └── [specific device types]
-├── managers/                    # Business logic layer
-│   ├── state_manager.py
-│   ├── environment_manager.py
-│   ├── feature_manager.py
-│   ├── opening_manager.py
-│   ├── preset_manager.py
-│   └── hvac_power_manager.py
-├── hvac_controller/             # Control logic layer
-│   ├── generic_controller.py
-│   ├── heater_controller.py
-│   ├── cooler_controller.py
-│   └── hvac_controller.py
-├── hvac_action_reason/          # Action reason tracking
-├── feature_steps/               # Config flow feature steps
-└── translations/                # Localization files
-```
-
 ## Special Considerations
 
 ### Heat Pump Mode
@@ -647,168 +353,9 @@ Temperature/humidity presets depend on all other configuration. Must be configur
 
 ### Fan Speed Control
 
-Native fan speed control provides variable speed operation for fan-only mode. The implementation uses automatic capability detection to support different fan entity types.
-
-#### Architecture
-
-**Capability Detection Pattern** (`hvac_device/fan_device.py`):
-
-The `FanDevice` class automatically detects fan speed capabilities during initialization using a three-tier detection strategy:
-
-1. **Domain Check**: Only `fan` domain entities support speed control (not `switch` domain)
-2. **Preset Mode Detection**: Check for `preset_modes` attribute (most specific control)
-3. **Percentage Detection**: Check for `percentage` attribute (fallback to percentage-based control)
-
-Implementation in `FanDevice.__init__()` and `_detect_fan_capabilities()`:
-```python
-def _detect_fan_capabilities(self) -> None:
-    """Detect if fan entity supports speed control."""
-    fan_state = self.hass.states.get(self.entity_id)
-
-    # Domain check
-    if fan_state.domain == "switch":
-        return  # No speed control for switches
-
-    # Check for preset_modes (native fan control)
-    if fan_state.attributes.get("preset_modes"):
-        self._supports_fan_mode = True
-        self._fan_modes = list(preset_modes)
-        self._uses_preset_modes = True
-
-    # Check for percentage (fallback control)
-    elif fan_state.attributes.get("percentage") is not None:
-        self._supports_fan_mode = True
-        self._fan_modes = ["auto", "low", "medium", "high"]
-        self._uses_preset_modes = False
-```
-
-**Properties Exposed**:
-- `supports_fan_mode` - Boolean flag indicating speed control capability
-- `fan_modes` - List of available modes (from entity or default)
-- `uses_preset_modes` - Boolean indicating control method (preset vs percentage)
-- `current_fan_mode` - Current selected mode
-
-**Service Call Routing** (`FanDevice.async_set_fan_mode()`):
-- Preset mode fans → `fan.set_preset_mode` service
-- Percentage fans → `fan.set_percentage` service (with mapping via `FAN_MODE_TO_PERCENTAGE`)
-
-#### Feature Manager Integration
-
-The `FeatureManager` (`managers/feature_manager.py`) provides access to fan speed control capabilities:
-
-```python
-@property
-def supports_fan_mode(self) -> bool:
-    """Dynamically check if fan device supports speed control."""
-    return self._fan_device.supports_fan_mode
-
-@property
-def fan_modes(self) -> list[str]:
-    """Return available fan modes from device."""
-    return self._fan_device.fan_modes
-```
-
-Support flag is set dynamically in `set_support_flags()`:
-```python
-if self.supports_fan_mode:
-    self._supported_features |= ClimateEntityFeature.FAN_MODE
-```
-
-#### Climate Entity Integration
-
-The `DualSmartThermostat` climate entity (`climate.py`) exposes fan speed control through standard Home Assistant interfaces:
-
-**Properties**:
-- `fan_mode` → Returns `fan_device.current_fan_mode`
-- `fan_modes` → Returns `features.fan_modes`
-- `supported_features` → Includes `ClimateEntityFeature.FAN_MODE` if supported
-
-**Service Method**:
-```python
-async def async_set_fan_mode(self, fan_mode: str) -> None:
-    """Set fan speed mode."""
-    fan_device = self.hvac_device_manager.get_device(HVACMode.FAN_ONLY)
-    await fan_device.async_set_fan_mode(fan_mode)
-```
-
-#### State Persistence
-
-Fan mode state is persisted through Home Assistant's state machine:
-
-**Saving State** (`climate.py` - `extra_state_attributes`):
-```python
-if self.features.supports_fan_mode and self.fan_mode is not None:
-    attributes[ATTR_FAN_MODE] = self.fan_mode
-```
-
-**Restoring State** (`FeatureManager._restore_fan_mode()`):
-```python
-old_fan_mode = old_state.attributes.get(ATTR_FAN_MODE)
-if old_fan_mode is not None:
-    self._fan_device.restore_fan_mode(old_fan_mode)
-```
-
-The `restore_fan_mode()` method in `FanDevice` validates the restored mode against current capabilities:
-```python
-def restore_fan_mode(self, fan_mode: str) -> None:
-    """Restore fan mode from persisted state with validation."""
-    if fan_mode in self._fan_modes:
-        self._current_fan_mode = fan_mode
-    else:
-        _LOGGER.warning("Cannot restore invalid fan mode %s", fan_mode)
-```
-
-#### Mode Application
-
-When fan is turned on, the selected mode is automatically applied:
-
-```python
-async def async_turn_on(self):
-    """Turn on fan and apply selected mode."""
-    await super().async_turn_on()  # Turn on device
-
-    if self._supports_fan_mode and self._current_fan_mode is not None:
-        await self.async_set_fan_mode(self._current_fan_mode)
-```
-
-This ensures the fan always operates at the user-selected speed, even after power cycles or restarts.
-
-#### Design Trade-offs
-
-1. **Automatic Detection vs Configuration**: Detection is automatic to reduce configuration complexity. Trade-off: Cannot manually override detected capabilities.
-
-2. **Fallback to Percentage**: Default modes (`["auto", "low", "medium", "high"]`) used for percentage-based fans. Trade-off: Less precise than native preset modes, but provides consistent UX.
-
-3. **Runtime Capability Check**: Capabilities detected at startup only. Trade-off: If fan entity capabilities change at runtime, requires restart to detect.
-
-4. **Switch Domain Exclusion**: Switch-based fans cannot use speed control. Trade-off: Simpler implementation, but requires users to use fan domain entities for speed control.
-
-#### Testing Patterns
-
-Test fan speed control using these patterns (see `tests/test_fan_mode.py`):
-
-```python
-# Test capability detection
-async def test_fan_speed_control_preset_modes(hass):
-    """Test detection of preset mode capability."""
-    # Mock fan entity with preset_modes attribute
-    # Verify supports_fan_mode = True
-    # Verify fan_modes matches entity preset_modes
-
-# Test state persistence
-async def test_fan_mode_persistence(hass):
-    """Test fan mode is persisted and restored."""
-    # Set fan mode
-    # Restart thermostat
-    # Verify mode restored from extra_state_attributes
-
-# Test mode application
-async def test_fan_mode_applied_on_turn_on(hass):
-    """Test fan mode is applied when fan turns on."""
-    # Set fan mode
-    # Turn on fan
-    # Verify correct service call (set_preset_mode or set_percentage)
-```
+Automatic capability detection drives variable-speed fan support. Design trade-offs and
+test patterns live in `custom_components/dual_smart_thermostat/hvac_device/CLAUDE.md`,
+loaded automatically when working in that directory.
 
 ### Development Rules for Claude Code
 
@@ -835,44 +382,6 @@ async def test_fan_mode_applied_on_turn_on(hass):
 - No local Python dependency conflicts
 - Same environment as CI/CD pipeline
 - Automatic dependency installation and caching
-
-## Active Technologies
-- Python 3.13 + Home Assistant 2025.1.0+, voluptuous (schema validation) (002-separate-tolerances)
-- Home Assistant config entries (persistent JSON storage) (002-separate-tolerances)
-- Python 3.13 + Home Assistant 2025.1.0+, Home Assistant Template Engine (homeassistant.helpers.template), voluptuous (schema validation) (004-template-based-presets)
-
-## Recent Changes
-- 002-separate-tolerances: Added Python 3.13 + Home Assistant 2025.1.0+, voluptuous (schema validation)
-- Added Docker-based development workflow with support for testing multiple HA versions
-
-## Development Environment Options
-
-This repository supports **two development approaches**:
-
-1. **Docker Compose Workflow** (Recommended for CI/CD and version testing)
-   - Standalone Docker setup without VS Code
-   - Easy testing with different Home Assistant versions
-   - Ideal for running tests, linting, and CI/CD pipelines
-   - See [README-DOCKER.md](README-DOCKER.md) for complete guide
-   - Commands: `./scripts/docker-test`, `./scripts/docker-lint`, `./scripts/docker-shell`
-
-2. **VS Code DevContainer** (Recommended for interactive development)
-   - Integrated development experience in VS Code
-   - Automatic environment setup
-   - Full IDE features (debugging, IntelliSense, etc.)
-   - Opens directly in container for seamless development
-
-**Both approaches provide:**
-- Python 3.13
-- Home Assistant 2025.1.0+
-- All development dependencies
-- Consistent environment across machines
-
-**Choose based on your workflow:**
-- Use **Docker Compose** for testing, CI/CD, and multi-version testing
-- Use **DevContainer** for daily development with VS Code
-- Both can be used together for different tasks
-- The core config registry is actually stored at config/.storage/core.config_entries. Useful to test/debug config flow issues
 
 ## Releases
 
