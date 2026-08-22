@@ -34,50 +34,10 @@ The project provides convenient Docker scripts in the `scripts/` folder:
 ./scripts/docker-shell python                      # Open Python REPL in container
 ```
 
-**Why use Docker scripts:**
-- Guaranteed consistent Python 3.13 + HA 2025.1.0+ environment
-- No local dependency conflicts or version mismatches
-- Same environment as CI/CD pipeline
-- Automatic image building if needed
-- Live source code mounting (changes reflected immediately)
+### Without Docker
 
-### Local Development (Alternative)
-
-If you prefer local development without Docker:
-
-```bash
-# Install dependencies
-pip install -r requirements-dev.txt
-pre-commit install
-
-# Testing (local alternative)
-pytest                                    # Run all tests
-pytest tests/test_heater_mode.py          # Run specific test file
-pytest --log-cli-level=DEBUG              # Run with debug logging
-
-# Linting (local alternative - ALL must pass before commit)
-isort . --check-only --diff               # Import sorting
-black --check .                           # Code formatting
-flake8 .                                  # Style/linting
-codespell                                 # Spell checking
-ruff check .                              # Additional linting
-
-# Auto-fix linting issues (local)
-isort .
-black .
-ruff check . --fix
-```
-
-### Advanced Docker Usage
-
-```bash
-# Build with specific Home Assistant version
-HA_VERSION=2025.2.0 docker-compose build dev
-HA_VERSION=latest docker-compose build dev
-
-# Run custom commands in container
-docker-compose run --rm dev <command>
-```
+`pip install -r requirements-dev.txt && pre-commit install`, then the standard `pytest` /
+`pre-commit` invocations. `README-DOCKER.md` covers pinning a specific HA version.
 
 ## Architecture Overview
 
@@ -89,32 +49,6 @@ The codebase uses a **separation of concerns** architecture with distinct layers
 2. **Manager Layer** (`managers/`) - Shared business logic (features, state, environment)
 3. **Controller Layer** (`hvac_controller/`) - Orchestration between devices and managers
 4. **Climate Entity** (`climate.py`) - Home Assistant integration interface
-
-### Configuration Flow (`config_flow.py`, `options_flow.py`)
-
-Multi-step wizard for configuration with **feature-based step generation**:
-- `feature_steps/` - Modular configuration steps for different features
-- Steps are generated dynamically based on system type and enabled features
-- **Critical**: Step ordering follows dependency chain (base → features → openings → presets)
-
-## Key Architectural Patterns
-
-### Factory Pattern
-Device creation uses factory pattern in `hvac_device_factory.py`:
-```python
-device = HVACDeviceFactory.create_device(hass, config, hvac_mode)
-```
-
-### Manager Coordination
-Managers work together through dependency injection:
-```python
-if self._opening_manager.is_any_opening_open():
-    if self._feature_manager.is_floor_protection_enabled():
-        # Complex feature interaction
-```
-
-### State Machine
-Climate entity manages HVAC mode state transitions with validation and callbacks.
 
 ## Critical Development Rules
 
@@ -139,182 +73,33 @@ and a worked example - use the `config-flow-integration` skill.
 
 ### Configuration Dependencies
 
-**CRITICAL**: When adding configuration parameters, update dependency tracking:
-
-1. **Check for dependencies**: Does the new parameter require another parameter to function?
-2. **Update tracking files**:
-   - `tools/focused_config_dependencies.json` - Add conditional dependencies
-   - `tools/config_validator.py` - Add validation rules
-   - `docs/config/CRITICAL_CONFIG_DEPENDENCIES.md` - Document with examples
-3. **Test validation**: `python tools/config_validator.py`
-
-Example dependency: `max_floor_temp` requires `floor_sensor` to function.
+**CRITICAL**: A new parameter that requires another to work (e.g. `max_floor_temp` needs
+`floor_sensor`) must be recorded in the dependency tracking - see the
+`config-flow-integration` skill for the files to update and how to validate.
 
 ### Configuration Flow Step Ordering
 
-**CRITICAL**: Configuration steps MUST follow this order:
-
-1. System type and basic entities (heater, cooler, sensors)
-2. System-specific configuration (heat pump, dual stage)
-3. Feature toggles (floor heating, fan, humidity)
-4. Feature-specific configuration
-5. **Openings configuration** (depends on system type and entities)
-6. **Presets configuration** (depends on ALL previous configuration)
-
-**Openings and presets must always be the last configuration steps** because they depend on all previously configured features.
-
-See `docs/config_flow/step_ordering.md` for detailed rules.
+**Openings and presets are always the last two steps** - they depend on every earlier
+choice. Full dependency rules: `docs/config_flow/step_ordering.md`.
 
 ### Linting Requirements
 
-**ALL code MUST pass these checks before commit**:
-- `isort` - Import sorting (configuration in `setup.cfg`)
-- `black` - Code formatting (88 character line length)
-- `flake8` - Style/linting (ignores configured in `setup.cfg`)
-- `codespell` - Spell checking
-- `ruff` - Additional linting checks
-
-**Use `./scripts/docker-lint` to check all linting** (or `./scripts/docker-lint --fix` to auto-fix).
-
-GitHub workflows will **reject** commits that fail linting.
+Run `./scripts/docker-lint` before committing; CI rejects failures. The tool list and their
+settings live in `.pre-commit-config.yaml` and `setup.cfg`.
 
 ## Testing Strategy
 
-### Adding New Config Flow Tests
+### Adding Tests
 
-**Where to add your test:**
+**DO NOT create standalone bug-fix test files.** Add cases to the existing consolidated
+files instead - `tests/config_flow/` is organised by system type, not by bug.
 
-1. **Bug fixes or edge cases?**
-   - **DO NOT** create separate bug fix test files
-   - Add to relevant consolidated file:
-     - Feature persistence issues → `test_options_flow.py`
-     - System-specific persistence → appropriate `test_e2e_<system>_persistence.py`
-     - Openings edge cases → `test_e2e_simple_heater_persistence.py`
-     - Fan edge cases → `test_e2e_heater_cooler_persistence.py`
-
-2. **New system type behavior?**
-   - Add to system-specific test file or create new if needed
-   - Keep system-specific files focused and clear
-
-3. **New feature integration?**
-   - Add to appropriate `test_<system>_features_integration.py`
-
-4. **New reconfigure scenario?**
-   - Add to `test_reconfigure_flow.py` or system-specific reconfigure file
-
-**Pattern to follow:**
-```python
-@pytest.mark.asyncio
-async def test_descriptive_name_of_what_youre_testing(hass):
-    """Clear docstring explaining the test purpose and what it validates.
-
-    If this was a bug fix, mention the original issue here.
-    """
-    # Test implementation using pytest patterns
-    # Use hass fixture from pytest-homeassistant-custom-component
-```
-
-### Test Requirements
-- **Every new feature MUST have tests** covering success and failure scenarios
-- Use async test fixtures from `conftest.py`
-- Follow existing test patterns for consistency
-- **DO NOT create standalone bug fix test files** - integrate into existing tests
-- **Consolidate related tests** - avoid creating many small test files
+`docs/TESTING.md` has the full decision tree for where a given test belongs.
 
 ### Running Tests
 
-**Use Docker scripts for all testing** (recommended):
-
-```bash
-# All tests
-./scripts/docker-test
-
-# Config flow tests only
-./scripts/docker-test tests/config_flow/
-
-# Single test file
-./scripts/docker-test tests/config_flow/test_e2e_simple_heater_persistence.py
-
-# Single test function
-./scripts/docker-test tests/config_flow/test_options_flow.py::test_options_flow_fan_settings_prefilled
-
-# With debug logging
-./scripts/docker-test --log-cli-level=DEBUG tests/test_heater_mode.py
-
-# With coverage report
-./scripts/docker-test --cov
-```
-
-**Local alternative** (if not using Docker):
-```bash
-pytest                           # All tests
-pytest tests/config_flow/        # Specific directory
-pytest --log-cli-level=DEBUG     # With debug logging
-```
-
-Configuration: `pytest.ini` sets asyncio mode and test discovery patterns.
-
-## Common Development Workflows
-
-### Adding a New Feature
-
-1. **Identify components**:
-   - New device type? → Add to `hvac_device/`
-   - Shared logic? → Add to or extend `managers/`
-   - Control logic? → Modify `hvac_controller/`
-
-2. **Add configuration**:
-   - Constants to `const.py`
-   - Schema to `schemas.py`
-   - **Integrate into configuration flows** (see Configuration Flow Integration above)
-     - Determine which flow(s) to update (config, reconfigure, options)
-     - Add configuration steps to `feature_steps/` or flow files
-     - Update flow navigation and validation
-     - Update translations
-   - **Update configuration dependencies** (see Configuration Dependencies above)
-
-3. **Implement logic**:
-   - Follow existing patterns
-   - Use dependency injection for managers
-   - Handle errors gracefully
-
-4. **Add tests** (following consolidation guidelines):
-   - **Core functionality**: Add to `tests/features/` or mode-specific test
-   - **Config flow integration**: Add to appropriate `test_<system>_features_integration.py`
-   - **Persistence**: Add test cases to relevant `test_e2e_<system>_persistence.py`
-   - **Options flow**: Add to `test_options_flow.py` if needed
-   - **DO NOT** create new small test files - add to existing consolidated tests
-   - Cover success and failure cases
-   - Test feature interactions
-
-5. **Code quality** (use Docker scripts):
-   - Run linting: `./scripts/docker-lint` (checks all linters)
-   - Auto-fix linting: `./scripts/docker-lint --fix`
-   - Run tests: `./scripts/docker-test`
-   - Run specific tests: `./scripts/docker-test tests/features/`
-
-### Modifying Existing Features
-
-1. **Understand the change**: Read relevant code in device/manager/controller layers
-2. **Check dependencies**: Identify which components are affected
-3. **Update tests first**: Modify tests to reflect new behavior
-4. **Implement changes**: Make minimal changes following existing patterns
-5. **Verify** (use Docker scripts):
-   - Run affected tests: `./scripts/docker-test tests/test_heater_mode.py`
-   - Run full test suite: `./scripts/docker-test`
-   - Check linting: `./scripts/docker-lint`
-
-### Debugging HVAC Logic
-
-The integration uses structured logging:
-```python
-_LOGGER.debug("Device operation details")  # Detailed flow
-_LOGGER.info("State changes")              # Important events
-_LOGGER.warning("Recoverable issues")      # Potential problems
-_LOGGER.error("Failed operations")         # Errors
-```
-
-Enable debug logging in Home Assistant to trace execution flow.
+`./scripts/docker-test [pytest args]` and `./scripts/docker-lint [--fix]` pass arguments
+through, so any pytest selector works. See `README-DOCKER.md` for the non-Docker path.
 
 ## Important Constraints
 
@@ -357,32 +142,11 @@ Automatic capability detection drives variable-speed fan support. Design trade-o
 test patterns live in `custom_components/dual_smart_thermostat/hvac_device/CLAUDE.md`,
 loaded automatically when working in that directory.
 
-### Development Rules for Claude Code
-
-**CRITICAL - Testing and Linting Workflow:**
-
-1. **Always use Docker scripts** for testing and linting:
-   - `./scripts/docker-test` - Run tests (all or specific)
-   - `./scripts/docker-lint` - Check all linting
-   - `./scripts/docker-lint --fix` - Auto-fix linting issues
-   - `./scripts/docker-shell` - Interactive debugging
-
-2. **Before submitting code:**
-   - Run `./scripts/docker-lint` to check all linting
-   - Run `./scripts/docker-test` to verify tests pass
-   - Fix any failures before showing code to user
-   - Docker ensures consistent Python 3.13 + HA 2025.1.0+ environment
-
-3. **Library documentation:**
-   - Use context7 MCP tools for library/API documentation when needed
-   - Automatically resolve library IDs and get docs without explicit user request
-
-**Why Docker scripts are mandatory for Claude Code:**
-- Consistent environment across all development sessions
-- No local Python dependency conflicts
-- Same environment as CI/CD pipeline
-- Automatic dependency installation and caching
-
 ## Releases
 
 While writing releases, focus on user value and key changes. Avoid technical jargon unless necessary.
+
+## Local Environment
+
+The dev Home Assistant instance stores its config registry at
+`config/.storage/core.config_entries` - useful when debugging config-flow persistence.

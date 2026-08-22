@@ -22,4 +22,6 @@ config/*
 
 # specify
 .specify/scripts/
-.claude/
+.claude/*
+!.claude/commands/
+!.claude/skills/
