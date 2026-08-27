@@ -627,3 +627,78 @@ class TestIsWithinFanTolerance:
         env._cur_temp = None
 
         assert env.is_within_fan_tolerance() is False
+
+
+class TestPresetReapplyAcrossHvacModes:
+    """Re-applying the active preset must not restore the other mode's setpoint.
+
+    Regression tests for #641: in target mode the COOL/FAN_ONLY branch preferred
+    `_saved_target_temp` whenever the preset name was unchanged, without checking
+    that the saved value belonged to the current HVAC mode. A scheduler re-asserting
+    the preset it is already in therefore made a thermostat in COOL fall back to the
+    preset's HEAT setpoint.
+    """
+
+    def _apply(self, env, hvac_mode, preset_env, old_preset_mode):
+        env.set_temepratures_from_hvac_mode_and_presets(
+            hvac_mode=hvac_mode,
+            supports_temp_range=True,
+            preset_mode="comfort",
+            preset_env=preset_env,
+            is_range_mode=False,
+            old_preset_mode=old_preset_mode,
+        )
+
+    @pytest.mark.asyncio
+    async def test_reapplying_preset_in_cool_keeps_high_setpoint(
+        self, hass, basic_config
+    ):
+        """heat -> cool, then re-assert the same preset: must stay on the high temp."""
+        env = EnvironmentManager(hass, basic_config)
+        preset_env = PresetEnv(
+            **{ATTR_TARGET_TEMP_LOW: 20.0, ATTR_TARGET_TEMP_HIGH: 24.0}
+        )
+
+        self._apply(env, HVACMode.HEAT, preset_env, old_preset_mode=None)
+        assert env.target_temp == 20.0
+        env._saved_target_temp = env.target_temp  # as the preset manager does
+
+        self._apply(env, HVACMode.COOL, preset_env, old_preset_mode=None)
+        assert env.target_temp == 24.0
+
+        # scheduler tick / UI resend of the preset already active
+        self._apply(env, HVACMode.COOL, preset_env, old_preset_mode="comfort")
+        assert (
+            env.target_temp == 24.0
+        ), "re-applying the preset restored the heat setpoint"
+
+    @pytest.mark.asyncio
+    async def test_reapplying_preset_in_heat_keeps_low_setpoint(
+        self, hass, basic_config
+    ):
+        """The mirrored direction, cool -> heat, must hold too."""
+        env = EnvironmentManager(hass, basic_config)
+        preset_env = PresetEnv(
+            **{ATTR_TARGET_TEMP_LOW: 20.0, ATTR_TARGET_TEMP_HIGH: 24.0}
+        )
+
+        self._apply(env, HVACMode.COOL, preset_env, old_preset_mode=None)
+        assert env.target_temp == 24.0
+        env._saved_target_temp = env.target_temp
+
+        self._apply(env, HVACMode.HEAT, preset_env, old_preset_mode="comfort")
+        assert env.target_temp == 20.0
+
+    @pytest.mark.asyncio
+    async def test_reapplying_preset_in_fan_only_keeps_high_setpoint(
+        self, hass, basic_config
+    ):
+        """FAN_ONLY shares the COOL branch."""
+        env = EnvironmentManager(hass, basic_config)
+        preset_env = PresetEnv(
+            **{ATTR_TARGET_TEMP_LOW: 20.0, ATTR_TARGET_TEMP_HIGH: 24.0}
+        )
+        env._saved_target_temp = 20.0
+
+        self._apply(env, HVACMode.FAN_ONLY, preset_env, old_preset_mode="comfort")
+        assert env.target_temp == 24.0

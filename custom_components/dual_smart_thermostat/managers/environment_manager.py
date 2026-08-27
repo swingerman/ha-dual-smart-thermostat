@@ -918,16 +918,19 @@ class EnvironmentManager(StateManager):
                     preset_temp_high is not None
                 ):
                     _LOGGER.debug(
-                        "Setting temperatures from preset range mode if HVACMode.COOL, HVACMode.FAN_ONLY. Preset: %s, sved_target_temp: %s",
+                        "Setting temperatures from preset range mode if HVACMode.COOL, HVACMode.FAN_ONLY. Preset: %s",
                         preset_temp_high,
-                        self._saved_target_temp,
                     )
-                    preset_match_old = old_preset_mode == preset_mode
-                    self._target_temp = (
-                        self._saved_target_temp
-                        if preset_match_old and self._saved_target_temp
-                        else preset_temp_high
-                    )
+                    # Always the preset's own high value, mirroring the HEAT
+                    # branch above. This used to prefer _saved_target_temp when
+                    # the preset name was unchanged, but that value is not
+                    # mode-scoped - it can hold a setpoint captured while the
+                    # opposite mode was active, so re-applying the active preset
+                    # after heat -> cool made the thermostat cool toward its heat
+                    # setpoint (issue #641). Restart restore does not rely on
+                    # this: it skips this method entirely (is_restore) and
+                    # applies the persisted temperature directly.
+                    self._target_temp = preset_temp_high
                 else:
                     _LOGGER.debug("Setting target temp from preset, unhandled case")
 
