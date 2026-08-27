@@ -799,11 +799,9 @@ class EnvironmentManager(StateManager):
             self._set_floor_temp_limits_from_config()
         else:
             self._set_temps_when_have_preset_mode(
-                preset_mode,
                 preset_env,
                 hvac_mode,
                 is_range_mode,
-                old_preset_mode,
             )
             self._set_floor_temp_limits_from_preset(preset_env)
 
@@ -831,13 +829,22 @@ class EnvironmentManager(StateManager):
                 hvac_mode, supports_temp_range, old_preset_mode
             )
 
+    @staticmethod
+    def _bound_for_mode(
+        hvac_mode: HVACMode, low: float | None, high: float | None
+    ) -> float | None:
+        """Which of a low/high pair a single-setpoint thermostat targets in this mode."""
+        if hvac_mode == HVACMode.HEAT:
+            return low
+        if hvac_mode in (HVACMode.COOL, HVACMode.FAN_ONLY):
+            return high
+        return None
+
     def _set_temps_when_have_preset_mode(
         self,
-        preset_mode: str,
         preset_env: PresetEnv | None,
         hvac_mode: HVACMode,
         is_range_mode: bool,
-        old_preset_mode: str | None = None,
     ) -> None:
         _LOGGER.debug(
             "Setting temperatures from hvac mode and presets when have preset mode. is_range_mode: %s",
@@ -907,30 +914,19 @@ class EnvironmentManager(StateManager):
                     preset_env,
                 )
 
-                if hvac_mode == HVACMode.HEAT:
-                    if preset_temp_low is not None:
-                        _LOGGER.debug(
-                            "Setting temperatures from preset range mode if HVACMode.HEAT. Preset: %s",
-                            preset_temp_low,
-                        )
-                        self._target_temp = preset_temp_low
-                elif hvac_mode in [HVACMode.COOL, HVACMode.FAN_ONLY] and (
-                    preset_temp_high is not None
-                ):
+                # The preset's own bound for this mode, never _saved_target_temp:
+                # that value is not mode-scoped, so preferring it made a
+                # re-applied preset cool toward the heat setpoint (#641).
+                bound = self._bound_for_mode(
+                    hvac_mode, preset_temp_low, preset_temp_high
+                )
+                if bound is not None:
                     _LOGGER.debug(
-                        "Setting temperatures from preset range mode if HVACMode.COOL, HVACMode.FAN_ONLY. Preset: %s",
-                        preset_temp_high,
+                        "Setting target temp from preset range for %s: %s",
+                        hvac_mode,
+                        bound,
                     )
-                    # Always the preset's own high value, mirroring the HEAT
-                    # branch above. This used to prefer _saved_target_temp when
-                    # the preset name was unchanged, but that value is not
-                    # mode-scoped - it can hold a setpoint captured while the
-                    # opposite mode was active, so re-applying the active preset
-                    # after heat -> cool made the thermostat cool toward its heat
-                    # setpoint (issue #641). Restart restore does not rely on
-                    # this: it skips this method entirely (is_restore) and
-                    # applies the persisted temperature directly.
-                    self._target_temp = preset_temp_high
+                    self._target_temp = bound
                 else:
                     _LOGGER.debug("Setting target temp from preset, unhandled case")
 
@@ -971,35 +967,42 @@ class EnvironmentManager(StateManager):
         supports_temp_range: bool,
         old_preset_mode: str | None,
     ) -> None:
-        if (
-            old_preset_mode is not PRESET_NONE
-            and old_preset_mode is not None
-            and self.saved_target_temp is not None
-        ):
+        leaving_preset = (
+            old_preset_mode is not PRESET_NONE and old_preset_mode is not None
+        )
+        mode_bound = (
+            self._bound_for_mode(hvac_mode, self.target_temp_low, self.target_temp_high)
+            if supports_temp_range
+            else None
+        )
+
+        # This mode's own bound outranks saved_target_temp, which is not
+        # mode-scoped: after heat -> cool it still holds the heat setpoint, so
+        # leaving a preset used to resume cooling toward it (#641).
+        if leaving_preset and mode_bound is not None:
             _LOGGER.debug(
-                "Setting temperatures from no preset target mode. Old preset: %s, saved target temp: %s",
+                "Leaving preset %s, using %s bound: %s",
+                old_preset_mode,
+                hvac_mode,
+                mode_bound,
+            )
+            self.target_temp = mode_bound
+        elif leaving_preset and self.saved_target_temp is not None:
+            _LOGGER.debug(
+                "Leaving preset %s, no mode bound, using saved target temp: %s",
                 old_preset_mode,
                 self.saved_target_temp,
             )
             self.target_temp = self.saved_target_temp
         # switching from preset NONE to NONE
         elif supports_temp_range:
-            if (
-                hvac_mode in [HVACMode.COOL, HVACMode.FAN_ONLY]
-                and self.target_temp_high is not None
-            ):
+            if mode_bound is not None:
                 _LOGGER.debug(
-                    "Setting temperatures from no preset target mode. HVACMode.COOL, target temp: %s",
-                    self.target_temp,
+                    "Setting temperatures from no preset target mode for %s: %s",
+                    hvac_mode,
+                    mode_bound,
                 )
-                self.target_temp = self.target_temp_high
-
-            elif hvac_mode == HVACMode.HEAT and self.target_temp_low is not None:
-                _LOGGER.debug(
-                    "Setting temperatures from no preset target mode. HVACMode.HEAT, target temp: %s",
-                    self.target_temp,
-                )
-                self.target_temp = self.target_temp_low
+                self.target_temp = mode_bound
         else:
             _LOGGER.debug(
                 "Setting temperatures from no preset target mode. Fallback to target_temp"
