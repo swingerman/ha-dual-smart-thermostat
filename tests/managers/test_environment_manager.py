@@ -12,8 +12,8 @@ import pytest
 from custom_components.dual_smart_thermostat.const import (
     CONF_COLD_TOLERANCE,
     CONF_COOL_TOLERANCE,
-    CONF_FLOOR_SENSOR,
     CONF_FAN_HOT_TOLERANCE,
+    CONF_FLOOR_SENSOR,
     CONF_HEAT_TOLERANCE,
     CONF_HOT_TOLERANCE,
     CONF_MAX_FLOOR_TEMP,
@@ -780,9 +780,7 @@ class TestFloorTempLimits:
         assert env.max_floor_temp == 28.0
 
     def test_preset_zero_limits_honoured(self, hass):
-        env = _floor_env(
-            hass, **{CONF_MIN_FLOOR_TEMP: 5.0, CONF_MAX_FLOOR_TEMP: 30.0}
-        )
+        env = _floor_env(hass, **{CONF_MIN_FLOOR_TEMP: 5.0, CONF_MAX_FLOOR_TEMP: 30.0})
         _apply(
             env,
             "away",
@@ -792,26 +790,20 @@ class TestFloorTempLimits:
         assert env.max_floor_temp == 0
 
     def test_preset_limits_override_config(self, hass):
-        env = _floor_env(
-            hass, **{CONF_MIN_FLOOR_TEMP: 5.0, CONF_MAX_FLOOR_TEMP: 30.0}
-        )
+        env = _floor_env(hass, **{CONF_MIN_FLOOR_TEMP: 5.0, CONF_MAX_FLOOR_TEMP: 30.0})
         _apply(env, "away", **{CONF_MIN_FLOOR_TEMP: 8.0, CONF_MAX_FLOOR_TEMP: 25.0})
         assert env.min_floor_temp == 8.0
         assert env.max_floor_temp == 25.0
 
     def test_preset_without_limits_resets_previous_preset_limits(self, hass):
-        env = _floor_env(
-            hass, **{CONF_MIN_FLOOR_TEMP: 5.0, CONF_MAX_FLOOR_TEMP: 30.0}
-        )
+        env = _floor_env(hass, **{CONF_MIN_FLOOR_TEMP: 5.0, CONF_MAX_FLOOR_TEMP: 30.0})
         _apply(env, "a", **{CONF_MIN_FLOOR_TEMP: 8.0, CONF_MAX_FLOOR_TEMP: 25.0})
         _apply(env, "b", **{ATTR_TEMPERATURE: 20})
         assert env.min_floor_temp == 5.0
         assert env.max_floor_temp == 30.0
 
     def test_preset_to_none_resets_to_config(self, hass):
-        env = _floor_env(
-            hass, **{CONF_MIN_FLOOR_TEMP: 5.0, CONF_MAX_FLOOR_TEMP: 30.0}
-        )
+        env = _floor_env(hass, **{CONF_MIN_FLOOR_TEMP: 5.0, CONF_MAX_FLOOR_TEMP: 30.0})
         _apply(env, "a", **{CONF_MIN_FLOOR_TEMP: 8.0, CONF_MAX_FLOOR_TEMP: 25.0})
         _apply(env)
         assert env.min_floor_temp == 5.0
@@ -825,17 +817,13 @@ class TestFloorTempLimits:
         assert env.max_floor_temp == 28.0
 
     def test_partial_preset_only_min(self, hass):
-        env = _floor_env(
-            hass, **{CONF_MIN_FLOOR_TEMP: 5.0, CONF_MAX_FLOOR_TEMP: 30.0}
-        )
+        env = _floor_env(hass, **{CONF_MIN_FLOOR_TEMP: 5.0, CONF_MAX_FLOOR_TEMP: 30.0})
         _apply(env, "a", **{CONF_MIN_FLOOR_TEMP: 8.0})
         assert env.min_floor_temp == 8.0
         assert env.max_floor_temp == 30.0
 
     def test_partial_preset_only_max(self, hass):
-        env = _floor_env(
-            hass, **{CONF_MIN_FLOOR_TEMP: 5.0, CONF_MAX_FLOOR_TEMP: 30.0}
-        )
+        env = _floor_env(hass, **{CONF_MIN_FLOOR_TEMP: 5.0, CONF_MAX_FLOOR_TEMP: 30.0})
         _apply(env, "a", **{CONF_MAX_FLOOR_TEMP: 25.0})
         assert env.min_floor_temp == 5.0
         assert env.max_floor_temp == 25.0
@@ -847,9 +835,7 @@ class TestFloorTempLimits:
         assert env.max_floor_temp == 28.0
 
     def test_floor_cold_and_hot_boundaries(self, hass):
-        env = _floor_env(
-            hass, **{CONF_MIN_FLOOR_TEMP: 5.0, CONF_MAX_FLOOR_TEMP: 28.0}
-        )
+        env = _floor_env(hass, **{CONF_MIN_FLOOR_TEMP: 5.0, CONF_MAX_FLOOR_TEMP: 28.0})
         env.cur_floor_temp = 5.1
         assert env.is_floor_cold is False
         env.cur_floor_temp = 5.0

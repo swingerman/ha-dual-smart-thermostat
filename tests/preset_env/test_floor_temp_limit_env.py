@@ -6,9 +6,7 @@ from custom_components.dual_smart_thermostat.const import (
     CONF_MAX_FLOOR_TEMP,
     CONF_MIN_FLOOR_TEMP,
 )
-from custom_components.dual_smart_thermostat.preset_env.preset_env import (
-    PresetEnv,
-)
+from custom_components.dual_smart_thermostat.preset_env.preset_env import PresetEnv
 
 
 def test_zero_values_are_kept():
