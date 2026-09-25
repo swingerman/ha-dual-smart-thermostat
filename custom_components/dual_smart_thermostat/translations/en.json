@@ -665,7 +665,7 @@
         "step": {
             "init": {
                 "title": "Runtime Tuning for {name}",
-                "description": "Adjust runtime parameters and tolerances for your thermostat. For structural changes (system type, entities, features), use the **Reconfigure** option instead.\n\n**Tip**: Changes here update immediately without reloading the integration.",
+                "description": "Adjust runtime parameters and tolerances for your thermostat. For structural changes (system type, entities, features), use the **Reconfigure** option instead.\n\n**Tip**: Saving reloads the thermostat to apply the changes.",
                 "data": {
                     "cold_tolerance": "Cold tolerance",
                     "hot_tolerance": "Hot tolerance",
