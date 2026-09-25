@@ -964,6 +964,24 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             _LOGGER.debug("restoring hvac_mode: %s", hvac_mode)
             await self.async_set_hvac_mode(hvac_mode, is_restore=True)
 
+            # Presets were restored above while the support flags still
+            # reflected range mode (self._hvac_mode is unset at this point),
+            # so a range-only preset filled low/high but never a target. The
+            # is_restore mode switch skips resolving it, leaving temperature
+            # null in heat/cool (#646). Resolve it from the preset now.
+            if (
+                self.features.is_target_mode
+                and self.environment.target_temp is None
+                and self.presets.preset_mode != PRESET_NONE
+            ):
+                self.environment.set_temepratures_from_hvac_mode_and_presets(
+                    self._hvac_mode,
+                    self.features.hvac_modes_support_range_temp(self._attr_hvac_modes),
+                    self.presets.preset_mode,
+                    self.presets.preset_env,
+                    self.features.is_range_mode,
+                )
+
             _LOGGER.debug(
                 "startup hvac_action_reason: %s",
                 old_state.attributes.get(ATTR_HVAC_ACTION_REASON),
