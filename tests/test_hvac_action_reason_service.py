@@ -245,3 +245,34 @@ async def test_service_set_hvac_action_reason_overwrite(
         state.attributes.get(ATTR_HVAC_ACTION_REASON)
         == HVACActionReasonExternal.MALFUNCTION
     )
+
+
+async def test_service_follows_entity_id_change(
+    hass: HomeAssistant, setup_comp_heat  # noqa: F811
+) -> None:
+    """After an in-place entity_id change the signal is re-keyed."""
+    entity = hass.data["climate"].get_entity(common.ENTITY)
+    new_id = "climate.renamed"
+    old_id = entity.entity_id
+    entity.entity_id = new_id
+    entity.async_entity_id_changed(old_id)
+
+    await common.async_set_hvac_action_reason(
+        hass, new_id, HVACActionReasonExternal.PRESENCE
+    )
+    await hass.async_block_till_done()
+
+    assert (
+        entity.extra_state_attributes[ATTR_HVAC_ACTION_REASON]
+        == HVACActionReasonExternal.PRESENCE
+    )
+
+    # Old signal must be disconnected.
+    await common.async_set_hvac_action_reason(
+        hass, old_id, HVACActionReasonExternal.SCHEDULE
+    )
+    await hass.async_block_till_done()
+    assert (
+        entity.extra_state_attributes[ATTR_HVAC_ACTION_REASON]
+        == HVACActionReasonExternal.PRESENCE
+    )

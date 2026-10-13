@@ -58,6 +58,10 @@ class HvacActionReasonSensor(SensorEntity, RestoreEntity):
         self._attr_native_value = STATE_NONE
         self._remove_signal: Callable[[], None] | None = None
 
+    @callback
+    def async_entity_id_changed(self, old_entity_id: str) -> None:
+        """Opt in to in-place rename; signal is keyed on sensor_key, not entity_id."""
+
     async def async_added_to_hass(self) -> None:
         """Restore previous state (if any) and subscribe to the mirror signal."""
         await super().async_added_to_hass()
