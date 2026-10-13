@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Automatic percentage-to-preset mapping for optimal compatibility
   - Full backward compatibility with switch-based fans (no fan speed control)
 
+### Fixed
+
+- Floor temperature limits (#647 groundwork): unset `min_floor_temp` no longer falls back to the 28 max default (which forced the heater on after an HVAC mode/preset change); a `0` floor limit in config or presets is now honoured instead of treated as unset; switching to a preset without floor limits (or to no preset) now resets limits to config instead of keeping the previous preset's
+
 ### Changed
 
 - Fan entities now expose speed control capabilities when supported by the underlying fan entity

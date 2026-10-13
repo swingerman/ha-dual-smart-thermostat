@@ -71,8 +71,8 @@ class FloorTempLimitEnv:
     def __init__(self, **kwargs) -> None:
         super(FloorTempLimitEnv, self).__init__(**kwargs)
         _LOGGER.debug(f"FloorTempLimitEnv kwargs: {kwargs}")
-        self.min_floor_temp = kwargs.get(CONF_MIN_FLOOR_TEMP) or None
-        self.max_floor_temp = kwargs.get(CONF_MAX_FLOOR_TEMP) or None
+        self.min_floor_temp = kwargs.get(CONF_MIN_FLOOR_TEMP)
+        self.max_floor_temp = kwargs.get(CONF_MAX_FLOOR_TEMP)
 
 
 class TempEnv(TargeTempEnv, RangeTempEnv, FloorTempLimitEnv):

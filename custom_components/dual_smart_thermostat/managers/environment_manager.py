@@ -1009,30 +1009,31 @@ class EnvironmentManager(StateManager):
             )
             self.saved_target_temp = self.target_temp
 
+    def _config_floor_temp_limits(self) -> tuple[float | None, float | None]:
+        """Return (min, max) floor limits from config.
+
+        Unset max falls back to DEFAULT_MAX_FLOOR_TEMP; unset min stays None
+        (cold check disabled), consistent with __init__. 0 is a valid value.
+        """
+        config_max = self._config.get(CONF_MAX_FLOOR_TEMP)
+        if config_max is None:
+            config_max = DEFAULT_MAX_FLOOR_TEMP
+        return self._config.get(CONF_MIN_FLOOR_TEMP), config_max
+
     def _set_floor_temp_limits_from_preset(self, preset_env: PresetEnv) -> None:
         _LOGGER.debug("Setting floor temp limits from preset: %s", preset_env.to_dict)
 
-        if preset_env.has_floor_temp_limits():
-            preset_max_floor_temp = (
-                preset_env.to_dict["max_floor_temp"]
-                or self._config.get(CONF_MAX_FLOOR_TEMP)
-                or DEFAULT_MAX_FLOOR_TEMP
-            )
-            preset_min_floor_temp = preset_env.to_dict[
-                "min_floor_temp"
-            ] or self._config.get(CONF_MIN_FLOOR_TEMP)
-
-            self.max_floor_temp = preset_max_floor_temp
-            self.min_floor_temp = preset_min_floor_temp
+        # Always reset: a preset without limits must not inherit the previous
+        # preset's limits. Unspecified sides fall back to config.
+        config_min, config_max = self._config_floor_temp_limits()
+        preset_min = preset_env.min_floor_temp
+        preset_max = preset_env.max_floor_temp
+        self.max_floor_temp = preset_max if preset_max is not None else config_max
+        self.min_floor_temp = preset_min if preset_min is not None else config_min
 
     def _set_floor_temp_limits_from_config(self) -> None:
         _LOGGER.debug("Setting floor temp limits from config")
-        self._max_floor_temp = (
-            self._config.get(CONF_MAX_FLOOR_TEMP) or DEFAULT_MAX_FLOOR_TEMP
-        )
-        self._min_floor_temp = (
-            self._config.get(CONF_MIN_FLOOR_TEMP) or DEFAULT_MAX_FLOOR_TEMP
-        )
+        self._min_floor_temp, self._max_floor_temp = self._config_floor_temp_limits()
 
     def apply_old_state(self, old_state: State) -> None:
         _LOGGER.debug("Applying old state: %s", old_state)
@@ -1077,7 +1078,11 @@ class EnvironmentManager(StateManager):
 
         # do we actually need this?
         self._max_floor_temp = (
-            (old_state.attributes.get("max_floor_temp") or DEFAULT_MAX_FLOOR_TEMP)
+            (
+                old_state.attributes.get("max_floor_temp")
+                if old_state.attributes.get("max_floor_temp") is not None
+                else DEFAULT_MAX_FLOOR_TEMP
+            )
             if self._max_floor_temp is None
             else self._max_floor_temp
         )

@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from homeassistant.config_entries import OptionsFlow
+from homeassistant.config_entries import OptionsFlowWithReload
 from homeassistant.const import DEGREE
 from homeassistant.data_entry_flow import FlowResult, section
 from homeassistant.helpers import selector
@@ -63,7 +63,7 @@ from .schema_utils import get_tolerance_selector
 _LOGGER = logging.getLogger(__name__)
 
 
-class OptionsFlowHandler(OptionsFlow):
+class OptionsFlowHandler(OptionsFlowWithReload):
     """Handle options flow for Dual Smart Thermostat."""
 
     def __init__(self, config_entry) -> None:

@@ -189,6 +189,9 @@ class PresetManager(StateManager):
 
         _LOGGER.debug("Restoring previous preset mode range: %s", old_preset_mode)
         self._preset_mode = old_preset_mode
+        # Keep _preset_env in step with _preset_mode: later mode switches
+        # resolve setpoints from it and would see an empty preset (#646).
+        self._preset_env = self._presets[old_preset_mode]
 
         # Save current target temps before applying preset
         self._environment.saved_target_temp_low = self._environment.target_temp_low
@@ -218,6 +221,9 @@ class PresetManager(StateManager):
         _LOGGER.debug("Old temperature: %s", old_temperature)
 
         self._preset_mode = old_preset_mode
+        # Keep _preset_env in step with _preset_mode: later mode switches
+        # resolve setpoints from it and would see an empty preset (#646).
+        self._preset_env = self._presets[old_preset_mode]
         self._environment.saved_target_temp = self._environment.target_temp
 
         # Prefer old temperature if available (actual state)
