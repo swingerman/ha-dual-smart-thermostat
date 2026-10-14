@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from homeassistant.components.binary_sensor import DOMAIN as BINARY_SENSOR_DOMAIN
+from homeassistant.components.fan import DOMAIN as FAN_DOMAIN
 from homeassistant.components.input_boolean import DOMAIN as INPUT_BOOLEAN_DOMAIN
 from homeassistant.components.sensor import DOMAIN as SENSOR_DOMAIN
 from homeassistant.components.switch import DOMAIN as SWITCH_DOMAIN
@@ -78,6 +79,9 @@ from .schema_utils import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+# Domains accepted by the fan field (single source for all flows)
+FAN_ENTITY_DOMAINS = [SWITCH_DOMAIN, INPUT_BOOLEAN_DOMAIN, FAN_DOMAIN]
 
 
 # Load translations at module import time to avoid blocking I/O in async context
@@ -954,7 +958,7 @@ def get_fan_schema(hass=None, defaults: dict[str, Any] | None = None):
     return vol.Schema(
         {
             vol.Required(CONF_FAN, default=defaults.get(CONF_FAN)): get_entity_selector(
-                [SWITCH_DOMAIN, INPUT_BOOLEAN_DOMAIN]
+                FAN_ENTITY_DOMAINS
             ),
             vol.Optional(
                 CONF_FAN_MODE, default=defaults.get(CONF_FAN_MODE, False)
