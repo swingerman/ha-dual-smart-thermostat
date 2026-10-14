@@ -44,6 +44,8 @@ Many thermostats (like Honeywell T6 ZWave) only support a single mode at a time 
 └─────────────────────────────────────┘
 ```
 
+> **Home Assistant 2026.10+ alternative:** a [template climate](https://www.home-assistant.io/integrations/template/#climate) can expose `heat_cool` with `target_temperature_low`/`target_temperature_high` directly, so you don't need the dummy switches. You still need the reconciliation automation, because a template climate has no control logic. Keep this Dual Smart Thermostat setup if you want its tolerances, openings, or presets in front of the real thermostat.
+
 ## Prerequisites
 
 - A thermostat that only supports single mode (heat OR cool)
