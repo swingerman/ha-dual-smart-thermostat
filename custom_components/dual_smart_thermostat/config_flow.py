@@ -682,7 +682,7 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
             # No presets enabled, skip configuration and finish
             return await self._async_finish_flow()
 
-        # Get currently configured presets to pre-select them in the form
+        # Get currently configured presets to preselect them in the form
         # This is especially important for reconfigure flow
         defaults = []
         if self.collected_config and isinstance(

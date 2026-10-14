@@ -168,7 +168,7 @@ def get_system_type_schema(default: str | None = None):
     """Get system type selection schema.
 
     Args:
-        default: Optional default system type to pre-select (used in reconfigure flow)
+        default: Optional default system type to preselect (used in reconfigure flow)
 
     Returns:
         vol.Schema with system type selection
@@ -694,7 +694,7 @@ def get_features_schema(
 
     Args:
         system_type: The type of system (SystemType enum value or string)
-        defaults: Optional defaults dict to pre-select features (for options flow)
+        defaults: Optional defaults dict to preselect features (for options flow)
 
     Returns:
         Schema with appropriate feature toggles based on system type
@@ -1093,7 +1093,7 @@ def get_advanced_settings_schema(hass=None):
 def get_preset_selection_schema(defaults: list[str] | None = None):
     """Get preset selection schema.
 
-    Accepts an optional list of preset keys to pre-select in the multi-select
+    Accepts an optional list of preset keys to preselect in the multi-select
     selector (used by the options flow to pre-check presets that have
     configuration data stored in the entry).
     """

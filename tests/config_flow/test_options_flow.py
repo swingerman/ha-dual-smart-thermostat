@@ -604,7 +604,7 @@ async def test_dual_stage_options_flow_parity(mock_hass, dual_stage_config_entry
 async def test_floor_options_preselects_configured_sensor(
     mock_hass, dual_stage_config_entry
 ):
-    """Ensure the floor options form pre-selects the configured floor sensor."""
+    """Ensure the floor options form preselects the configured floor sensor."""
     entry = dual_stage_config_entry
     # Simulate an already-configured floor sensor in the stored entry
     entry.data[CONF_FLOOR_SENSOR] = "sensor.floor_temp"  # example entity

@@ -1854,6 +1854,51 @@ async def test_heater_mode_floor_temp(
     assert hass.states.get(heater_switch).state == STATE_OFF
 
 
+async def test_heater_mode_floor_min_unset_not_forced_on_after_mode_change(
+    hass: HomeAssistant, setup_comp_1  # noqa: F811
+) -> None:
+    """Unset min_floor_temp must not fall back to the 28 max default (#647)."""
+    heater_switch = "input_boolean.test"
+    assert await async_setup_component(
+        hass, input_boolean.DOMAIN, {"input_boolean": {"test": None}}
+    )
+
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "heater": heater_switch,
+                "target_sensor": common.ENT_SENSOR,
+                "initial_hvac_mode": HVACMode.HEAT,
+                "floor_sensor": common.ENT_FLOOR_SENSOR,
+                "cold_tolerance": COLD_TOLERANCE,
+                "hot_tolerance": HOT_TOLERANCE,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    setup_sensor(hass, 22)
+    setup_floor_sensor(hass, 20)
+    await hass.async_block_till_done()
+    await common.async_set_temperature(hass, 18)
+    await hass.async_block_till_done()
+    assert hass.states.get(heater_switch).state == STATE_OFF
+
+    await common.async_set_hvac_mode(hass, HVACMode.OFF)
+    await hass.async_block_till_done()
+    await common.async_set_hvac_mode(hass, HVACMode.HEAT)
+    await hass.async_block_till_done()
+    setup_floor_sensor(hass, 21)
+    await hass.async_block_till_done()
+
+    # room is warm, floor 21 is above any sane min: heater must stay off
+    assert hass.states.get(heater_switch).state == STATE_OFF
+
+
 async def test_heater_mode_floor_temp_presets(
     hass: HomeAssistant, setup_comp_1  # noqa: F811
 ) -> None:

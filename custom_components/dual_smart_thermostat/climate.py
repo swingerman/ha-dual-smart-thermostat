@@ -878,21 +878,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                 )
             )
 
-        _LOGGER.debug(
-            "Setting up signal: %s",
-            SET_HVAC_ACTION_REASON_SIGNAL.format(self.entity_id),
-        )
-        self._remove_signal_hvac_action_reason = async_dispatcher_connect(
-            # The Hass Object
-            self.hass,
-            # The Signal to listen for.
-            # Try to make it unique per entity instance
-            # so include something like entity_id
-            # or other unique data from the service call
-            SET_HVAC_ACTION_REASON_SIGNAL.format(self.entity_id),
-            # Function handle to call when signal is received
-            self._set_hvac_action_reason,
-        )
+        self._connect_hvac_action_reason_signal()
 
         @callback
         async def _async_startup(*_) -> None:
@@ -964,6 +950,24 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             _LOGGER.debug("restoring hvac_mode: %s", hvac_mode)
             await self.async_set_hvac_mode(hvac_mode, is_restore=True)
 
+            # Presets were restored above while the support flags still
+            # reflected range mode (self._hvac_mode is unset at this point),
+            # so a range-only preset filled low/high but never a target. The
+            # is_restore mode switch skips resolving it, leaving temperature
+            # null in heat/cool (#646). Resolve it from the preset now.
+            if (
+                self.features.is_target_mode
+                and self.environment.target_temp is None
+                and self.presets.preset_mode != PRESET_NONE
+            ):
+                self.environment.set_temepratures_from_hvac_mode_and_presets(
+                    self._hvac_mode,
+                    self.features.hvac_modes_support_range_temp(self._attr_hvac_modes),
+                    self.presets.preset_mode,
+                    self.presets.preset_env,
+                    self.features.is_range_mode,
+                )
+
             _LOGGER.debug(
                 "startup hvac_action_reason: %s",
                 old_state.attributes.get(ATTR_HVAC_ACTION_REASON),
@@ -1000,6 +1004,22 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         await self._setup_template_listeners()
 
         self.async_write_ha_state()
+
+    def _connect_hvac_action_reason_signal(self) -> None:
+        """(Re)subscribe to the action-reason signal keyed on the entity_id."""
+        if self._remove_signal_hvac_action_reason:
+            self._remove_signal_hvac_action_reason()
+        signal = SET_HVAC_ACTION_REASON_SIGNAL.format(self.entity_id)
+        _LOGGER.debug("Setting up signal: %s", signal)
+        self._remove_signal_hvac_action_reason = async_dispatcher_connect(
+            self.hass, signal, self._set_hvac_action_reason
+        )
+
+    @callback
+    def async_entity_id_changed(self, old_entity_id: str) -> None:
+        """Re-key the action-reason signal after an in-place entity_id change."""
+        # No super() call: hook is absent from HA < 2026.11 base class.
+        self._connect_hvac_action_reason_signal()
 
     async def async_will_remove_from_hass(self) -> None:
         """Call when entity will be removed from hass."""
