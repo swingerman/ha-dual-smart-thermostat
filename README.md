@@ -48,6 +48,21 @@ Looking for ready-to-use configurations? Check out our **[examples directory](ex
 
 Each example includes complete YAML configurations with detailed explanations, troubleshooting tips, and best practices.
 
+### Template Climate (Home Assistant 2026.10+)
+
+Home Assistant 2026.10 adds a [template climate](https://www.home-assistant.io/integrations/template/#climate) entity. It complements this integration rather than replacing it:
+
+- **Template climate** maps templates and actions onto a `climate` entity. It has no control loop: it never decides on its own when to heat or cool.
+- **Dual Smart Thermostat** is the control loop: tolerances, min cycle duration, openings, floor limits, presets, auto mode, stale-sensor safety.
+
+When to use which:
+
+- **The device already regulates itself** (IR/RF air conditioner driven by scripts, a thermostat with an awkward interface, values spread across several helpers): a template climate is enough, and is simpler than wrapping the device with dummy switches here.
+- **The device is a plain switch/valve/relay** that needs to be cycled from a temperature sensor: use Dual Smart Thermostat.
+- **Both**: Dual Smart Thermostat still expects switch-like entities for `heater`/`cooler`/`fan`/`dryer`, so a template climate cannot be used as one of them. Template [switches](https://www.home-assistant.io/integrations/switch.template/) and [fans](#upgrading-switch-based-fans) remain the way to adapt odd hardware for this integration.
+
+The [Single-Mode Thermostat Wrapper](examples/single_mode_wrapper/) example covers one case where a template climate is an alternative.
+
 ## Heat/Cool Mode
 
 If both [`heater`](#heater) and [`cooler`](#cooler) entities configured. The thermostat can control heating and cooling and you are able to set min/max low and min/max high temperatures.
