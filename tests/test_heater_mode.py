@@ -3169,15 +3169,17 @@ async def test_heater_cooler_with_fan_keeps_fan_running_while_heating(
     await common.async_set_temperature(hass, 26)
     setup_sensor(hass, 23)  # below target -> should heat
 
-    calls = setup_switch_dual(hass, common.ENT_FAN, False, False)
+    # Heater running (mocked services never flip state themselves)
+    calls = setup_switch_dual(hass, common.ENT_FAN, True, False)
 
     await common.async_set_hvac_mode(hass, HVACMode.HEAT)
     await hass.async_block_till_done()
 
-    heater_on = [
+    heater_off = [
         c
         for c in calls
-        if c.service == SERVICE_TURN_ON and c.data.get("entity_id") == common.ENT_SWITCH
+        if c.service == SERVICE_TURN_OFF
+        and c.data.get("entity_id") == common.ENT_SWITCH
     ]
     fan_on = [
         c
@@ -3189,7 +3191,7 @@ async def test_heater_cooler_with_fan_keeps_fan_running_while_heating(
         for c in calls
         if c.service == SERVICE_TURN_OFF and c.data.get("entity_id") == common.ENT_FAN
     ]
-    assert len(heater_on) >= 1, f"heater should be heating, got: {calls}"
+    assert len(heater_off) == 0, f"heater should keep heating, got: {calls}"
     assert len(fan_on) >= 1, f"fan should run while heating, got: {calls}"
     assert len(fan_off) == 0, f"fan must not be turned off while heating, got: {calls}"
 

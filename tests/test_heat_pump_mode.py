@@ -418,15 +418,17 @@ async def test_heat_pump_with_fan_keeps_fan_running_while_heating(
     await common.async_set_temperature(hass, 26)
     setup_sensor(hass, 23)  # below target -> heat pump should heat
 
-    calls = setup_switch_dual(hass, common.ENT_FAN, False, False)
+    # Heater running (mocked services never flip state themselves)
+    calls = setup_switch_dual(hass, common.ENT_FAN, True, False)
 
     await common.async_set_hvac_mode(hass, HVACMode.HEAT)
     await hass.async_block_till_done()
 
-    heater_on = [
+    heater_off = [
         c
         for c in calls
-        if c.service == SERVICE_TURN_ON and c.data.get("entity_id") == common.ENT_SWITCH
+        if c.service == SERVICE_TURN_OFF
+        and c.data.get("entity_id") == common.ENT_SWITCH
     ]
     fan_on = [
         c
@@ -438,9 +440,55 @@ async def test_heat_pump_with_fan_keeps_fan_running_while_heating(
         for c in calls
         if c.service == SERVICE_TURN_OFF and c.data.get("entity_id") == common.ENT_FAN
     ]
-    assert len(heater_on) >= 1, f"heat pump should be heating, got: {calls}"
+    assert len(heater_off) == 0, f"heat pump should keep heating, got: {calls}"
     assert len(fan_on) >= 1, f"fan should run while heating, got: {calls}"
     assert len(fan_off) == 0, f"fan must not be turned off while heating, got: {calls}"
+
+
+async def test_heat_pump_with_fan_on_with_heater_keeps_fan_off_while_idle(
+    hass: HomeAssistant, setup_comp_1  # noqa: F811
+) -> None:
+    """``fan_on_with_heater`` runs the fan only while the heat pump runs.
+
+    Regression test for issue #651: target reached (heat pump idle) yet the
+    fan was switched on and ran continuously.
+    """
+    from . import setup_switch_dual
+
+    setup_heat_pump_cooling_status(hass, False)
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "cold_tolerance": 0.3,
+                "hot_tolerance": 0.1,
+                "heater": common.ENT_SWITCH,
+                "fan": common.ENT_FAN,
+                "fan_on_with_heater": True,
+                "heat_pump_cooling": common.ENT_HEAT_PUMP_COOLING,
+                "target_sensor": common.ENT_SENSOR,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    await common.async_set_temperature(hass, 19)
+    setup_sensor(hass, 21.7)  # above target -> heat pump idle
+
+    calls = setup_switch_dual(hass, common.ENT_FAN, False, False)
+
+    await common.async_set_hvac_mode(hass, HVACMode.HEAT)
+    await hass.async_block_till_done()
+
+    fan_on = [
+        c
+        for c in calls
+        if c.service == SERVICE_TURN_ON and c.data.get("entity_id") == common.ENT_FAN
+    ]
+    assert len(fan_on) == 0, f"fan must stay off while heat pump idles, got: {calls}"
 
 
 async def test_heat_pump_with_fan_off_with_heater_keeps_legacy_behavior(
