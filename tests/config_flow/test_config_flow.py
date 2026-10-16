@@ -349,6 +349,29 @@ async def test_preset_skip_logic():
     assert result["type"] == "create_entry"
 
 
+@pytest.mark.parametrize(
+    "entity_id,valid",
+    [
+        ("switch.f", True),
+        ("input_boolean.f", True),
+        ("fan.f", True),
+        ("input_select.f", False),
+    ],
+)
+def test_fan_schema_entity_domains(entity_id, valid):
+    """Fan field (all flows share get_fan_schema) accepts fan.* but not input_select."""
+    import voluptuous as vol
+
+    from custom_components.dual_smart_thermostat.schemas import get_fan_schema
+
+    schema = get_fan_schema()
+    if valid:
+        assert schema({"fan": entity_id})["fan"] == entity_id
+    else:
+        with pytest.raises(vol.Invalid):
+            schema({"fan": entity_id})
+
+
 if __name__ == "__main__":
     """Run tests directly."""
     import asyncio
