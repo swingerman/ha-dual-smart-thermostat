@@ -73,11 +73,11 @@ class HeaterFanDevice(MultiHvacDevice):
             return
 
         # Heating/cooling mode: run the heater/heat pump. When opted in, the fan
-        # runs alongside it as the air handler; otherwise it stays off (#622).
+        # follows it as the air handler (#622) - on only while it runs (#651).
         await self.heater_device.async_control_hvac(time, force)
         self._hvac_action_reason = self.heater_device.HVACActionReason
 
-        if self._fan_on_with_heater:
+        if self._fan_on_with_heater and self.heater_device.is_active:
             await self.fan_device.async_turn_on()
         elif self.fan_device.is_active:
             await self.fan_device.async_turn_off()
