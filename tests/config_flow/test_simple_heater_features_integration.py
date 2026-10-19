@@ -29,7 +29,10 @@ import pytest
 
 from custom_components.dual_smart_thermostat.config_flow import ConfigFlowHandler
 from custom_components.dual_smart_thermostat.const import (
+    CONF_COMFORT_FLOOR_MAX_AIR_OVERSHOOT,
+    CONF_COMFORT_FLOOR_TEMP,
     CONF_FLOOR_SENSOR,
+    CONF_FLOOR_TOLERANCE,
     CONF_HEATER,
     CONF_MAX_FLOOR_TEMP,
     CONF_MIN_FLOOR_TEMP,
@@ -192,6 +195,71 @@ class TestSimpleHeaterFloorHeatingOnly:
         assert CONF_FLOOR_SENSOR in field_names
         assert CONF_MIN_FLOOR_TEMP in field_names
         assert CONF_MAX_FLOOR_TEMP in field_names
+        assert CONF_FLOOR_TOLERANCE in field_names
+        assert CONF_COMFORT_FLOOR_TEMP in field_names
+        assert CONF_COMFORT_FLOOR_MAX_AIR_OVERSHOOT in field_names
+
+    async def test_config_flow_persists_comfort_floor_and_tolerance(self, mock_hass):
+        """floor_tolerance and comfort floor settings are saved by config flow."""
+        flow = ConfigFlowHandler()
+        flow.hass = mock_hass
+        flow.collected_config = {}
+
+        await flow.async_step_user({CONF_SYSTEM_TYPE: SYSTEM_TYPE_SIMPLE_HEATER})
+        await flow.async_step_basic(
+            {
+                CONF_NAME: "Test Heater",
+                CONF_SENSOR: "sensor.temperature",
+                CONF_HEATER: "switch.heater",
+            }
+        )
+        await flow.async_step_features(
+            {
+                "configure_floor_heating": True,
+                "configure_openings": False,
+                "configure_presets": False,
+            }
+        )
+        result = await flow.async_step_floor_config(
+            {
+                CONF_FLOOR_SENSOR: "sensor.floor_temperature",
+                CONF_MIN_FLOOR_TEMP: 5,
+                CONF_MAX_FLOOR_TEMP: 28,
+                CONF_FLOOR_TOLERANCE: 0.5,
+                CONF_COMFORT_FLOOR_TEMP: 24,
+                CONF_COMFORT_FLOOR_MAX_AIR_OVERSHOOT: 1.5,
+            }
+        )
+
+        assert result["type"] == FlowResultType.CREATE_ENTRY
+        assert flow.collected_config[CONF_FLOOR_TOLERANCE] == 0.5
+        assert flow.collected_config[CONF_COMFORT_FLOOR_TEMP] == 24
+        assert flow.collected_config[CONF_COMFORT_FLOOR_MAX_AIR_OVERSHOOT] == 1.5
+
+    async def test_unchecking_floor_heating_clears_floor_settings(self, mock_hass):
+        """Disabling floor heating drops tolerance and comfort floor settings too."""
+        flow = ConfigFlowHandler()
+        flow.hass = mock_hass
+        flow.collected_config = {
+            CONF_FLOOR_SENSOR: "sensor.floor_temperature",
+            CONF_MIN_FLOOR_TEMP: 5,
+            CONF_MAX_FLOOR_TEMP: 28,
+            CONF_FLOOR_TOLERANCE: 0.5,
+            CONF_COMFORT_FLOOR_TEMP: 24,
+            CONF_COMFORT_FLOOR_MAX_AIR_OVERSHOOT: 1.5,
+        }
+
+        flow._clear_unchecked_features({"configure_floor_heating": False})
+
+        for key in (
+            CONF_FLOOR_SENSOR,
+            CONF_MIN_FLOOR_TEMP,
+            CONF_MAX_FLOOR_TEMP,
+            CONF_FLOOR_TOLERANCE,
+            CONF_COMFORT_FLOOR_TEMP,
+            CONF_COMFORT_FLOOR_MAX_AIR_OVERSHOOT,
+        ):
+            assert key not in flow.collected_config
 
 
 class TestSimpleHeaterOpeningsOnly:

@@ -15,6 +15,7 @@
           "opening": "Nyílászáró nyitva észlelve",
           "limit": "Határérték elérve",
           "overheat": "Túlmelegedés elleni védelem",
+          "comfort_floor": "Komfort padlóhőmérséklet",
           "temperature_sensor_stalled": "A hőmérséklet-érzékelő nem frissül",
           "humidity_sensor_stalled": "A páratartalom-érzékelő nem frissül",
           "presence": "Jelenlét",

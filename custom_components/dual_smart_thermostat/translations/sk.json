@@ -15,6 +15,7 @@
           "opening": "Zistený otvor",
           "limit": "Dosiahnutý limit",
           "overheat": "Ochrana proti prehriatiu",
+          "comfort_floor": "Komfortná teplota podlahy",
           "temperature_sensor_stalled": "Senzor teploty nereaguje",
           "humidity_sensor_stalled": "Senzor vlhkosti nereaguje",
           "presence": "Prítomnosť",

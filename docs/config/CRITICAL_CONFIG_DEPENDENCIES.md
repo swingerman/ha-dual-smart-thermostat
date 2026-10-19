@@ -40,12 +40,18 @@ When you configure a floor sensor, these temperature protection parameters becom
 |-----------|-------------|---------|
 | `max_floor_temp` | Maximum allowed floor temperature | `28` |
 | `min_floor_temp` | Minimum allowed floor temperature | `5` |
+| `floor_tolerance` | Hysteresis shared by every floor threshold | `0.5` |
+| `comfort_floor_temp` | Keep heating until the floor reaches this | `24` |
+| `comfort_floor_max_air_overshoot` | Room overshoot allowed for comfort floor (requires `comfort_floor_temp`) | `1.0` |
 
 **Configuration Example**:
 ```yaml
 floor_sensor: sensor.floor_temperature
 max_floor_temp: 28  # ← Only works with floor_sensor
 min_floor_temp: 5   # ← Only works with floor_sensor
+floor_tolerance: 0.5      # ← Only works with floor_sensor
+comfort_floor_temp: 24    # ← Only works with floor_sensor
+comfort_floor_max_air_overshoot: 1.0  # ← Only works with comfort_floor_temp
 ```
 
 ---

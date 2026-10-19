@@ -933,6 +933,9 @@ class ConfigFlowHandler(ExcludeOwnEntity, ConfigFlow, domain=DOMAIN):
             self.collected_config.pop(CONF_FLOOR_SENSOR, None)
             self.collected_config.pop("max_floor_temp", None)
             self.collected_config.pop("min_floor_temp", None)
+            self.collected_config.pop("floor_tolerance", None)
+            self.collected_config.pop("comfort_floor_temp", None)
+            self.collected_config.pop("comfort_floor_max_air_overshoot", None)
             _LOGGER.debug("Floor heating unchecked - clearing floor sensor config")
 
         # Fan unchecked - clear fan entity and related settings

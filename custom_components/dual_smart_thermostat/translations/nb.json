@@ -15,6 +15,7 @@
           "opening": "Åpning oppdaget",
           "limit": "Grense nådd",
           "overheat": "Overopphetingsbeskyttelse",
+          "comfort_floor": "Komfortgulvtemperatur",
           "temperature_sensor_stalled": "Temperatursensor stanset",
           "humidity_sensor_stalled": "Fuktighetssensor stanset",
           "presence": "Tilstedeværelse",

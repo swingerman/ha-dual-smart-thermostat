@@ -15,6 +15,7 @@
           "opening": "Abertura detectada",
           "limit": "Limite atingido",
           "overheat": "Proteção contra superaquecimento",
+          "comfort_floor": "Temperatura de conforto do piso",
           "temperature_sensor_stalled": "Sensor de temperatura travado",
           "humidity_sensor_stalled": "Sensor de umidade travado",
           "presence": "Presença",
