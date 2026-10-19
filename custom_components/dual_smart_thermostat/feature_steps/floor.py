@@ -8,7 +8,10 @@ from homeassistant.data_entry_flow import FlowResult
 import voluptuous as vol
 
 from ..const import (
+    CONF_COMFORT_FLOOR_MAX_AIR_OVERSHOOT,
+    CONF_COMFORT_FLOOR_TEMP,
     CONF_FLOOR_SENSOR,
+    CONF_FLOOR_TOLERANCE,
     CONF_MAX_FLOOR_TEMP,
     CONF_MIN_FLOOR_TEMP,
     SYSTEM_TYPE_SIMPLE_HEATER,
@@ -80,6 +83,11 @@ class FloorSteps:
         """Handle the detailed floor configuration step used by config flow."""
         if user_input is not None:
             collected_config.update(user_input)
+            # An emptied optional field is absent from user_input; store None
+            # so the stale persisted value can't survive the entry merge.
+            collected_config[CONF_COMFORT_FLOOR_TEMP] = user_input.get(
+                CONF_COMFORT_FLOOR_TEMP
+            )
             return await next_step_handler()
 
         return flow_instance.async_show_form(
@@ -98,6 +106,11 @@ class FloorSteps:
         """Handle the floor heating options step used by options flow."""
         if user_input is not None:
             collected_config.update(user_input)
+            # An emptied optional field is absent from user_input; store None
+            # so the stale persisted value can't survive the entry merge.
+            collected_config[CONF_COMFORT_FLOOR_TEMP] = user_input.get(
+                CONF_COMFORT_FLOOR_TEMP
+            )
             return await next_step_handler()
 
         # Use the real schema factory for consistent selectors and include
@@ -113,16 +126,18 @@ class FloorSteps:
         elif entry_data and entry_data.get(CONF_FLOOR_SENSOR):
             defaults[CONF_FLOOR_SENSOR] = entry_data.get(CONF_FLOOR_SENSOR)
 
-        # Numeric limits
-        if collected_config.get(CONF_MAX_FLOOR_TEMP) is not None:
-            defaults[CONF_MAX_FLOOR_TEMP] = collected_config.get(CONF_MAX_FLOOR_TEMP)
-        elif entry_data and entry_data.get(CONF_MAX_FLOOR_TEMP) is not None:
-            defaults[CONF_MAX_FLOOR_TEMP] = entry_data.get(CONF_MAX_FLOOR_TEMP)
-
-        if collected_config.get(CONF_MIN_FLOOR_TEMP) is not None:
-            defaults[CONF_MIN_FLOOR_TEMP] = collected_config.get(CONF_MIN_FLOOR_TEMP)
-        elif entry_data and entry_data.get(CONF_MIN_FLOOR_TEMP) is not None:
-            defaults[CONF_MIN_FLOOR_TEMP] = entry_data.get(CONF_MIN_FLOOR_TEMP)
+        # Numeric settings: collected overrides win over persisted entry data
+        for key in (
+            CONF_MAX_FLOOR_TEMP,
+            CONF_MIN_FLOOR_TEMP,
+            CONF_FLOOR_TOLERANCE,
+            CONF_COMFORT_FLOOR_TEMP,
+            CONF_COMFORT_FLOOR_MAX_AIR_OVERSHOOT,
+        ):
+            if collected_config.get(key) is not None:
+                defaults[key] = collected_config.get(key)
+            elif entry_data.get(key) is not None:
+                defaults[key] = entry_data.get(key)
 
         return flow_instance.async_show_form(
             step_id="floor_options",
