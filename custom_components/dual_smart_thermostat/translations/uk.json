@@ -15,6 +15,7 @@
           "opening": "Виявлено відкриття",
           "limit": "Досягнуто ліміту",
           "overheat": "Захист від перегріву",
+          "comfort_floor": "Комфортна температура підлоги",
           "temperature_sensor_stalled": "Датчик температури завис",
           "humidity_sensor_stalled": "Датчик вологості завис",
           "presence": "Присутність",

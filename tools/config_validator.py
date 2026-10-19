@@ -30,6 +30,9 @@ class ConfigValidator:
             # Floor heating dependencies
             "max_floor_temp": "floor_sensor",
             "min_floor_temp": "floor_sensor",
+            "floor_tolerance": "floor_sensor",
+            "comfort_floor_temp": "floor_sensor",
+            "comfort_floor_max_air_overshoot": "comfort_floor_temp",
             # Heat/cool mode dependencies
             "target_temp_low": "heat_cool_mode",
             "target_temp_high": "heat_cool_mode",
@@ -137,7 +140,14 @@ class ConfigValidator:
             },
             "floor_protection": {
                 "enabled": config.get("floor_sensor") is not None,
-                "parameters": ["floor_sensor", "max_floor_temp", "min_floor_temp"],
+                "parameters": [
+                    "floor_sensor",
+                    "max_floor_temp",
+                    "min_floor_temp",
+                    "floor_tolerance",
+                    "comfort_floor_temp",
+                    "comfort_floor_max_air_overshoot",
+                ],
                 "configured": [],
             },
             "heat_cool_mode": {

@@ -15,6 +15,7 @@
           "opening": "Öppning upptäckt",
           "limit": "Gräns uppnådd",
           "overheat": "Överhettningsskydd",
+          "comfort_floor": "Komfortgolvtemperatur",
           "temperature_sensor_stalled": "Temperatursensorn svarar inte",
           "humidity_sensor_stalled": "Luftfuktighetssensorn svarar inte",
           "presence": "Närvaro",

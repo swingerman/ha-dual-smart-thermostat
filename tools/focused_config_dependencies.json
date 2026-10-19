@@ -20,6 +20,21 @@
       "description": "Minimum floor temperature only works when floor sensor is defined",
       "example": "floor_sensor: sensor.floor_temp \u2192 min_floor_temp: 5"
     },
+    "floor_tolerance": {
+      "required_parameter": "floor_sensor",
+      "description": "Floor tolerance only applies to floor thresholds, which need a floor sensor",
+      "example": "floor_sensor: sensor.floor_temp \u2192 floor_tolerance: 0.5"
+    },
+    "comfort_floor_temp": {
+      "required_parameter": "floor_sensor",
+      "description": "Comfort floor temperature only works when floor sensor is defined",
+      "example": "floor_sensor: sensor.floor_temp \u2192 comfort_floor_temp: 24"
+    },
+    "comfort_floor_max_air_overshoot": {
+      "required_parameter": "comfort_floor_temp",
+      "description": "Air overshoot bound only applies while comfort floor heating is active",
+      "example": "comfort_floor_temp: 24 \u2192 comfort_floor_max_air_overshoot: 1.0"
+    },
     "target_temp_low": {
       "required_parameter": "heat_cool_mode",
       "description": "Low temperature setting only works in heat/cool mode",
@@ -121,6 +136,24 @@
         "target": "min_floor_temp",
         "description": "Minimum floor temperature only works when floor sensor is defined",
         "example": "floor_sensor: sensor.floor_temp \u2192 min_floor_temp: 5"
+      },
+      {
+        "source": "floor_sensor",
+        "target": "floor_tolerance",
+        "description": "Floor tolerance only applies to floor thresholds, which need a floor sensor",
+        "example": "floor_sensor: sensor.floor_temp \u2192 floor_tolerance: 0.5"
+      },
+      {
+        "source": "floor_sensor",
+        "target": "comfort_floor_temp",
+        "description": "Comfort floor temperature only works when floor sensor is defined",
+        "example": "floor_sensor: sensor.floor_temp \u2192 comfort_floor_temp: 24"
+      },
+      {
+        "source": "comfort_floor_temp",
+        "target": "comfort_floor_max_air_overshoot",
+        "description": "Air overshoot bound only applies while comfort floor heating is active",
+        "example": "comfort_floor_temp: 24 \u2192 comfort_floor_max_air_overshoot: 1.0"
       },
       {
         "source": "heat_cool_mode",
@@ -299,7 +332,10 @@
       ],
       "optional": [
         "max_floor_temp",
-        "min_floor_temp"
+        "min_floor_temp",
+        "floor_tolerance",
+        "comfort_floor_temp",
+        "comfort_floor_max_air_overshoot"
       ],
       "example": {
         "floor_sensor": "sensor.floor_temperature",
