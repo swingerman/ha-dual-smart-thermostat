@@ -11,9 +11,12 @@ import pytest
 
 from custom_components.dual_smart_thermostat.const import (
     CONF_COLD_TOLERANCE,
+    CONF_COMFORT_FLOOR_MAX_AIR_OVERSHOOT,
+    CONF_COMFORT_FLOOR_TEMP,
     CONF_COOL_TOLERANCE,
     CONF_FAN_HOT_TOLERANCE,
     CONF_FLOOR_SENSOR,
+    CONF_FLOOR_TOLERANCE,
     CONF_HEAT_TOLERANCE,
     CONF_HOT_TOLERANCE,
     CONF_MAX_FLOOR_TEMP,
@@ -848,3 +851,100 @@ class TestFloorTempLimits:
     def test_floor_checks_need_sensor_and_reading(self, hass):
         env = _floor_env(hass, **{CONF_MIN_FLOOR_TEMP: 5.0})
         assert env.is_floor_cold is False  # no reading yet
+
+
+def _floor_readings(env, prop, readings):
+    out = []
+    for floor in readings:
+        env.cur_floor_temp = floor
+        out.append(getattr(env, prop))
+    return out
+
+
+class TestFloorTolerance:
+    """One floor tolerance gives every floor threshold hysteresis."""
+
+    def test_zero_tolerance_keeps_legacy_comparisons(self, hass):
+        env = _floor_env(hass, **{CONF_MIN_FLOOR_TEMP: 5, CONF_MAX_FLOOR_TEMP: 28})
+        assert _floor_readings(env, "is_floor_hot", [27, 28, 27.9, 28]) == [
+            False,
+            True,
+            False,
+            True,
+        ]
+        assert _floor_readings(env, "is_floor_cold", [6, 5, 5.1, 5]) == [
+            False,
+            True,
+            False,
+            True,
+        ]
+
+    def test_max_releases_only_below_threshold_minus_tolerance(self, hass):
+        env = _floor_env(hass, **{CONF_MAX_FLOOR_TEMP: 28, CONF_FLOOR_TOLERANCE: 0.5})
+        assert _floor_readings(
+            env, "is_floor_hot", [27.9, 28, 27.6, 27.5, 27.4, 27.9]
+        ) == [False, True, True, True, False, False]
+
+    def test_min_releases_only_above_threshold_plus_tolerance(self, hass):
+        env = _floor_env(hass, **{CONF_MIN_FLOOR_TEMP: 5, CONF_FLOOR_TOLERANCE: 0.5})
+        assert _floor_readings(env, "is_floor_cold", [5.1, 5, 5.4, 5.5, 5.6, 5.1]) == [
+            False,
+            True,
+            True,
+            True,
+            False,
+            False,
+        ]
+
+
+class TestComfortFloorDemand:
+    """comfort_floor_temp demand, bounded by the air overshoot."""
+
+    def _env(self, hass, **extra):
+        env = _floor_env(
+            hass,
+            **{
+                CONF_COMFORT_FLOOR_TEMP: 24,
+                CONF_COMFORT_FLOOR_MAX_AIR_OVERSHOOT: 1.0,
+                **extra,
+            },
+        )
+        env.target_temp = 20
+        return env
+
+    def test_disabled_when_unset(self, hass):
+        env = _floor_env(hass)
+        env.target_temp = 20
+        env.cur_temp = 20
+        env.cur_floor_temp = 10
+        assert env.is_comfort_floor_demand() is False
+
+    def test_demand_while_floor_below_comfort(self, hass):
+        env = self._env(hass)
+        env.cur_temp = 20.5
+        env.cur_floor_temp = 23
+        assert env.is_comfort_floor_demand() is True
+        env.cur_floor_temp = 24.1
+        assert env.is_comfort_floor_demand() is False
+
+    def test_air_overshoot_caps_demand_with_hysteresis(self, hass):
+        env = self._env(hass)
+        env.cur_floor_temp = 22
+        env.cur_temp = 20.9
+        assert env.is_comfort_floor_demand() is True
+        env.cur_temp = 21.0
+        assert env.is_comfort_floor_demand() is False
+        # re-engages only after dropping the cold tolerance (0.5) below the cap
+        env.cur_temp = 20.6
+        assert env.is_comfort_floor_demand() is False
+        env.cur_temp = 20.4
+        assert env.is_comfort_floor_demand() is True
+
+    def test_comfort_uses_floor_tolerance(self, hass):
+        env = self._env(hass, **{CONF_FLOOR_TOLERANCE: 0.5})
+        env.cur_temp = 20
+        demand = []
+        for floor in (24, 24.4, 24.6, 24.2):
+            env.cur_floor_temp = floor
+            demand.append(env.is_comfort_floor_demand())
+        assert demand == [True, True, False, False]

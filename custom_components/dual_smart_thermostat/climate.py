@@ -82,6 +82,8 @@ from .const import (
     CONF_AUX_HEATING_DUAL_MODE,
     CONF_AUX_HEATING_TIMEOUT,
     CONF_COLD_TOLERANCE,
+    CONF_COMFORT_FLOOR_MAX_AIR_OVERSHOOT,
+    CONF_COMFORT_FLOOR_TEMP,
     CONF_COOL_TOLERANCE,
     CONF_COOLER,
     CONF_DRY_TOLERANCE,
@@ -94,6 +96,7 @@ from .const import (
     CONF_FAN_ON_WITH_AC,
     CONF_FAN_ON_WITH_HEATER,
     CONF_FLOOR_SENSOR,
+    CONF_FLOOR_TOLERANCE,
     CONF_HEAT_COOL_MODE,
     CONF_HEAT_PUMP_COOLING,
     CONF_HEAT_TOLERANCE,
@@ -175,6 +178,11 @@ FLOOR_TEMPERATURE_SCHEMA = {
     vol.Optional(CONF_FLOOR_SENSOR): cv.entity_id,
     vol.Optional(CONF_MAX_FLOOR_TEMP): vol.Coerce(float),
     vol.Optional(CONF_MIN_FLOOR_TEMP): vol.Coerce(float),
+    vol.Optional(CONF_FLOOR_TOLERANCE): vol.All(vol.Coerce(float), vol.Range(min=0)),
+    vol.Optional(CONF_COMFORT_FLOOR_TEMP): vol.Coerce(float),
+    vol.Optional(CONF_COMFORT_FLOOR_MAX_AIR_OVERSHOOT): vol.All(
+        vol.Coerce(float), vol.Range(min=0)
+    ),
 }
 
 FAN_MODE_SCHEMA = {

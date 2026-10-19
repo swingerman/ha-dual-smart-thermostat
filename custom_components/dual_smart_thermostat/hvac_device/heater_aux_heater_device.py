@@ -73,7 +73,8 @@ class HeaterAUXHeaterDevice(MultiHvacDevice):
         """Check if we need to turn heating on or off when the heater is off."""
         _LOGGER.info("%s Controlling hvac while off", self.__class__.__name__)
 
-        too_cold = self.environment.is_too_cold(self._target_env_attr)
+        # Heater device's goal includes comfort floor demand.
+        too_cold = self.heater_device.is_below_target_env_attr()
         is_floor_hot = self.environment.is_floor_hot
         is_floor_cold = self.environment.is_floor_cold
         any_opening_open = self.openings.any_opening_open(self.hvac_mode)
@@ -100,7 +101,9 @@ class HeaterAUXHeaterDevice(MultiHvacDevice):
             if is_floor_cold:
                 self._hvac_action_reason = HVACActionReason.LIMIT
             else:
-                self._hvac_action_reason = HVACActionReason.TARGET_TEMP_NOT_REACHED
+                self._hvac_action_reason = (
+                    self.heater_device.target_env_attr_not_reached_reason()
+                )
 
         elif time is not None or any_opening_open or is_floor_hot:
             # The time argument is passed only in keep-alive case
@@ -143,7 +146,7 @@ class HeaterAUXHeaterDevice(MultiHvacDevice):
         """Check if we need to turn heating on or off when the heater is off."""
         _LOGGER.info("%s Controlling hvac while on", self.__class__.__name__)
 
-        too_hot = self.environment.is_too_hot(self._target_env_attr)
+        too_hot = self.heater_device.is_above_target_env_attr()
         is_floor_hot = self.environment.is_floor_hot
         is_floor_cold = self.environment.is_floor_cold
         any_opening_open = self.openings.any_opening_open(self.hvac_mode)

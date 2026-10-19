@@ -4,6 +4,7 @@ import logging
 from homeassistant.components.climate import HVACAction, HVACMode
 from homeassistant.core import HomeAssistant
 
+from ..hvac_action_reason.hvac_action_reason import HVACActionReason
 from ..hvac_controller.heater_controller import HeaterHvacConroller
 from ..hvac_controller.hvac_controller import HvacGoal
 from ..hvac_device.generic_hvac_device import GenericHVACDevice
@@ -57,6 +58,32 @@ class HeaterDevice(GenericHVACDevice):
         return (
             "_target_temp_low" if self.features.is_range_mode else self._target_env_attr
         )
+
+    def _is_comfort_floor_demand(self) -> bool:
+        return self.environment.is_comfort_floor_demand(self.target_env_attr)
+
+    # override: comfort floor is part of the heating goal, so every existing
+    # safety rule (max floor, openings, min cycle) applies to it unchanged.
+    def is_below_target_env_attr(self) -> bool:
+        return super().is_below_target_env_attr() or self._is_comfort_floor_demand()
+
+    # override
+    def is_above_target_env_attr(self) -> bool:
+        return (
+            super().is_above_target_env_attr() and not self._is_comfort_floor_demand()
+        )
+
+    # override
+    def target_env_attr_not_reached_reason(self) -> HVACActionReason:
+        target = getattr(self.environment, self.target_env_attr)
+        cur = self.environment.cur_temp
+        if (
+            None not in (cur, target)
+            and cur >= target
+            and self._is_comfort_floor_demand()
+        ):
+            return HVACActionReason.COMFORT_FLOOR
+        return HVACActionReason.TARGET_TEMP_NOT_REACHED
 
     @property
     def hvac_action(self) -> HVACAction:
