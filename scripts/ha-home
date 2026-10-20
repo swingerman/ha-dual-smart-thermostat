@@ -18,12 +18,14 @@
 # - Test config entries are named dst_test_*; never edit production entries.
 # - Restart only when the developer explicitly asks (--restart).
 
-set -e
+set -eo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 ENV_FILE="${HA_ENV_FILE:-$ROOT/.env}"
 SRC="custom_components/dual_smart_thermostat"
 DEST="/config/custom_components/dual_smart_thermostat"
+STAGE="/config/.dst_deploy_new"   # outside custom_components so HA never loads it
+OLD="/config/.dst_deploy_old"
 
 die() { echo "ha-home: $*" >&2; exit 1; }
 
@@ -53,9 +55,9 @@ api() { # api METHOD PATH [data]
 
 pretty() { if command -v jq >/dev/null; then jq .; else cat; fi; }
 
-# push_tar: replace $DEST with the tar stream on stdin
+# push_tar: extract stdin tar to a staging dir, swap into $DEST only on success
 push_tar() {
-    ssh_ha "rm -rf $DEST && mkdir -p $DEST && tar -x -C $DEST"
+    ssh_ha "rm -rf $STAGE $OLD && mkdir -p $STAGE && tar -x -C $STAGE && { [ ! -d $DEST ] || mv $DEST $OLD; } && mv $STAGE $DEST && rm -rf $OLD"
 }
 
 finish_deploy() {
