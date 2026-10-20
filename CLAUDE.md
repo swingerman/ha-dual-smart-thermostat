@@ -150,3 +150,6 @@ While writing releases, focus on user value and key changes. Avoid technical jar
 
 The dev Home Assistant instance stores its config registry at
 `config/.storage/core.config_entries` - useful when debugging config-flow persistence.
+
+`scripts/ha-home` deploys/debugs on a real HAOS instance (config in gitignored `.env`).
+Deploys, rollbacks and restarts touch live production code - get the user's OK first.

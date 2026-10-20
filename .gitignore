@@ -1,3 +1,6 @@
+# local HA dev config (scripts/ha-home)
+.env
+
 # artifacts
 __pycache__
 .pytest*

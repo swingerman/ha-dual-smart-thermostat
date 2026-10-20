@@ -1,0 +1,131 @@
+#!/usr/bin/env bash
+# Deploy and debug the integration on a real Home Assistant (HAOS) instance.
+# Usage:
+#   ./scripts/ha-home deploy [--restart] [--dry-run]   # copy integration, ha core check
+#   ./scripts/ha-home rollback <tag> [--restart]       # deploy integration from a git tag
+#   ./scripts/ha-home backup                           # ha backups new
+#   ./scripts/ha-home logs [N]                         # integration log lines, last N (100)
+#   ./scripts/ha-home state <entity_id>                # GET /api/states/<id>
+#   ./scripts/ha-home call <domain.service> '<json>'   # POST /api/services/...
+#
+# Config: gitignored .env (or $HA_ENV_FILE) with HA_URL, HA_TOKEN, HA_SSH
+# (user@host), HA_SSH_KEY. Needs the "Advanced SSH & Web Terminal" add-on.
+#
+# SAFETY RULES (this is a real home with live heaters):
+# - HA loads only ONE copy of the integration, so deploy/rollback replaces the
+#   code behind existing PRODUCTION thermostats on that instance.
+# - Take a `backup` before the first deploy.
+# - Test config entries are named dst_test_*; never edit production entries.
+# - Restart only when the developer explicitly asks (--restart).
+
+set -e
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+ENV_FILE="${HA_ENV_FILE:-$ROOT/.env}"
+SRC="custom_components/dual_smart_thermostat"
+DEST="/config/custom_components/dual_smart_thermostat"
+
+die() { echo "ha-home: $*" >&2; exit 1; }
+
+[ -f "$ENV_FILE" ] || die "env file not found: $ENV_FILE"
+set -a
+# shellcheck disable=SC1090
+. "$ENV_FILE"
+set +a
+
+need() {
+    for v in "$@"; do
+        [ -n "${!v}" ] || die "missing $v in $ENV_FILE"
+    done
+}
+
+ssh_ha() { ssh -i "$HA_SSH_KEY" -o BatchMode=yes "$HA_SSH" "$@"; }
+
+api() { # api METHOD PATH [data]
+    local method=$1 path=$2 data=$3
+    if [ -n "$data" ]; then
+        curl -fsS -X "$method" -H "Authorization: Bearer $HA_TOKEN" \
+            -H "Content-Type: application/json" -d "$data" "${HA_URL%/}$path"
+    else
+        curl -fsS -X "$method" -H "Authorization: Bearer $HA_TOKEN" "${HA_URL%/}$path"
+    fi
+}
+
+pretty() { if command -v jq >/dev/null; then jq .; else cat; fi; }
+
+# push_tar: replace $DEST with the tar stream on stdin
+push_tar() {
+    ssh_ha "rm -rf $DEST && mkdir -p $DEST && tar -x -C $DEST"
+}
+
+finish_deploy() {
+    echo "Running ha core check..."
+    ssh_ha "ha core check"
+    if [ "$1" = "1" ]; then
+        echo "Restarting HA core..."
+        ssh_ha "ha core restart"
+    else
+        echo "Not restarting (pass --restart to restart)."
+    fi
+}
+
+cmd=${1:-}
+[ $# -gt 0 ] && shift
+
+case "$cmd" in
+deploy)
+    restart=0 dry=0
+    for a in "$@"; do
+        case "$a" in
+        --restart) restart=1 ;;
+        --dry-run) dry=1 ;;
+        *) die "unknown deploy option: $a" ;;
+        esac
+    done
+    if [ "$dry" = 1 ]; then
+        echo "Dry run: would copy to ${HA_SSH:-<HA_SSH>}:$DEST"
+        (cd "$ROOT" && find "$SRC" -type f -not -path '*/__pycache__/*' -not -name '*.pyc' | sort)
+        exit 0
+    fi
+    need HA_SSH HA_SSH_KEY
+    COPYFILE_DISABLE=1 tar -C "$ROOT/$SRC" --exclude='__pycache__' --exclude='*.pyc' -c . |
+        push_tar || die "deploy failed"
+    finish_deploy "$restart"
+    ;;
+rollback)
+    tag=${1:-}
+    [ -n "$tag" ] || die "usage: rollback <tag> [--restart]"
+    shift
+    restart=0
+    [ "${1:-}" = "--restart" ] && restart=1
+    need HA_SSH HA_SSH_KEY
+    git -C "$ROOT" rev-parse --verify -q "$tag^{commit}" >/dev/null || die "unknown tag: $tag"
+    git -C "$ROOT" archive "$tag:$SRC" | push_tar ||
+        die "rollback failed"
+    finish_deploy "$restart"
+    ;;
+backup)
+    need HA_SSH HA_SSH_KEY
+    ssh_ha "ha backups new --name dst-dev-$(date +%Y%m%d-%H%M%S)"
+    ;;
+logs)
+    need HA_SSH HA_SSH_KEY
+    n=${1:-100}
+    case "$n" in '' | *[!0-9]*) die "logs N must be a number" ;; esac
+    ssh_ha "ha core logs" | grep -i dual_smart_thermostat | tail -n "$n"
+    ;;
+state)
+    [ -n "${1:-}" ] || die "usage: state <entity_id>"
+    need HA_URL HA_TOKEN
+    api GET "/api/states/$1" | pretty
+    ;;
+call)
+    [ -n "${1:-}" ] || die "usage: call <domain.service> '<json>'"
+    case "$1" in *.*) ;; *) die "service must be domain.service" ;; esac
+    need HA_URL HA_TOKEN
+    api POST "/api/services/${1%%.*}/${1#*.}" "${2:-{\}}" | pretty
+    ;;
+*)
+    die "unknown subcommand '$cmd' (deploy|rollback|backup|logs|state|call)"
+    ;;
+esac
