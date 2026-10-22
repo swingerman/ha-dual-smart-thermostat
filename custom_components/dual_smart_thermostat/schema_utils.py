@@ -189,13 +189,10 @@ def get_select_selector(
     translation_key: str | None = None,
 ) -> selector.SelectSelector:
     """Get a standardized select selector."""
-    return selector.SelectSelector(
-        selector.SelectSelectorConfig(
-            options=options,
-            mode=mode,
-            translation_key=translation_key,
-        )
-    )
+    config = selector.SelectSelectorConfig(options=options, mode=mode)
+    if translation_key:
+        config["translation_key"] = translation_key
+    return selector.SelectSelector(config)
 
 
 def get_multi_select_selector(
