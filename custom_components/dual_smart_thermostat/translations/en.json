@@ -33,7 +33,10 @@
             "same_heater_sensor": "Heater and temperature sensor cannot be the same entity",
             "same_heater_cooler": "Heater and cooler cannot be the same entity",
             "aux_heater_timeout_required": "Auxiliary heater timeout is required when auxiliary heater is configured",
-            "aux_heater_entity_required": "Auxiliary heater entity is required when timeout is configured"
+            "aux_heater_entity_required": "Auxiliary heater entity is required when timeout is configured",
+            "sensor_required": "Choose a temperature sensor, or use a climate entity as a device (its own temperature is then used)",
+            "setpoint_heat_pump_unsupported": "Setpoint control is not supported for a climate heat pump",
+            "setpoint_heat_cool_shared_climate": "Setpoint control cannot do heat/cool when one climate entity is both heater and cooler"
         },
         "step": {
             "user": {
@@ -658,6 +661,20 @@
                     "max_temp": "Maximum temperature limit for the thermostat. Users will not be able to set the target temperature above this value.",
                     "target_temp": "Initial target temperature when the thermostat is first configured. This will be the default temperature setting."
                 }
+            },
+            "climate_control": {
+                "title": "Climate Entity Control",
+                "description": "One or more devices are climate entities. Choose how the thermostat controls them.",
+                "data": {
+                    "control_style": "Control style",
+                    "heater_setpoint_offset": "Heater setpoint offset",
+                    "cooler_setpoint_offset": "Cooler setpoint offset"
+                },
+                "data_description": {
+                    "control_style": "On/off: this thermostat decides when to run the device and switches it on and off. Setpoint: the device stays on and regulates itself; this thermostat mirrors target, mode, presets and openings to it.",
+                    "heater_setpoint_offset": "Added to the target temperature sent to the heater device. Use it when the device's own sensor reads differently from your room sensor. Default 0.",
+                    "cooler_setpoint_offset": "Added to the target temperature sent to the cooler device (typically negative, so the device keeps cooling). Default 0."
+                }
             }
         }
     },
@@ -992,7 +1009,25 @@
                     "activity_temp": "Target temperature for Activity preset. Accepts static value (e.g., 23), entity reference, or template.",
                     "boost_temp": "Target temperature for Boost preset. Accepts static value (e.g., 25), entity reference, or template."
                 }
+            },
+            "climate_control_options": {
+                "title": "Climate Entity Control",
+                "description": "Modify how climate entity devices are controlled.",
+                "data": {
+                    "control_style": "Control style",
+                    "heater_setpoint_offset": "Heater setpoint offset",
+                    "cooler_setpoint_offset": "Cooler setpoint offset"
+                },
+                "data_description": {
+                    "control_style": "On/off: this thermostat switches the device on and off. Setpoint: the device regulates itself and mirrors this thermostat's target.",
+                    "heater_setpoint_offset": "Added to the target temperature sent to the heater device. Default 0.",
+                    "cooler_setpoint_offset": "Added to the target temperature sent to the cooler device. Default 0."
+                }
             }
+        },
+        "error": {
+            "setpoint_heat_pump_unsupported": "Setpoint control is not supported for a climate heat pump",
+            "setpoint_heat_cool_shared_climate": "Setpoint control cannot do heat/cool when one climate entity is both heater and cooler"
         }
     },
     "selector": {
@@ -1013,6 +1048,12 @@
                 "fan_only": "Fan only",
                 "heat_cool": "Heat/Cool mode",
                 "dry": "Dry mode"
+            }
+        },
+        "control_style": {
+            "options": {
+                "on_off": "On/off (this thermostat decides)",
+                "setpoint": "Setpoint (the device regulates itself)"
             }
         }
     },

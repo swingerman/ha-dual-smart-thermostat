@@ -110,3 +110,24 @@ def test_config_flow_translations():
 
 if __name__ == "__main__":
     test_config_flow_translations()
+
+
+def test_climate_control_strings_exist_in_english():
+    """The climate_control steps, their errors and the style options are translated."""
+    with open("custom_components/dual_smart_thermostat/translations/en.json") as f:
+        en = json.load(f)
+    keys = {"control_style", "heater_setpoint_offset", "cooler_setpoint_offset"}
+    step = en["config"]["step"]["climate_control"]
+    assert keys <= set(step["data"])
+    assert keys <= set(step["data_description"])
+    options = en["options"]["step"]["climate_control_options"]
+    assert keys <= set(options["data"])
+    assert keys <= set(options["data_description"])
+    errors = {
+        "sensor_required",
+        "setpoint_heat_pump_unsupported",
+        "setpoint_heat_cool_shared_climate",
+    }
+    assert errors <= set(en["config"]["error"])
+    assert errors - {"sensor_required"} <= set(en["options"]["error"])
+    assert {"on_off", "setpoint"} <= set(en["selector"]["control_style"]["options"])
