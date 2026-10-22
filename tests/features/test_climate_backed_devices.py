@@ -663,3 +663,70 @@ async def test_assumed_child_target_resent_only_after_a_mode_change(
     await cool.async_turn_off(None)
     await cool.async_turn_on(None)  # mode changed: the device may have dropped it
     assert [c[0] for c in child.calls].count("set_temperature") == 2
+
+
+async def test_target_change_while_engaged_is_mirrored(hass: HomeAssistant) -> None:
+    """A new target reaches the child that is serving the role."""
+    hass.states.async_set(SENSOR, 20.0)
+    await _setup(hass, heater=AC, initial_hvac_mode=HVACMode.HEAT)
+    child = await common.add_fake_climate(hass, AC)
+    await common.async_set_temperature(hass, 22, "climate.test")
+    await hass.async_block_till_done()
+    child.calls.clear()
+
+    await common.async_set_temperature(hass, 23, "climate.test")
+    await hass.async_block_till_done()
+
+    assert child.calls == [("set_temperature", {"temperature": 23.0})]
+
+
+async def test_unchanged_target_is_not_resent_on_sensor_ticks(
+    hass: HomeAssistant,
+) -> None:
+    """Sync is idempotent: sensor ticks send nothing when the target is current."""
+    hass.states.async_set(SENSOR, 20.0)
+    await _setup(hass, heater=AC, initial_hvac_mode=HVACMode.HEAT)
+    child = await common.add_fake_climate(hass, AC)
+    await common.async_set_temperature(hass, 22, "climate.test")
+    await hass.async_block_till_done()
+    child.calls.clear()
+
+    for temp in (20.1, 20.2, 20.3):
+        hass.states.async_set(SENSOR, temp)
+        await hass.async_block_till_done()
+
+    assert child.calls == []
+
+
+async def test_preset_target_is_mirrored(hass: HomeAssistant) -> None:
+    """Switching preset changes the target, which is mirrored."""
+    hass.states.async_set(SENSOR, 20.0)
+    await _setup(
+        hass,
+        heater=AC,
+        initial_hvac_mode=HVACMode.HEAT,
+        away={"temperature": 17},
+    )
+    child = await common.add_fake_climate(hass, AC)
+    await common.async_set_temperature(hass, 22, "climate.test")
+    await hass.async_block_till_done()
+    child.calls.clear()
+
+    await common.async_set_preset_mode(hass, "away", "climate.test")
+    await hass.async_block_till_done()
+
+    assert ("set_temperature", {"temperature": 17.0}) in child.calls
+
+
+async def test_target_is_never_pushed_before_the_role_owns_the_mode(
+    hass: HomeAssistant,
+) -> None:
+    """Child is in a mode this role does not own: mode first, then target."""
+    hass.states.async_set(SENSOR, 20.0)
+    await _setup(hass, heater=AC, initial_hvac_mode=HVACMode.HEAT)
+    child = await common.add_fake_climate(hass, AC, HVACMode.COOL)  # not our mode
+
+    await common.async_set_temperature(hass, 22, "climate.test")
+    await hass.async_block_till_done()
+
+    assert [c[0] for c in child.calls] == ["set_hvac_mode", "set_temperature"]

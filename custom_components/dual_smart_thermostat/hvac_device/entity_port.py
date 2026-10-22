@@ -392,6 +392,11 @@ class ClimatePort(EntityPort):
         if await self._child.async_set_mode(self._role_mode(), context):
             await self._push(context)
 
+    async def async_sync(self, context: Context | None) -> None:
+        # Only the role the child is serving may touch its setpoint.
+        if self.is_active:
+            await self._push(context)
+
     async def async_turn_off(self, context: Context | None) -> None:
         # Only the role the child is currently serving may stop it, so an idle
         # cooler's keep-alive can never switch off the heater on the same device.

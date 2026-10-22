@@ -199,6 +199,8 @@ class GenericHVACDevice(
             await self.async_stop(keep_alive=time is not None)
             return
 
+        await self.port.async_sync(self._context)
+
         if self.hvac_controller.is_active:
             await self.hvac_controller.async_control_device_when_on(
                 self.strategy,
