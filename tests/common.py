@@ -501,7 +501,6 @@ class FakeClimateChild(ClimateEntity):
         | ClimateEntityFeature.TURN_ON
         | ClimateEntityFeature.FAN_MODE
     )
-    _attr_fan_modes = ["quiet", "strong", "auto"]
     _attr_min_temp = 16
     _attr_max_temp = 30
     _attr_target_temperature_step = 0.5
@@ -530,6 +529,7 @@ class FakeClimateChild(ClimateEntity):
         self._attr_assumed_state = assumed
         self._attr_target_temperature = 21.0
         self._attr_current_temperature = current
+        self._attr_fan_modes = ["quiet", "strong", "auto"]
         self._attr_fan_mode = fan_mode
         self._resets_fan = resets_fan_on_mode_change
         self.calls: list[tuple[str, dict]] = []

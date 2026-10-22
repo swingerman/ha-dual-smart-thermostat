@@ -116,9 +116,9 @@ def normalize_climate_roles(config: Mapping[str, Any]) -> dict[str, Any]:
     """
     config = dict(config)
 
-    if not config.get(CONF_SENSOR):
-        if source := first_climate_role(config):
-            config[CONF_SENSOR] = source
+    source = first_climate_role(config)
+    if source and not config.get(CONF_SENSOR):
+        config[CONF_SENSOR] = source
 
     fan = config.get(CONF_FAN)
     if is_climate_entity(fan):
