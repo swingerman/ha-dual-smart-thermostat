@@ -379,3 +379,17 @@ def test_target_sensor_optional_with_climate_role() -> None:
         {"platform": "dual_smart_thermostat", "name": "t", "heater": "climate.ac"}
     )
     assert "target_sensor" not in cfg
+
+
+def test_setpoint_heat_cool_error_names_the_target_limits() -> None:
+    """The limits count as heat_cool too: the message must say so."""
+    with pytest.raises(vol.Invalid, match="target_temp_low/high"):
+        PLATFORM_SCHEMA(
+            _yaml(
+                heater="climate.ac",
+                cooler="climate.ac",
+                control_style="setpoint",
+                target_temp_low=19,
+                target_temp_high=24,
+            )
+        )

@@ -143,7 +143,8 @@ def validate_climate_roles(config: dict[str, Any]) -> dict[str, Any]:
     if setpoint_shared_heat_cool(config):
         raise vol.Invalid(
             "control_style: setpoint cannot do heat_cool with one climate as both "
-            "heater and cooler"
+            "heater and cooler (heat_cool_mode, or target_temp_low/high both set, "
+            "enables heat_cool)"
         )
     if bad := unsupported_climate_roles(config):
         raise vol.Invalid(f"{', '.join(bad)} cannot be a climate entity")
