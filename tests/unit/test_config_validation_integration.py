@@ -9,6 +9,7 @@ import voluptuous as vol
 from custom_components.dual_smart_thermostat.climate import PLATFORM_SCHEMA
 from custom_components.dual_smart_thermostat.climate_roles import (
     applicable_offset_keys,
+    normalize_climate_roles,
     setpoint_unsupported,
 )
 from custom_components.dual_smart_thermostat.config_flow import ConfigFlowHandler
@@ -292,3 +293,79 @@ def test_setpoint_heat_cool_is_fine_with_separate_climates_or_without_heat_cool(
     PLATFORM_SCHEMA(
         _yaml(heater="climate.ac", cooler="climate.ac", control_style="setpoint")
     )
+
+
+def test_missing_target_sensor_falls_back_to_first_climate_role() -> None:
+    """The first climate role (heater, cooler, fan, dryer) is the temperature source."""
+    cfg = normalize_climate_roles({"heater": "switch.h", "cooler": "climate.ac"})
+    assert cfg["target_sensor"] == "climate.ac"
+    cfg = normalize_climate_roles({"dryer": "climate.b", "cooler": "climate.a"})
+    assert cfg["target_sensor"] == "climate.a"
+
+
+def test_explicit_target_sensor_is_kept() -> None:
+    """A configured sensor always wins."""
+    cfg = normalize_climate_roles(
+        {"cooler": "climate.ac", "target_sensor": "sensor.room"}
+    )
+    assert cfg["target_sensor"] == "sensor.room"
+
+
+def test_normalisation_does_not_mutate_the_input() -> None:
+    """The caller's config is left alone."""
+    original = {"cooler": "climate.ac"}
+    normalize_climate_roles(original)
+    assert "target_sensor" not in original
+
+
+def test_fan_sharing_a_climate_with_the_cooler_cannot_run_alongside_it() -> None:
+    """One entity holds one mode: fan_on_with_ac is forced off."""
+    cfg = normalize_climate_roles(
+        {"cooler": "climate.ac", "fan": "climate.ac", "fan_on_with_ac": True}
+    )
+    assert cfg["fan_on_with_ac"] is False
+
+
+def test_fan_sharing_a_climate_with_the_heater_cannot_run_alongside_it() -> None:
+    """Same for fan_on_with_heater."""
+    cfg = normalize_climate_roles(
+        {"heater": "climate.ac", "fan": "climate.ac", "fan_on_with_heater": True}
+    )
+    assert cfg["fan_on_with_heater"] is False
+
+
+def test_separate_fan_keeps_its_flags() -> None:
+    """Only a fan on the same climate is affected."""
+    cfg = normalize_climate_roles(
+        {"cooler": "climate.ac", "fan": "switch.fan", "fan_on_with_ac": True}
+    )
+    assert cfg["fan_on_with_ac"] is True
+
+
+def test_ac_mode_heater_is_the_cooler_for_fan_sharing() -> None:
+    """An ac_mode climate heater serves as the cooler."""
+    cfg = normalize_climate_roles(
+        {
+            "heater": "climate.ac",
+            "ac_mode": True,
+            "fan": "climate.ac",
+            "fan_on_with_ac": True,
+        }
+    )
+    assert cfg["fan_on_with_ac"] is False
+
+
+def test_target_sensor_required_without_climate_role() -> None:
+    """Without a climate role there is no other temperature source."""
+    with pytest.raises(vol.Invalid, match="target_sensor"):
+        PLATFORM_SCHEMA(
+            {"platform": "dual_smart_thermostat", "name": "t", "heater": "switch.h"}
+        )
+
+
+def test_target_sensor_optional_with_climate_role() -> None:
+    """Normalised at setup, not at validation."""
+    cfg = PLATFORM_SCHEMA(
+        {"platform": "dual_smart_thermostat", "name": "t", "heater": "climate.ac"}
+    )
+    assert "target_sensor" not in cfg

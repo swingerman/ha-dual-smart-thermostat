@@ -19,16 +19,22 @@ from .const import (
     CONF_COOLER_SETPOINT_OFFSET,
     CONF_DRYER,
     CONF_FAN,
+    CONF_FAN_ON_WITH_AC,
+    CONF_FAN_ON_WITH_HEATER,
     CONF_HEAT_COOL_MODE,
     CONF_HEAT_PUMP_COOLING,
     CONF_HEATER,
     CONF_HEATER_SETPOINT_OFFSET,
+    CONF_SENSOR,
     CONF_TARGET_TEMP_HIGH,
     CONF_TARGET_TEMP_LOW,
     ControlStyle,
 )
 
 CLIMATE_DOMAIN = "climate"
+
+# Priority order, also the order the temperature fallback picks a source in.
+CLIMATE_ROLE_KEYS = (CONF_HEATER, CONF_COOLER, CONF_FAN, CONF_DRYER)
 
 
 def is_climate_entity(entity_id: Any) -> bool:
@@ -92,6 +98,35 @@ def setpoint_shared_heat_cool(config: Mapping[str, Any]) -> bool:
     )
 
 
+def normalize_climate_roles(config: Mapping[str, Any]) -> dict[str, Any]:
+    """Resolve what climate roles imply, once, before anything reads the config.
+
+    - No target_sensor: the first climate role is the temperature source.
+    - A fan on the same climate as the cooler or heater cannot run alongside it
+      (one entity holds one mode), so the concurrent options are forced off.
+    """
+    config = dict(config)
+
+    if not config.get(CONF_SENSOR):
+        for key in CLIMATE_ROLE_KEYS:
+            if is_climate_entity(config.get(key)):
+                config[CONF_SENSOR] = config[key]
+                break
+
+    fan = config.get(CONF_FAN)
+    if is_climate_entity(fan):
+        heater = config.get(CONF_HEATER)
+        cooler = config.get(CONF_COOLER) or (
+            heater if config.get(CONF_AC_MODE) else None
+        )
+        if fan == cooler and config.get(CONF_FAN_ON_WITH_AC):
+            config[CONF_FAN_ON_WITH_AC] = False
+        if fan == heater and config.get(CONF_FAN_ON_WITH_HEATER):
+            config[CONF_FAN_ON_WITH_HEATER] = False
+
+    return config
+
+
 def validate_climate_roles(config: dict[str, Any]) -> dict[str, Any]:
     """Voluptuous validator: cross-field rules for climate-backed roles."""
     if setpoint_unsupported(config):
@@ -105,10 +140,12 @@ def validate_climate_roles(config: dict[str, Any]) -> dict[str, Any]:
         )
     if bad := unsupported_climate_roles(config):
         raise vol.Invalid(f"{', '.join(bad)} cannot be a climate entity")
-    has_role = any(
-        is_climate_entity(config.get(key))
-        for key in (CONF_HEATER, CONF_COOLER, CONF_FAN, CONF_DRYER)
-    )
+    has_role = any(is_climate_entity(config.get(key)) for key in CLIMATE_ROLE_KEYS)
+    if not config.get(CONF_SENSOR) and not has_role:
+        raise vol.Invalid(
+            "target_sensor is required unless heater, cooler, fan or dryer is a "
+            "climate entity"
+        )
     if CONF_CONTROL_STYLE in config and not has_role:
         raise vol.Invalid(
             "control_style needs heater, cooler, fan or dryer to be a climate entity"

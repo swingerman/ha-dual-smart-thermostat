@@ -63,7 +63,7 @@ from homeassistant.util.unit_conversion import TemperatureConverter
 import voluptuous as vol
 
 from . import DOMAIN, PLATFORMS
-from .climate_roles import validate_climate_roles
+from .climate_roles import normalize_climate_roles, validate_climate_roles
 from .config_validation import validate_config_with_models
 from .const import (
     ATTR_CLOSING_TIMEOUT,
@@ -226,7 +226,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
         vol.Required(CONF_HEATER): cv.entity_id,
         vol.Optional(CONF_COOLER): cv.entity_id,
-        vol.Required(CONF_SENSOR): cv.entity_id,
+        vol.Optional(CONF_SENSOR): cv.entity_id,
         vol.Optional(CONF_STALE_DURATION): vol.All(
             cv.time_period, cv.positive_timedelta
         ),
@@ -434,6 +434,17 @@ async def _async_setup_config(
     # Normalize config values from config flow (strings to proper types)
     # This ensures consistency between YAML config and config entry setup
     config = _normalize_config_numeric_values(config)
+
+    normalized = normalize_climate_roles(config)
+    for key in normalized.keys() | config.keys():
+        if normalized.get(key) != config.get(key):
+            _LOGGER.info(
+                "%s: %s resolved from the climate roles: %s",
+                config.get(CONF_NAME, "thermostat"),
+                key,
+                normalized.get(key),
+            )
+    config = normalized
 
     # Validate configuration using data models for type safety
     if not validate_config_with_models(config):
