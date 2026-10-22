@@ -264,6 +264,7 @@ class ClimateChild:
         self._last_pushed: float | None = None
         self._warned: set[str] = set()
         self.refs = 0  # ports holding this child; it is dropped at zero
+        self.ports: set[ClimatePort] = set()  # the roles that live on this child
 
     @property
     def state(self) -> State | None:
@@ -298,6 +299,18 @@ class ClimateChild:
     def since(self) -> datetime | None:
         return self._reading()[1]
 
+    @property
+    def wanted_on(self) -> bool:
+        """Whether some role on this child is selected (not Off).
+
+        "Off means off" is for a thermostat that is Off. A role being switched out
+        because another mode was selected must never stop the child the new role
+        just set, whatever order the stops and the new mode land in.
+        """
+        return any(
+            port.device.hvac_mode not in (None, HVACMode.OFF) for port in self.ports
+        )
+
     def needs_off(self, resend: bool) -> bool:
         """Off means off: any mode but off, or (on a tick) an assumed child again.
 
@@ -328,6 +341,12 @@ class ClimateChild:
         before = (self._commanded, self._commanded_at, self._last_pushed)
         if mode is not None:
             self._record(mode)
+        _LOGGER.debug(
+            "Sending %s.%s %s",
+            CLIMATE_DOMAIN,
+            service,
+            data | {ATTR_ENTITY_ID: self.entity_id},
+        )
         ok = await _call_service(
             self.hass,
             CLIMATE_DOMAIN,
@@ -433,6 +452,12 @@ class ClimateChild:
                 and state.attributes.get(ATTR_FAN_MODE) == fan_mode
             ):
                 return
+            _LOGGER.debug(
+                "Sending %s.%s %s",
+                CLIMATE_DOMAIN,
+                SERVICE_SET_FAN_MODE,
+                {ATTR_ENTITY_ID: self.entity_id, ATTR_FAN_MODE: fan_mode},
+            )
             await self.hass.services.async_call(
                 CLIMATE_DOMAIN,
                 SERVICE_SET_FAN_MODE,
@@ -487,15 +512,21 @@ def release_climate_child(child: ClimateChild) -> None:
 class ClimatePort(EntityPort):
     """One role's view of a (possibly shared) climate entity."""
 
+    @property
+    def device(self) -> Any:
+        return self._device
+
     def __init__(self, hass: HomeAssistant, device: Any) -> None:
         super().__init__(hass, device)
         self._child = acquire_climate_child(hass, device.entity_id)
+        self._child.ports.add(self)
         self.self_regulating = device.control_style() == ControlStyle.SETPOINT
         self._released = False
 
     def release(self) -> None:
         if not self._released:  # idempotent: one reference per port, once
             self._released = True
+            self._child.ports.discard(self)
             release_climate_child(self._child)
 
     @property
@@ -538,8 +569,12 @@ class ClimatePort(EntityPort):
     async def async_stop(
         self, context: Context | None, *, keep_alive: bool = False
     ) -> None:
-        # Off means off: whatever mode the child is in, even one no role owns.
-        if self._child.needs_off(keep_alive):
+        # Off means off: whatever mode the child is in, even one no role owns, but
+        # only while no role on the child is selected. Otherwise this role is just
+        # being switched out and stops the child only if it is in this role's mode.
+        if self._child.wanted_on:
+            await self.async_turn_off(context)
+        elif self._child.needs_off(keep_alive):
             await self._child.async_turn_off(context)
 
 

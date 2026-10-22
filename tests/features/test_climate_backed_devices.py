@@ -89,6 +89,8 @@ async def test_switch_port_skips_command_when_unavailable(
 class _RoleDevice:
     """The few things a port asks its device for (see entity_port.py)."""
 
+    hvac_mode = HVACMode.OFF  # no role is selected: the thermostat is Off
+
     def __init__(
         self,
         entity_id,
@@ -1727,3 +1729,85 @@ async def test_keep_alive_in_off_sends_one_off_frame_per_shared_climate(
     await hass.async_block_till_done()
 
     assert [c[0] for c in child.calls].count("turn_off") == 1
+
+
+def _leaf_devices(device):
+    """Every sub-device that owns a port, however deeply wrapped."""
+    sub = getattr(device, "hvac_devices", None)
+    if sub is None:
+        return [device]
+    return [leaf for d in sub for leaf in _leaf_devices(d)]
+
+
+@pytest.mark.parametrize(
+    ("transitions"),
+    [
+        [
+            (HVACMode.HEAT, 18.0, HVACMode.HEAT),
+            (HVACMode.COOL, 27.0, HVACMode.COOL),
+            (HVACMode.FAN_ONLY, 27.0, HVACMode.FAN_ONLY),
+            (HVACMode.HEAT, 18.0, HVACMode.HEAT),
+            (HVACMode.COOL, 27.0, HVACMode.COOL),
+            (HVACMode.HEAT, 18.0, HVACMode.HEAT),
+            (HVACMode.FAN_ONLY, 27.0, HVACMode.FAN_ONLY),
+            (HVACMode.COOL, 27.0, HVACMode.COOL),
+        ]
+    ],
+)
+async def test_a_late_stop_from_a_deactivated_role_never_kills_the_active_mode(
+    hass: HomeAssistant, transitions
+) -> None:
+    """On real hardware the old role's stop can land after the new role's set_mode.
+
+    Off means off is only for a thermostat that is Off: a role being switched out
+    must only stop the child if the child is still in its own mode.
+    """
+    hass.states.async_set(SENSOR, 20.0)
+    await _setup(
+        hass,
+        heater=AC,
+        cooler=AC,
+        fan=AC,
+        fan_mode=True,
+        initial_hvac_mode=HVACMode.OFF,
+    )
+    await common.add_fake_climate(hass, AC)
+    thermostat = hass.data["climate"].get_entity("climate.test")
+    await common.async_set_temperature(hass, 24, "climate.test")
+    await hass.async_block_till_done()
+
+    for dst_mode, room, child_mode in transitions:
+        hass.states.async_set(SENSOR, room)
+        await common.async_set_hvac_mode(hass, dst_mode, "climate.test")
+        await hass.async_block_till_done()
+        assert hass.states.get(AC).state == child_mode, dst_mode
+
+        # the late stops of every role that is not the active one
+        for leaf in _leaf_devices(thermostat.hvac_device):
+            if leaf.role_modes()[0] != child_mode:
+                await leaf.async_stop()
+        await hass.async_block_till_done()
+        assert hass.states.get(AC).state == child_mode, f"killed after {dst_mode}"
+
+    await common.async_set_hvac_mode(hass, HVACMode.OFF, "climate.test")
+    await hass.async_block_till_done()
+    assert hass.states.get(AC).state == HVACMode.OFF
+
+
+async def test_climate_child_logs_every_command_at_debug(
+    hass: HomeAssistant, caplog
+) -> None:
+    """Hardware evidence: every command the child sends is visible in the log."""
+    import logging
+
+    await common.add_fake_climate(hass, "climate.test_ac")
+    cool = _port(hass, "climate.test_ac", HVACMode.COOL, lambda: 24.0)
+
+    with caplog.at_level(logging.DEBUG):
+        await cool.async_turn_on(None)
+        await cool.async_turn_off(None)
+
+    text = caplog.text
+    assert "set_hvac_mode" in text and "climate.test_ac" in text and "cool" in text
+    assert "set_temperature" in text
+    assert "turn_off" in text
