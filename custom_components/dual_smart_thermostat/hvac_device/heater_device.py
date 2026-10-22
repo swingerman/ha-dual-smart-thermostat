@@ -43,8 +43,7 @@ class HeaterDevice(GenericHVACDevice):
         )
 
         self.hvac_controller = HeaterHvacConroller(
-            hass,
-            entity_id,
+            self.port,
             min_cycle_duration,
             environment,
             openings,

@@ -64,8 +64,7 @@ class HeatPumpDevice(GenericHVACDevice):
         )
 
         self.heating_controller = HeaterHvacConroller(
-            hass,
-            entity_id,
+            self.port,
             min_cycle_duration,
             environment,
             openings,
@@ -74,8 +73,7 @@ class HeatPumpDevice(GenericHVACDevice):
         )
 
         self.cooling_controller = CoolerHvacController(
-            hass,
-            entity_id,
+            self.port,
             min_cycle_duration,
             environment,
             openings,

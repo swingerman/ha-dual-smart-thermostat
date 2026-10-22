@@ -3,23 +3,14 @@ import logging
 from typing import Callable
 
 from homeassistant.components.climate import HVACAction, HVACMode
-from homeassistant.components.valve import DOMAIN as VALVE_DOMAIN, ValveEntityFeature
-from homeassistant.const import (
-    ATTR_ENTITY_ID,
-    SERVICE_CLOSE_VALVE,
-    SERVICE_OPEN_VALVE,
-    SERVICE_TURN_OFF,
-    SERVICE_TURN_ON,
-    STATE_ON,
-    STATE_UNAVAILABLE,
-    STATE_UNKNOWN,
-)
-from homeassistant.core import DOMAIN as HA_DOMAIN, Context, HomeAssistant
+from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
+from homeassistant.core import Context, HomeAssistant
 
 from ..hvac_action_reason.hvac_action_reason import HVACActionReason
 from ..hvac_controller.generic_controller import GenericHvacController
 from ..hvac_controller.hvac_controller import HvacController, HvacEnvStrategy, HvacGoal
 from ..hvac_device.controllable_hvac_device import ControlableHVACDevice
+from ..hvac_device.entity_port import make_port
 from ..hvac_device.hvac_device import (
     HVACDevice,
     Switchable,
@@ -65,9 +56,15 @@ class GenericHVACDevice(
         self.entity_id = entity_id
         self.min_cycle_duration = min_cycle_duration
 
-        self.hvac_controller: HvacController = GenericHvacController(
+        self.port = make_port(
             hass,
             entity_id,
+            role_mode=self.role_mode,
+            target=lambda: getattr(self.environment, self.target_env_attr, None),
+        )
+
+        self.hvac_controller: HvacController = GenericHvacController(
+            self.port,
             min_cycle_duration,
             environment,
             openings,
@@ -94,31 +91,9 @@ class GenericHVACDevice(
     def get_device_ids(self) -> list[str]:
         return [self.entity_id]
 
-    @property
-    def _entity_state(self) -> str:
-        return self.hass.states.get(self.entity_id)
-
-    @property
-    def _is_valve(self) -> bool:
-        domain = self._entity_state.domain if self._entity_state else None
-        return domain == VALVE_DOMAIN
-
-    @property
-    def _entity_features(self) -> int:
-        return (
-            self.hass.states.get(self.entity_id).attributes.get("supported_features")
-            if self._entity_state
-            else 0
-        )
-
-    @property
-    def _supports_open_valve(self) -> bool:
-        _LOGGER.debug("entity_features: %s", self._entity_features)
-        return self._is_valve and self._entity_features & ValveEntityFeature.OPEN
-
-    @property
-    def _supports_close_valve(self) -> bool:
-        return self._is_valve and self._entity_features & ValveEntityFeature.CLOSE
+    def role_mode(self) -> HVACMode | None:
+        """The hvac mode a climate entity must be in to serve this role."""
+        return None
 
     @property
     def target_env_attr(self) -> str:
@@ -137,7 +112,7 @@ class GenericHVACDevice(
 
     @property
     def is_on(self) -> bool:
-        return self._entity_state is not None and self._entity_state.state == STATE_ON
+        return self.port.is_active
 
     def is_below_target_env_attr(self) -> bool:
         """is too cold?"""
@@ -272,10 +247,7 @@ class GenericHVACDevice(
         if self.entity_id is None:
             return
 
-        if self._supports_open_valve:
-            await self._async_open_valve_entity()
-        else:
-            await self._async_turn_on_entity()
+        await self.port.async_turn_on(self._context)
 
     async def async_turn_off(self):
         _LOGGER.debug(
@@ -286,106 +258,8 @@ class GenericHVACDevice(
         if self.entity_id is None:
             return
 
-        if self._supports_close_valve:
-            await self._async_close_valve_entity()
-        else:
-            await self._async_turn_off_entity()
+        await self.port.async_turn_off(self._context)
 
         self.hvac_power.update_hvac_power(
             self.strategy, self.target_env_attr, HVACAction.OFF
         )
-
-    async def _async_turn_on_entity(self) -> None:
-        """Turn on the entity."""
-        _LOGGER.info(
-            "%s. Turning on entity %s", self.__class__.__name__, self.entity_id
-        )
-
-        # Skip service call only if entity is unavailable
-        # This prevents blocking calls during startup when entities may be unavailable
-        # Fixes issue #499 where thermostats became unavailable after restart
-        # Note: We intentionally allow calls when entity is already ON because:
-        # 1. Keep-alive functionality needs to send periodic turn_on calls
-        # 2. Some integrations need the service call to maintain connection
-        if self.entity_id is not None:
-            entity_state = self.hass.states.get(self.entity_id)
-            if entity_state is None or entity_state.state in (
-                STATE_UNAVAILABLE,
-                STATE_UNKNOWN,
-            ):
-                _LOGGER.debug(
-                    "Skipping turn_on for unavailable entity %s", self.entity_id
-                )
-                return
-
-        try:
-            await self.hass.services.async_call(
-                HA_DOMAIN,
-                SERVICE_TURN_ON,
-                {ATTR_ENTITY_ID: self.entity_id},
-                context=self._context,
-                blocking=True,
-            )
-        except Exception as e:
-            _LOGGER.error("Error turning on entity %s. Error: %s", self.entity_id, e)
-
-    async def _async_turn_off_entity(self) -> None:
-        """Turn off the entity."""
-        _LOGGER.info(
-            "%s. Turning off entity %s", self.__class__.__name__, self.entity_id
-        )
-
-        # Skip service call only if entity is unavailable
-        # This prevents blocking calls during startup when entities may be unavailable
-        # Fixes issue #499 where thermostats became unavailable after restart
-        if self.entity_id is not None:
-            entity_state = self.hass.states.get(self.entity_id)
-            if entity_state is None or entity_state.state in (
-                STATE_UNAVAILABLE,
-                STATE_UNKNOWN,
-            ):
-                _LOGGER.debug(
-                    "Skipping turn_off for unavailable entity %s", self.entity_id
-                )
-                return
-
-        try:
-            await self.hass.services.async_call(
-                HA_DOMAIN,
-                SERVICE_TURN_OFF,
-                {ATTR_ENTITY_ID: self.entity_id},
-                context=self._context,
-                blocking=True,
-            )
-        except Exception as e:
-            _LOGGER.error("Error turning off entity %s. Error: %s", self.entity_id, e)
-
-    async def _async_open_valve_entity(self) -> None:
-        """Open the entity."""
-        _LOGGER.info("%s. Opening entity %s", self.__class__.__name__, self.entity_id)
-
-        try:
-            await self.hass.services.async_call(
-                HA_DOMAIN,
-                SERVICE_OPEN_VALVE,
-                {ATTR_ENTITY_ID: self.entity_id},
-                context=self._context,
-                blocking=True,
-            )
-        except Exception as e:
-            _LOGGER.error("Error opening entity %s. Error: %s", self.entity_id, e)
-
-    async def _async_close_valve_entity(self) -> None:
-        """Close the entity."""
-        _LOGGER.info("%s. Closing entity %s", self.__class__.__name__, self.entity_id)
-
-        try:
-            await self.hass.services.async_call(
-                HA_DOMAIN,
-                SERVICE_CLOSE_VALVE,
-                {ATTR_ENTITY_ID: self.entity_id},
-                context=self._context,
-                blocking=True,
-            )
-        except Exception as e:
-            _LOGGER.error("Error closing entity %s. Error: %s", self.entity_id, e)

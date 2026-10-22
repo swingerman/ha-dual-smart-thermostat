@@ -2,11 +2,10 @@ from datetime import timedelta
 import logging
 from typing import Callable
 
-from homeassistant.core import HomeAssistant
-
 from ..hvac_action_reason.hvac_action_reason import HVACActionReason
 from ..hvac_controller.generic_controller import GenericHvacController
 from ..hvac_controller.hvac_controller import HvacEnvStrategy
+from ..hvac_device.entity_port import EntityPort
 from ..managers.environment_manager import EnvironmentManager
 from ..managers.opening_manager import OpeningManager
 
@@ -17,8 +16,7 @@ class HeaterHvacConroller(GenericHvacController):
 
     def __init__(
         self,
-        hass: HomeAssistant,
-        heater_entity_id: str,
+        port: EntityPort,
         min_cycle_duration: timedelta,
         environment: EnvironmentManager,
         openings: OpeningManager,
@@ -26,8 +24,7 @@ class HeaterHvacConroller(GenericHvacController):
         turn_off_callback: Callable,
     ) -> None:
         super().__init__(
-            hass,
-            heater_entity_id,
+            port,
             min_cycle_duration,
             environment,
             openings,

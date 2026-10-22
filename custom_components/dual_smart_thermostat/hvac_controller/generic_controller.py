@@ -3,15 +3,11 @@ import logging
 from typing import Callable
 
 from homeassistant.components.climate import HVACMode
-from homeassistant.components.valve import DOMAIN as VALVE_DOMAIN
-from homeassistant.const import STATE_ON, STATE_OPEN
-from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConditionError
-from homeassistant.helpers import condition
 import homeassistant.util.dt as dt_util
 
 from ..hvac_action_reason.hvac_action_reason import HVACActionReason
 from ..hvac_controller.hvac_controller import HvacController, HvacEnvStrategy
+from ..hvac_device.entity_port import EntityPort
 from ..managers.environment_manager import EnvironmentManager
 from ..managers.opening_manager import OpeningManager
 
@@ -20,14 +16,12 @@ _LOGGER = logging.getLogger(__name__)
 
 class GenericHvacController(HvacController):
 
-    entity_id: str
     min_cycle_duration: timedelta
     _hvac_action_reason: HVACActionReason
 
     def __init__(
         self,
-        hass: HomeAssistant,
-        entity_id,
+        port: EntityPort,
         min_cycle_duration: timedelta,
         environment: EnvironmentManager,
         openings: OpeningManager,
@@ -37,8 +31,7 @@ class GenericHvacController(HvacController):
         self._controller_type = self.__class__.__name__
 
         super().__init__(
-            hass,
-            entity_id,
+            port,
             min_cycle_duration,
             environment,
             openings,
@@ -47,12 +40,6 @@ class GenericHvacController(HvacController):
         )
 
         self._hvac_action_reason = HVACActionReason.NONE
-
-    @property
-    def _is_valve(self) -> bool:
-        state = self.hass.states.get(self.entity_id)
-        domain = state.domain if state else None
-        return domain == VALVE_DOMAIN
 
     @property
     def hvac_action_reason(self) -> HVACActionReason:
@@ -65,41 +52,14 @@ class GenericHvacController(HvacController):
     @property
     def is_active(self) -> bool:
         """If the toggleable hvac device is currently active."""
-        on_state = STATE_OPEN if self._is_valve else STATE_ON
-
-        _LOGGER.debug(
-            "Checking if device is active: %s, on_state: %s",
-            self.entity_id,
-            on_state,
-        )
-        if self.entity_id is not None and self.hass.states.is_state(
-            self.entity_id, on_state
-        ):
-            return True
-        return False
+        return self.port.is_active
 
     def ran_long_enough(self) -> bool:
-        if self.is_active:
-            current_state = STATE_ON
-        else:
-            current_state = HVACMode.OFF
-
         _LOGGER.debug("Checking if device ran long enough: %s", self.entity_id)
-        _LOGGER.debug("current_state: %s", current_state)
         _LOGGER.debug("min_cycle_duration: %s", self.min_cycle_duration)
         _LOGGER.debug("time: %s", dt_util.utcnow())
 
-        try:
-            long_enough = condition.state(
-                self.hass,
-                self.entity_id,
-                current_state,
-                self.min_cycle_duration,
-            )
-        except ConditionError:
-            long_enough = False
-
-        return long_enough
+        return self.port.ran_long_enough(self.min_cycle_duration)
 
     def needs_control(
         self, active: bool, hvac_mode: HVACMode, time=None, force=False
