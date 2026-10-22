@@ -35,9 +35,7 @@ class ClimateControlSteps:
                 return await next_step_handler()
         return flow_instance.async_show_form(
             step_id=step_id,
-            data_schema=get_climate_control_schema(
-                {**collected_config, **defaults, **(user_input or {})}
-            ),
+            data_schema=get_climate_control_schema({**defaults, **(user_input or {})}),
             errors=errors,
         )
 

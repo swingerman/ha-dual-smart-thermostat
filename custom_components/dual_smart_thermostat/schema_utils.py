@@ -186,12 +186,14 @@ def get_boolean_selector() -> selector.BooleanSelector:
 def get_select_selector(
     options: list[str] | list[dict[str, str]],
     mode: selector.SelectSelectorMode = selector.SelectSelectorMode.DROPDOWN,
+    translation_key: str | None = None,
 ) -> selector.SelectSelector:
     """Get a standardized select selector."""
     return selector.SelectSelector(
         selector.SelectSelectorConfig(
             options=options,
             mode=mode,
+            translation_key=translation_key,
         )
     )
 

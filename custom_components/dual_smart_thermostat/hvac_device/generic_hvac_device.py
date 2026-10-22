@@ -71,20 +71,21 @@ class GenericHVACDevice(
             self.async_turn_off,
         )
 
-        self.strategy = HvacEnvStrategy(
-            self.is_below_target_env_attr,
-            self.is_above_target_env_attr,
-            self.target_env_attr_reached_reason,
-            self.target_env_attr_not_reached_reason,
-            self.hvac_goal,
-        )
-
-        if self.port.self_regulating:
-            self.strategy = HvacEnvStrategy.self_regulating(
+        self.strategy = (
+            HvacEnvStrategy.self_regulating(
                 self.hvac_goal,
                 self.target_env_attr_reached_reason,
                 self.target_env_attr_not_reached_reason,
             )
+            if self.port.self_regulating
+            else HvacEnvStrategy(
+                self.is_below_target_env_attr,
+                self.is_above_target_env_attr,
+                self.target_env_attr_reached_reason,
+                self.target_env_attr_not_reached_reason,
+                self.hvac_goal,
+            )
+        )
 
         if initial_hvac_mode in self.hvac_modes:
             self._hvac_mode = initial_hvac_mode

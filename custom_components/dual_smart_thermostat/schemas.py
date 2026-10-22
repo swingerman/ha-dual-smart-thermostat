@@ -89,7 +89,7 @@ _LOGGER = logging.getLogger(__name__)
 # Domains accepted by the fan field (single source for all flows)
 # What a heater, cooler or dryer role may be backed by.
 DEVICE_ENTITY_DOMAINS = [SWITCH_DOMAIN, INPUT_BOOLEAN_DOMAIN, CLIMATE_DOMAIN]
-FAN_ENTITY_DOMAINS = [SWITCH_DOMAIN, INPUT_BOOLEAN_DOMAIN, FAN_DOMAIN, CLIMATE_DOMAIN]
+FAN_ENTITY_DOMAINS = [*DEVICE_ENTITY_DOMAINS, FAN_DOMAIN]
 
 
 # Load translations at module import time to avoid blocking I/O in async context
@@ -682,12 +682,9 @@ def get_climate_control_schema(config: dict[str, Any] | None = None) -> vol.Sche
         if key == CONF_CONTROL_STYLE:
             schema[
                 vol.Required(key, default=config.get(key, DEFAULT_CONTROL_STYLE))
-            ] = selector.SelectSelector(
-                selector.SelectSelectorConfig(
-                    options=[style.value for style in ControlStyle],
-                    mode=selector.SelectSelectorMode.DROPDOWN,
-                    translation_key="control_style",
-                )
+            ] = get_select_selector(
+                [style.value for style in ControlStyle],
+                translation_key="control_style",
             )
         else:
             schema[

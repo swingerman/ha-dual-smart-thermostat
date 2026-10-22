@@ -75,7 +75,7 @@ def first_climate_role(config: Mapping[str, Any]) -> str | None:
 
 def unsupported_climate_roles(config: Mapping[str, Any]) -> list[str]:
     """Roles configured with a climate entity that cannot be climate-backed."""
-    return [key for key in (CONF_AUX_HEATER,) if is_climate_entity(config.get(key))]
+    return [CONF_AUX_HEATER] if is_climate_entity(config.get(CONF_AUX_HEATER)) else []
 
 
 def applicable_offset_keys(config: Mapping[str, Any]) -> list[str]:
