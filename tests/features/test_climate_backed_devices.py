@@ -1340,3 +1340,27 @@ async def test_a_new_reading_recovers_a_stalled_child(
     await hass.async_block_till_done()
 
     assert hass.states.get(AC).state == HVACMode.HEAT
+
+
+async def test_climate_heat_pump_is_stopped_when_the_flag_flips_while_heating(
+    hass: HomeAssistant,
+) -> None:
+    """A switch heat pump is turned off on a flip; a climate must not keep heating."""
+    hass.states.async_set(COOLING_FLAG, "off")
+    hass.states.async_set(SENSOR, 18.0)
+    await _setup(
+        hass,
+        heater=AC,
+        heat_pump_cooling=COOLING_FLAG,
+        initial_hvac_mode=HVACMode.HEAT,
+    )
+    await common.add_fake_climate(hass, AC)
+    await common.async_set_temperature(hass, 22, "climate.test")
+    await hass.async_block_till_done()
+    assert hass.states.get(AC).state == HVACMode.HEAT
+
+    hass.states.async_set(COOLING_FLAG, "on")
+    hass.states.async_set(SENSOR, 18.1)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(AC).state != HVACMode.HEAT

@@ -394,8 +394,11 @@ class ClimatePort(EntityPort):
         target: Callable[[], float | None],
         offset: Callable[[], float],
         style: ControlStyle,
+        owned_modes: Callable[[], tuple[HVACMode, ...]] | None = None,
     ) -> None:
         self._child = child
+        # Modes the role owns (a heat pump owns heat and cool; others just theirs).
+        self._owned_modes = owned_modes or (lambda: (role_mode(),))
         self._role_mode = role_mode
         self._target = target
         self._offset = offset
@@ -410,7 +413,7 @@ class ClimatePort(EntityPort):
 
     @property
     def is_active(self) -> bool:
-        return self._child.mode == self._role_mode()
+        return self._child.mode in self._owned_modes()
 
     def ran_long_enough(self, min_cycle: timedelta) -> bool:
         if not min_cycle:  # none configured: nothing to wait for
@@ -457,10 +460,16 @@ def make_port(
     target: Callable[[], float | None],
     offset: Callable[[], float] = lambda: 0.0,
     style: ControlStyle = ControlStyle.ON_OFF,
+    owned_modes: Callable[[], tuple[HVACMode, ...]] | None = None,
 ) -> EntityPort:
     """Build the port for a role from the entity domain."""
     if is_climate_entity(entity_id):
         return ClimatePort(
-            acquire_climate_child(hass, entity_id), role_mode, target, offset, style
+            acquire_climate_child(hass, entity_id),
+            role_mode,
+            target,
+            offset,
+            style,
+            owned_modes,
         )
     return SwitchPort(hass, entity_id)

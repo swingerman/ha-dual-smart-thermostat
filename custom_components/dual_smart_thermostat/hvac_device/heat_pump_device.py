@@ -110,6 +110,11 @@ class HeatPumpDevice(GenericHVACDevice):
     def role_mode(self) -> HVACMode:
         return HVACMode.COOL if self._heat_pump_is_cooling else HVACMode.HEAT
 
+    def owned_modes(self) -> tuple[HVACMode, ...]:
+        # Running in either mode counts, so a flip of the cooling flag still
+        # finds the child active and stops it, as it does for a switch.
+        return (HVACMode.HEAT, HVACMode.COOL)
+
     def setpoint_offset(self) -> float:
         return (
             self.features.cooler_setpoint_offset

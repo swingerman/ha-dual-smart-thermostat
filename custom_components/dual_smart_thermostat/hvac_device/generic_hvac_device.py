@@ -66,6 +66,7 @@ class GenericHVACDevice(
             role_mode=self.role_mode,
             target=self.climate_target,
             offset=self.setpoint_offset,
+            owned_modes=self.owned_modes,
             # Only a role that pushes a setpoint can leave the regulating to the child.
             style=(
                 features.climate_control_style
@@ -112,6 +113,10 @@ class GenericHVACDevice(
     @abstractmethod
     def role_mode(self) -> HVACMode:
         """The hvac mode a climate entity must be in to serve this role."""
+
+    def owned_modes(self) -> tuple[HVACMode, ...]:
+        """Climate modes in which this role counts as running."""
+        return (self.role_mode(),)
 
     def setpoint_offset(self) -> float:
         """Offset added to the temperature pushed to a climate entity."""
