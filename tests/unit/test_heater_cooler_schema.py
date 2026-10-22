@@ -279,3 +279,36 @@ def test_core_schema_without_sensor_validates_with_flow_defaults():
     )
 
     assert not validated.get(CONF_SENSOR)
+
+
+def test_fan_on_with_ac_defaults_off_for_a_fan_on_the_same_climate():
+    """The runtime forces it off for a shared climate: the form says so too."""
+    defaults = {
+        CONF_FAN: "climate.ac",
+        CONF_COOLER: "climate.ac",
+        CONF_HEATER: "climate.ac",
+    }
+    schema = get_fan_schema(defaults=defaults)
+
+    got = {
+        str(k): k.default()
+        for k in schema.schema
+        if getattr(k, "default", vol.UNDEFINED) is not vol.UNDEFINED
+    }
+
+    assert got["fan_on_with_ac"] is False
+    assert got["fan_on_with_heater"] is False
+
+
+def test_fan_on_with_ac_keeps_its_default_for_a_separate_fan():
+    """Only a fan on the same climate is affected."""
+    defaults = {CONF_FAN: "switch.fan", CONF_COOLER: "climate.ac"}
+    schema = get_fan_schema(defaults=defaults)
+
+    got = {
+        str(k): k.default()
+        for k in schema.schema
+        if getattr(k, "default", vol.UNDEFINED) is not vol.UNDEFINED
+    }
+
+    assert got["fan_on_with_ac"] is True

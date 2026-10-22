@@ -19,7 +19,7 @@ from homeassistant.data_entry_flow import section
 from homeassistant.helpers import selector
 import voluptuous as vol
 
-from .climate_roles import climate_control_keys
+from .climate_roles import climate_control_keys, normalize_climate_roles
 from .const import (
     CONF_AC_MODE,
     CONF_AUX_HEATER,
@@ -964,6 +964,11 @@ def get_fan_schema(hass=None, defaults: dict[str, Any] | None = None):
         Schema with fan configuration fields
     """
     defaults = defaults or {}
+    # A fan on the same climate as the cooler/heater cannot run alongside it; the
+    # runtime forces these off, so the form does not offer them on.
+    shared = normalize_climate_roles(
+        {**defaults, CONF_FAN_ON_WITH_AC: True, CONF_FAN_ON_WITH_HEATER: True}
+    )
 
     _LOGGER.debug(
         "get_fan_schema called with defaults: fan=%s, fan_mode=%s, fan_on_with_ac=%s, fan_air_outside=%s",
@@ -982,11 +987,14 @@ def get_fan_schema(hass=None, defaults: dict[str, Any] | None = None):
                 CONF_FAN_MODE, default=defaults.get(CONF_FAN_MODE, False)
             ): get_boolean_selector(),
             vol.Optional(
-                CONF_FAN_ON_WITH_AC, default=defaults.get(CONF_FAN_ON_WITH_AC, True)
+                CONF_FAN_ON_WITH_AC,
+                default=defaults.get(CONF_FAN_ON_WITH_AC, True)
+                and shared[CONF_FAN_ON_WITH_AC],
             ): get_boolean_selector(),
             vol.Optional(
                 CONF_FAN_ON_WITH_HEATER,
-                default=defaults.get(CONF_FAN_ON_WITH_HEATER, False),
+                default=defaults.get(CONF_FAN_ON_WITH_HEATER, False)
+                and shared[CONF_FAN_ON_WITH_HEATER],
             ): get_boolean_selector(),
             vol.Optional(
                 CONF_FAN_AIR_OUTSIDE, default=defaults.get(CONF_FAN_AIR_OUTSIDE, False)
