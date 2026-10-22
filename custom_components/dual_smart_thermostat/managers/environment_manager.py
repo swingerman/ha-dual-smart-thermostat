@@ -8,6 +8,7 @@ from homeassistant.components.climate import (
     ATTR_TARGET_TEMP_LOW,
     DEFAULT_MAX_TEMP,
     DEFAULT_MIN_TEMP,
+    DOMAIN as CLIMATE_DOMAIN,
 )
 from homeassistant.components.climate.const import PRESET_NONE, HVACMode
 from homeassistant.components.humidifier import ATTR_HUMIDITY
@@ -106,7 +107,7 @@ def temperature_reading(state: State) -> float | None:
     """
     raw = (
         state.attributes.get("current_temperature")
-        if state.domain == "climate"
+        if state.domain == CLIMATE_DOMAIN
         else state.state
     )
     if raw is None:
@@ -633,6 +634,22 @@ class EnvironmentManager(StateManager):
         ):
             return True
         return False
+
+    def is_new_reading(self, state: State | None) -> bool:
+        """Whether a sensor state is a new temperature reading.
+
+        A climate used as the temperature source also reports every command we
+        send it (and attribute changes). Only a new reading counts as the sensor
+        reporting; otherwise our own commands would keep the stale watchdog fed
+        and an echo would end a stall. A plain sensor only fires on a change.
+        """
+        if state is None or state.domain != CLIMATE_DOMAIN:
+            return True
+        try:
+            reading = temperature_reading(state)
+        except ValueError:
+            return False
+        return reading is not None and reading != self._cur_temp
 
     @callback
     def update_temp_from_state(self, state: State) -> None:

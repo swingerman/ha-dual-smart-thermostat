@@ -150,11 +150,7 @@ from .hvac_action_reason.hvac_action_reason_external import HVACActionReasonExte
 from .hvac_device.controllable_hvac_device import ControlableHVACDevice
 from .hvac_device.hvac_device_factory import HVACDeviceFactory
 from .managers.auto_mode_evaluator import AutoDecision, AutoModeEvaluator
-from .managers.environment_manager import (
-    EnvironmentManager,
-    TargetTemperatures,
-    temperature_reading,
-)
+from .managers.environment_manager import EnvironmentManager, TargetTemperatures
 from .managers.feature_manager import FeatureManager
 from .managers.hvac_power_manager import HvacPowerManager
 from .managers.opening_manager import OpeningHvacModeScope, OpeningManager
@@ -1482,17 +1478,8 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         data = event.data
         new_state = data["new_state"]
 
-        # A climate used as the temperature source also reports every command we
-        # send it (and attribute changes). Only a new reading counts as the sensor
-        # reporting; otherwise our own commands would keep the stale watchdog fed
-        # and an echo would end a stall. A plain sensor only fires on a change.
-        if new_state is not None and new_state.domain == "climate":
-            try:
-                reading = temperature_reading(new_state)
-            except ValueError:
-                return
-            if reading is None or reading == self.environment.cur_temp:
-                return
+        if not self.environment.is_new_reading(new_state):
+            return
 
         trigger_control = self.hvac_device.hvac_mode != HVACMode.OFF
 
