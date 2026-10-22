@@ -409,3 +409,63 @@ def test_models_accept_a_config_without_sensor_when_a_climate_is_a_role() -> Non
     }
     assert validate_config_with_models(config) is True
     assert "target_sensor" not in config  # the caller's config is not changed
+
+
+_PARITY_CONFIGS = [
+    {"heater": "switch.h", "target_sensor": "sensor.t"},
+    {"heater": "switch.h"},
+    {"heater": "climate.ac"},
+    {"heater": "climate.ac", "cooler": "climate.ac"},
+    {"heater": "switch.h", "control_style": "setpoint", "target_sensor": "sensor.t"},
+    {"heater": "climate.ac", "control_style": "setpoint"},
+    {"heater": "switch.h", "cooler": "climate.ac", "heater_setpoint_offset": 1},
+    {"heater": "switch.h", "cooler": "climate.ac", "cooler_setpoint_offset": 1},
+    {"heater": "climate.ac", "ac_mode": True, "cooler_setpoint_offset": 1},
+    {"heater": "climate.ac", "ac_mode": True, "heater_setpoint_offset": 1},
+    {
+        "heater": "climate.hp",
+        "heat_pump_cooling": "binary_sensor.c",
+        "heater_setpoint_offset": 1,
+        "cooler_setpoint_offset": 1,
+    },
+    {
+        "heater": "climate.hp",
+        "heat_pump_cooling": "binary_sensor.c",
+        "control_style": "setpoint",
+    },
+    {
+        "heater": "switch.h",
+        "secondary_heater": "climate.aux",
+        "target_sensor": "sensor.t",
+    },
+    {
+        "heater": "climate.ac",
+        "cooler": "climate.ac",
+        "control_style": "setpoint",
+        "heat_cool_mode": True,
+    },
+]
+
+
+@pytest.mark.parametrize("config", _PARITY_CONFIGS)
+def test_tools_validator_agrees_with_yaml_validation(config) -> None:
+    """tools/config_validator.py cannot import the integration (it needs HA), so
+    this keeps its climate rules in step with climate_roles on a table of configs."""
+    import importlib.util
+    import pathlib
+
+    spec = importlib.util.spec_from_file_location(
+        "config_validator",
+        pathlib.Path(__file__).parents[2] / "tools" / "config_validator.py",
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    tool_valid, _, _ = module.ConfigValidator().validate_config(dict(config))
+
+    try:
+        PLATFORM_SCHEMA({"platform": "dual_smart_thermostat", "name": "t", **config})
+        yaml_valid = True
+    except vol.Invalid:
+        yaml_valid = False
+
+    assert tool_valid == yaml_valid

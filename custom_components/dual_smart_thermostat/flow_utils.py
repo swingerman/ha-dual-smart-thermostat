@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from .climate_roles import has_climate_role, is_climate_entity
+from .climate_roles import is_climate_entity, sensor_required
 from .const import (
     ATTR_CLOSING_TIMEOUT,
     ATTR_OPENING_TIMEOUT,
@@ -43,7 +43,7 @@ class EntityValidator:
             errors["base"] = "same_heater_sensor"
         elif heater and cooler and heater == cooler and not is_climate_entity(heater):
             errors["base"] = "same_heater_cooler"
-        elif not sensor and not has_climate_role(user_input):
+        elif sensor_required(user_input):
             errors["base"] = "sensor_required"
 
         return errors

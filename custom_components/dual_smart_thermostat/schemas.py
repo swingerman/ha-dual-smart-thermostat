@@ -19,7 +19,7 @@ from homeassistant.data_entry_flow import section
 from homeassistant.helpers import selector
 import voluptuous as vol
 
-from .climate_roles import applicable_offset_keys
+from .climate_roles import climate_control_keys
 from .const import (
     CONF_AC_MODE,
     CONF_AUX_HEATER,
@@ -669,7 +669,7 @@ def get_climate_control_schema(config: dict[str, Any] | None = None) -> vol.Sche
     """control_style plus the per-role offsets that apply to these roles.
 
     `config` is the merged current config: it decides which offset fields are
-    shown (applicable_offset_keys) and supplies the defaults.
+    shown (climate_control_keys) and supplies the defaults.
     """
     config = config or {}
     offset_selector = selector.NumberSelector(
@@ -677,22 +677,22 @@ def get_climate_control_schema(config: dict[str, Any] | None = None) -> vol.Sche
             min=-20, max=20, step=0.5, mode=selector.NumberSelectorMode.BOX
         )
     )
-    schema: dict[Any, Any] = {
-        vol.Required(
-            CONF_CONTROL_STYLE,
-            default=config.get(CONF_CONTROL_STYLE, DEFAULT_CONTROL_STYLE),
-        ): selector.SelectSelector(
-            selector.SelectSelectorConfig(
-                options=[style.value for style in ControlStyle],
-                mode=selector.SelectSelectorMode.DROPDOWN,
-                translation_key="control_style",
+    schema: dict[Any, Any] = {}
+    for key in climate_control_keys(config):
+        if key == CONF_CONTROL_STYLE:
+            schema[
+                vol.Required(key, default=config.get(key, DEFAULT_CONTROL_STYLE))
+            ] = selector.SelectSelector(
+                selector.SelectSelectorConfig(
+                    options=[style.value for style in ControlStyle],
+                    mode=selector.SelectSelectorMode.DROPDOWN,
+                    translation_key="control_style",
+                )
             )
-        )
-    }
-    for key in applicable_offset_keys(config):
-        schema[vol.Optional(key, default=config.get(key, DEFAULT_SETPOINT_OFFSET))] = (
-            offset_selector
-        )
+        else:
+            schema[
+                vol.Optional(key, default=config.get(key, DEFAULT_SETPOINT_OFFSET))
+            ] = offset_selector
     return vol.Schema(schema)
 
 

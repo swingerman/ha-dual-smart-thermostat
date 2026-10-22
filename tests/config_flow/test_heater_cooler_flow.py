@@ -739,3 +739,11 @@ class TestClimateControlStep:
 
         assert result["step_id"] == "floor_heating"
         assert result["errors"] == {"base": "sensor_required"}
+
+    async def test_climate_fan_alone_has_no_climate_control_step(self, mock_hass):
+        """A climate fan or dryer has nothing to choose: the step is skipped."""
+        _, result = await self._heater_cooler(
+            mock_hass, "switch.h", "switch.c", seed={"fan": "climate.f"}
+        )
+
+        assert result["step_id"] == "features"

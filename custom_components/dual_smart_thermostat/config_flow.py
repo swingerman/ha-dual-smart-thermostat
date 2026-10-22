@@ -11,20 +11,17 @@ from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
 import voluptuous as vol
 
-from .climate_roles import applicable_offset_keys, has_climate_role
+from .climate_roles import climate_control_keys, drop_inapplicable
 from .config_validation import validate_config_with_models
 from .const import (
     CONF_AC_MODE,
     CONF_AUX_HEATER,
     CONF_AUX_HEATING_TIMEOUT,
-    CONF_CONTROL_STYLE,
     CONF_COOLER,
-    CONF_COOLER_SETPOINT_OFFSET,
     CONF_FAN,
     CONF_FLOOR_SENSOR,
     CONF_HEAT_PUMP_COOLING,
     CONF_HEATER,
-    CONF_HEATER_SETPOINT_OFFSET,
     CONF_HUMIDITY_SENSOR,
     CONF_PRECISION,
     CONF_PRESETS,
@@ -725,16 +722,11 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
         system_type = self.collected_config.get("system_type")
 
         # Climate-backed devices: part of basic entity configuration, so it comes
-        # before features, openings and presets (step_ordering.md).
-        # Drop what no longer applies to the chosen roles first.
-        if not has_climate_role(self.collected_config):
-            self.collected_config.pop(CONF_CONTROL_STYLE, None)
-        applicable = applicable_offset_keys(self.collected_config)
-        for key in (CONF_HEATER_SETPOINT_OFFSET, CONF_COOLER_SETPOINT_OFFSET):
-            if key not in applicable:
-                self.collected_config.pop(key, None)
+        # before features, openings and presets (step_ordering.md). Drop what no
+        # longer applies to the chosen roles first.
+        self.collected_config = drop_inapplicable(self.collected_config)
         if (
-            has_climate_role(self.collected_config)
+            climate_control_keys(self.collected_config)
             and "climate_control_shown" not in self.collected_config
         ):
             self.collected_config["climate_control_shown"] = True

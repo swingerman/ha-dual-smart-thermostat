@@ -36,6 +36,13 @@ CLIMATE_DOMAIN = "climate"
 # Priority order, also the order the temperature fallback picks a source in.
 CLIMATE_ROLE_KEYS = (CONF_HEATER, CONF_COOLER, CONF_FAN, CONF_DRYER)
 
+# Options that only exist for climate-backed devices.
+CLIMATE_OPTION_KEYS = (
+    CONF_CONTROL_STYLE,
+    CONF_HEATER_SETPOINT_OFFSET,
+    CONF_COOLER_SETPOINT_OFFSET,
+)
+
 
 def is_climate_entity(entity_id: Any) -> bool:
     """True when the id belongs to the climate domain."""
@@ -83,6 +90,35 @@ def applicable_offset_keys(config: Mapping[str, Any]) -> list[str]:
     ):
         keys.append(CONF_COOLER_SETPOINT_OFFSET)
     return keys
+
+
+def climate_control_keys(config: Mapping[str, Any]) -> list[str]:
+    """The climate options that mean something for these roles (flow fields).
+
+    control_style only matters for a heater or cooler (fan and dryer push no
+    setpoint and are always on_off); each offset needs its own role.
+    """
+    style = (
+        [CONF_CONTROL_STYLE]
+        if any(is_climate_entity(config.get(key)) for key in (CONF_HEATER, CONF_COOLER))
+        else []
+    )
+    return style + applicable_offset_keys(config)
+
+
+def drop_inapplicable(config: Mapping[str, Any]) -> dict[str, Any]:
+    """A copy without the climate options that no longer apply to the roles."""
+    keep = climate_control_keys(config)
+    return {
+        key: value
+        for key, value in config.items()
+        if key not in CLIMATE_OPTION_KEYS or key in keep
+    }
+
+
+def sensor_required(config: Mapping[str, Any]) -> bool:
+    """True when there is no temperature source: no sensor and no climate role."""
+    return not config.get(CONF_SENSOR) and not has_climate_role(config)
 
 
 def setpoint_unsupported(config: Mapping[str, Any]) -> bool:
@@ -153,8 +189,8 @@ def validate_climate_roles(config: dict[str, Any]) -> dict[str, Any]:
         )
     if bad := unsupported_climate_roles(config):
         raise vol.Invalid(f"{', '.join(bad)} cannot be a climate entity")
-    has_role = any(is_climate_entity(config.get(key)) for key in CLIMATE_ROLE_KEYS)
-    if not config.get(CONF_SENSOR) and not has_role:
+    has_role = has_climate_role(config)
+    if sensor_required(config):
         raise vol.Invalid(
             "target_sensor is required unless heater, cooler, fan or dryer is a "
             "climate entity"

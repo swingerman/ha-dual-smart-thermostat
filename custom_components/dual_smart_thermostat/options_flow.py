@@ -11,7 +11,7 @@ from homeassistant.data_entry_flow import FlowResult, section
 from homeassistant.helpers import selector
 import voluptuous as vol
 
-from .climate_roles import has_climate_role
+from .climate_roles import climate_control_keys
 from .config_validation import validate_config_with_models
 from .const import (
     CONF_AC_MODE,
@@ -575,7 +575,7 @@ class OptionsFlowHandler(OptionsFlowWithReload):
 
         # Climate-backed devices come first: they are basic entity configuration.
         if (
-            has_climate_role(current_config)
+            climate_control_keys(current_config)
             and "climate_control_options_shown" not in self.collected_config
         ):
             self.collected_config["climate_control_options_shown"] = True
