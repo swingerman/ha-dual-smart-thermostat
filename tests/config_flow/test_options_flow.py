@@ -23,7 +23,9 @@ from custom_components.dual_smart_thermostat.const import (
     ATTR_OPENING_TIMEOUT,
     CONF_AUTO_OUTSIDE_DELTA_BOOST,
     CONF_COLD_TOLERANCE,
+    CONF_CONTROL_STYLE,
     CONF_COOLER,
+    CONF_COOLER_SETPOINT_OFFSET,
     CONF_FAN,
     CONF_FAN_HOT_TOLERANCE,
     CONF_FAN_HOT_TOLERANCE_TOGGLE,
@@ -1337,3 +1339,87 @@ async def test_options_flow_persists_use_apparent_temp(mock_hass):
 
     # CONF_USE_APPARENT_TEMP must be present and True in collected_config
     assert flow.collected_config.get(CONF_USE_APPARENT_TEMP) is True
+
+
+@pytest.fixture
+def climate_cooler_config_entry():
+    """Heater cooler entry whose cooler is a climate entity."""
+    entry = Mock()
+    entry.data = {
+        CONF_NAME: "Test",
+        CONF_SYSTEM_TYPE: SYSTEM_TYPE_HEATER_COOLER,
+        CONF_HEATER: "switch.heater",
+        CONF_COOLER: "climate.ac",
+        CONF_SENSOR: "sensor.t",
+        CONF_CONTROL_STYLE: "on_off",
+        CONF_COOLER_SETPOINT_OFFSET: 0.0,
+    }
+    entry.options = {}
+    entry.entry_id = "climate-entry"
+    return entry
+
+
+async def test_options_flow_offers_climate_control_for_climate_roles(
+    mock_hass, climate_cooler_config_entry
+):
+    """The first options step, with only the offsets that apply."""
+    flow = OptionsFlowHandler(climate_cooler_config_entry)
+    flow.hass = mock_hass
+
+    result = await flow.async_step_init({})
+
+    assert result["step_id"] == "climate_control_options"
+    schema_keys = {str(k) for k in result["data_schema"].schema}
+    assert schema_keys == {CONF_CONTROL_STYLE, CONF_COOLER_SETPOINT_OFFSET}
+
+
+async def test_options_flow_saves_climate_control_values(
+    mock_hass, climate_cooler_config_entry
+):
+    """Submitted values land in the collected config."""
+    flow = OptionsFlowHandler(climate_cooler_config_entry)
+    flow.hass = mock_hass
+    await flow.async_step_init({})
+
+    await flow.async_step_climate_control_options(
+        {CONF_CONTROL_STYLE: "setpoint", CONF_COOLER_SETPOINT_OFFSET: -3.0}
+    )
+
+    assert flow.collected_config[CONF_CONTROL_STYLE] == "setpoint"
+    assert flow.collected_config[CONF_COOLER_SETPOINT_OFFSET] == -3.0
+
+
+async def test_options_flow_prefills_current_climate_control_values(
+    mock_hass, climate_cooler_config_entry
+):
+    """The form starts from the stored values."""
+    climate_cooler_config_entry.data = {
+        **climate_cooler_config_entry.data,
+        CONF_CONTROL_STYLE: "setpoint",
+        CONF_COOLER_SETPOINT_OFFSET: 2.5,
+    }
+    flow = OptionsFlowHandler(climate_cooler_config_entry)
+    flow.hass = mock_hass
+
+    result = await flow.async_step_init({})
+
+    defaults = {str(k): k.default() for k in result["data_schema"].schema}
+    assert defaults[CONF_CONTROL_STYLE] == "setpoint"
+    assert defaults[CONF_COOLER_SETPOINT_OFFSET] == 2.5
+
+
+async def test_options_flow_skips_climate_control_for_switch_only_entries(
+    mock_hass, dual_system_config_entry
+):
+    """No climate role, no step."""
+    flow = OptionsFlowHandler(dual_system_config_entry)
+    flow.hass = mock_hass
+
+    result = await flow.async_step_init({})
+
+    assert result.get("step_id") != "climate_control_options"
+
+
+async def test_climate_flag_is_not_saved_into_the_entry():
+    """The navigation flag is transient."""
+    assert "climate_control_options_shown" in OptionsFlowHandler._get_excluded_flags()

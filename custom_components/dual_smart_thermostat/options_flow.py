@@ -11,6 +11,7 @@ from homeassistant.data_entry_flow import FlowResult, section
 from homeassistant.helpers import selector
 import voluptuous as vol
 
+from .climate_roles import has_climate_role
 from .config_validation import validate_config_with_models
 from .const import (
     CONF_AC_MODE,
@@ -52,6 +53,7 @@ from .const import (
     SYSTEM_TYPE_SIMPLE_HEATER,
 )
 from .feature_steps import (
+    ClimateControlSteps,
     FanSteps,
     FloorSteps,
     HumiditySteps,
@@ -81,6 +83,7 @@ class OptionsFlowHandler(OptionsFlowWithReload):
         # Initialize feature step handlers
         self.openings_steps = OpeningsSteps()
         self.fan_steps = FanSteps()
+        self.climate_control_steps = ClimateControlSteps()
         self.humidity_steps = HumiditySteps()
         self.presets_steps = PresetsSteps()
         self.floor_steps = FloorSteps()
@@ -93,6 +96,7 @@ class OptionsFlowHandler(OptionsFlowWithReload):
         copying config between sessions.
         """
         return {
+            "climate_control_options_shown",
             "dual_stage_options_shown",
             "floor_options_shown",
             "features_shown",
@@ -527,6 +531,7 @@ class OptionsFlowHandler(OptionsFlowWithReload):
 
             # Clear step flags to allow users to see all steps again
             step_flags = [
+                "climate_control_options_shown",
                 "dual_stage_options_shown",
                 "floor_options_shown",
                 "fan_options_shown",
@@ -567,6 +572,14 @@ class OptionsFlowHandler(OptionsFlowWithReload):
         """
         current_config = self._get_current_config()
         system_type = current_config.get(CONF_SYSTEM_TYPE, SYSTEM_TYPE_SIMPLE_HEATER)
+
+        # Climate-backed devices come first: they are basic entity configuration.
+        if (
+            has_climate_role(current_config)
+            and "climate_control_options_shown" not in self.collected_config
+        ):
+            self.collected_config["climate_control_options_shown"] = True
+            return await self.async_step_climate_control_options()
 
         # Show dual stage options if aux heater is configured
         if (
@@ -757,6 +770,19 @@ class OptionsFlowHandler(OptionsFlowWithReload):
         """Delegate floor heating options to shared FloorSteps handler."""
         current_config = self._get_current_config()
         return await self.floor_steps.async_step_options(
+            self,
+            user_input,
+            self.collected_config,
+            self._determine_options_next_step,
+            current_config,
+        )
+
+    async def async_step_climate_control_options(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle control style and setpoint offsets for climate-backed devices."""
+        current_config = {**self._get_current_config(), **self.collected_config}
+        return await self.climate_control_steps.async_step_options(
             self,
             user_input,
             self.collected_config,
