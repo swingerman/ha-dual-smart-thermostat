@@ -43,11 +43,8 @@ def is_climate_entity(entity_id: Any) -> bool:
 
 
 def unsupported_climate_roles(config: Mapping[str, Any]) -> list[str]:
-    """Roles configured with a climate entity that cannot be climate-backed yet."""
-    roles = [CONF_AUX_HEATER]
-    if config.get(CONF_HEAT_PUMP_COOLING):
-        roles.append(CONF_HEATER)
-    return [key for key in roles if is_climate_entity(config.get(key))]
+    """Roles configured with a climate entity that cannot be climate-backed."""
+    return [key for key in (CONF_AUX_HEATER,) if is_climate_entity(config.get(key))]
 
 
 def applicable_offset_keys(config: Mapping[str, Any]) -> list[str]:

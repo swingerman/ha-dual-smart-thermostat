@@ -1158,3 +1158,29 @@ async def test_stale_child_temperature_triggers_the_emergency_stop(
     await hass.async_block_till_done()
 
     assert hass.states.get(AC).state == HVACMode.OFF
+
+
+COOLING_FLAG = "binary_sensor.hp_cooling"
+
+
+@pytest.mark.parametrize(
+    ("cooling", "dst_mode", "room", "expected"),
+    [
+        ("off", HVACMode.HEAT, 18.0, HVACMode.HEAT),
+        ("on", HVACMode.COOL, 27.0, HVACMode.COOL),
+    ],
+)
+async def test_climate_heat_pump_follows_the_cooling_flag(
+    hass: HomeAssistant, cooling, dst_mode, room, expected
+) -> None:
+    """The child's mode is heat or cool, following heat_pump_cooling."""
+    hass.states.async_set(COOLING_FLAG, cooling)
+    hass.states.async_set(SENSOR, room)
+    await _setup(
+        hass, heater=AC, heat_pump_cooling=COOLING_FLAG, initial_hvac_mode=dst_mode
+    )
+    await common.add_fake_climate(hass, AC)
+    await common.async_set_temperature(hass, 22, "climate.test")
+    await hass.async_block_till_done()
+
+    assert hass.states.get(AC).state == expected

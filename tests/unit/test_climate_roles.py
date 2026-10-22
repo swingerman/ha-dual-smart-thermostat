@@ -16,10 +16,13 @@ def test_is_climate_entity_by_domain() -> None:
 
 
 def test_unsupported_climate_roles() -> None:
-    """Heat pump and aux heater cannot be climate-backed yet."""
-    assert unsupported_climate_roles(
-        {"heater": "climate.hp", "heat_pump_cooling": "binary_sensor.c"}
-    ) == ["heater"]
+    """Only the aux heater cannot be climate-backed."""
+    assert (
+        unsupported_climate_roles(
+            {"heater": "climate.hp", "heat_pump_cooling": "binary_sensor.c"}
+        )
+        == []
+    )
     assert unsupported_climate_roles(
         {"heater": "switch.h", "secondary_heater": "climate.aux"}
     ) == ["secondary_heater"]

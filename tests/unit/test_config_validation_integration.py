@@ -137,10 +137,7 @@ class TestOptionsFlowValidation:
 
 @pytest.mark.parametrize(
     "extra",
-    [
-        {"heater": "climate.hp", "heat_pump_cooling": "binary_sensor.cooling"},
-        {"heater": "switch.heater", "secondary_heater": "climate.aux"},
-    ],
+    [{"heater": "switch.heater", "secondary_heater": "climate.aux"}],
 )
 def test_platform_schema_rejects_climate_where_roles_cannot_be_climate(extra) -> None:
     """YAML fails validation, with a clear message, instead of crashing at setup."""
@@ -152,6 +149,19 @@ def test_platform_schema_rejects_climate_where_roles_cannot_be_climate(extra) ->
     }
     with pytest.raises(vol.Invalid, match="cannot be a climate entity"):
         PLATFORM_SCHEMA(config)
+
+
+def test_platform_schema_accepts_a_climate_heat_pump() -> None:
+    """A climate heat pump is supported (only setpoint style is not)."""
+    PLATFORM_SCHEMA(
+        {
+            "platform": "dual_smart_thermostat",
+            "name": "t",
+            "target_sensor": "sensor.t",
+            "heater": "climate.hp",
+            "heat_pump_cooling": "binary_sensor.cooling",
+        }
+    )
 
 
 def test_platform_schema_accepts_climate_cooler() -> None:
