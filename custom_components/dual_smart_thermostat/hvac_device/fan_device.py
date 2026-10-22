@@ -92,7 +92,12 @@ class FanDevice(CoolerDevice):
         await super().async_turn_on()
 
         # Then apply fan mode if supported and a mode is set
-        if self.speed.supports_fan_mode and self.speed.current_fan_mode is not None:
+        # A climate's port already re-applied the speed after setting the mode.
+        if (
+            not self.speed.is_climate
+            and self.speed.supports_fan_mode
+            and self.speed.current_fan_mode is not None
+        ):
             _LOGGER.debug(
                 "Applying fan mode %s after turning on %s",
                 self.speed.current_fan_mode,

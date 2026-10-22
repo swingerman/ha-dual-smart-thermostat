@@ -67,6 +67,8 @@ class GenericHVACDevice(
             target=self.climate_target,
             offset=self.setpoint_offset,
             owned_modes=self.owned_modes,
+            # lazy: the factory picks the control after the devices are built
+            fan_speed=lambda: features.fan_speed,
             # Only a role that pushes a setpoint can leave the regulating to the child.
             style=(
                 features.climate_control_style

@@ -104,6 +104,22 @@ class FanSpeedControl:
 
         return True
 
+    async def async_reapply(self, entity_id: str) -> None:
+        """Re-send the selected speed after the climate child was turned on.
+
+        Many ACs (infrared ones especially) reset their fan speed on a mode
+        change. Acts only when this control targets that very climate entity,
+        so a separate fan entity, or another climate, is never touched.
+        """
+        if (
+            not self._is_climate
+            or entity_id != self.entity_id
+            or not self._supports_fan_mode
+            or self._current_fan_mode is None
+        ):
+            return
+        await self.async_set_fan_mode(self._current_fan_mode)
+
     @property
     def is_climate(self) -> bool:
         """Return if the speed is set on a climate entity."""

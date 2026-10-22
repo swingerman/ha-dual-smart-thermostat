@@ -1451,3 +1451,109 @@ async def test_switch_only_setup_has_no_fan_speed(hass: HomeAssistant) -> None:
     await _setup(hass, heater=HEATER, initial_hvac_mode=HVACMode.HEAT)
 
     assert "fan_modes" not in hass.states.get("climate.test").attributes
+
+
+async def test_fan_speed_is_reapplied_after_the_ac_resets_it(
+    hass: HomeAssistant,
+) -> None:
+    """Many ACs drop the fan speed on a mode change: it is sent again after."""
+    hass.states.async_set(SENSOR, 26.0)
+    setup_switch(hass, False, HEATER)
+    await _setup(hass, heater=HEATER, cooler=AC, initial_hvac_mode=HVACMode.COOL)
+    child = await common.add_fake_climate(hass, AC, resets_fan_on_mode_change=True)
+    await hass.services.async_call(
+        "climate",
+        "set_fan_mode",
+        {"entity_id": "climate.test", "fan_mode": "quiet"},
+        blocking=True,
+    )
+    child.calls.clear()
+
+    await common.async_set_temperature(hass, 24, "climate.test")  # too hot: AC on
+    await hass.async_block_till_done()
+
+    order = [c[0] for c in child.calls]
+    assert order.index("set_hvac_mode") < order.index("set_fan_mode")
+    assert ("set_fan_mode", {"fan_mode": "quiet"}) in child.calls
+    assert hass.states.get(AC).attributes["fan_mode"] == "quiet"
+
+
+async def test_fan_speed_is_reapplied_on_an_assumed_state_child(
+    hass: HomeAssistant,
+) -> None:
+    """No state to compare with: an assumed child is always sent the speed."""
+    hass.states.async_set(SENSOR, 26.0)
+    setup_switch(hass, False, HEATER)
+    await _setup(hass, heater=HEATER, cooler=AC, initial_hvac_mode=HVACMode.COOL)
+    child = await common.add_fake_climate(hass, AC, assumed=True)
+    await hass.services.async_call(
+        "climate",
+        "set_fan_mode",
+        {"entity_id": "climate.test", "fan_mode": "strong"},
+        blocking=True,
+    )
+    child.calls.clear()
+
+    await common.async_set_temperature(hass, 24, "climate.test")
+    await hass.async_block_till_done()
+
+    assert ("set_fan_mode", {"fan_mode": "strong"}) in child.calls
+
+
+async def test_a_separate_fan_entity_means_no_reapply_on_the_ac(
+    hass: HomeAssistant,
+) -> None:
+    """The AC's own fan speed is never touched when a fan entity owns fan_mode."""
+    hass.states.async_set(
+        FAN, "off", {"preset_modes": ["low", "high"], "preset_mode": "low"}
+    )
+    hass.states.async_set(SENSOR, 26.0)
+    setup_switch(hass, False, HEATER)
+    await _setup(
+        hass,
+        heater=HEATER,
+        cooler=AC,
+        fan=FAN,
+        fan_mode=True,
+        initial_hvac_mode=HVACMode.COOL,
+    )
+    child = await common.add_fake_climate(hass, AC, resets_fan_on_mode_change=True)
+    common.async_mock_service(hass, "fan", "set_preset_mode")
+
+    await common.async_set_temperature(hass, 24, "climate.test")
+    await hass.async_block_till_done()
+
+    assert all(c[0] != "set_fan_mode" for c in child.calls)
+
+
+async def test_fan_role_on_the_climate_applies_the_speed_once(
+    hass: HomeAssistant,
+) -> None:
+    """The port re-applies; FanDevice must not send it a second time."""
+    hass.states.async_set(SENSOR, 26.0)
+    setup_switch(hass, False, HEATER)
+    await _setup(
+        hass,
+        heater=HEATER,
+        cooler=AC,
+        fan=AC,
+        fan_mode=True,
+        initial_hvac_mode=HVACMode.FAN_ONLY,
+    )
+    child = await common.add_fake_climate(hass, AC, assumed=True)
+    await hass.services.async_call(
+        "climate",
+        "set_fan_mode",
+        {"entity_id": "climate.test", "fan_mode": "strong"},
+        blocking=True,
+    )
+    await common.async_set_temperature(hass, 24, "climate.test")
+    await common.async_set_hvac_mode(hass, HVACMode.OFF, "climate.test")
+    await hass.async_block_till_done()
+    child.calls.clear()
+
+    await common.async_set_hvac_mode(hass, HVACMode.FAN_ONLY, "climate.test")
+    await hass.async_block_till_done()
+
+    assert [c[0] for c in child.calls].count("set_hvac_mode") == 1
+    assert [c[0] for c in child.calls].count("set_fan_mode") == 1

@@ -41,6 +41,7 @@ from homeassistant.util import dt as dt_util
 
 from ..climate_roles import CLIMATE_DOMAIN, is_climate_entity
 from ..const import ControlStyle
+from .fan_speed import FanSpeedControl
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -395,8 +396,10 @@ class ClimatePort(EntityPort):
         offset: Callable[[], float],
         style: ControlStyle,
         owned_modes: Callable[[], tuple[HVACMode, ...]] | None = None,
+        fan_speed: Callable[[], FanSpeedControl | None] = lambda: None,
     ) -> None:
         self._child = child
+        self._fan_speed = fan_speed
         # Modes the role owns (a heat pump owns heat and cool; others just theirs).
         self._owned_modes = owned_modes or (lambda: (role_mode(),))
         self._role_mode = role_mode
@@ -427,8 +430,13 @@ class ClimatePort(EntityPort):
             await self._child.async_push_target(target + self._offset(), context)
 
     async def async_turn_on(self, context: Context | None) -> None:
-        if await self._child.async_set_mode(self._role_mode(), context):
-            await self._push(context)
+        if not await self._child.async_set_mode(self._role_mode(), context):
+            return
+        await self._push(context)
+        # Last, so the speed lands after the mode change that may have reset it.
+        speed = self._fan_speed()
+        if speed is not None:
+            await speed.async_reapply(self.entity_id)
 
     async def async_sync(self, context: Context | None) -> None:
         # Only the role the child is serving may touch its setpoint.
@@ -461,6 +469,7 @@ def make_port(
     offset: Callable[[], float] = lambda: 0.0,
     style: ControlStyle = ControlStyle.ON_OFF,
     owned_modes: Callable[[], tuple[HVACMode, ...]] | None = None,
+    fan_speed: Callable[[], FanSpeedControl | None] = lambda: None,
 ) -> EntityPort:
     """Build the port for a role from the entity domain."""
     if is_climate_entity(entity_id):
@@ -471,5 +480,6 @@ def make_port(
             offset,
             style,
             owned_modes,
+            fan_speed,
         )
     return SwitchPort(hass, entity_id)
