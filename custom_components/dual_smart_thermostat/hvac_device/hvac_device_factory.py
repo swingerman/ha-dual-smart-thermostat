@@ -4,6 +4,7 @@ import logging
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.typing import ConfigType
 
+from ..climate_roles import is_climate_entity
 from ..const import (
     CONF_AUX_HEATER,
     CONF_AUX_HEATING_DUAL_MODE,
@@ -48,7 +49,10 @@ class HVACDeviceFactory:
         self._heater_entity_id = config[CONF_HEATER]
         self._cooler_entity_id = None
         if cooler_entity_id := config.get(CONF_COOLER):
-            if cooler_entity_id == self._heater_entity_id:
+            # One climate entity may fill several roles; switches may not.
+            if cooler_entity_id == self._heater_entity_id and not is_climate_entity(
+                cooler_entity_id
+            ):
                 _LOGGER.warning(
                     "'cooler' entity cannot be equal to 'heater' entity. "
                     "'cooler' entity will be ignored"

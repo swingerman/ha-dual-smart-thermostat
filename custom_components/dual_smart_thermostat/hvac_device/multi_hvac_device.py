@@ -4,6 +4,7 @@ from typing import Callable
 from homeassistant.components.climate import HVACAction, HVACMode
 from homeassistant.core import Context, HomeAssistant, State, callback
 
+from ..climate_roles import is_climate_entity
 from ..hvac_action_reason.hvac_action_reason import HVACActionReason
 from ..hvac_device.controllable_hvac_device import ControlableHVACDevice
 from ..hvac_device.hvac_device import HVACDevice
@@ -102,7 +103,8 @@ class MultiHvacDevice(HVACDevice, ControlableHVACDevice):
         for device in self.hvac_devices:
             device_ids += device.get_device_ids()
 
-        return device_ids
+        # One entity can back several roles; listen to it once.
+        return list(dict.fromkeys(device_ids))
 
     def set_initial_hvac_mode(self, initial_hvac_mode: HVACMode):
         if initial_hvac_mode in self.hvac_modes:
@@ -194,6 +196,9 @@ class MultiHvacDevice(HVACDevice, ControlableHVACDevice):
             for device in self.hvac_devices
             if self.hvac_mode in device.hvac_modes
             for entity_id in device.get_device_ids()
+            # A climate's stop is scoped to the role's own mode, so sharing one
+            # needs no protection (and would leave it in the old mode).
+            if not is_climate_entity(entity_id)
         }
 
         for device in self.hvac_devices:

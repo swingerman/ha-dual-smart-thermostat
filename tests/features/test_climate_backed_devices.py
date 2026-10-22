@@ -1,6 +1,7 @@
 """Tests for climate entities used as device roles (issue #281)."""
 
 from datetime import timedelta
+import logging
 
 from homeassistant.components.climate import DOMAIN as CLIMATE, HVACMode
 from homeassistant.const import STATE_OFF, STATE_ON
@@ -880,3 +881,111 @@ async def test_setpoint_style_cooler_stays_engaged_below_target(
 
     assert hass.states.get(AC).state == HVACMode.COOL
     assert "turn_off" not in [c[0] for c in child.calls]
+
+
+async def test_same_climate_as_heater_and_cooler_is_accepted(
+    hass: HomeAssistant, caplog
+) -> None:
+    """One climate may fill both roles: the cooler is not dropped."""
+    hass.states.async_set(SENSOR, 20.0)
+    with caplog.at_level(logging.WARNING):
+        await _setup(hass, heater=AC, cooler=AC, initial_hvac_mode=HVACMode.HEAT)
+
+    assert "cannot be equal" not in caplog.text
+
+
+async def test_shared_climate_is_listened_to_once(hass: HomeAssistant) -> None:
+    """A shared entity registers one state listener, not one per role."""
+    hass.states.async_set(SENSOR, 20.0)
+    await _setup(hass, heater=AC, cooler=AC, initial_hvac_mode=HVACMode.HEAT)
+
+    thermostat = hass.data["climate"].get_entity("climate.test")
+
+    assert thermostat.hvac_device.get_device_ids() == [AC]
+
+
+async def test_switch_entity_in_two_roles_is_still_ignored(
+    hass: HomeAssistant, caplog
+) -> None:
+    """Existing behaviour is kept for switches."""
+    hass.states.async_set(SENSOR, 20.0)
+    with caplog.at_level(logging.WARNING):
+        await _setup(
+            hass, heater=HEATER, cooler=HEATER, initial_hvac_mode=HVACMode.HEAT
+        )
+
+    assert "cannot be equal" in caplog.text
+
+
+async def test_single_ac_walks_through_every_mode_one_at_a_time(
+    hass: HomeAssistant,
+) -> None:
+    """Four roles on one climate never fight: one command per transition."""
+    hass.states.async_set(SENSOR, 20.0)
+    hass.states.async_set("sensor.hum", 60.0)
+    await _setup(
+        hass,
+        heater=AC,
+        cooler=AC,
+        fan=AC,
+        dryer=AC,
+        humidity_sensor="sensor.hum",
+        target_humidity=40,
+        fan_mode=True,
+        initial_hvac_mode=HVACMode.HEAT,
+    )
+    child = await common.add_fake_climate(hass, AC)
+    await common.async_set_temperature(hass, 24, "climate.test")
+    await hass.async_block_till_done()
+
+    expected = {
+        HVACMode.HEAT: HVACMode.HEAT,
+        HVACMode.COOL: HVACMode.OFF,  # 20 degrees: nothing to cool
+        HVACMode.FAN_ONLY: HVACMode.FAN_ONLY,
+        HVACMode.DRY: HVACMode.DRY,
+        HVACMode.OFF: HVACMode.OFF,
+    }
+    for dst_mode, child_mode in expected.items():
+        await common.async_set_hvac_mode(hass, dst_mode, "climate.test")
+        if dst_mode == HVACMode.FAN_ONLY:
+            hass.states.async_set(SENSOR, 26.0)  # the fan only runs when it is hot
+        await hass.async_block_till_done()
+        assert hass.states.get(AC).state == child_mode, dst_mode
+
+    # One command per transition: no role ever re-commanded another's mode.
+    sent = [c[1]["hvac_mode"] for c in child.calls if c[0] == "set_hvac_mode"]
+    assert sent == [HVACMode.HEAT, HVACMode.FAN_ONLY, HVACMode.DRY]
+
+
+@pytest.mark.parametrize("expected_lingering_timers", [True])
+async def test_idle_role_keep_alive_does_not_stop_the_active_role(
+    hass: HomeAssistant,
+) -> None:
+    """The idle cooler's keep-alive must not switch off the heating child."""
+    hass.states.async_set(SENSOR, 20.0)
+    await _setup(
+        hass,
+        heater=AC,
+        cooler=AC,
+        keep_alive=timedelta(minutes=1),
+        initial_hvac_mode=HVACMode.HEAT,
+    )
+    await common.add_fake_climate(hass, AC)
+    await common.async_set_temperature(hass, 24, "climate.test")
+    await hass.async_block_till_done()
+    assert hass.states.get(AC).state == HVACMode.HEAT
+
+    common.async_fire_time_changed(hass, dt_util.utcnow() + timedelta(minutes=2))
+    await hass.async_block_till_done()
+
+    assert hass.states.get(AC).state == HVACMode.HEAT
+
+
+async def test_ran_long_enough_without_a_min_cycle_is_always_true(
+    hass: HomeAssistant,
+) -> None:
+    """Callers may ask with no min_cycle_duration configured (it is None)."""
+    await common.add_fake_climate(hass, "climate.test_ac", HVACMode.COOL)
+    cool = _port(hass, "climate.test_ac", HVACMode.COOL)
+
+    assert cool.ran_long_enough(None) is True
