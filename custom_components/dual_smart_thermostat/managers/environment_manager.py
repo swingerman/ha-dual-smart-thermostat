@@ -95,6 +95,28 @@ def _rothfusz_heat_index_f(t_f: float, rh: float) -> float:
     )
 
 
+def temperature_reading(state: State) -> float | None:
+    """The one rule for "is this state a temperature reading".
+
+    A sensor's reading is its state; a climate's is its `current_temperature`
+    attribute, and a climate without one has no reading (None). Used both to
+    update the temperature and to feed the stale-sensor watchdog, so a state
+    that is not a reading can never count as the sensor reporting.
+    Raises ValueError for a value that is not a finite number.
+    """
+    raw = (
+        state.attributes.get("current_temperature")
+        if state.domain == "climate"
+        else state.state
+    )
+    if raw is None:
+        return None
+    reading = float(raw)
+    if not math.isfinite(reading):
+        raise ValueError(f"Sensor has illegal state {raw}")
+    return reading
+
+
 class EnvironmentManager(StateManager):
     """Class to manage the temperatures of the thermostat."""
 
@@ -615,20 +637,13 @@ class EnvironmentManager(StateManager):
     @callback
     def update_temp_from_state(self, state: State) -> None:
         """Update thermostat with latest state from sensor (or climate entity)."""
-        raw = (
-            state.attributes.get("current_temperature")
-            if state.domain == "climate"
-            else state.state
-        )
-        if raw is None:  # a climate that has no reading yet
-            return
         try:
-            cur_temp = float(raw)
-            if not math.isfinite(cur_temp):
-                raise ValueError(f"Sensor has illegal state {raw}")
-            self._cur_temp = cur_temp
+            cur_temp = temperature_reading(state)
         except ValueError as ex:
             _LOGGER.error("Unable to update from sensor: %s", ex)
+            return
+        if cur_temp is not None:
+            self._cur_temp = cur_temp
 
     @callback
     def update_floor_temp_from_state(self, state: State):

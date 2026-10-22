@@ -1265,3 +1265,78 @@ async def test_removing_a_thermostat_releases_its_children(
     await hass.data["climate"].get_entity("climate.test").async_remove()
 
     assert AC not in hass.data[CHILDREN_KEY]
+
+
+async def _stale_heating_child(hass: HomeAssistant, freezer):
+    """A heating AC whose only temperature source is itself, watchdog armed."""
+    hass.config.units = METRIC_SYSTEM
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            CLIMATE: {
+                "platform": DOMAIN,
+                "name": "test",
+                "heater": AC,
+                "sensor_stale_duration": timedelta(minutes=2),
+                "initial_hvac_mode": HVACMode.HEAT,
+            }
+        },
+    )
+    child = await common.add_fake_climate(hass, AC, current=18.0)
+    await common.async_set_temperature(hass, 22, "climate.test")
+    child.set_current_temperature(18.5)  # a real reading arms the watchdog
+    await hass.async_block_till_done()
+    assert hass.states.get(AC).state == HVACMode.HEAT
+    return child
+
+
+@pytest.mark.parametrize("expected_lingering_timers", [True])
+async def test_empty_readings_do_not_feed_the_stale_watchdog(
+    hass: HomeAssistant, freezer
+) -> None:
+    """A child reporting no temperature is silent: the emergency stop still fires."""
+    child = await _stale_heating_child(hass, freezer)
+
+    for _ in range(3):
+        freezer.tick(timedelta(minutes=1))
+        child.set_current_temperature(None)
+        common.async_fire_time_changed(hass)
+        await hass.async_block_till_done()
+
+    assert hass.states.get(AC).state == HVACMode.OFF
+
+
+@pytest.mark.parametrize("expected_lingering_timers", [True])
+async def test_our_own_echo_does_not_recover_a_stalled_child(
+    hass: HomeAssistant, freezer
+) -> None:
+    """After the emergency stop only a new reading restarts control."""
+    child = await _stale_heating_child(hass, freezer)
+    freezer.tick(timedelta(minutes=3))
+    common.async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    assert hass.states.get(AC).state == HVACMode.OFF
+
+    child._attr_target_temperature = 23.0  # any event, same temperature
+    child.async_write_ha_state()
+    await hass.async_block_till_done()
+
+    assert hass.states.get(AC).state == HVACMode.OFF
+
+
+@pytest.mark.parametrize("expected_lingering_timers", [True])
+async def test_a_new_reading_recovers_a_stalled_child(
+    hass: HomeAssistant, freezer
+) -> None:
+    """A changed temperature is a real reading: control resumes."""
+    child = await _stale_heating_child(hass, freezer)
+    freezer.tick(timedelta(minutes=3))
+    common.async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    assert hass.states.get(AC).state == HVACMode.OFF
+
+    child.set_current_temperature(19.0)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(AC).state == HVACMode.HEAT
