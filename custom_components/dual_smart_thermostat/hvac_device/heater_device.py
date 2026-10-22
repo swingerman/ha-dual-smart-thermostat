@@ -19,7 +19,7 @@ class HeaterDevice(GenericHVACDevice):
 
     hvac_modes = [HVACMode.HEAT, HVACMode.OFF]
 
-    def role_mode(self) -> HVACMode | None:
+    def role_mode(self) -> HVACMode:
         return HVACMode.HEAT
 
     def __init__(

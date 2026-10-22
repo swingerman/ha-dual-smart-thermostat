@@ -47,8 +47,6 @@ class EntityPort(ABC):
     """What a device role needs from its entity."""
 
     entity_id: str
-    # True when the entity regulates itself and DST must not cycle it.
-    self_regulating: bool = False
 
     @property
     @abstractmethod
@@ -338,7 +336,7 @@ class ClimatePort(EntityPort):
     def __init__(
         self,
         child: ClimateChild,
-        role_mode: Callable[[], HVACMode | None],
+        role_mode: Callable[[], HVACMode],
         target: Callable[[], float | None],
     ) -> None:
         self._child = child
@@ -348,8 +346,7 @@ class ClimatePort(EntityPort):
 
     @property
     def is_active(self) -> bool:
-        mode = self._role_mode()
-        return mode is not None and self._child.mode == mode
+        return self._child.mode == self._role_mode()
 
     def ran_long_enough(self, min_cycle: timedelta) -> bool:
         since = self._child.since
@@ -381,14 +378,10 @@ def make_port(
     hass: HomeAssistant,
     entity_id: str,
     *,
-    role_mode: Callable[[], HVACMode | None],
+    role_mode: Callable[[], HVACMode],
     target: Callable[[], float | None],
 ) -> EntityPort:
     """Build the port for a role from the entity domain."""
     if is_climate_entity(entity_id):
-        if role_mode() is None:
-            raise ValueError(
-                f"{entity_id}: this device role cannot be backed by a climate entity"
-            )
         return ClimatePort(climate_child(hass, entity_id), role_mode, target)
     return SwitchPort(hass, entity_id)

@@ -21,7 +21,7 @@ class DryerDevice(GenericHVACDevice):
 
     hvac_modes = [HVACMode.DRY, HVACMode.OFF]
 
-    def role_mode(self) -> HVACMode | None:
+    def role_mode(self) -> HVACMode:
         return HVACMode.DRY
 
     def climate_target(self) -> float | None:

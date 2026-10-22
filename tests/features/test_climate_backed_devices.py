@@ -16,6 +16,9 @@ from custom_components.dual_smart_thermostat.hvac_device.entity_port import (
     SwitchPort,
     make_port,
 )
+from custom_components.dual_smart_thermostat.hvac_device.generic_hvac_device import (
+    GenericHVACDevice,
+)
 from tests import common, setup_switch
 
 
@@ -60,7 +63,6 @@ async def test_make_port_returns_switch_port_for_switch_like(
     assert port.is_active is False
     hass.states.async_set("switch.heater", STATE_ON)
     assert port.is_active is True
-    assert port.self_regulating is False
 
 
 async def test_switch_port_valve_is_active_when_open(hass: HomeAssistant) -> None:
@@ -409,12 +411,9 @@ async def test_fan_and_dryer_roles_use_their_climate_mode(
     assert not [c for c in child.calls if c[0] == "set_temperature"]
 
 
-async def test_role_without_a_mode_cannot_be_built_on_a_climate(
-    hass: HomeAssistant,
-) -> None:
-    """No code path may drive a climate entity as if it were a switch."""
-    with pytest.raises(ValueError, match="cannot be backed by a climate entity"):
-        make_port(hass, AC, role_mode=lambda: None, target=lambda: None)
+def test_role_mode_is_abstract() -> None:
+    """A device class cannot be built without a role mode."""
+    assert "role_mode" in GenericHVACDevice.__abstractmethods__
 
 
 async def test_hvac_off_stops_a_child_running_a_mode_no_role_owns(

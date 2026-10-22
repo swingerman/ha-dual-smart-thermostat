@@ -1,3 +1,4 @@
+from abc import abstractmethod
 from datetime import timedelta
 import logging
 from typing import Callable
@@ -91,9 +92,9 @@ class GenericHVACDevice(
     def get_device_ids(self) -> list[str]:
         return [self.entity_id]
 
-    def role_mode(self) -> HVACMode | None:
+    @abstractmethod
+    def role_mode(self) -> HVACMode:
         """The hvac mode a climate entity must be in to serve this role."""
-        return None
 
     def climate_target(self) -> float | None:
         """The temperature a climate entity serving this role is told to hold."""

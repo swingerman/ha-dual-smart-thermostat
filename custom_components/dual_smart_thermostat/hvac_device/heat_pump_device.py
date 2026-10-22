@@ -107,6 +107,9 @@ class HeatPumpDevice(GenericHVACDevice):
         else:
             return self._target_env_attr
 
+    def role_mode(self) -> HVACMode:
+        return HVACMode.COOL if self._heat_pump_is_cooling else HVACMode.HEAT
+
     @property
     def hvac_action(self) -> HVACAction:
         if self.hvac_mode == HVACMode.OFF:

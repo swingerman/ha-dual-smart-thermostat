@@ -63,6 +63,7 @@ from homeassistant.util.unit_conversion import TemperatureConverter
 import voluptuous as vol
 
 from . import DOMAIN, PLATFORMS
+from .climate_roles import validate_climate_roles
 from .config_validation import validate_config_with_models
 from .const import (
     ATTR_CLOSING_TIMEOUT,
@@ -278,11 +279,14 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(HVAC_POWER_SCHEMA)
 
 # Add the old presets schema to avoid breaking change
 # Now supports both static numbers and templates
-PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
-    {
-        vol.Optional(v): validate_template_or_number
-        for (k, v) in CONF_PRESETS_OLD.items()
-    }
+PLATFORM_SCHEMA = vol.All(
+    PLATFORM_SCHEMA.extend(
+        {
+            vol.Optional(v): validate_template_or_number
+            for (k, v) in CONF_PRESETS_OLD.items()
+        }
+    ),
+    validate_climate_roles,
 )
 
 

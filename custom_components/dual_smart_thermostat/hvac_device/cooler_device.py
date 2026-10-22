@@ -19,7 +19,7 @@ class CoolerDevice(GenericHVACDevice):
 
     hvac_modes = [HVACMode.COOL, HVACMode.OFF]
 
-    def role_mode(self) -> HVACMode | None:
+    def role_mode(self) -> HVACMode:
         return HVACMode.COOL
 
     def __init__(
