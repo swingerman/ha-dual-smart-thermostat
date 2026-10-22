@@ -70,10 +70,14 @@ class EntityPort(ABC):
         return
 
     @abstractmethod
-    async def async_stop(self, context: Context | None, force: bool = False) -> None:
+    async def async_stop(
+        self, context: Context | None, keep_alive: bool = False
+    ) -> None:
         """DST is Off: make sure the entity is off. Off means off.
 
-        `force` is the keep-alive: resend off even if it already looks off.
+        `keep_alive` marks a periodic tick: resend off to an entity whose
+        record cannot be trusted (an assumed_state climate). A switch reports
+        its state reliably, so for it a tick is no different from any stop.
         """
 
 
@@ -148,9 +152,11 @@ class SwitchPort(EntityPort):
             return
         await self._call(SERVICE_TURN_OFF, context)
 
-    async def async_stop(self, context: Context | None, force: bool = False) -> None:
+    async def async_stop(
+        self, context: Context | None, keep_alive: bool = False
+    ) -> None:
         # Today's Off behaviour for switches: stop it if it is running.
-        if force or self.is_active:
+        if self.is_active:
             await self.async_turn_off(context)
 
     def _unavailable(self) -> bool:
@@ -365,11 +371,13 @@ class ClimatePort(EntityPort):
         if self.is_active:
             await self._child.async_turn_off(context)
 
-    async def async_stop(self, context: Context | None, force: bool = False) -> None:
+    async def async_stop(
+        self, context: Context | None, keep_alive: bool = False
+    ) -> None:
         # Off means off: whatever mode the child is in, even one no role owns.
-        # An assumed child may have missed the last off, so a forced stop resends.
+        # An assumed child may have missed the last off, so a tick resends.
         if self._child.mode not in (None, HVACMode.OFF) or (
-            force and self._child.assumed and self._child.available
+            keep_alive and self._child.assumed and self._child.available
         ):
             await self._child.async_turn_off(context)
 

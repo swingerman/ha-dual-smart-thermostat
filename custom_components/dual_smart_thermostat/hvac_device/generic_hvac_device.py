@@ -191,7 +191,7 @@ class GenericHVACDevice(
         # here — only turn the switch off if it ended up on externally.
         # See issue #587.
         if self._hvac_mode == HVACMode.OFF:
-            await self.async_stop()
+            await self.async_stop(keep_alive=time is not None)
             return
 
         if self.hvac_controller.is_active:
@@ -260,12 +260,12 @@ class GenericHVACDevice(
             self.strategy, self.target_env_attr, HVACAction.OFF
         )
 
-    async def async_stop(self, force: bool = False) -> None:
+    async def async_stop(self, keep_alive: bool = False) -> None:
         """DST is Off: the entity must end up off, whatever it was doing."""
         if self.entity_id is None:
             return
 
-        await self.port.async_stop(self._context, force)
+        await self.port.async_stop(self._context, keep_alive)
 
         self.hvac_power.update_hvac_power(
             self.strategy, self.target_env_attr, HVACAction.OFF

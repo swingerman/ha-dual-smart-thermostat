@@ -495,13 +495,13 @@ async def test_assumed_child_keep_alive_resend_does_not_reset_min_cycle(
 
     await cool.async_turn_off(None)
     freezer.tick(timedelta(minutes=3))
-    await cool.async_stop(None, force=True)  # keep-alive resend of off
+    await cool.async_stop(None, keep_alive=True)  # keep-alive resend of off
     freezer.tick(timedelta(minutes=3))
 
     assert cool.ran_long_enough(timedelta(minutes=5)) is True
 
 
-async def test_forced_stop_resends_off_to_an_assumed_child(
+async def test_keep_alive_stop_resends_off_to_an_assumed_child(
     hass: HomeAssistant,
 ) -> None:
     """The IR device may have missed the first off, so keep-alive resends it."""
@@ -511,21 +511,21 @@ async def test_forced_stop_resends_off_to_an_assumed_child(
     await cool.async_stop(None)  # record already says off: nothing sent
     assert child.calls == []
 
-    await cool.async_stop(None, force=True)
-    await cool.async_stop(None, force=True)
+    await cool.async_stop(None, keep_alive=True)
+    await cool.async_stop(None, keep_alive=True)
     assert child.calls == [("turn_off", {}), ("turn_off", {})]
 
 
-async def test_forced_stop_on_a_switch_always_turns_it_off(
+async def test_keep_alive_stop_on_a_switch_only_acts_when_it_is_running(
     hass: HomeAssistant,
 ) -> None:
-    """Keep-alive semantics for switches: unconditional turn_off."""
+    """A switch's state is trustworthy: keep-alive stop keeps master's rule (#587)."""
     calls = setup_switch(hass, False, "switch.heater")
     port = make_port(hass, "switch.heater", role_mode=lambda: None, target=lambda: None)
 
-    await port.async_stop(None, force=True)
+    await port.async_stop(None, keep_alive=True)
 
-    assert len(calls) == 1
+    assert calls == []
 
 
 @pytest.mark.parametrize("expected_lingering_timers", [True])
@@ -552,3 +552,49 @@ async def test_keep_alive_in_off_resends_to_assumed_child_and_once_to_switch(
 
     assert len(heater_calls) == 2
     assert [c[0] for c in child.calls].count("turn_off") == 2
+
+
+@pytest.mark.parametrize("expected_lingering_timers", [True])
+async def test_lone_assumed_climate_in_off_gets_turn_off_each_keep_alive(
+    hass: HomeAssistant,
+) -> None:
+    """Single-device thermostat: the IR child is told off on every tick."""
+    hass.states.async_set(SENSOR, 20.0)
+    await _setup(
+        hass,
+        heater=AC,
+        keep_alive=timedelta(minutes=1),
+        initial_hvac_mode=HVACMode.OFF,
+    )
+    child = await common.add_fake_climate(hass, AC, assumed=True)
+
+    for minutes in (2, 4):
+        common.async_fire_time_changed(
+            hass, dt_util.utcnow() + timedelta(minutes=minutes)
+        )
+        await hass.async_block_till_done()
+
+    assert [c[0] for c in child.calls].count("turn_off") == 2
+
+
+@pytest.mark.parametrize("expected_lingering_timers", [True])
+async def test_lone_switch_in_off_keep_alive_sends_nothing_when_already_off(
+    hass: HomeAssistant,
+) -> None:
+    """Master behaviour (#587): a lone switch is only stopped if it is running."""
+    hass.states.async_set(SENSOR, 20.0)
+    calls = setup_switch(hass, False, HEATER)
+    await _setup(
+        hass,
+        heater=HEATER,
+        keep_alive=timedelta(minutes=1),
+        initial_hvac_mode=HVACMode.OFF,
+    )
+
+    for minutes in (2, 4):
+        common.async_fire_time_changed(
+            hass, dt_util.utcnow() + timedelta(minutes=minutes)
+        )
+        await hass.async_block_till_done()
+
+    assert calls == []
