@@ -4,7 +4,11 @@ from __future__ import annotations
 
 import logging
 
-from homeassistant.components.climate import ATTR_FAN_MODE, ATTR_FAN_MODES
+from homeassistant.components.climate import (
+    ATTR_FAN_MODE,
+    ATTR_FAN_MODES,
+    DOMAIN as CLIMATE_DOMAIN,
+)
 from homeassistant.components.fan import (
     ATTR_PERCENTAGE,
     ATTR_PRESET_MODE,
@@ -17,7 +21,7 @@ from homeassistant.components.switch import DOMAIN as SWITCH_DOMAIN
 from homeassistant.const import ATTR_ENTITY_ID
 from homeassistant.core import HomeAssistant, State, callback
 
-from ..climate_roles import CLIMATE_DOMAIN, is_climate_entity
+from ..climate_roles import is_climate_entity
 from ..const import FAN_MODE_TO_PERCENTAGE
 from .entity_port import ClimateChild, peek_climate_child
 

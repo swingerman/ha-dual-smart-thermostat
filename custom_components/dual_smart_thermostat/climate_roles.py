@@ -9,6 +9,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
+from homeassistant.components.climate import DOMAIN as CLIMATE_DOMAIN
 import voluptuous as vol
 
 from .const import (
@@ -31,8 +32,6 @@ from .const import (
     ControlStyle,
 )
 
-CLIMATE_DOMAIN = "climate"
-
 # Priority order, also the order the temperature fallback picks a source in.
 CLIMATE_ROLE_KEYS = (CONF_HEATER, CONF_COOLER, CONF_FAN, CONF_DRYER)
 
@@ -47,6 +46,14 @@ CLIMATE_OPTION_KEYS = (
 def is_climate_entity(entity_id: Any) -> bool:
     """True when the id belongs to the climate domain."""
     return isinstance(entity_id, str) and entity_id.startswith(f"{CLIMATE_DOMAIN}.")
+
+
+def may_share_entity(entity_id: Any) -> bool:
+    """True for an entity that may fill several roles at once (a climate does).
+
+    Switch-like entities may not: the same switch as heater and cooler is a mistake.
+    """
+    return is_climate_entity(entity_id)
 
 
 def has_climate_role(config: Mapping[str, Any]) -> bool:

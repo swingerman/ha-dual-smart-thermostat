@@ -1705,3 +1705,25 @@ async def test_fan_speed_chosen_while_the_ac_is_off_is_applied_on_turn_on(
 
     assert ("set_fan_mode", {"fan_mode": "strong"}) in child.calls
     assert hass.states.get(AC).attributes["fan_mode"] == "strong"
+
+
+@pytest.mark.parametrize("expected_lingering_timers", [True])
+async def test_keep_alive_in_off_sends_one_off_frame_per_shared_climate(
+    hass: HomeAssistant,
+) -> None:
+    """One IR AC in three roles gets one turn_off per tick, not three."""
+    hass.states.async_set(SENSOR, 20.0)
+    await _setup(
+        hass,
+        heater=AC,
+        cooler=AC,
+        fan=AC,
+        keep_alive=timedelta(minutes=1),
+        initial_hvac_mode=HVACMode.OFF,
+    )
+    child = await common.add_fake_climate(hass, AC, assumed=True)
+
+    common.async_fire_time_changed(hass, dt_util.utcnow() + timedelta(minutes=2))
+    await hass.async_block_till_done()
+
+    assert [c[0] for c in child.calls].count("turn_off") == 1

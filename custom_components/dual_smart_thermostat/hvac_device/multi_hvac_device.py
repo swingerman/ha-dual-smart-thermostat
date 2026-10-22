@@ -4,7 +4,7 @@ from typing import Callable
 from homeassistant.components.climate import HVACAction, HVACMode
 from homeassistant.core import Context, HomeAssistant, State, callback
 
-from ..climate_roles import is_climate_entity
+from ..climate_roles import may_share_entity
 from ..hvac_action_reason.hvac_action_reason import HVACActionReason
 from ..hvac_device.controllable_hvac_device import ControlableHVACDevice
 from ..hvac_device.hvac_device import HVACDevice
@@ -198,7 +198,7 @@ class MultiHvacDevice(HVACDevice, ControlableHVACDevice):
             for entity_id in device.get_device_ids()
             # A climate's stop is scoped to the role's own mode, so sharing one
             # needs no protection (and would leave it in the old mode).
-            if not is_climate_entity(entity_id)
+            if not may_share_entity(entity_id)
         }
 
         for device in self.hvac_devices:
@@ -230,12 +230,19 @@ class MultiHvacDevice(HVACDevice, ControlableHVACDevice):
             await device.async_stop(keep_alive=keep_alive)
 
     async def async_turn_off_all(self, time):
+        keep_alive = time is not None
+        stopped: set[str] = set()  # climates already stopped on this tick
         for device in self.hvac_devices:
-            if time is not None:
+            if keep_alive:
                 # Keep-alive: resend turn_off whether or not it looks active.
                 # If a switch still reads on afterwards, the stop below repeats it.
                 await device.async_turn_off()
-            await device.async_stop(keep_alive=time is not None)
+                ids = set(device.get_device_ids())
+                if ids and all(may_share_entity(i) for i in ids):
+                    if ids <= stopped:
+                        continue  # one off frame per shared climate, not one per role
+                    stopped |= ids
+            await device.async_stop(keep_alive=keep_alive)
 
     async def _async_check_device_initial_state(self) -> None:
         """Child devices on_startup handles this."""

@@ -25,6 +25,7 @@ from homeassistant.components.climate import (
     ATTR_MAX_TEMP,
     ATTR_MIN_TEMP,
     ATTR_TARGET_TEMP_STEP,
+    DOMAIN as CLIMATE_DOMAIN,
     SERVICE_SET_FAN_MODE,
     SERVICE_SET_HVAC_MODE,
     SERVICE_SET_TEMPERATURE,
@@ -51,7 +52,7 @@ from homeassistant.exceptions import ConditionError
 from homeassistant.helpers import condition
 from homeassistant.util import dt as dt_util
 
-from ..climate_roles import CLIMATE_DOMAIN, is_climate_entity
+from ..climate_roles import is_climate_entity
 from ..const import ControlStyle
 
 _LOGGER = logging.getLogger(__name__)

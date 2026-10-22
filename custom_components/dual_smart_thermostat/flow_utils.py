@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from .climate_roles import is_climate_entity, sensor_required
+from .climate_roles import may_share_entity, sensor_required
 from .const import (
     ATTR_CLOSING_TIMEOUT,
     ATTR_OPENING_TIMEOUT,
@@ -39,9 +39,9 @@ class EntityValidator:
         cooler = user_input.get(CONF_COOLER)
 
         # A climate entity is legitimately several roles and its own temperature source.
-        if heater and sensor and heater == sensor and not is_climate_entity(heater):
+        if heater and sensor and heater == sensor and not may_share_entity(heater):
             errors["base"] = "same_heater_sensor"
-        elif heater and cooler and heater == cooler and not is_climate_entity(heater):
+        elif heater and cooler and heater == cooler and not may_share_entity(heater):
             errors["base"] = "same_heater_cooler"
         elif sensor_required(user_input):
             errors["base"] = "sensor_required"
