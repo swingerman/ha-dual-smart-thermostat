@@ -59,7 +59,7 @@ async def test_make_port_returns_switch_port_for_switch_like(
 ) -> None:
     """Switch-like entities get a SwitchPort that reads on/off."""
     hass.states.async_set("switch.heater", STATE_OFF)
-    port = make_port(hass, "switch.heater", role_mode=lambda: None, target=lambda: None)
+    port = make_port(hass, _RoleDevice("switch.heater"))
     assert isinstance(port, SwitchPort)
     assert port.is_active is False
     hass.states.async_set("switch.heater", STATE_ON)
@@ -69,7 +69,7 @@ async def test_make_port_returns_switch_port_for_switch_like(
 async def test_switch_port_valve_is_active_when_open(hass: HomeAssistant) -> None:
     """A valve counts as active while open."""
     hass.states.async_set("valve.loop", "open")
-    port = make_port(hass, "valve.loop", role_mode=lambda: None, target=lambda: None)
+    port = make_port(hass, _RoleDevice("valve.loop"))
     assert port.is_active is True
 
 
@@ -79,21 +79,50 @@ async def test_switch_port_skips_command_when_unavailable(
     """No service call goes to an unavailable switch."""
     calls = setup_switch(hass, True, "switch.heater")
     hass.states.async_set("switch.heater", "unavailable")
-    port = make_port(hass, "switch.heater", role_mode=lambda: None, target=lambda: None)
+    port = make_port(hass, _RoleDevice("switch.heater"))
 
     await port.async_turn_off(None)
 
     assert calls == []
 
 
-def _port(hass, entity_id, mode, target=lambda: 24.0, *, offset=0.0):
-    # offset is read lazily through a callable (a heat pump switches between two keys)
-    return make_port(
-        hass,
+class _RoleDevice:
+    """The few things a port asks its device for (see entity_port.py)."""
+
+    def __init__(
+        self,
         entity_id,
-        role_mode=lambda: mode,
-        target=target,
-        offset=lambda: offset,
+        modes=(HVACMode.HEAT,),
+        *,
+        target=lambda: 24.0,
+        offset=0.0,
+        style=ControlStyle.ON_OFF,
+    ):
+        self.entity_id = entity_id
+        self._modes = modes
+        self._target = target
+        self._offset = offset
+        self._style = style
+
+    def role_modes(self):
+        return self._modes
+
+    def climate_target(self):
+        return self._target()
+
+    def setpoint_offset(self):
+        return self._offset
+
+    def control_style(self):
+        return self._style
+
+    def fan_speed(self):
+        return None
+
+
+def _port(hass, entity_id, mode, target=lambda: 24.0, *, offset=0.0):
+    return make_port(
+        hass, _RoleDevice(entity_id, (mode,), target=target, offset=offset)
     )
 
 
@@ -168,7 +197,7 @@ async def test_stop_on_a_switch_only_acts_when_it_is_running(
 ) -> None:
     """A switch's stop keeps today's behaviour: only when it is on."""
     calls = setup_switch(hass, False, "switch.heater")
-    port = make_port(hass, "switch.heater", role_mode=lambda: None, target=lambda: None)
+    port = make_port(hass, _RoleDevice("switch.heater"))
     await port.async_stop(None)
     assert calls == []
 
@@ -421,7 +450,7 @@ async def test_fan_and_dryer_roles_use_their_climate_mode(
 
 def test_role_mode_is_abstract() -> None:
     """A device class cannot be built without a role mode."""
-    assert "role_mode" in GenericHVACDevice.__abstractmethods__
+    assert "role_modes" in GenericHVACDevice.__abstractmethods__
 
 
 async def test_hvac_off_stops_a_child_running_a_mode_no_role_owns(
@@ -481,7 +510,7 @@ async def test_hvac_off_sends_nothing_to_a_switch_that_is_already_off(
 async def test_valve_ran_long_enough_when_open(hass: HomeAssistant, freezer) -> None:
     """A valve reports open/closed, so min cycle must be measured against open."""
     hass.states.async_set("valve.loop", "open")
-    port = make_port(hass, "valve.loop", role_mode=lambda: None, target=lambda: None)
+    port = make_port(hass, _RoleDevice("valve.loop"))
     freezer.tick(timedelta(minutes=6))
 
     assert port.ran_long_enough(timedelta(minutes=5)) is True
@@ -529,7 +558,7 @@ async def test_keep_alive_stop_on_a_switch_only_acts_when_it_is_running(
 ) -> None:
     """A switch's state is trustworthy: keep-alive stop keeps master's rule (#587)."""
     calls = setup_switch(hass, False, "switch.heater")
-    port = make_port(hass, "switch.heater", role_mode=lambda: None, target=lambda: None)
+    port = make_port(hass, _RoleDevice("switch.heater"))
 
     await port.async_stop(None, keep_alive=True)
 
@@ -1068,10 +1097,12 @@ async def test_setpoint_port_keeps_the_users_min_cycle(hass: HomeAssistant) -> N
     await common.add_fake_climate(hass, "climate.test_ac", HVACMode.HEAT)
     port = make_port(
         hass,
-        "climate.test_ac",
-        role_mode=lambda: HVACMode.HEAT,
-        target=lambda: 22.0,
-        style=ControlStyle.SETPOINT,
+        _RoleDevice(
+            "climate.test_ac",
+            (HVACMode.HEAT,),
+            target=lambda: 22.0,
+            style=ControlStyle.SETPOINT,
+        ),
     )
 
     assert port.ran_long_enough(timedelta(minutes=5)) is False
@@ -1644,7 +1675,7 @@ async def test_failed_fan_speed_reapply_does_not_abort_the_control_cycle(
     assert hass.states.get(AC).state == HVACMode.COOL
     # handled where it happens (logged), not left to abort the control cycle
     assert any(
-        r.name.endswith("entity_port") and "fan speed" in r.getMessage()
+        r.name.endswith("entity_port") and "Failed to apply fan mode" in r.getMessage()
         for r in caplog.records
     )
 

@@ -107,12 +107,12 @@ class HeatPumpDevice(GenericHVACDevice):
         else:
             return self._target_env_attr
 
-    def role_mode(self) -> HVACMode:
-        return HVACMode.COOL if self._heat_pump_is_cooling else HVACMode.HEAT
-
-    def owned_modes(self) -> tuple[HVACMode, ...]:
-        # Running in either mode counts, so a flip of the cooling flag still
-        # finds the child active and stops it, as it does for a switch.
+    def role_modes(self) -> tuple[HVACMode, ...]:
+        # Running in either mode counts, so a flip of the cooling flag still finds
+        # the child active and stops it, as it does for a switch; the first entry
+        # is the mode to command now.
+        if self._heat_pump_is_cooling:
+            return (HVACMode.COOL, HVACMode.HEAT)
         return (HVACMode.HEAT, HVACMode.COOL)
 
     def setpoint_offset(self) -> float:

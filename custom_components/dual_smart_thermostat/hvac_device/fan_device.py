@@ -20,8 +20,8 @@ class FanDevice(CoolerDevice):
     fan_air_surce_outside = False
     pushes_setpoint = False
 
-    def role_mode(self) -> HVACMode:
-        return HVACMode.FAN_ONLY
+    def role_modes(self) -> tuple[HVACMode, ...]:
+        return (HVACMode.FAN_ONLY,)
 
     def __init__(
         self,
@@ -51,32 +51,8 @@ class FanDevice(CoolerDevice):
         # Fan speed control capabilities (detected on construction)
         self.speed = FanSpeedControl(hass, entity_id)
 
-    async def async_turn_on(self):
-        """Turn on the fan and apply the selected fan mode."""
-        # First turn on the fan using parent class logic
-        await super().async_turn_on()
-
-        # Then apply fan mode if supported and a mode is set
-        # A climate's port already re-applied the speed after setting the mode.
-        if (
-            not self.speed.is_climate
-            and self.speed.supports_fan_mode
-            and self.speed.current_fan_mode is not None
-        ):
-            _LOGGER.debug(
-                "Applying fan mode %s after turning on %s",
-                self.speed.current_fan_mode,
-                self.entity_id,
-            )
-            try:
-                await self.speed.async_set_fan_mode(self.speed.current_fan_mode)
-            except Exception as e:
-                _LOGGER.warning(
-                    "Failed to apply fan mode %s after turning on %s: %s",
-                    self.speed.current_fan_mode,
-                    self.entity_id,
-                    e,
-                )
+    def fan_speed(self) -> FanSpeedControl:
+        return self.speed
 
     @property
     def hvac_action(self) -> HVACAction:

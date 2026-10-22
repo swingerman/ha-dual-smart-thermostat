@@ -60,22 +60,7 @@ class GenericHVACDevice(
         self.entity_id = entity_id
         self.min_cycle_duration = min_cycle_duration
 
-        self.port = make_port(
-            hass,
-            entity_id,
-            role_mode=self.role_mode,
-            target=self.climate_target,
-            offset=self.setpoint_offset,
-            owned_modes=self.owned_modes,
-            # lazy: the factory picks the control after the devices are built
-            fan_speed=lambda: features.fan_speed,
-            # Only a role that pushes a setpoint can leave the regulating to the child.
-            style=(
-                features.climate_control_style
-                if self.pushes_setpoint
-                else ControlStyle.ON_OFF
-            ),
-        )
+        self.port = make_port(hass, self)
 
         self.hvac_controller: HvacController = GenericHvacController(
             self.port,
@@ -113,12 +98,18 @@ class GenericHVACDevice(
         return [self.entity_id]
 
     @abstractmethod
-    def role_mode(self) -> HVACMode:
-        """The hvac mode a climate entity must be in to serve this role."""
+    def role_modes(self) -> tuple[HVACMode, ...]:
+        """Climate modes that count as this role running; the first is commanded."""
 
-    def owned_modes(self) -> tuple[HVACMode, ...]:
-        """Climate modes in which this role counts as running."""
-        return (self.role_mode(),)
+    def control_style(self) -> ControlStyle:
+        """Only a role that pushes a setpoint can leave the regulating to the child."""
+        if self.pushes_setpoint:
+            return self.features.climate_control_style
+        return ControlStyle.ON_OFF
+
+    def fan_speed(self):
+        """The one fan speed target of the thermostat (chosen by the factory)."""
+        return self.features.fan_speed
 
     def setpoint_offset(self) -> float:
         """Offset added to the temperature pushed to a climate entity."""
@@ -298,12 +289,12 @@ class GenericHVACDevice(
         """The thermostat is being removed: release the port's resources."""
         self.port.release()
 
-    async def async_stop(self, keep_alive: bool = False) -> None:
+    async def async_stop(self, *, keep_alive: bool = False) -> None:
         """DST is Off: the entity must end up off, whatever it was doing."""
         if self.entity_id is None:
             return
 
-        await self.port.async_stop(self._context, keep_alive)
+        await self.port.async_stop(self._context, keep_alive=keep_alive)
 
         self.hvac_power.update_hvac_power(
             self.strategy, self.target_env_attr, HVACAction.OFF

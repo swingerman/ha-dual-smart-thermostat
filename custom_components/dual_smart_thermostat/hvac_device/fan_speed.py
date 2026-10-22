@@ -4,13 +4,22 @@ from __future__ import annotations
 
 import logging
 
-from homeassistant.components.climate import HVACMode
-from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
+from homeassistant.components.climate import ATTR_FAN_MODE, ATTR_FAN_MODES
+from homeassistant.components.fan import (
+    ATTR_PERCENTAGE,
+    ATTR_PRESET_MODE,
+    ATTR_PRESET_MODES,
+    DOMAIN as FAN_DOMAIN,
+    SERVICE_SET_PERCENTAGE,
+    SERVICE_SET_PRESET_MODE,
+)
+from homeassistant.components.switch import DOMAIN as SWITCH_DOMAIN
+from homeassistant.const import ATTR_ENTITY_ID
 from homeassistant.core import HomeAssistant, State, callback
 
-from ..climate_roles import is_climate_entity
+from ..climate_roles import CLIMATE_DOMAIN, is_climate_entity
 from ..const import FAN_MODE_TO_PERCENTAGE
-from .entity_port import peek_climate_child
+from .entity_port import ClimateChild, peek_climate_child
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -38,13 +47,13 @@ class FanSpeedControl:
 
         # Check domain - only "fan" domain supports speed control
         entity_domain = fan_state.domain
-        if entity_domain == "switch":
+        if entity_domain == SWITCH_DOMAIN:
             _LOGGER.debug("Fan entity %s is a switch, no speed control", self.entity_id)
             return
 
-        if entity_domain == "fan":
+        if entity_domain == FAN_DOMAIN:
             # Check for preset_mode support
-            preset_modes = fan_state.attributes.get("preset_modes")
+            preset_modes = fan_state.attributes.get(ATTR_PRESET_MODES)
             if preset_modes:
                 self.fan_modes = list(preset_modes)
                 self.uses_preset_modes = True
@@ -54,13 +63,13 @@ class FanSpeedControl:
                     self.fan_modes,
                 )
                 # Set initial mode from entity state
-                current_preset = fan_state.attributes.get("preset_mode")
+                current_preset = fan_state.attributes.get(ATTR_PRESET_MODE)
                 if current_preset:
                     self.current_fan_mode = current_preset
                 return
 
             # Check for percentage support
-            percentage = fan_state.attributes.get("percentage")
+            percentage = fan_state.attributes.get(ATTR_PERCENTAGE)
             if percentage is not None:
                 self.fan_modes = ["auto", "low", "medium", "high"]
                 self.uses_preset_modes = False
@@ -72,12 +81,12 @@ class FanSpeedControl:
                 self.current_fan_mode = "auto"
                 return
 
-        if entity_domain == "climate":
-            fan_modes = fan_state.attributes.get("fan_modes")
+        if entity_domain == CLIMATE_DOMAIN:
+            fan_modes = fan_state.attributes.get(ATTR_FAN_MODES)
             if fan_modes:
                 self.fan_modes = list(fan_modes)  # verbatim: quiet / strong survive
                 self.uses_preset_modes = True
-                self.current_fan_mode = fan_state.attributes.get("fan_mode")
+                self.current_fan_mode = fan_state.attributes.get(ATTR_FAN_MODE)
                 _LOGGER.info(
                     "Climate entity %s supports fan modes: %s",
                     self.entity_id,
@@ -112,18 +121,12 @@ class FanSpeedControl:
         so a separate fan entity, or another climate, is never touched.
         """
         if (
-            not self._is_climate
-            or entity_id != self.entity_id
+            entity_id != self.entity_id
             or not self.supports_fan_mode
             or self.current_fan_mode is None
         ):
             return
         await self.async_set_fan_mode(self.current_fan_mode)
-
-    @property
-    def is_climate(self) -> bool:
-        """Return if the speed is set on a climate entity."""
-        return self._is_climate
 
     @property
     def supports_fan_mode(self) -> bool:
@@ -175,35 +178,18 @@ class FanSpeedControl:
         _LOGGER.debug("Setting fan mode to %s for entity %s", fan_mode, self.entity_id)
 
         if self._is_climate:
-            state = self.hass.states.get(self.entity_id)
-            assumed = bool(state and state.attributes.get("assumed_state"))
-            # Is the child running? An assumed-state (IR) child never reports it,
-            # so its mode is DST's own record (the shared ClimateChild), if any.
-            child = peek_climate_child(self.hass, self.entity_id)
-            mode = child.mode if child is not None else state and state.state
-            # An off or unavailable child gets nothing now: the selection is only
-            # recorded and async_reapply sends it on the next turn on. An IR frame
-            # could otherwise power the AC on while the thermostat is Off.
-            if mode in (None, False, HVACMode.OFF, STATE_UNAVAILABLE, STATE_UNKNOWN):
-                self.current_fan_mode = fan_mode
-                return
-            # A reported-state child that already has it needs no call; an
-            # assumed-state one cannot tell us, so it is always sent.
-            if not assumed and state.attributes.get("fan_mode") == fan_mode:
-                self.current_fan_mode = fan_mode
-                return
-            await self.hass.services.async_call(
-                "climate",
-                "set_fan_mode",
-                {"entity_id": self.entity_id, "fan_mode": fan_mode},
-                blocking=True,
+            # The shared child decides whether the AC is running (and sends it);
+            # otherwise the selection is only recorded below for the next turn on.
+            child = peek_climate_child(self.hass, self.entity_id) or ClimateChild(
+                self.hass, self.entity_id
             )
+            await child.async_set_fan_mode(fan_mode, None)
         elif self.uses_preset_modes:
             # Use preset_mode service
             await self.hass.services.async_call(
-                "fan",
-                "set_preset_mode",
-                {"entity_id": self.entity_id, "preset_mode": fan_mode},
+                FAN_DOMAIN,
+                SERVICE_SET_PRESET_MODE,
+                {ATTR_ENTITY_ID: self.entity_id, ATTR_PRESET_MODE: fan_mode},
                 blocking=True,
             )
         else:
@@ -214,9 +200,9 @@ class FanSpeedControl:
                 return
 
             await self.hass.services.async_call(
-                "fan",
-                "set_percentage",
-                {"entity_id": self.entity_id, "percentage": percentage},
+                FAN_DOMAIN,
+                SERVICE_SET_PERCENTAGE,
+                {ATTR_ENTITY_ID: self.entity_id, ATTR_PERCENTAGE: percentage},
                 blocking=True,
             )
 

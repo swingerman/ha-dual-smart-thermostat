@@ -19,8 +19,8 @@ class CoolerDevice(GenericHVACDevice):
 
     hvac_modes = [HVACMode.COOL, HVACMode.OFF]
 
-    def role_mode(self) -> HVACMode:
-        return HVACMode.COOL
+    def role_modes(self) -> tuple[HVACMode, ...]:
+        return (HVACMode.COOL,)
 
     def setpoint_offset(self) -> float:
         return self.features.cooler_setpoint_offset

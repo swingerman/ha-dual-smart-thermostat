@@ -19,8 +19,8 @@ class HeaterDevice(GenericHVACDevice):
 
     hvac_modes = [HVACMode.HEAT, HVACMode.OFF]
 
-    def role_mode(self) -> HVACMode:
-        return HVACMode.HEAT
+    def role_modes(self) -> tuple[HVACMode, ...]:
+        return (HVACMode.HEAT,)
 
     def setpoint_offset(self) -> float:
         return self.features.heater_setpoint_offset

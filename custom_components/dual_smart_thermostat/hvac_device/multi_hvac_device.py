@@ -225,9 +225,9 @@ class MultiHvacDevice(HVACDevice, ControlableHVACDevice):
         for device in self.hvac_devices:
             device.release()
 
-    async def async_stop(self, keep_alive: bool = False):
+    async def async_stop(self, *, keep_alive: bool = False):
         for device in self.hvac_devices:
-            await device.async_stop(keep_alive)
+            await device.async_stop(keep_alive=keep_alive)
 
     async def async_turn_off_all(self, time):
         for device in self.hvac_devices:

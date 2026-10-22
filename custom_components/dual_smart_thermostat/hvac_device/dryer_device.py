@@ -22,8 +22,8 @@ class DryerDevice(GenericHVACDevice):
 
     hvac_modes = [HVACMode.DRY, HVACMode.OFF]
 
-    def role_mode(self) -> HVACMode:
-        return HVACMode.DRY
+    def role_modes(self) -> tuple[HVACMode, ...]:
+        return (HVACMode.DRY,)
 
     def __init__(
         self,
