@@ -8,14 +8,22 @@ or call its services themselves.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from datetime import timedelta
+import asyncio
+from datetime import datetime, timedelta
 import logging
 from typing import Callable
 
-from homeassistant.components.climate import HVACMode
+from homeassistant.components.climate import (
+    ATTR_HVAC_MODE,
+    SERVICE_SET_HVAC_MODE,
+    SERVICE_SET_TEMPERATURE,
+    ClimateEntityFeature,
+    HVACMode,
+)
 from homeassistant.components.valve import DOMAIN as VALVE_DOMAIN, ValveEntityFeature
 from homeassistant.const import (
     ATTR_ENTITY_ID,
+    ATTR_TEMPERATURE,
     SERVICE_CLOSE_VALVE,
     SERVICE_OPEN_VALVE,
     SERVICE_TURN_OFF,
@@ -28,6 +36,9 @@ from homeassistant.const import (
 from homeassistant.core import DOMAIN as HA_DOMAIN, Context, HomeAssistant, State
 from homeassistant.exceptions import ConditionError
 from homeassistant.helpers import condition
+from homeassistant.util import dt as dt_util
+
+from ..climate_roles import CLIMATE_DOMAIN, is_climate_entity
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -158,6 +169,199 @@ class SwitchPort(EntityPort):
             )
 
 
+_CHILDREN_KEY = "dual_smart_thermostat_climate_children"
+
+
+class ClimateChild:
+    """One real climate entity. The only record of its mode, shared by every role.
+
+    Roles never store "am I on": they ask the child, so two roles on the same
+    climate cannot both be active. A non-assumed child's reported state is the
+    truth. An assumed_state child (IR) never confirms anything, so there DST's
+    own last command is the truth.
+    """
+
+    def __init__(self, hass: HomeAssistant, entity_id: str) -> None:
+        self.hass = hass
+        self.entity_id = entity_id
+        self._lock = asyncio.Lock()
+        self._commanded: str | None = None
+        self._commanded_at: datetime | None = None
+        self._warned: set[str] = set()
+
+    @property
+    def state(self) -> State | None:
+        return self.hass.states.get(self.entity_id)
+
+    @property
+    def available(self) -> bool:
+        state = self.state
+        return state is not None and state.state not in (
+            STATE_UNAVAILABLE,
+            STATE_UNKNOWN,
+        )
+
+    @property
+    def assumed(self) -> bool:
+        state = self.state
+        return bool(state and state.attributes.get("assumed_state"))
+
+    def _adopt_reported(self) -> None:
+        """First sight of an assumed child: start from what HA restored."""
+        if self._commanded is None and self.available:
+            self._commanded = self.state.state
+            self._commanded_at = self.state.last_changed
+
+    @property
+    def mode(self) -> str | None:
+        if not self.available:
+            return None
+        if self.assumed:
+            self._adopt_reported()
+            return self._commanded
+        return self.state.state
+
+    @property
+    def since(self) -> datetime | None:
+        if not self.available:
+            return None
+        if self.assumed:
+            self._adopt_reported()
+            return self._commanded_at
+        return self.state.last_changed
+
+    async def async_set_mode(self, mode: str, context: Context | None) -> bool:
+        """Command a mode. False when nothing was sent or the call failed."""
+        async with self._lock:
+            if not self.available:
+                _LOGGER.debug(
+                    "Skipping set_hvac_mode for unavailable %s", self.entity_id
+                )
+                return False
+            supported = self.state.attributes.get("hvac_modes")
+            if supported is not None and mode not in supported:
+                if mode not in self._warned:
+                    self._warned.add(mode)
+                    _LOGGER.warning(
+                        "%s does not support hvac mode %s, not sending it",
+                        self.entity_id,
+                        mode,
+                    )
+                return False
+            # A reported state already in this mode makes a resend pointless; an
+            # assumed device cannot report, so keep-alive resends are the point.
+            if not self.assumed and self.state.state == mode:
+                return True
+            before = (self._commanded, self._commanded_at)
+            self._commanded, self._commanded_at = mode, dt_util.utcnow()
+            try:
+                await self.hass.services.async_call(
+                    CLIMATE_DOMAIN,
+                    SERVICE_SET_HVAC_MODE,
+                    {ATTR_ENTITY_ID: self.entity_id, ATTR_HVAC_MODE: mode},
+                    context=context,
+                    blocking=True,
+                )
+            except Exception as e:
+                _LOGGER.error(
+                    "Error setting %s on %s. Error: %s", mode, self.entity_id, e
+                )
+                self._commanded, self._commanded_at = before
+                return False
+            return True
+
+    async def async_turn_off(self, context: Context | None) -> None:
+        async with self._lock:
+            if not self.available:
+                return
+            before = (self._commanded, self._commanded_at)
+            self._commanded, self._commanded_at = HVACMode.OFF, dt_util.utcnow()
+            try:
+                await self.hass.services.async_call(
+                    CLIMATE_DOMAIN,
+                    SERVICE_TURN_OFF,
+                    {ATTR_ENTITY_ID: self.entity_id},
+                    context=context,
+                    blocking=True,
+                )
+            except Exception as e:
+                _LOGGER.error("Error turning off %s. Error: %s", self.entity_id, e)
+                self._commanded, self._commanded_at = before
+
+    async def async_push_target(self, value: float, context: Context | None) -> None:
+        async with self._lock:
+            if not self.available:
+                return
+            features = self.state.attributes.get("supported_features")
+            if (
+                features is not None
+                and not features & ClimateEntityFeature.TARGET_TEMPERATURE
+            ):
+                return
+            try:
+                await self.hass.services.async_call(
+                    CLIMATE_DOMAIN,
+                    SERVICE_SET_TEMPERATURE,
+                    {ATTR_ENTITY_ID: self.entity_id, ATTR_TEMPERATURE: value},
+                    context=context,
+                    blocking=True,
+                )
+            except Exception as e:
+                _LOGGER.error(
+                    "Error setting target on %s. Error: %s", self.entity_id, e
+                )
+
+
+def climate_child(hass: HomeAssistant, entity_id: str) -> ClimateChild:
+    """Get or create the single ClimateChild for a real climate entity."""
+    children = hass.data.setdefault(_CHILDREN_KEY, {})
+    if entity_id not in children:
+        children[entity_id] = ClimateChild(hass, entity_id)
+    return children[entity_id]
+
+
+class ClimatePort(EntityPort):
+    """One role's view of a (possibly shared) climate entity."""
+
+    def __init__(
+        self,
+        child: ClimateChild,
+        role_mode: Callable[[], HVACMode | None],
+        target: Callable[[], float | None],
+    ) -> None:
+        self._child = child
+        self._role_mode = role_mode
+        self._target = target
+        self.entity_id = child.entity_id
+
+    @property
+    def is_active(self) -> bool:
+        mode = self._role_mode()
+        return mode is not None and self._child.mode == mode
+
+    def ran_long_enough(self, min_cycle: timedelta) -> bool:
+        since = self._child.since
+        return since is not None and dt_util.utcnow() - since >= min_cycle
+
+    async def async_turn_on(self, context: Context | None) -> None:
+        if not await self._child.async_set_mode(self._role_mode(), context):
+            return
+        target = self._target()
+        if target is not None:
+            await self._child.async_push_target(target, context)
+
+    async def async_turn_off(self, context: Context | None) -> None:
+        # Only the role the child is currently serving may stop it, so an idle
+        # cooler's keep-alive can never switch off the heater on the same device.
+        if self.is_active:
+            await self._child.async_turn_off(context)
+
+    async def async_stop(self, context: Context | None) -> None:
+        # Off means off: whatever mode the child is in, even one no role owns.
+        if self._child.mode not in (None, HVACMode.OFF):
+            await self._child.async_turn_off(context)
+
+
 def make_port(
     hass: HomeAssistant,
     entity_id: str,
@@ -166,4 +370,10 @@ def make_port(
     target: Callable[[], float | None],
 ) -> EntityPort:
     """Build the port for a role from the entity domain."""
+    if is_climate_entity(entity_id):
+        if role_mode() is None:
+            raise ValueError(
+                f"{entity_id}: this device role cannot be backed by a climate entity"
+            )
+        return ClimatePort(climate_child(hass, entity_id), role_mode, target)
     return SwitchPort(hass, entity_id)

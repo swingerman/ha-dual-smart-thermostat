@@ -539,6 +539,7 @@ class FakeClimateChild(ClimateEntity):
 
     async def async_set_temperature(self, **kwargs):
         """Record the call; follow it unless assumed."""
+        kwargs.pop("entity_id", None)  # the service layer adds it
         self.calls.append(("set_temperature", dict(kwargs)))
         if "temperature" in kwargs and not self._attr_assumed_state:
             self._attr_target_temperature = kwargs["temperature"]
