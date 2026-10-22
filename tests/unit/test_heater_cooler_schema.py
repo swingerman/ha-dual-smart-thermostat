@@ -16,17 +16,23 @@ from custom_components.dual_smart_thermostat.const import (
     CONF_DRYER,
     CONF_FAN,
     CONF_HEAT_COOL_MODE,
+    CONF_HEAT_PUMP_COOLING,
     CONF_HEATER,
     CONF_HOT_TOLERANCE,
     CONF_HUMIDITY_SENSOR,
     CONF_MIN_DUR,
     CONF_SENSOR,
+    CONF_SYSTEM_TYPE,
 )
 from custom_components.dual_smart_thermostat.schemas import (
+    get_basic_ac_schema,
+    get_core_schema,
     get_dual_stage_schema,
     get_fan_schema,
+    get_heat_pump_schema,
     get_heater_cooler_schema,
     get_humidity_schema,
+    get_simple_heater_schema,
 )
 
 
@@ -235,3 +241,41 @@ def test_aux_heater_still_rejects_climate_entity():
         get_dual_stage_schema()(
             {CONF_HEATER: "switch.h", CONF_AUX_HEATER: "climate.ac"}
         )
+
+
+@pytest.mark.parametrize(
+    ("factory", "entities"),
+    [
+        (
+            get_heater_cooler_schema,
+            {CONF_HEATER: "switch.h", CONF_COOLER: "climate.ac"},
+        ),
+        (
+            get_heat_pump_schema,
+            {CONF_HEATER: "climate.hp", CONF_HEAT_PUMP_COOLING: "binary_sensor.c"},
+        ),
+        (get_simple_heater_schema, {CONF_HEATER: "climate.ac"}),
+        (get_basic_ac_schema, {CONF_HEATER: "climate.ac"}),
+    ],
+)
+def test_form_without_sensor_validates_with_flow_defaults(factory, entities):
+    """The flow's defaults always hold system_type, never a sensor: the empty sensor
+    field must not become a None default that HA's validation rejects."""
+    schema = factory(defaults={CONF_SYSTEM_TYPE: "x"}, include_name=True)
+
+    validated = schema({CONF_NAME: "T", **entities})
+
+    assert not validated.get(CONF_SENSOR)
+
+
+def test_core_schema_without_sensor_validates_with_flow_defaults():
+    """get_core_schema has the same sensor default rule."""
+    schema = get_core_schema(
+        "heater_cooler", defaults={CONF_SYSTEM_TYPE: "heater_cooler"}, include_name=True
+    )
+
+    validated = schema(
+        {CONF_NAME: "T", CONF_HEATER: "switch.h", CONF_COOLER: "climate.ac"}
+    )
+
+    assert not validated.get(CONF_SENSOR)

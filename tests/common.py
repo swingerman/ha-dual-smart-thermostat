@@ -581,3 +581,12 @@ async def add_fake_climate(hass, entity_id, mode=HVACMode.OFF, **kwargs):
     await platform.async_add_entities([child])
     await hass.async_block_till_done()
     return child
+
+
+def validate_form_input(result, user_input):
+    """Validate user_input through the form's real data_schema, as HA does.
+
+    Flow tests call step methods directly, which skips schema validation; use this
+    on the form a step returned before submitting to the next call.
+    """
+    return result["data_schema"](user_input)

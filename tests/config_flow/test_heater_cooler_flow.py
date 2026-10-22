@@ -27,6 +27,7 @@ from custom_components.dual_smart_thermostat.const import (
     DOMAIN,
     SYSTEM_TYPE_HEATER_COOLER,
 )
+from tests.common import validate_form_input  # noqa: E402
 
 
 @pytest.fixture
@@ -680,3 +681,61 @@ class TestClimateControlStep:
 
         assert result["step_id"] == "climate_control"
         assert result["errors"] == {"base": "setpoint_heat_cool_shared_climate"}
+
+    async def test_climate_only_setup_passes_the_real_form_schema(self, mock_hass):
+        """What HA runs: the submitted input goes through the form's data_schema."""
+        flow = ConfigFlowHandler()
+        flow.hass = mock_hass
+        flow.collected_config = {CONF_SYSTEM_TYPE: SYSTEM_TYPE_HEATER_COOLER}
+        form = await flow.async_step_heater_cooler()
+
+        validated = validate_form_input(
+            form,
+            {
+                CONF_NAME: "T",
+                CONF_HEATER: "switch.h",
+                CONF_COOLER: "climate.ac",
+                CONF_HEAT_COOL_MODE: False,
+            },
+        )
+        result = await flow.async_step_heater_cooler(validated)
+
+        assert result["step_id"] == "climate_control"
+
+    async def test_reconfigure_can_clear_the_sensor(self, mock_hass):
+        """An emptied optional sensor field removes the old value."""
+        flow = ConfigFlowHandler()
+        flow.hass = mock_hass
+        flow.collected_config = {
+            CONF_SYSTEM_TYPE: SYSTEM_TYPE_HEATER_COOLER,
+            CONF_SENSOR: "sensor.old",
+            CONF_HEATER: "switch.h",
+            CONF_COOLER: "climate.ac",
+        }
+        form = await flow.async_step_heater_cooler()
+
+        validated = validate_form_input(
+            form,
+            {
+                CONF_NAME: "T",
+                CONF_HEATER: "switch.h",
+                CONF_COOLER: "climate.ac",
+                CONF_HEAT_COOL_MODE: False,
+            },
+        )
+        await flow.async_step_heater_cooler(validated)
+
+        assert CONF_SENSOR not in flow.collected_config
+
+    async def test_floor_heating_without_sensor_shows_the_error(self, mock_hass):
+        """The floor_heating basic step uses the one validator."""
+        flow = ConfigFlowHandler()
+        flow.hass = mock_hass
+        flow.collected_config = {CONF_SYSTEM_TYPE: "floor_heating"}
+
+        result = await flow.async_step_floor_heating(
+            {CONF_NAME: "T", CONF_HEATER: "switch.h"}
+        )
+
+        assert result["step_id"] == "floor_heating"
+        assert result["errors"] == {"base": "sensor_required"}

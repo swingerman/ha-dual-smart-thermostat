@@ -28,6 +28,7 @@ from .const import (
     CONF_HUMIDITY_SENSOR,
     CONF_PRECISION,
     CONF_PRESETS,
+    CONF_SENSOR,
     CONF_SYSTEM_TYPE,
     CONF_TEMP_STEP,
     DOMAIN,
@@ -321,7 +322,7 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
                 if system_type == SystemType.AC_ONLY:
                     user_input[CONF_AC_MODE] = True
 
-                self.collected_config.update(user_input)
+                self._collect_entity_input(user_input)
                 return await self._determine_next_step()
 
         # Use a shared core schema so config and options flows render the
@@ -365,7 +366,7 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
             else:
                 user_input[CONF_AC_MODE] = True
 
-                self.collected_config.update(user_input)
+                self._collect_entity_input(user_input)
                 return await self._determine_next_step()
 
         # Use AC-only specific schema with dedicated translations
@@ -434,7 +435,7 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
             if not await self._validate_basic_config(user_input):
                 errors = EntityValidator.get_validation_errors(user_input)
             else:
-                self.collected_config.update(user_input)
+                self._collect_entity_input(user_input)
                 return await self._determine_next_step()
 
         # Use dedicated heater+cooler schema with advanced settings in collapsible section
@@ -465,7 +466,7 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
             if not await self._validate_basic_config(user_input):
                 errors = EntityValidator.get_validation_errors(user_input)
             else:
-                self.collected_config.update(user_input)
+                self._collect_entity_input(user_input)
                 return await self._determine_next_step()
 
         # Use dedicated heat pump schema with advanced settings in collapsible section
@@ -490,7 +491,7 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
             if not await self._validate_basic_config(user_input):
                 errors = EntityValidator.get_validation_errors(user_input)
             else:
-                self.collected_config.update(user_input)
+                self._collect_entity_input(user_input)
                 return await self.async_step_dual_stage_config()
 
         # Use grouped schema merged with base schema for better UI organization
@@ -702,6 +703,12 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
         return await self.presets_steps.async_step_config(
             self, user_input, self.collected_config
         )
+
+    def _collect_entity_input(self, user_input: dict[str, Any]) -> None:
+        """Store an entity step's input; an emptied optional sensor is removed."""
+        if CONF_SENSOR not in user_input:
+            self.collected_config.pop(CONF_SENSOR, None)
+        self.collected_config.update(user_input)
 
     async def _validate_basic_config(self, user_input: dict[str, Any]) -> bool:
         """Validate basic configuration."""

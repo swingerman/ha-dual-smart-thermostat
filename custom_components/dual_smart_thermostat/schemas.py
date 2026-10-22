@@ -198,6 +198,20 @@ def get_system_type_schema(default: str | None = None):
     )
 
 
+def _sensor_field(defaults: dict[str, Any] | None) -> vol.Optional:
+    """The optional temperature sensor field, shared by every schema.
+
+    The current value is only a suggestion: a default would put None into an
+    empty form (rejected by the entity selector) and would refill a field the
+    user emptied, so a climate device's own temperature could never be chosen
+    over an old sensor.
+    """
+    sensor = (defaults or {}).get(CONF_SENSOR)
+    return vol.Optional(
+        CONF_SENSOR, description={"suggested_value": sensor} if sensor else None
+    )
+
+
 def get_base_schema():
     """Get base configuration schema with logically grouped fields."""
     return vol.Schema(
@@ -335,12 +349,7 @@ def get_basic_ac_schema(hass=None, defaults=None, include_name=True):
         ] = get_text_selector()
 
     # Sensors
-    core_schema[
-        vol.Optional(
-            CONF_SENSOR,
-            default=defaults.get(CONF_SENSOR) if defaults else vol.UNDEFINED,
-        )
-    ] = get_entity_selector(SENSOR_DOMAIN)
+    core_schema[_sensor_field(defaults)] = get_entity_selector(SENSOR_DOMAIN)
 
     # Air conditioning switch (using heater field for backward compatibility)
     core_schema[
@@ -384,12 +393,7 @@ def get_simple_heater_schema(hass=None, defaults=None, include_name=True):
         ] = get_text_selector()
 
     # Sensors
-    core_schema[
-        vol.Optional(
-            CONF_SENSOR,
-            default=defaults.get(CONF_SENSOR) if defaults else vol.UNDEFINED,
-        )
-    ] = get_entity_selector(SENSOR_DOMAIN)
+    core_schema[_sensor_field(defaults)] = get_entity_selector(SENSOR_DOMAIN)
 
     # Heater switch
     core_schema[
@@ -434,12 +438,7 @@ def get_heater_cooler_schema(hass=None, defaults=None, include_name=True):
         ] = get_text_selector()
 
     # Sensors
-    core_schema[
-        vol.Optional(
-            CONF_SENSOR,
-            default=defaults.get(CONF_SENSOR) if defaults else vol.UNDEFINED,
-        )
-    ] = get_entity_selector(SENSOR_DOMAIN)
+    core_schema[_sensor_field(defaults)] = get_entity_selector(SENSOR_DOMAIN)
 
     # Heater switch
     core_schema[
@@ -515,12 +514,7 @@ def get_heat_pump_schema(hass=None, defaults=None, include_name=True):
         ] = get_text_selector()
 
     # Sensors
-    core_schema[
-        vol.Optional(
-            CONF_SENSOR,
-            default=defaults.get(CONF_SENSOR) if defaults else vol.UNDEFINED,
-        )
-    ] = get_entity_selector(SENSOR_DOMAIN)
+    core_schema[_sensor_field(defaults)] = get_entity_selector(SENSOR_DOMAIN)
 
     # Heat pump switch (used for both heating and cooling)
     core_schema[
@@ -834,9 +828,7 @@ def get_core_schema(
             get_text_selector()
         )
 
-    schema_dict[vol.Optional(CONF_SENSOR, default=defaults.get(CONF_SENSOR))] = (
-        get_entity_selector(SENSOR_DOMAIN)
-    )
+    schema_dict[_sensor_field(defaults)] = get_entity_selector(SENSOR_DOMAIN)
 
     # Core entities based on system type
     if system_type == "ac_only":
