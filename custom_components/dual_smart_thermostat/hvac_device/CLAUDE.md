@@ -15,7 +15,9 @@ A thermostat has exactly one fan-speed target, chosen once in the factory
 entity therefore always wins), else the first climate role, else none. It is stored with
 `features.set_fan_speed`; nothing downstream decides ownership. After every turn on of a
 climate child, `ClimatePort` asks the control to re-apply the speed (many ACs reset it on a
-mode change); the control acts only when it targets that same climate entity.
+mode change); the control acts only when it targets that same climate entity. With two
+different climates the first climate role wins (heater, cooler, fan, dryer order); the other
+one gets the fan speed by being configured as the `fan` role.
 
 Detection runs at startup **and** is retried when the fan entity's state changes, so a fan
 from an integration that connects late (ESPHome, MQTT) is picked up without a reload (#636).
