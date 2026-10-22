@@ -1364,3 +1364,90 @@ async def test_climate_heat_pump_is_stopped_when_the_flag_flips_while_heating(
     await hass.async_block_till_done()
 
     assert hass.states.get(AC).state != HVACMode.HEAT
+
+
+FAN = "fan.test_fan"
+
+
+async def test_cooler_only_ac_gets_fan_speed_control(hass: HomeAssistant) -> None:
+    """Any climate role exposes the child's fan modes, set via climate.set_fan_mode."""
+    hass.states.async_set(SENSOR, 24.0)
+    setup_switch(hass, False, HEATER)
+    await _setup(hass, heater=HEATER, cooler=AC, initial_hvac_mode=HVACMode.COOL)
+    child = await common.add_fake_climate(hass, AC)
+    await hass.async_block_till_done()
+
+    state = hass.states.get("climate.test")
+    assert state.attributes["fan_modes"] == ["quiet", "strong", "auto"]
+
+    await hass.services.async_call(
+        "climate",
+        "set_fan_mode",
+        {"entity_id": "climate.test", "fan_mode": "strong"},
+        blocking=True,
+    )
+
+    assert ("set_fan_mode", {"fan_mode": "strong"}) in child.calls
+    assert hass.states.get("climate.test").attributes["fan_mode"] == "strong"
+
+
+async def test_separate_fan_entity_owns_fan_mode_and_the_ac_is_left_alone(
+    hass: HomeAssistant,
+) -> None:
+    """Precedence is structural: a configured fan entity wins."""
+    hass.states.async_set(
+        FAN, "off", {"preset_modes": ["low", "high"], "preset_mode": "low"}
+    )
+    hass.states.async_set(SENSOR, 24.0)
+    setup_switch(hass, False, HEATER)
+    await _setup(
+        hass,
+        heater=HEATER,
+        cooler=AC,
+        fan=FAN,
+        fan_mode=True,
+        initial_hvac_mode=HVACMode.COOL,
+    )
+    child = await common.add_fake_climate(hass, AC)
+    await hass.async_block_till_done()
+
+    assert hass.states.get("climate.test").attributes["fan_modes"] == ["low", "high"]
+
+    calls = common.async_mock_service(hass, "fan", "set_preset_mode")
+    await hass.services.async_call(
+        "climate",
+        "set_fan_mode",
+        {"entity_id": "climate.test", "fan_mode": "high"},
+        blocking=True,
+    )
+
+    assert len(calls) == 1
+    assert all(c[0] != "set_fan_mode" for c in child.calls)  # AC speed untouched
+
+
+async def test_climate_fan_role_is_the_fan_speed_target(hass: HomeAssistant) -> None:
+    """A climate as the fan role provides the speed control."""
+    hass.states.async_set(SENSOR, 24.0)
+    setup_switch(hass, False, HEATER)
+    await _setup(
+        hass,
+        heater=HEATER,
+        cooler=AC,
+        fan=AC,
+        fan_mode=True,
+        initial_hvac_mode=HVACMode.COOL,
+    )
+    await common.add_fake_climate(hass, AC)
+    await hass.async_block_till_done()
+
+    state = hass.states.get("climate.test")
+    assert state.attributes["fan_modes"] == ["quiet", "strong", "auto"]
+
+
+async def test_switch_only_setup_has_no_fan_speed(hass: HomeAssistant) -> None:
+    """Nothing changes without a climate role or fan entity."""
+    hass.states.async_set(SENSOR, 24.0)
+    setup_switch(hass, False, HEATER)
+    await _setup(hass, heater=HEATER, initial_hvac_mode=HVACMode.HEAT)
+
+    assert "fan_modes" not in hass.states.get("climate.test").attributes
