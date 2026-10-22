@@ -17,6 +17,7 @@ class FanSpeedControl:
     def __init__(self, hass: HomeAssistant, entity_id: str) -> None:
         self.hass = hass
         self.entity_id = entity_id
+        self._is_climate = entity_id.startswith("climate.")
         self._supports_fan_mode = False
         self._fan_modes: list[str] = []
         self._uses_preset_modes = False
@@ -70,6 +71,20 @@ class FanSpeedControl:
                 self._current_fan_mode = "auto"
                 return
 
+        if entity_domain == "climate":
+            fan_modes = fan_state.attributes.get("fan_modes")
+            if fan_modes:
+                self._supports_fan_mode = True
+                self._fan_modes = list(fan_modes)  # verbatim: quiet / strong survive
+                self._uses_preset_modes = True
+                self._current_fan_mode = fan_state.attributes.get("fan_mode")
+                _LOGGER.info(
+                    "Climate entity %s supports fan modes: %s",
+                    self.entity_id,
+                    self._fan_modes,
+                )
+                return
+
         _LOGGER.debug("Fan entity %s does not support speed control", self.entity_id)
 
     @callback
@@ -88,6 +103,11 @@ class FanSpeedControl:
             self._pending_fan_mode = None
 
         return True
+
+    @property
+    def is_climate(self) -> bool:
+        """Return if the speed is set on a climate entity."""
+        return self._is_climate
 
     @property
     def supports_fan_mode(self) -> bool:
@@ -153,7 +173,24 @@ class FanSpeedControl:
 
         _LOGGER.debug("Setting fan mode to %s for entity %s", fan_mode, self.entity_id)
 
-        if self._uses_preset_modes:
+        if self._is_climate:
+            state = self.hass.states.get(self.entity_id)
+            # A reported-state child that already has it needs no call; an
+            # assumed-state one cannot tell us, so it is always sent.
+            if (
+                state is not None
+                and not state.attributes.get("assumed_state")
+                and state.attributes.get("fan_mode") == fan_mode
+            ):
+                self._current_fan_mode = fan_mode
+                return
+            await self.hass.services.async_call(
+                "climate",
+                "set_fan_mode",
+                {"entity_id": self.entity_id, "fan_mode": fan_mode},
+                blocking=True,
+            )
+        elif self._uses_preset_modes:
             # Use preset_mode service
             await self.hass.services.async_call(
                 "fan",

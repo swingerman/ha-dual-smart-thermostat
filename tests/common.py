@@ -499,13 +499,24 @@ class FakeClimateChild(ClimateEntity):
         ClimateEntityFeature.TARGET_TEMPERATURE
         | ClimateEntityFeature.TURN_OFF
         | ClimateEntityFeature.TURN_ON
+        | ClimateEntityFeature.FAN_MODE
     )
+    _attr_fan_modes = ["quiet", "strong", "auto"]
     _attr_min_temp = 16
     _attr_max_temp = 30
     _attr_target_temperature_step = 0.5
     _attr_should_poll = False
 
-    def __init__(self, entity_id, mode=HVACMode.OFF, *, assumed=False, current=22.0):
+    def __init__(
+        self,
+        entity_id,
+        mode=HVACMode.OFF,
+        *,
+        assumed=False,
+        current=22.0,
+        fan_mode="auto",
+        resets_fan_on_mode_change=False,
+    ):
         """Create the child; `assumed` never reports its state back."""
         self.entity_id = entity_id
         self._attr_hvac_mode = mode
@@ -519,6 +530,8 @@ class FakeClimateChild(ClimateEntity):
         self._attr_assumed_state = assumed
         self._attr_target_temperature = 21.0
         self._attr_current_temperature = current
+        self._attr_fan_mode = fan_mode
+        self._resets_fan = resets_fan_on_mode_change
         self.calls: list[tuple[str, dict]] = []
 
     def _follow(self, mode):
@@ -530,7 +543,16 @@ class FakeClimateChild(ClimateEntity):
     async def async_set_hvac_mode(self, hvac_mode):
         """Record the call; follow it unless assumed."""
         self.calls.append(("set_hvac_mode", {"hvac_mode": hvac_mode}))
+        if self._resets_fan:  # what many ACs do on a mode change
+            self._attr_fan_mode = "auto"
         self._follow(hvac_mode)
+
+    async def async_set_fan_mode(self, fan_mode):
+        """Record the call; follow it unless assumed."""
+        self.calls.append(("set_fan_mode", {"fan_mode": fan_mode}))
+        if not self._attr_assumed_state:
+            self._attr_fan_mode = fan_mode
+            self.async_write_ha_state()
 
     async def async_turn_off(self):
         """Record the call; follow it unless assumed."""

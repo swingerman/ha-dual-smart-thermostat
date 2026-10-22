@@ -29,6 +29,7 @@ from custom_components.dual_smart_thermostat.managers.hvac_power_manager import 
 from custom_components.dual_smart_thermostat.managers.opening_manager import (
     OpeningManager,
 )
+from tests import common
 
 
 def setup_fan_services(hass: HomeAssistant) -> list:
@@ -2021,3 +2022,60 @@ async def test_fan_device_exposes_its_speed_control(hass: HomeAssistant):
 
     assert isinstance(fan_device.speed, FanSpeedControl)
     assert fan_device.fan_modes == fan_device.speed.fan_modes
+
+
+@pytest.mark.asyncio
+async def test_climate_fan_modes_are_used_verbatim(hass: HomeAssistant):
+    """A climate's own fan_modes are the modes: no mapping to low/medium/high."""
+    await common.add_fake_climate(hass, "climate.test_ac", fan_mode="quiet")
+
+    speed = FanSpeedControl(hass, "climate.test_ac")
+
+    assert speed.supports_fan_mode is True
+    assert speed.fan_modes == ["quiet", "strong", "auto"]
+    assert speed.current_fan_mode == "quiet"
+
+
+@pytest.mark.asyncio
+async def test_climate_without_fan_modes_has_no_speed_control(hass: HomeAssistant):
+    """A climate that lists no fan modes gets no speed control."""
+    hass.states.async_set("climate.bare", "off", {"hvac_modes": ["off", "cool"]})
+
+    assert FanSpeedControl(hass, "climate.bare").supports_fan_mode is False
+
+
+@pytest.mark.asyncio
+async def test_climate_speed_is_set_with_climate_set_fan_mode(hass: HomeAssistant):
+    """The speed goes out through climate.set_fan_mode."""
+    child = await common.add_fake_climate(hass, "climate.test_ac")
+    speed = FanSpeedControl(hass, "climate.test_ac")
+
+    await speed.async_set_fan_mode("strong")
+
+    assert ("set_fan_mode", {"fan_mode": "strong"}) in child.calls
+    assert speed.current_fan_mode == "strong"
+
+
+@pytest.mark.asyncio
+async def test_climate_speed_outside_the_childs_modes_is_refused(
+    hass: HomeAssistant, caplog
+):
+    """A mode the child does not list is logged and not sent."""
+    child = await common.add_fake_climate(hass, "climate.test_ac")
+    speed = FanSpeedControl(hass, "climate.test_ac")
+
+    await speed.async_set_fan_mode("turbo")
+
+    assert child.calls == []
+    assert "Invalid fan mode" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_climate_speed_already_set_is_not_resent(hass: HomeAssistant):
+    """A child that already reports the speed is not told again."""
+    child = await common.add_fake_climate(hass, "climate.test_ac", fan_mode="strong")
+    speed = FanSpeedControl(hass, "climate.test_ac")
+
+    await speed.async_set_fan_mode("strong")
+
+    assert child.calls == []
