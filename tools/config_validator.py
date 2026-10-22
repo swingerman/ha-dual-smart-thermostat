@@ -124,10 +124,13 @@ class ConfigValidator:
     def _is_climate(value: Any) -> bool:
         return str(value or "").startswith("climate.")
 
-    def _climate_errors(self, config: Dict[str, Any]) -> List[str]:
+    def _climate_errors(self, config: dict[str, Any]) -> list[str]:
         """Rules for climate-backed devices (the same ones climate_roles.py applies)."""
         errors = []
-        is_climate = lambda key: self._is_climate(config.get(key))  # noqa: E731
+
+        def is_climate(key: str) -> bool:
+            return self._is_climate(config.get(key))
+
         has_climate_role = any(is_climate(key) for key in self.climate_role_keys)
 
         for param in self.climate_role_parameters:
