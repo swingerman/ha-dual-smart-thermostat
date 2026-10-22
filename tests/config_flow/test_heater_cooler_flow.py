@@ -14,9 +14,12 @@ import pytest
 from custom_components.dual_smart_thermostat.config_flow import ConfigFlowHandler
 from custom_components.dual_smart_thermostat.const import (
     CONF_COLD_TOLERANCE,
+    CONF_CONTROL_STYLE,
     CONF_COOLER,
+    CONF_COOLER_SETPOINT_OFFSET,
     CONF_HEAT_COOL_MODE,
     CONF_HEATER,
+    CONF_HEATER_SETPOINT_OFFSET,
     CONF_HOT_TOLERANCE,
     CONF_MIN_DUR,
     CONF_SENSOR,
@@ -548,3 +551,132 @@ class TestClimateRolesInHeaterCoolerFlow:
 
         assert result["step_id"] != "heater_cooler"
         assert CONF_SENSOR not in flow.collected_config
+
+
+class TestClimateControlStep:
+    """The climate_control step of the config flow (issue #281)."""
+
+    async def _heater_cooler(self, mock_hass, heater, cooler, seed=None):
+        flow = ConfigFlowHandler()
+        flow.hass = mock_hass
+        flow.collected_config = {CONF_SYSTEM_TYPE: SYSTEM_TYPE_HEATER_COOLER}
+        flow.collected_config.update(seed or {})
+        result = await flow.async_step_heater_cooler(
+            {
+                CONF_NAME: "T",
+                CONF_SENSOR: "sensor.t",
+                CONF_HEATER: heater,
+                CONF_COOLER: cooler,
+                CONF_HEAT_COOL_MODE: False,
+            }
+        )
+        return flow, result
+
+    async def test_climate_role_routes_through_climate_control_step(self, mock_hass):
+        """Only the offsets that apply to the climate roles are offered."""
+        flow, result = await self._heater_cooler(mock_hass, "switch.h", "climate.ac")
+        assert result["step_id"] == "climate_control"
+
+        schema_keys = {str(k) for k in result["data_schema"].schema}
+        assert schema_keys == {CONF_CONTROL_STYLE, CONF_COOLER_SETPOINT_OFFSET}
+
+        result = await flow.async_step_climate_control(
+            {CONF_CONTROL_STYLE: "setpoint", CONF_COOLER_SETPOINT_OFFSET: -2.0}
+        )
+        assert result["step_id"] == "features"
+        assert flow.collected_config[CONF_CONTROL_STYLE] == "setpoint"
+        assert flow.collected_config[CONF_COOLER_SETPOINT_OFFSET] == -2.0
+        assert CONF_HEATER_SETPOINT_OFFSET not in flow.collected_config
+
+    async def test_both_offsets_are_offered_when_both_roles_are_climate(
+        self, mock_hass
+    ):
+        """Two climate roles: both offsets."""
+        _, result = await self._heater_cooler(
+            mock_hass, "climate.heater_ac", "climate.cooler_ac"
+        )
+
+        schema_keys = {str(k) for k in result["data_schema"].schema}
+        assert schema_keys == {
+            CONF_CONTROL_STYLE,
+            CONF_HEATER_SETPOINT_OFFSET,
+            CONF_COOLER_SETPOINT_OFFSET,
+        }
+
+    async def test_switch_only_setup_skips_climate_control(self, mock_hass):
+        """No climate role, no step."""
+        _, result = await self._heater_cooler(mock_hass, "switch.h", "switch.c")
+
+        assert result["step_id"] == "features"
+
+    async def test_stale_climate_keys_are_dropped_when_no_climate_role_remains(
+        self, mock_hass
+    ):
+        """Reconfigure from climate to switches leaves no climate keys behind."""
+        flow, _ = await self._heater_cooler(
+            mock_hass,
+            "switch.h",
+            "switch.c",
+            seed={
+                CONF_CONTROL_STYLE: "setpoint",
+                CONF_HEATER_SETPOINT_OFFSET: 3.0,
+                CONF_COOLER_SETPOINT_OFFSET: -3.0,
+            },
+        )
+
+        assert CONF_CONTROL_STYLE not in flow.collected_config
+        assert CONF_HEATER_SETPOINT_OFFSET not in flow.collected_config
+        assert CONF_COOLER_SETPOINT_OFFSET not in flow.collected_config
+
+    async def test_only_the_offset_of_a_role_that_stopped_being_climate_is_dropped(
+        self, mock_hass
+    ):
+        """The cooler stays climate, so its offset is kept."""
+        flow, _ = await self._heater_cooler(
+            mock_hass,
+            "switch.h",
+            "climate.ac",
+            seed={
+                CONF_CONTROL_STYLE: "on_off",
+                CONF_HEATER_SETPOINT_OFFSET: 3.0,
+                CONF_COOLER_SETPOINT_OFFSET: -3.0,
+            },
+        )
+
+        assert CONF_HEATER_SETPOINT_OFFSET not in flow.collected_config
+        assert flow.collected_config[CONF_COOLER_SETPOINT_OFFSET] == -3.0
+
+    async def test_setpoint_with_climate_heat_pump_is_rejected_in_the_step(
+        self, mock_hass
+    ):
+        """The same rule YAML validation uses."""
+        flow = ConfigFlowHandler()
+        flow.hass = mock_hass
+        flow.collected_config = {
+            CONF_SYSTEM_TYPE: "heat_pump",
+            CONF_HEATER: "climate.hp",
+            "heat_pump_cooling": "binary_sensor.cooling",
+        }
+
+        result = await flow.async_step_climate_control({CONF_CONTROL_STYLE: "setpoint"})
+
+        assert result["step_id"] == "climate_control"
+        assert result["errors"] == {"base": "setpoint_heat_pump_unsupported"}
+
+    async def test_setpoint_with_one_climate_as_heater_and_cooler_cannot_heat_cool(
+        self, mock_hass
+    ):
+        """Setpoint style cannot serve heat_cool from one shared climate."""
+        flow = ConfigFlowHandler()
+        flow.hass = mock_hass
+        flow.collected_config = {
+            CONF_SYSTEM_TYPE: SYSTEM_TYPE_HEATER_COOLER,
+            CONF_HEATER: "climate.ac",
+            CONF_COOLER: "climate.ac",
+            CONF_HEAT_COOL_MODE: True,
+        }
+
+        result = await flow.async_step_climate_control({CONF_CONTROL_STYLE: "setpoint"})
+
+        assert result["step_id"] == "climate_control"
+        assert result["errors"] == {"base": "setpoint_heat_cool_shared_climate"}

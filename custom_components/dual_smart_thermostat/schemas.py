@@ -19,12 +19,14 @@ from homeassistant.data_entry_flow import section
 from homeassistant.helpers import selector
 import voluptuous as vol
 
+from .climate_roles import applicable_offset_keys
 from .const import (
     CONF_AC_MODE,
     CONF_AUX_HEATER,
     CONF_AUX_HEATING_DUAL_MODE,
     CONF_AUX_HEATING_TIMEOUT,
     CONF_COLD_TOLERANCE,
+    CONF_CONTROL_STYLE,
     CONF_COOL_TOLERANCE,
     CONF_COOLER,
     CONF_DRY_TOLERANCE,
@@ -62,8 +64,11 @@ from .const import (
     CONF_TARGET_TEMP_HIGH,
     CONF_TARGET_TEMP_LOW,
     CONF_TEMP_STEP,
+    DEFAULT_CONTROL_STYLE,
+    DEFAULT_SETPOINT_OFFSET,
     DEFAULT_TOLERANCE,
     SYSTEM_TYPES,
+    ControlStyle,
     SystemType,
 )
 from .schema_utils import (
@@ -664,6 +669,37 @@ def get_floor_heating_schema(hass=None, defaults: dict[str, Any] | None = None):
             ): get_temperature_selector(hass=hass, min_value=5, max_value=35),
         }
     )
+
+
+def get_climate_control_schema(config: dict[str, Any] | None = None) -> vol.Schema:
+    """control_style plus the per-role offsets that apply to these roles.
+
+    `config` is the merged current config: it decides which offset fields are
+    shown (applicable_offset_keys) and supplies the defaults.
+    """
+    config = config or {}
+    offset_selector = selector.NumberSelector(
+        selector.NumberSelectorConfig(
+            min=-20, max=20, step=0.5, mode=selector.NumberSelectorMode.BOX
+        )
+    )
+    schema: dict[Any, Any] = {
+        vol.Required(
+            CONF_CONTROL_STYLE,
+            default=config.get(CONF_CONTROL_STYLE, DEFAULT_CONTROL_STYLE),
+        ): selector.SelectSelector(
+            selector.SelectSelectorConfig(
+                options=[style.value for style in ControlStyle],
+                mode=selector.SelectSelectorMode.DROPDOWN,
+                translation_key="control_style",
+            )
+        )
+    }
+    for key in applicable_offset_keys(config):
+        schema[vol.Optional(key, default=config.get(key, DEFAULT_SETPOINT_OFFSET))] = (
+            offset_selector
+        )
+    return vol.Schema(schema)
 
 
 def get_openings_toggle_schema():

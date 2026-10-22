@@ -11,16 +11,20 @@ from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
 import voluptuous as vol
 
+from .climate_roles import applicable_offset_keys, has_climate_role
 from .config_validation import validate_config_with_models
 from .const import (
     CONF_AC_MODE,
     CONF_AUX_HEATER,
     CONF_AUX_HEATING_TIMEOUT,
+    CONF_CONTROL_STYLE,
     CONF_COOLER,
+    CONF_COOLER_SETPOINT_OFFSET,
     CONF_FAN,
     CONF_FLOOR_SENSOR,
     CONF_HEAT_PUMP_COOLING,
     CONF_HEATER,
+    CONF_HEATER_SETPOINT_OFFSET,
     CONF_HUMIDITY_SENSOR,
     CONF_PRECISION,
     CONF_PRESETS,
@@ -31,6 +35,7 @@ from .const import (
     SystemType,
 )
 from .feature_steps import (
+    ClimateControlSteps,
     FanSteps,
     FloorSteps,
     HumiditySteps,
@@ -76,6 +81,7 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
         # Initialize feature step handlers
         self.openings_steps = OpeningsSteps()
         self.fan_steps = FanSteps()
+        self.climate_control_steps = ClimateControlSteps()
         self.humidity_steps = HumiditySteps()
         self.presets_steps = PresetsSteps()
         self.floor_steps = FloorSteps()
@@ -91,6 +97,7 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
         excluded_flags = {
             "dual_stage_options_shown",
             "floor_options_shown",
+            "climate_control_shown",
             "features_shown",
             "fan_options_shown",
             "humidity_options_shown",
@@ -205,6 +212,7 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
         # These flags are set during the flow to control navigation and should
         # not persist between reconfigurations
         flow_control_flags = {
+            "climate_control_shown",
             "features_shown",
             "dual_stage_options_shown",
             "floor_options_shown",
@@ -543,6 +551,14 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
             self, user_input, self.collected_config, self._determine_next_step
         )
 
+    async def async_step_climate_control(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Choose how climate-backed devices are controlled."""
+        return await self.climate_control_steps.async_step_config(
+            self, user_input, self.collected_config, self._determine_next_step
+        )
+
     async def async_step_fan_toggle(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
@@ -700,6 +716,23 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
         3. Feature configuration must be ordered based on dependencies
         """
         system_type = self.collected_config.get("system_type")
+
+        # Climate-backed devices: part of basic entity configuration, so it comes
+        # before features, openings and presets (step_ordering.md).
+        # Drop what no longer applies to the chosen roles first.
+        if not has_climate_role(self.collected_config):
+            self.collected_config.pop(CONF_CONTROL_STYLE, None)
+        applicable = applicable_offset_keys(self.collected_config)
+        for key in (CONF_HEATER_SETPOINT_OFFSET, CONF_COOLER_SETPOINT_OFFSET):
+            if key not in applicable:
+                self.collected_config.pop(key, None)
+        if (
+            has_climate_role(self.collected_config)
+            and "climate_control_shown" not in self.collected_config
+        ):
+            self.collected_config["climate_control_shown"] = True
+            return await self.async_step_climate_control()
+
         # Show features configuration for all systems (when not already shown)
         if "features_shown" not in self.collected_config:
             self.collected_config["features_shown"] = True

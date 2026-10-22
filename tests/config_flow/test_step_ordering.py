@@ -305,3 +305,32 @@ class TestConfigStepOrdering:
 
 if __name__ == "__main__":
     pytest.main([__file__])
+
+
+@pytest.mark.asyncio
+async def test_climate_control_comes_before_features_and_openings_presets_stay_last():
+    """climate_control is basic entity configuration: right after the entity step."""
+    flow = ConfigFlowHandler()
+    flow.hass = Mock()
+    flow.collected_config = {CONF_SYSTEM_TYPE: SYSTEM_TYPE_HEATER_COOLER}
+
+    visited = []
+    result = await flow.async_step_heater_cooler(
+        {
+            "name": "T",
+            "heater": "climate.ac",
+            "cooler": "climate.ac",
+            CONF_HEAT_COOL_MODE: False,
+        }
+    )
+    visited.append(result["step_id"])
+    result = await flow.async_step_climate_control(
+        {
+            "control_style": "on_off",
+            "heater_setpoint_offset": 0.0,
+            "cooler_setpoint_offset": 0.0,
+        }
+    )
+    visited.append(result["step_id"])
+
+    assert visited == ["climate_control", "features"]

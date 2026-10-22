@@ -402,3 +402,27 @@ if __name__ == "__main__":
 
     success = asyncio.run(run_all_tests())
     sys.exit(0 if success else 1)
+
+
+async def test_reconfigure_revisits_climate_control():
+    """The shown-flag is cleared, so reconfigure passes through the step again."""
+    entry = Mock()
+    entry.entry_id = "climate_entry"
+    entry.data = {
+        CONF_NAME: "T",
+        CONF_SYSTEM_TYPE: SYSTEM_TYPE_HEATER_COOLER,
+        CONF_HEATER: "switch.h",
+        "cooler": "climate.ac",
+        CONF_SENSOR: "sensor.t",
+        "climate_control_shown": True,
+    }
+    flow = ConfigFlowHandler()
+    flow.hass = Mock()
+
+    with patch.object(
+        type(flow), "source", new_callable=PropertyMock, return_value=SOURCE_RECONFIGURE
+    ):
+        flow._get_reconfigure_entry = Mock(return_value=entry)
+        await flow.async_step_reconfigure()
+
+    assert "climate_control_shown" not in flow.collected_config

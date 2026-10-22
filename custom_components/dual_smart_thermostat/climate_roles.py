@@ -42,6 +42,11 @@ def is_climate_entity(entity_id: Any) -> bool:
     return isinstance(entity_id, str) and entity_id.startswith(f"{CLIMATE_DOMAIN}.")
 
 
+def has_climate_role(config: Mapping[str, Any]) -> bool:
+    """True when at least one device role is a climate entity."""
+    return first_climate_role(config) is not None
+
+
 def first_climate_role(config: Mapping[str, Any]) -> str | None:
     """Entity id of the first climate role in priority order."""
     return next(
