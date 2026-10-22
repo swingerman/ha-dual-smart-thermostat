@@ -7,6 +7,7 @@ from homeassistant.components.climate import HVACAction, HVACMode
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import Context, HomeAssistant
 
+from ..const import ControlStyle
 from ..hvac_action_reason.hvac_action_reason import HVACActionReason
 from ..hvac_controller.generic_controller import GenericHvacController
 from ..hvac_controller.hvac_controller import HvacController, HvacEnvStrategy, HvacGoal
@@ -30,6 +31,8 @@ class GenericHVACDevice(
 ):
 
     _target_env_attr: str = "_target_temp"
+    # False for roles that tell a climate no temperature (fan, dryer).
+    pushes_setpoint: bool = True
     hvac_controller: HvacController
     strategy: HvacEnvStrategy
 
@@ -63,7 +66,12 @@ class GenericHVACDevice(
             role_mode=self.role_mode,
             target=self.climate_target,
             offset=self.setpoint_offset,
-            style=features.climate_control_style,
+            # Only a role that pushes a setpoint can leave the regulating to the child.
+            style=(
+                features.climate_control_style
+                if self.pushes_setpoint
+                else ControlStyle.ON_OFF
+            ),
         )
 
         self.hvac_controller: HvacController = GenericHvacController(
@@ -111,6 +119,8 @@ class GenericHVACDevice(
 
     def climate_target(self) -> float | None:
         """The temperature a climate entity serving this role is told to hold."""
+        if not self.pushes_setpoint:
+            return None
         return getattr(self.environment, self.target_env_attr, None)
 
     @property

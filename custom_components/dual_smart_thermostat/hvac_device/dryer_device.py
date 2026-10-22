@@ -18,14 +18,12 @@ _LOGGER = logging.getLogger(__name__)
 class DryerDevice(GenericHVACDevice):
 
     _target_env_attr: str = "_target_humidity"
+    pushes_setpoint = False
 
     hvac_modes = [HVACMode.DRY, HVACMode.OFF]
 
     def role_mode(self) -> HVACMode:
         return HVACMode.DRY
-
-    def climate_target(self) -> float | None:
-        return None
 
     def __init__(
         self,

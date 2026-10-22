@@ -989,3 +989,27 @@ async def test_ran_long_enough_without_a_min_cycle_is_always_true(
     cool = _port(hass, "climate.test_ac", HVACMode.COOL)
 
     assert cool.ran_long_enough(None) is True
+
+
+async def test_setpoint_style_does_not_apply_to_a_climate_fan(
+    hass: HomeAssistant,
+) -> None:
+    """Only roles that push a setpoint can be self-regulating: a fan still stops."""
+    hass.states.async_set(SENSOR, 26.0)
+    setup_switch(hass, False, HEATER)
+    await _setup(
+        hass,
+        heater=HEATER,
+        fan=AC,
+        initial_hvac_mode=HVACMode.FAN_ONLY,
+        control_style="setpoint",
+    )
+    await common.add_fake_climate(hass, AC)
+    await common.async_set_temperature(hass, 24, "climate.test")
+    await hass.async_block_till_done()
+    assert hass.states.get(AC).state == HVACMode.FAN_ONLY
+
+    hass.states.async_set(SENSOR, 20.0)  # fan goal reached
+    await hass.async_block_till_done()
+
+    assert hass.states.get(AC).state == HVACMode.OFF

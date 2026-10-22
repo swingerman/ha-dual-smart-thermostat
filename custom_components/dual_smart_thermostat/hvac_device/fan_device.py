@@ -18,12 +18,10 @@ class FanDevice(CoolerDevice):
 
     hvac_modes = [HVACMode.FAN_ONLY, HVACMode.OFF]
     fan_air_surce_outside = False
+    pushes_setpoint = False
 
     def role_mode(self) -> HVACMode:
         return HVACMode.FAN_ONLY
-
-    def climate_target(self) -> float | None:
-        return None
 
     def setpoint_offset(self) -> float:
         return 0.0
