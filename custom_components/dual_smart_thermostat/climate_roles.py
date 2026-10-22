@@ -42,6 +42,18 @@ def is_climate_entity(entity_id: Any) -> bool:
     return isinstance(entity_id, str) and entity_id.startswith(f"{CLIMATE_DOMAIN}.")
 
 
+def first_climate_role(config: Mapping[str, Any]) -> str | None:
+    """Entity id of the first climate role in priority order."""
+    return next(
+        (
+            config[key]
+            for key in CLIMATE_ROLE_KEYS
+            if is_climate_entity(config.get(key))
+        ),
+        None,
+    )
+
+
 def unsupported_climate_roles(config: Mapping[str, Any]) -> list[str]:
     """Roles configured with a climate entity that cannot be climate-backed."""
     return [key for key in (CONF_AUX_HEATER,) if is_climate_entity(config.get(key))]
@@ -105,10 +117,8 @@ def normalize_climate_roles(config: Mapping[str, Any]) -> dict[str, Any]:
     config = dict(config)
 
     if not config.get(CONF_SENSOR):
-        for key in CLIMATE_ROLE_KEYS:
-            if is_climate_entity(config.get(key)):
-                config[CONF_SENSOR] = config[key]
-                break
+        if source := first_climate_role(config):
+            config[CONF_SENSOR] = source
 
     fan = config.get(CONF_FAN)
     if is_climate_entity(fan):

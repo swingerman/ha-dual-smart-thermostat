@@ -14,6 +14,9 @@ from custom_components.dual_smart_thermostat.const import (
     PERCENTAGE_TO_FAN_MODE,
 )
 from custom_components.dual_smart_thermostat.hvac_device.fan_device import FanDevice
+from custom_components.dual_smart_thermostat.hvac_device.fan_speed import (
+    FanSpeedControl,
+)
 from custom_components.dual_smart_thermostat.managers.environment_manager import (
     EnvironmentManager,
 )
@@ -525,7 +528,7 @@ async def test_turn_on_handles_fan_mode_service_failure_preset(
     )
 
     # Set a fan mode (this will succeed, just sets internal state)
-    fan_device._current_fan_mode = "medium"
+    fan_device.speed._current_fan_mode = "medium"
 
     # Turn on should not raise exception even though set_preset_mode fails
     with caplog.at_level(logging.WARNING):
@@ -587,7 +590,7 @@ async def test_turn_on_handles_fan_mode_service_failure_percentage(
     )
 
     # Set a fan mode (this will succeed, just sets internal state)
-    fan_device._current_fan_mode = "low"
+    fan_device.speed._current_fan_mode = "low"
 
     # Turn on should not raise exception even though set_percentage fails
     with caplog.at_level(logging.WARNING):
@@ -642,7 +645,7 @@ async def test_feature_manager_supports_fan_mode_with_preset_modes(hass: HomeAss
     )
 
     # Set the fan_device on FeatureManager (simulating what the device factory would do)
-    features.set_fan_device(fan_device)
+    features.set_fan_speed(fan_device.speed)
 
     # Check that FeatureManager reports support
     assert features.supports_fan_mode is True
@@ -687,7 +690,7 @@ async def test_feature_manager_supports_fan_mode_with_percentage(hass: HomeAssis
     )
 
     # Set the fan_device on FeatureManager
-    features.set_fan_device(fan_device)
+    features.set_fan_speed(fan_device.speed)
 
     # Check that FeatureManager reports support
     assert features.supports_fan_mode is True
@@ -726,7 +729,7 @@ async def test_feature_manager_no_fan_mode_support_switch(hass: HomeAssistant):
     )
 
     # Set the fan_device on FeatureManager
-    features.set_fan_device(fan_device)
+    features.set_fan_speed(fan_device.speed)
 
     # Check that FeatureManager reports no support
     assert features.supports_fan_mode is False
@@ -1981,3 +1984,40 @@ async def test_climate_gains_fan_mode_when_fan_entity_appears_late(
     state = hass.states.get("climate.test")
     assert state.attributes.get("supported_features") & ClimateEntityFeature.FAN_MODE
     assert set(state.attributes.get("fan_modes")) == {"quiet", "boost"}
+
+
+@pytest.mark.asyncio
+async def test_fan_speed_control_detects_fan_presets_without_a_device(
+    hass: HomeAssistant,
+):
+    """The control stands alone: no FanDevice needed to detect a fan's presets."""
+    hass.states.async_set(
+        "fan.test_fan",
+        "off",
+        {"preset_modes": ["auto", "low"], "preset_mode": "auto"},
+    )
+
+    speed = FanSpeedControl(hass, "fan.test_fan")
+
+    assert speed.supports_fan_mode is True
+    assert speed.fan_modes == ["auto", "low"]
+    assert speed.current_fan_mode == "auto"
+
+
+@pytest.mark.asyncio
+async def test_fan_device_exposes_its_speed_control(hass: HomeAssistant):
+    """FanDevice delegates its speed members to one FanSpeedControl."""
+    hass.states.async_set("fan.test_fan", "off", {"percentage": 0})
+    fan_device = FanDevice(
+        hass,
+        "fan.test_fan",
+        timedelta(seconds=5),
+        HVACMode.FAN_ONLY,
+        MagicMock(spec=EnvironmentManager),
+        MagicMock(spec=OpeningManager),
+        MagicMock(spec=FeatureManager),
+        MagicMock(spec=HvacPowerManager),
+    )
+
+    assert isinstance(fan_device.speed, FanSpeedControl)
+    assert fan_device.fan_modes == fan_device.speed.fan_modes
