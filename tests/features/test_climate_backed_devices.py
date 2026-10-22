@@ -5,7 +5,7 @@ import logging
 
 from homeassistant.components.climate import DOMAIN as CLIMATE, HVACMode
 from homeassistant.const import STATE_OFF, STATE_ON
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, State
 from homeassistant.setup import async_setup_component
 from homeassistant.util import dt as dt_util
 from homeassistant.util.unit_system import METRIC_SYSTEM
@@ -1557,3 +1557,55 @@ async def test_fan_role_on_the_climate_applies_the_speed_once(
 
     assert [c[0] for c in child.calls].count("set_hvac_mode") == 1
     assert [c[0] for c in child.calls].count("set_fan_mode") == 1
+
+
+async def test_fan_speed_is_restored_after_a_restart(hass: HomeAssistant) -> None:
+    """The last selected speed comes back from the restored state."""
+    common.mock_restore_cache(
+        hass,
+        [State("climate.test", "cool", {"fan_mode": "strong", "temperature": 24})],
+    )
+    hass.states.async_set(SENSOR, 26.0)
+    setup_switch(hass, False, HEATER)
+    hass.states.async_set(
+        AC,
+        "off",
+        {"fan_modes": ["quiet", "strong", "auto"], "fan_mode": "auto"},
+    )  # the child is up before the thermostat
+    await _setup(hass, heater=HEATER, cooler=AC, initial_hvac_mode=HVACMode.COOL)
+    await hass.async_block_till_done()
+
+    assert hass.states.get("climate.test").attributes["fan_mode"] == "strong"
+
+
+async def test_fan_speed_restore_waits_for_a_late_child(hass: HomeAssistant) -> None:
+    """A child that connects late is detected on its first state."""
+    common.mock_restore_cache(
+        hass,
+        [State("climate.test", "cool", {"fan_mode": "strong", "temperature": 24})],
+    )
+    hass.states.async_set(SENSOR, 26.0)
+    setup_switch(hass, False, HEATER)
+    await _setup(hass, heater=HEATER, cooler=AC, initial_hvac_mode=HVACMode.COOL)
+    assert "fan_modes" not in hass.states.get("climate.test").attributes
+
+    await common.add_fake_climate(hass, AC)  # integration connects late
+    await hass.async_block_till_done()
+
+    state = hass.states.get("climate.test")
+    assert state.attributes["fan_modes"] == ["quiet", "strong", "auto"]
+    assert state.attributes["fan_mode"] == "strong"
+
+
+async def test_late_child_without_fan_modes_never_gains_speed_control(
+    hass: HomeAssistant,
+) -> None:
+    """No fan_modes, no speed control, however late it shows up."""
+    hass.states.async_set(SENSOR, 26.0)
+    setup_switch(hass, False, HEATER)
+    await _setup(hass, heater=HEATER, cooler=AC, initial_hvac_mode=HVACMode.COOL)
+
+    hass.states.async_set(AC, "off", {"hvac_modes": ["off", "cool"]})
+    await hass.async_block_till_done()
+
+    assert "fan_modes" not in hass.states.get("climate.test").attributes
