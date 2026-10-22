@@ -389,8 +389,6 @@ class ClimatePort(EntityPort):
         return self._child.mode == self._role_mode()
 
     def ran_long_enough(self, min_cycle: timedelta) -> bool:
-        if self.self_regulating:  # the child cycles itself; DST adds no cycle limit
-            return True
         if not min_cycle:  # none configured: nothing to wait for
             return True
         since = self._child.since

@@ -11,7 +11,7 @@ from homeassistant.util import dt as dt_util
 from homeassistant.util.unit_system import METRIC_SYSTEM
 import pytest
 
-from custom_components.dual_smart_thermostat.const import DOMAIN
+from custom_components.dual_smart_thermostat.const import DOMAIN, ControlStyle
 from custom_components.dual_smart_thermostat.hvac_device.entity_port import (
     ClimatePort,
     SwitchPort,
@@ -1061,3 +1061,17 @@ async def test_target_change_during_an_opening_is_not_pushed(
 
     assert ("set_temperature", {"temperature": 23.0}) not in child.calls
     assert ("turn_off", {}) in child.calls
+
+
+async def test_setpoint_port_keeps_the_users_min_cycle(hass: HomeAssistant) -> None:
+    """Style does not change min cycle: openings force past it, nothing else does."""
+    await common.add_fake_climate(hass, "climate.test_ac", HVACMode.HEAT)
+    port = make_port(
+        hass,
+        "climate.test_ac",
+        role_mode=lambda: HVACMode.HEAT,
+        target=lambda: 22.0,
+        style=ControlStyle.SETPOINT,
+    )
+
+    assert port.ran_long_enough(timedelta(minutes=5)) is False
