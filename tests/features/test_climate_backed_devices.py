@@ -1184,3 +1184,37 @@ async def test_climate_heat_pump_follows_the_cooling_flag(
     await hass.async_block_till_done()
 
     assert hass.states.get(AC).state == expected
+
+
+async def test_shared_fan_with_ac_flag_does_not_flap(hass: HomeAssistant) -> None:
+    """fan_on_with_ac cannot stack two modes on one climate: it is forced off."""
+    hass.states.async_set(SENSOR, 27.0)
+    setup_switch(hass, False, HEATER)
+    await _setup(
+        hass,
+        heater=HEATER,
+        cooler=AC,
+        fan=AC,
+        fan_on_with_ac=True,
+        initial_hvac_mode=HVACMode.COOL,
+    )
+    child = await common.add_fake_climate(hass, AC)
+    await common.async_set_temperature(hass, 24, "climate.test")
+    await hass.async_block_till_done()
+
+    for temp in (27.1, 27.2, 27.3, 27.4):
+        hass.states.async_set(SENSOR, temp)
+        await hass.async_block_till_done()
+
+    sent = [c[1]["hvac_mode"] for c in child.calls if c[0] == "set_hvac_mode"]
+    assert sent == [HVACMode.COOL]  # never fan_only, never repeated
+    assert hass.states.get(AC).state == HVACMode.COOL
+
+
+async def test_entity_cannot_be_its_own_device(hass: HomeAssistant, caplog) -> None:
+    """A role pointing at the thermostat itself would loop: it is refused."""
+    hass.states.async_set(SENSOR, 20.0)
+    await _setup(hass, heater="climate.test")
+
+    assert hass.states.get("climate.test") is None
+    assert "itself" in caplog.text

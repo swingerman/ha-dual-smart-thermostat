@@ -46,6 +46,7 @@ from homeassistant.core import (
     State,
     callback,
 )
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import discovery
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.dispatcher import async_dispatcher_connect, dispatcher_send
@@ -805,6 +806,11 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
     async def async_added_to_hass(self) -> None:
         """Run when entity about to be added."""
         await super().async_added_to_hass()
+
+        if self.entity_id in self.hvac_device.get_device_ids():
+            msg = f"{self.entity_id} is configured as one of its own devices"
+            _LOGGER.error("%s; a thermostat cannot control itself", msg)
+            raise HomeAssistantError(msg)
 
         # Add listener
         self.async_on_remove(
