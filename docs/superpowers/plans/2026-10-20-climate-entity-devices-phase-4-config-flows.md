@@ -2,14 +2,14 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Everything phases 1 to 3 made possible in YAML becomes reachable from the UI: climate entities selectable for heater/cooler/fan/dryer, `target_sensor` optional when a climate role exists, a `climate_control` step (`control_style`, `setpoint_offset`) in the config, reconfigure and options flows, dependency tracking, translations, README and an example.
+**Goal:** Everything phases 1 to 3 made possible in YAML becomes reachable from the UI: climate entities selectable for heater/cooler/fan/dryer, `target_sensor` optional when a climate role exists, a `climate_control` step (`control_style` plus the per-role `heater_setpoint_offset` / `cooler_setpoint_offset` that apply) in the config, reconfigure and options flows, dependency tracking, translations, README and an example.
 
 **Architecture:** Follows `.claude/skills/config-flow-integration`. One shared step handler `feature_steps/climate_control.py` (same shape as `FanSteps`) used by both flows. The step is part of "basic entity configuration", so `_determine_next_step()` / `_determine_options_next_step()` route to it right after the entity step and before `features`; openings and presets stay the last two steps (`docs/config_flow/step_ordering.md`). "Has a climate role" is answered by `climate_roles.has_climate_role` (phase 1), the same function YAML validation and runtime use, so flow and runtime cannot disagree.
 
 **Tech Stack:** Python 3.14, Home Assistant 2026.3.2+, voluptuous selectors, pytest.
 
 **Spec:** `docs/superpowers/specs/2026-10-20-climate-entity-devices-design.md`
-**Previous phases:** 1 to 3 merged (`climate_roles.py`, `ControlStyle`, `CONF_CONTROL_STYLE`, `CONF_SETPOINT_OFFSET`, `normalize_climate_roles`).
+**Previous phases:** 1 to 3 merged (`climate_roles.py`, `ControlStyle`, `CONF_CONTROL_STYLE`, `CONF_HEATER_SETPOINT_OFFSET`, `CONF_COOLER_SETPOINT_OFFSET`, `applicable_offset_keys`, `normalize_climate_roles`).
 
 ---
 
@@ -45,7 +45,9 @@ Do **not** call `pytest` / `black` / `isort` / `flake8` directly.
 - The sensor selector becomes optional in every schema; the rule "sensor or a climate role" is enforced by `EntityValidator` with error key `sensor_required`.
 - `same_heater_cooler` / `same_heater_sensor` apply only to non-climate entities (a climate entity is legitimately the heater, the cooler, and the temperature source).
 - The inline duplicate error logic in `async_step_heater_cooler` is replaced by `EntityValidator.get_validation_errors`, so the rule lives in one place.
-- Stale climate keys are dropped when no climate role remains (reconfigure from climate to switches).
+- The step shows only the offset fields that apply to the configured roles (`climate_roles.applicable_offset_keys`: no field for a role that is a switch, none for fan or dryer).
+- Stale climate keys are dropped per key when their role is no longer a climate entity (reconfigure from climate to switches): `control_style` goes when no climate role remains, each offset goes when it stops being applicable.
+- `setpoint` with a climate heat pump is rejected in the step with `setpoint_heat_pump_unsupported`, the same rule YAML validation uses.
 
 ---
 
@@ -371,12 +373,38 @@ Refs #281"
         )
         assert result["step_id"] == "climate_control"
 
+        # only the cooler is a climate entity: only the cooler offset is offered
+        schema_keys = {str(k) for k in result["data_schema"].schema}
+        assert schema_keys == {CONF_CONTROL_STYLE, CONF_COOLER_SETPOINT_OFFSET}
+
         result = await flow.async_step_climate_control(
-            {CONF_CONTROL_STYLE: "setpoint", CONF_SETPOINT_OFFSET: -2.0}
+            {CONF_CONTROL_STYLE: "setpoint", CONF_COOLER_SETPOINT_OFFSET: -2.0}
         )
         assert result["step_id"] == "features"
         assert flow.collected_config[CONF_CONTROL_STYLE] == "setpoint"
-        assert flow.collected_config[CONF_SETPOINT_OFFSET] == -2.0
+        assert flow.collected_config[CONF_COOLER_SETPOINT_OFFSET] == -2.0
+        assert CONF_HEATER_SETPOINT_OFFSET not in flow.collected_config
+
+    async def test_both_offsets_are_offered_when_both_roles_are_climate(self, mock_hass):
+        flow = ConfigFlowHandler()
+        flow.hass = mock_hass
+        flow.collected_config = {CONF_SYSTEM_TYPE: SYSTEM_TYPE_HEATER_COOLER}
+
+        result = await flow.async_step_heater_cooler(
+            {
+                CONF_NAME: "T",
+                CONF_HEATER: "climate.heater_ac",
+                CONF_COOLER: "climate.cooler_ac",
+                CONF_HEAT_COOL_MODE: False,
+            }
+        )
+
+        schema_keys = {str(k) for k in result["data_schema"].schema}
+        assert schema_keys == {
+            CONF_CONTROL_STYLE,
+            CONF_HEATER_SETPOINT_OFFSET,
+            CONF_COOLER_SETPOINT_OFFSET,
+        }
 
     async def test_switch_only_setup_skips_climate_control(self, mock_hass):
         flow = ConfigFlowHandler()
@@ -403,7 +431,8 @@ Refs #281"
         flow.collected_config = {
             CONF_SYSTEM_TYPE: SYSTEM_TYPE_HEATER_COOLER,
             CONF_CONTROL_STYLE: "setpoint",
-            CONF_SETPOINT_OFFSET: 3.0,
+            CONF_HEATER_SETPOINT_OFFSET: 3.0,
+            CONF_COOLER_SETPOINT_OFFSET: -3.0,
         }
 
         await flow.async_step_heater_cooler(
@@ -417,7 +446,33 @@ Refs #281"
         )
 
         assert CONF_CONTROL_STYLE not in flow.collected_config
-        assert CONF_SETPOINT_OFFSET not in flow.collected_config
+        assert CONF_HEATER_SETPOINT_OFFSET not in flow.collected_config
+        assert CONF_COOLER_SETPOINT_OFFSET not in flow.collected_config
+
+    async def test_only_the_offset_of_a_role_that_stopped_being_climate_is_dropped(
+        self, mock_hass
+    ):
+        flow = ConfigFlowHandler()
+        flow.hass = mock_hass
+        flow.collected_config = {
+            CONF_SYSTEM_TYPE: SYSTEM_TYPE_HEATER_COOLER,
+            CONF_CONTROL_STYLE: "on_off",
+            CONF_HEATER_SETPOINT_OFFSET: 3.0,
+            CONF_COOLER_SETPOINT_OFFSET: -3.0,
+        }
+
+        await flow.async_step_heater_cooler(
+            {
+                CONF_NAME: "T",
+                CONF_SENSOR: "sensor.t",
+                CONF_HEATER: "switch.h",  # no longer climate
+                CONF_COOLER: "climate.ac",
+                CONF_HEAT_COOL_MODE: False,
+            }
+        )
+
+        assert CONF_HEATER_SETPOINT_OFFSET not in flow.collected_config
+        assert flow.collected_config[CONF_COOLER_SETPOINT_OFFSET] == -3.0
 
     async def test_setpoint_with_climate_heat_pump_is_rejected_in_the_step(
         self, mock_hass
@@ -431,7 +486,7 @@ Refs #281"
         }
 
         result = await flow.async_step_climate_control(
-            {CONF_CONTROL_STYLE: "setpoint", CONF_SETPOINT_OFFSET: 0.0}
+            {CONF_CONTROL_STYLE: "setpoint"}
         )
 
         assert result["step_id"] == "climate_control"
@@ -459,7 +514,7 @@ async def test_climate_control_comes_before_features_and_openings_presets_stay_l
     )
     visited.append(result["step_id"])
     result = await flow.async_step_climate_control(
-        {CONF_CONTROL_STYLE: "on_off", CONF_SETPOINT_OFFSET: 0.0}
+        {CONF_CONTROL_STYLE: "on_off", CONF_HEATER_SETPOINT_OFFSET: 0.0, CONF_COOLER_SETPOINT_OFFSET: 0.0}
     )
     visited.append(result["step_id"])
 
@@ -497,31 +552,35 @@ Expected: FAIL (`AttributeError: ... async_step_climate_control`).
 ```python
 from homeassistant.helpers import selector
 
-def get_climate_control_schema(defaults: dict[str, Any] | None = None) -> vol.Schema:
-    """control_style and setpoint_offset for climate-backed roles."""
-    defaults = defaults or {}
-    return vol.Schema(
-        {
-            vol.Required(
-                CONF_CONTROL_STYLE,
-                default=defaults.get(CONF_CONTROL_STYLE, DEFAULT_CONTROL_STYLE),
-            ): selector.SelectSelector(
-                selector.SelectSelectorConfig(
-                    options=[style.value for style in ControlStyle],
-                    mode=selector.SelectSelectorMode.DROPDOWN,
-                    translation_key="control_style",
-                )
-            ),
-            vol.Optional(
-                CONF_SETPOINT_OFFSET,
-                default=defaults.get(CONF_SETPOINT_OFFSET, DEFAULT_SETPOINT_OFFSET),
-            ): selector.NumberSelector(
-                selector.NumberSelectorConfig(
-                    min=-20, max=20, step=0.5, mode=selector.NumberSelectorMode.BOX
-                )
-            ),
-        }
+def get_climate_control_schema(config: dict[str, Any] | None = None) -> vol.Schema:
+    """control_style plus the per-role offsets that apply to these roles.
+
+    `config` is the merged current config: it decides which offset fields are
+    shown (applicable_offset_keys) and supplies the defaults.
+    """
+    config = config or {}
+    offset_selector = selector.NumberSelector(
+        selector.NumberSelectorConfig(
+            min=-20, max=20, step=0.5, mode=selector.NumberSelectorMode.BOX
+        )
     )
+    schema: dict[Any, Any] = {
+        vol.Required(
+            CONF_CONTROL_STYLE,
+            default=config.get(CONF_CONTROL_STYLE, DEFAULT_CONTROL_STYLE),
+        ): selector.SelectSelector(
+            selector.SelectSelectorConfig(
+                options=[style.value for style in ControlStyle],
+                mode=selector.SelectSelectorMode.DROPDOWN,
+                translation_key="control_style",
+            )
+        )
+    }
+    for key in applicable_offset_keys(config):
+        schema[
+            vol.Optional(key, default=config.get(key, DEFAULT_SETPOINT_OFFSET))
+        ] = offset_selector
+    return vol.Schema(schema)
 ```
 
 `feature_steps/climate_control.py` (same shape as `FanSteps`):
@@ -540,7 +599,7 @@ from ..schemas import get_climate_control_schema
 
 
 class ClimateControlSteps:
-    """control_style / setpoint_offset, shared by the config and options flows."""
+    """control_style and per-role offsets, shared by the config and options flows."""
 
     async def _async_step(
         self,
@@ -561,7 +620,9 @@ class ClimateControlSteps:
                 return await next_step_handler()
         return flow_instance.async_show_form(
             step_id=step_id,
-            data_schema=get_climate_control_schema({**defaults, **(user_input or {})}),
+            data_schema=get_climate_control_schema(
+                {**collected_config, **defaults, **(user_input or {})}
+            ),
             errors=errors,
         )
 
@@ -617,7 +678,11 @@ In `_determine_next_step`, as the first block, before the `features_shown` check
                 return await self.async_step_climate_control()
         else:
             self.collected_config.pop(CONF_CONTROL_STYLE, None)
-            self.collected_config.pop(CONF_SETPOINT_OFFSET, None)
+        # An offset is only meaningful while its own role is a climate entity.
+        applicable = applicable_offset_keys(self.collected_config)
+        for key in (CONF_HEATER_SETPOINT_OFFSET, CONF_COOLER_SETPOINT_OFFSET):
+            if key not in applicable:
+                self.collected_config.pop(key, None)
 ```
 
 Add `"climate_control_shown"` to `flow_control_flags` in `async_step_reconfigure`. Check where the config entry is created (the `async_create_entry` path / `_clean...`) for any list of transient flags that must also include `"climate_control_shown"` (`grep -n "features_shown" custom_components`); add it everywhere `features_shown` is stripped.
@@ -661,7 +726,7 @@ def climate_cooler_config_entry():
         CONF_COOLER: "climate.ac",
         CONF_SENSOR: "sensor.t",
         CONF_CONTROL_STYLE: "on_off",
-        CONF_SETPOINT_OFFSET: 0.0,
+        CONF_COOLER_SETPOINT_OFFSET: 0.0,
     }
     entry.options = {}
     entry.entry_id = "climate-entry"
@@ -678,7 +743,7 @@ async def test_options_flow_offers_climate_control_for_climate_roles(
 
     assert result["step_id"] == "climate_control_options"
     schema_keys = {str(k) for k in result["data_schema"].schema}
-    assert {CONF_CONTROL_STYLE, CONF_SETPOINT_OFFSET} <= schema_keys
+    assert schema_keys == {CONF_CONTROL_STYLE, CONF_COOLER_SETPOINT_OFFSET}  # heater is a switch
 
 
 async def test_options_flow_saves_climate_control_values(
@@ -689,11 +754,11 @@ async def test_options_flow_saves_climate_control_values(
     await flow.async_step_init({})
 
     await flow.async_step_climate_control_options(
-        {CONF_CONTROL_STYLE: "setpoint", CONF_SETPOINT_OFFSET: -3.0}
+        {CONF_CONTROL_STYLE: "setpoint", CONF_COOLER_SETPOINT_OFFSET: -3.0}
     )
 
     assert flow.collected_config[CONF_CONTROL_STYLE] == "setpoint"
-    assert flow.collected_config[CONF_SETPOINT_OFFSET] == -3.0
+    assert flow.collected_config[CONF_COOLER_SETPOINT_OFFSET] == -3.0
 
 
 async def test_options_flow_prefills_current_climate_control_values(
@@ -702,7 +767,7 @@ async def test_options_flow_prefills_current_climate_control_values(
     climate_cooler_config_entry.data = {
         **climate_cooler_config_entry.data,
         CONF_CONTROL_STYLE: "setpoint",
-        CONF_SETPOINT_OFFSET: 2.5,
+        CONF_COOLER_SETPOINT_OFFSET: 2.5,
     }
     flow = OptionsFlowHandler(climate_cooler_config_entry)
     flow.hass = mock_hass
@@ -711,7 +776,7 @@ async def test_options_flow_prefills_current_climate_control_values(
 
     defaults = {str(k): k.default() for k in result["data_schema"].schema}
     assert defaults[CONF_CONTROL_STYLE] == "setpoint"
-    assert defaults[CONF_SETPOINT_OFFSET] == 2.5
+    assert defaults[CONF_COOLER_SETPOINT_OFFSET] == 2.5
 
 
 async def test_options_flow_skips_climate_control_for_switch_only_entries(
@@ -817,11 +882,12 @@ async def test_heater_cooler_climate_control_persists_from_config_to_options(has
         heater="switch.heater",
         cooler="climate.ac",
         sensor=None,  # optional with a climate role
-        extra_steps={"climate_control": {"control_style": "setpoint", "setpoint_offset": -2.0}},
+        extra_steps={"climate_control": {"control_style": "setpoint", "cooler_setpoint_offset": -2.0}},
     )
 
     assert entry.data["control_style"] == "setpoint"
-    assert entry.data["setpoint_offset"] == -2.0
+    assert entry.data["cooler_setpoint_offset"] == -2.0
+    assert "heater_setpoint_offset" not in entry.data  # heater is a switch
     assert "target_sensor" not in entry.data or not entry.data["target_sensor"]
 
     result = await hass.config_entries.options.async_init(entry.entry_id)
@@ -830,20 +896,27 @@ async def test_heater_cooler_climate_control_persists_from_config_to_options(has
     assert result["step_id"] == "climate_control_options"
     defaults = {str(k): k.default() for k in result["data_schema"].schema}
     assert defaults["control_style"] == "setpoint"
-    assert defaults["setpoint_offset"] == -2.0
+    assert defaults["cooler_setpoint_offset"] == -2.0
 
 
 async def test_climate_control_values_that_are_falsy_are_kept(hass):
-    """setpoint_offset 0.0 and on_off must persist, not be dropped as 'empty'."""
+    """Offsets of 0.0 and on_off must persist, not be dropped as 'empty'."""
     entry = await _run_config_flow(
         hass,
         heater="climate.ac",
         cooler="climate.ac",
         sensor=None,
-        extra_steps={"climate_control": {"control_style": "on_off", "setpoint_offset": 0.0}},
+        extra_steps={
+            "climate_control": {
+                "control_style": "on_off",
+                "heater_setpoint_offset": 0.0,
+                "cooler_setpoint_offset": 0.0,
+            }
+        },
     )
 
-    assert entry.data["setpoint_offset"] == 0.0
+    assert entry.data["heater_setpoint_offset"] == 0.0
+    assert entry.data["cooler_setpoint_offset"] == 0.0
     assert entry.data["control_style"] == "on_off"
 ```
 
@@ -858,7 +931,8 @@ async def test_reconfigure_from_climate_to_switches_drops_climate_keys(hass):
             "heater": "switch.h",
             "cooler": "climate.ac",
             "control_style": "setpoint",
-            "setpoint_offset": 2.0,
+            "heater_setpoint_offset": 1.0,
+            "cooler_setpoint_offset": 2.0,
         }
     )
     # drive reconfigure: change cooler to a switch and submit sensor
@@ -867,7 +941,8 @@ async def test_reconfigure_from_climate_to_switches_drops_climate_keys(hass):
     )
 
     assert "control_style" not in updated.data
-    assert "setpoint_offset" not in updated.data
+    assert "heater_setpoint_offset" not in updated.data
+    assert "cooler_setpoint_offset" not in updated.data
 ```
 
 (Use the helper names that actually exist in each file; if there is no shared helper, inline the flow calls the way the neighbouring tests do.)
@@ -913,12 +988,11 @@ Add to `tests/config_flow/test_translations.py` (use the module's loader helper 
 def test_climate_control_strings_exist_in_english() -> None:
     en = _load("en")
     config = en["config"]
-    assert {"control_style", "setpoint_offset"} <= set(config["step"]["climate_control"]["data"])
-    assert {"control_style", "setpoint_offset"} <= set(
-        config["step"]["climate_control"]["data_description"]
-    )
+    keys = {"control_style", "heater_setpoint_offset", "cooler_setpoint_offset"}
+    assert keys <= set(config["step"]["climate_control"]["data"])
+    assert keys <= set(config["step"]["climate_control"]["data_description"])
     options = en["options"]["step"]["climate_control_options"]
-    assert {"control_style", "setpoint_offset"} <= set(options["data"])
+    assert keys <= set(options["data"])
     assert {"sensor_required", "setpoint_heat_pump_unsupported"} <= set(config["error"])
     assert {"on_off", "setpoint"} <= set(en["selector"]["control_style"]["options"])
 ```
@@ -941,11 +1015,13 @@ Run it; expected FAIL (`KeyError: 'climate_control'`).
       "description": "One or more devices are climate entities. Choose how the thermostat controls them.",
       "data": {
         "control_style": "Control style",
-        "setpoint_offset": "Setpoint offset"
+        "heater_setpoint_offset": "Heater setpoint offset",
+        "cooler_setpoint_offset": "Cooler setpoint offset"
       },
       "data_description": {
         "control_style": "On/off: this thermostat decides when to run the device and switches it on and off. Setpoint: the device stays on and regulates itself; this thermostat mirrors target, mode, presets and openings to it.",
-        "setpoint_offset": "Added to the target temperature sent to the device. Use it when the device's own sensor reads differently from your room sensor. Default 0."
+        "heater_setpoint_offset": "Added to the target temperature sent to the heater device. Use it when the device's own sensor reads differently from your room sensor. Default 0.",
+        "cooler_setpoint_offset": "Added to the target temperature sent to the cooler device (typically negative, so the device keeps cooling). Default 0."
       }
     }
   }
@@ -957,11 +1033,13 @@ Run it; expected FAIL (`KeyError: 'climate_control'`).
       "description": "Modify how climate entity devices are controlled.",
       "data": {
         "control_style": "Control style",
-        "setpoint_offset": "Setpoint offset"
+        "heater_setpoint_offset": "Heater setpoint offset",
+        "cooler_setpoint_offset": "Cooler setpoint offset"
       },
       "data_description": {
         "control_style": "On/off: this thermostat switches the device on and off. Setpoint: the device regulates itself and mirrors this thermostat's target.",
-        "setpoint_offset": "Added to the target temperature sent to the device. Default 0."
+        "heater_setpoint_offset": "Added to the target temperature sent to the heater device. Default 0.",
+        "cooler_setpoint_offset": "Added to the target temperature sent to the cooler device. Default 0."
       }
     }
   }
@@ -1016,7 +1094,8 @@ climate:
     heater: switch.heater
     target_sensor: sensor.t
     control_style: setpoint
-    setpoint_offset: 2
+    heater_setpoint_offset: 2
+    cooler_setpoint_offset: 2
 ```
 
 ```yaml
@@ -1027,7 +1106,8 @@ climate:
     heater: climate.ac
     cooler: climate.ac
     control_style: setpoint
-    setpoint_offset: 2
+    heater_setpoint_offset: 2
+    cooler_setpoint_offset: -2
 ```
 
 Run:
@@ -1045,8 +1125,13 @@ python tools/config_validator.py /tmp/climate_roles_good.yaml
 
 ```python
         # Climate-backed device options need a climate role.
-        self.climate_role_parameters = ["control_style", "setpoint_offset"]
         self.climate_role_keys = ["heater", "cooler", "fan", "dryer"]
+        # control_style needs any climate role; each offset needs its own role.
+        self.climate_role_parameters = ["control_style"]
+        self.climate_offset_roles = {
+            "heater_setpoint_offset": ["heater"],
+            "cooler_setpoint_offset": ["cooler"],
+        }
 ```
 
 In `validate_config`, before checking conflicts:
@@ -1061,6 +1146,23 @@ In `validate_config`, before checking conflicts:
                 errors.append(
                     f"Parameter '{param}' requires heater, cooler, fan or dryer to be a climate entity"
                 )
+        is_climate = lambda key: str(config.get(key) or "").startswith("climate.")
+        ac_only = bool(config.get("ac_mode")) and not config.get("cooler")
+        heat_pump = bool(config.get("heat_pump_cooling"))
+        offset_ok = {
+            "heater_setpoint_offset": is_climate("heater") and (not ac_only or heat_pump),
+            "cooler_setpoint_offset": is_climate("cooler")
+            or (is_climate("heater") and (ac_only or heat_pump)),
+        }
+        for param, ok in offset_ok.items():
+            if config.get(param) is not None and not ok:
+                errors.append(
+                    f"Parameter '{param}' requires its own role to be a climate entity"
+                )
+        if config.get("control_style") == "setpoint" and heat_pump and is_climate("heater"):
+            errors.append(
+                "Parameter 'control_style: setpoint' is not supported for a climate heat pump"
+            )
         if not config.get("target_sensor") and not has_climate_role:
             errors.append(
                 "Parameter 'target_sensor' is required unless heater, cooler, fan or dryer is a climate entity"
@@ -1075,9 +1177,9 @@ and in the conflict loop skip pairs whose shared value starts with `climate.`:
 
 Add the same suggestion text in `suggest_fixes`, and a `climate_devices` group in `get_feature_groups` (`enabled`: has climate role; parameters `control_style`, `setpoint_offset`).
 
-`tools/focused_config_dependencies.py`: add `control_style` and `setpoint_offset` as `ConfigParameter(... requires=["climate_role"])` entries and matching `ConfigDependency` objects (follow the neighbouring `fan_mode` entries), then update `tools/focused_config_dependencies.json` accordingly (the generator writes to a hard-coded `/workspaces/...` path, so edit the JSON by hand to match the generator output: a `conditional_parameters` entry per key with `required_parameter: "heater|cooler|fan|dryer as a climate.* entity"`, `description`, `example`, and a `dependency_groups` entry).
+`tools/focused_config_dependencies.py`: add `control_style`, `heater_setpoint_offset` and `cooler_setpoint_offset` as `ConfigParameter(... requires=["climate_role"])` entries and matching `ConfigDependency` objects (follow the neighbouring `fan_mode` entries), then update `tools/focused_config_dependencies.json` accordingly (the generator writes to a hard-coded `/workspaces/...` path, so edit the JSON by hand to match the generator output: a `conditional_parameters` entry per key with `required_parameter: "heater|cooler|fan|dryer as a climate.* entity"`, `description`, `example`, and a `dependency_groups` entry).
 
-`docs/config/CRITICAL_CONFIG_DEPENDENCIES.md`: a new "Climate Entity Devices" section in the same shape as the floor section (enabling parameter: any of `heater`/`cooler`/`fan`/`dryer` being a `climate.*` entity; table of `control_style`, `setpoint_offset`; configuration example; note that `target_sensor` is then optional). Update the totals in the heading and `tools/README.md` (22 to 24 conditional dependencies).
+`docs/config/CRITICAL_CONFIG_DEPENDENCIES.md`: a new "Climate Entity Devices" section in the same shape as the floor section (enabling parameter: any of `heater`/`cooler`/`fan`/`dryer` being a `climate.*` entity; table of `control_style`, `heater_setpoint_offset`, `cooler_setpoint_offset` (each offset needs its own role to be a climate entity); configuration example; note that `target_sensor` is then optional). Update the totals in the heading and `tools/README.md` (22 to 24 conditional dependencies).
 
 `docs/config_flow/step_ordering.md`: under "Features Configuration Logical Ordering", item 1, append "(including the `climate_control` step when a device is a climate entity)".
 
@@ -1095,7 +1197,7 @@ Expected: bad file reports the two climate-role errors; good file is valid; the 
 
 ```bash
 git add -A
-git commit -m "Dependency tracking for control_style, setpoint_offset and optional target_sensor
+git commit -m "Dependency tracking for control_style, per-role offsets and optional target_sensor
 
 Refs #281"
 ```
@@ -1114,7 +1216,10 @@ Refs #281"
 
 - Any of `heater`, `cooler`, `fan`, `dryer` (and the heat pump `heater`) may be a `climate.*` entity; detected from the domain, mixed with switches freely.
 - `control_style` table: `on_off` (default) and `setpoint`, with one sentence each on who decides.
-- `setpoint_offset` and the typical reason for it (device sensor reads differently from the room sensor).
+- `heater_setpoint_offset` and `cooler_setpoint_offset` (per role, default 0, signed) and the typical reason for them (the device's own sensor reads differently from the room sensor; a negative cooler offset keeps an AC cooling).
+- `setpoint` is rejected for a climate heat pump.
+- When the thermostat is switched Off it turns every climate device off, in whatever mode it was.
+- Fan speed: a climate device's own fan modes become the thermostat's fan mode (see the fan section); a separately configured fan entity takes precedence.
 - `target_sensor` optional when a climate device exists, using the device's own temperature.
 - One climate in several roles: only one mode at a time, so `fan_on_with_ac` / `fan_on_with_heater` are ignored for a fan on the same climate.
 - Behaviour notes: respects `min_cycle_duration` (on_off), skips an unavailable device, infrared devices that report an assumed state are controlled from what the thermostat last sent.
@@ -1150,7 +1255,7 @@ climate:
     heater: switch.living_room_radiator
     target_sensor: sensor.living_room_temperature
     control_style: setpoint
-    setpoint_offset: -2
+    cooler_setpoint_offset: -2
     openings:
       - binary_sensor.living_room_window
 ```
@@ -1188,6 +1293,6 @@ Refs #281"`
 2. The temperature sensor may be omitted exactly when a role is a climate entity; otherwise `sensor_required`.
 3. A climate entity may be heater, cooler and temperature source at once; two identical switches are still rejected.
 4. The `climate_control` step appears right after the entity step (config, reconfigure) and as the first options step, only when a climate role exists; openings and presets remain the last two steps.
-5. `control_style` / `setpoint_offset` persist from config to options (including falsy values) and are dropped when no climate role remains.
-6. A climate heat pump with `setpoint` is rejected in the step.
+5. `control_style` and the per-role offsets persist from config to options (including falsy values); an offset is dropped when its role stops being a climate entity and `control_style` when no climate role remains. The step only offers the offsets that apply.
+6. A climate heat pump with `setpoint` is rejected in the step (`setpoint_heat_pump_unsupported`) and in YAML.
 7. Dependency tools, docs, translations, README and the example are updated; `python tools/config_validator.py` accepts the good configuration and rejects the bad one.

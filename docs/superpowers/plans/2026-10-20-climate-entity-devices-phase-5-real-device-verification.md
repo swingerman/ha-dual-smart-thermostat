@@ -72,7 +72,7 @@ Config: `control_style: on_off`, `setpoint_offset: 0`, `min_cycle_duration` of 5
 - [ ] **Step 5: Fan only and Dry.** Select Fan only: `AC` goes `fan_only`, no target is sent. Select Dry (needs `ROOM_H` above target): `AC` goes `dry`, no target is sent.
 - [ ] **Step 6: Mode walk.** Walk Heat, Cool, Fan only, Dry, Off. After each change the AC is in exactly the expected mode and the log shows one `set_hvac_mode` per transition, never two roles commanding in the same second.
 - [ ] **Step 7: Off.** Selecting Off turns `AC` off. Keep `DST` Off for 10 minutes with `keep_alive` enabled: `AC` stays off.
-- [ ] **Step 8: Foreign mode.** While `DST` is Off set `AC` to `auto` from its own card/remote: the thermostat leaves it alone (spec OQ3 default). Record the observed behaviour; if the owner prefers the other answer this is where it shows.
+- [ ] **Step 8: Off means off.** With `DST` Heat or Cool and the AC engaged, set `AC` to `auto` (or any mode none of the roles owns) from its own card or remote, then switch `DST` Off: `climate.turn_off` is sent and the AC ends off. Repeat with `DST` already Off and the AC set to `auto` from the remote while `keep_alive` is enabled: the next keep-alive tick turns it off.
 
 Pass: every step as written; no mode flapping in the 30 minute History graph; no unexpected `turn_off`.
 
@@ -85,7 +85,7 @@ Change `control_style` to `setpoint`, `setpoint_offset` to `0`.
 - [ ] **Step 1: Engage.** Heat with a target above room: `AC` goes heat with the target pushed.
 - [ ] **Step 2: No cycling.** Set the target below room temperature while staying in Heat: the thermostat sends **no** `turn_off`; the AC stays in heat and regulates itself (its own display shows idle/standby). `DST` `hvac_action` shows heating (spec OQ4: "engaged").
 - [ ] **Step 3: Mirror.** Change the target, switch a preset (one with a different temperature) and change HVAC mode: every change reaches the AC (one `set_temperature` per change; none when the value did not change).
-- [ ] **Step 4: Offset.** Set `setpoint_offset` to `-3`: the AC receives target minus 3, clamped to its range; set a target near the AC's maximum with a positive offset and confirm the value stops at `max_temp`. Confirm half degree targets round to the AC's step.
+- [ ] **Step 4: Per-role offsets.** Set `cooler_setpoint_offset` to `-3` and `heater_setpoint_offset` to `2`: in Cool the AC receives target minus 3, in Heat target plus 2, each clamped to the AC's range (a target near the maximum with a positive heater offset stops at `max_temp`). Confirm half degree targets round to the AC's step. There is no other offset: fan and dryer modes send no temperature.
 - [ ] **Step 5: Min cycle ignored.** With `min_cycle_duration` 30 minutes, switch Off immediately after switching on: the AC turns off at once (no cycle wait).
 - [ ] **Step 6: Return to `on_off`** and confirm Task 2 step 3 behaviour is back.
 
@@ -103,6 +103,7 @@ Config: `heater: PLUG`, `cooler: IR_AC`, `target_sensor: ROOM_T`, `humidity_sens
 - [ ] **Step 4: Opening.** Open `WINDOW` (after any configured timeout): the running device (heater or cooler) is stopped; `hvac_action_reason` shows opening. Close it: control resumes and the device restarts with the current target.
 - [ ] **Step 5: Heat to cool swap.** Move the target so `DST` switches from heating to cooling (or switch the mode): `PLUG` turns off, the IR AC engages; never both on.
 - [ ] **Step 6: Keep-alive resend.** With `keep_alive` enabled, confirm the assumed-state AC is re-sent its mode on the keep-alive tick while engaged (this is the intended way to resynchronise an IR device that was changed by its remote), and that an idle role never turns the other off.
+- [ ] **Step 6b: Offset on the IR AC.** Give the cooler a `cooler_setpoint_offset` of `-2` (`on_off`): the IR AC receives the target minus 2 once per engagement and again only when the target changes.
 - [ ] **Step 7: Setpoint variant.** Change the cooler to `setpoint`; repeat Step 4: the window pauses and restores the IR AC with its target.
 
 Pass: as written; no moment with both heater and cooler on; no command storm in the log.
@@ -120,6 +121,23 @@ Pass: as written; no moment with both heater and cooler on; no command storm in 
 - [ ] **Step 7: Self reference.** Configure `DST` as its own device in a scratch YAML (copy): the entity is refused with a clear error, nothing loops.
 
 Pass: no repeated error lines, no uncontrolled command bursts, equipment never short-cycled.
+
+---
+
+## Task 5b: Fan speed (both rigs)
+
+Use the device's own fan modes exactly as they are listed on the climate entity (for example `quiet`, `strong`); do not expect low/medium/high.
+
+- [ ] **Step 1: Rig A, fan modes shown.** `DST` lists the AC's `fan_modes` verbatim as its `fan_modes` and shows the AC's current `fan_mode`. Choose a different fan mode on `DST`: one `climate.set_fan_mode` reaches the AC and the unit's own display agrees.
+- [ ] **Step 2: Rig A, survives a turn on.** Select a non-default fan mode, then let the thermostat stop and restart the AC (Heat to target and back, or Off then Heat). After the AC restarts the log shows `set_hvac_mode` followed by `set_fan_mode` with your selection and the unit runs at that speed (many ACs reset it; this is the case that matters).
+- [ ] **Step 3: Rig A, fan role.** Select Fan only: the AC runs `fan_only` at the selected speed, and the speed is sent once, not twice.
+- [ ] **Step 4: Rig A, restart.** Restart Home Assistant with a non-default fan mode selected: `DST` shows the same fan mode afterwards and applies it on the next turn on.
+- [ ] **Step 5: Rig B, cooler-only IR AC.** `DST` offers the IR AC's fan modes although the AC fills only the cooler role. Select one: it is sent; after the next cooling start it is re-sent (an IR device never confirms, so check the unit itself responds, not the entity state).
+- [ ] **Step 6: Rig B, separate fan entity.** Add a separate `fan` entity to the fan role (a real fan, or the plug powering a fan if it exposes presets): `DST`'s `fan_modes` become that fan's modes, changing `fan_mode` drives that fan only, and the IR AC receives no `set_fan_mode` at all, including after it restarts cooling.
+- [ ] **Step 7: Late device.** Restart Home Assistant while the AC is unplugged, then plug it in: the fan modes appear on `DST` without a reload and a restored selection is applied.
+- [ ] **Step 8: No `fan_modes`.** If a device exposes no fan modes `DST` shows no fan control and logs nothing repeated.
+
+Pass: the selected speed is the speed the unit actually runs at after every start; the AC's speed is never changed when a separate fan entity is configured.
 
 ---
 
@@ -151,15 +169,16 @@ Fill in and report back (placeholders only):
 | 1.3 Reconfigure | A, B | | | |
 | 1.4 YAML and validation | A, B | | | |
 | 2.1 to 2.8 Standalone AC | A | on_off | | |
-| 3.1 to 3.6 Setpoint | A | setpoint | | |
+| 3.1 to 3.6 Setpoint (per-role offsets in 3.4) | A | setpoint | | |
 | 4.1 to 4.7 Mixed room | B | on_off / setpoint | | |
 | 5.1 to 5.7 Safety | A, B | both | | |
+| 5b.1 to 5b.8 Fan speed | A, B | both | | |
 | 6.1 to 6.2 Regression | any | | | |
 
-Decision rule: release needs every non-N/A case to pass. Any fail is filed as a defect against the matching phase (cases 1 against phase 4, 2 and 4 against phases 1 and 3, 3 against phase 2, 5 against the area named in the note), fixed with a regression test in `tests/features/test_climate_backed_devices.py` (or the matching flow test file), and the failed case re-run.
+Decision rule: release needs every non-N/A case to pass. Any fail is filed as a defect against the matching phase (cases 1 against phase 4, 2 and 4 against phases 1 and 3, 3 against phase 2, 5b against phase 3b, 5 against the area named in the note), fixed with a regression test in `tests/features/test_climate_backed_devices.py` (or the matching flow test file), and the failed case re-run.
 
 ## Acceptance (phase 5)
 
 1. Both rigs pass every applicable case, or each failure has a tracked defect and a re-run.
-2. The open questions OQ3 (foreign mode) and OQ4 (setpoint `hvac_action`) have an observed real-device behaviour recorded for the owner.
+2. Off-means-off on a foreign mode (2.8) and the setpoint-style `hvac_action` behaviour (3.2, "engaged") are observed and recorded for the owner.
 3. No real entity ids, addresses or hostnames appear in the repository, the PR or the results.

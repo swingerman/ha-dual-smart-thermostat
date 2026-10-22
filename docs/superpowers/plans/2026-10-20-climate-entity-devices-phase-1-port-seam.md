@@ -472,6 +472,10 @@ class EntityPort(ABC):
         """Mirror DST state onto the entity. Nothing to mirror by default."""
         return
 
+    @abstractmethod
+    async def async_stop(self, context: Context | None) -> None:
+        """DST is Off: make sure the entity is off. Off means off."""
+
 
 class SwitchPort(EntityPort):
     """switch / input_boolean / valve style entities (the original behaviour)."""
@@ -532,6 +536,11 @@ class SwitchPort(EntityPort):
             _LOGGER.debug("Skipping turn_off for unavailable entity %s", self.entity_id)
             return
         await self._call(SERVICE_TURN_OFF, context)
+
+    async def async_stop(self, context: Context | None) -> None:
+        # Today's Off behaviour for switches: stop it if it is running.
+        if self.is_active:
+            await self.async_turn_off(context)
 
     def _unavailable(self) -> bool:
         state = self._state
@@ -668,6 +677,34 @@ async def test_turn_off_only_when_child_is_in_my_mode(hass: HomeAssistant) -> No
     await heat.async_turn_off(None)
     assert child.calls == [("turn_off", {})]
     assert hass.states.get("climate.test_ac").state == HVACMode.OFF
+
+
+async def test_stop_turns_the_child_off_in_any_mode(hass: HomeAssistant) -> None:
+    child = await common.add_fake_climate(hass, "climate.test_ac", HVACMode.FAN_ONLY)
+    heat = _port(hass, "climate.test_ac", HVACMode.HEAT)  # no role owns fan_only here
+
+    await heat.async_turn_off(None)  # role stop: not its mode, nothing happens
+    assert child.calls == []
+
+    await heat.async_stop(None)  # Off means off
+    assert child.calls == [("turn_off", {})]
+    assert hass.states.get("climate.test_ac").state == HVACMode.OFF
+
+    await heat.async_stop(None)  # already off: nothing more is sent
+    assert child.calls == [("turn_off", {})]
+
+
+async def test_stop_on_a_switch_only_acts_when_it_is_running(hass: HomeAssistant) -> None:
+    from tests import setup_switch
+
+    calls = setup_switch(hass, False, "switch.heater")
+    port = make_port(hass, "switch.heater", role_mode=lambda: None, target=lambda: None)
+    await port.async_stop(None)
+    assert calls == []
+
+    hass.states.async_set("switch.heater", STATE_ON)
+    await port.async_stop(None)
+    assert len(calls) == 1
 
 
 async def test_unavailable_child_gets_no_commands(hass: HomeAssistant) -> None:
@@ -943,6 +980,11 @@ class ClimatePort(EntityPort):
         # cooler's keep-alive can never switch off the heater on the same device.
         if self.is_active:
             await self._child.async_turn_off(context)
+
+    async def async_stop(self, context: Context | None) -> None:
+        # Off means off: whatever mode the child is in, even one no role owns.
+        if self._child.mode not in (None, HVACMode.OFF):
+            await self._child.async_turn_off(context)
 ```
 
 Replace the body of `make_port`:
@@ -1204,7 +1246,121 @@ Refs #281"
 
 ---
 
-## Task 6: Lint and phase wrap-up
+## Task 6: Off means off (every Off path calls `async_stop`)
+
+**Files:**
+- Modify: `hvac_device/controllable_hvac_device.py`, `hvac_device/generic_hvac_device.py`, `hvac_device/multi_hvac_device.py`
+- Test: `tests/features/test_climate_backed_devices.py`
+
+- [ ] **Step 1: Write the failing tests**
+
+```python
+async def test_hvac_off_stops_a_child_running_a_mode_no_role_owns(
+    hass: HomeAssistant,
+) -> None:
+    hass.states.async_set(SENSOR, 20.0)
+    await _setup(hass, heater=HEATER, cooler=AC, initial_hvac_mode=HVACMode.COOL)
+    child = await common.add_fake_climate(hass, AC, HVACMode.FAN_ONLY)  # no fan role
+
+    await common.async_set_hvac_mode(hass, HVACMode.OFF, "climate.test")
+    await hass.async_block_till_done()
+
+    assert hass.states.get(AC).state == HVACMode.OFF
+    assert [c[0] for c in child.calls].count("turn_off") == 1
+
+
+async def test_keep_alive_in_off_stops_a_child_set_to_a_foreign_mode(
+    hass: HomeAssistant,
+) -> None:
+    hass.states.async_set(SENSOR, 20.0)
+    await _setup(
+        hass,
+        heater=HEATER,
+        cooler=AC,
+        keep_alive=timedelta(minutes=1),
+        initial_hvac_mode=HVACMode.OFF,
+    )
+    child = await common.add_fake_climate(hass, AC, HVACMode.FAN_ONLY)
+
+    common.async_fire_time_changed(hass, dt_util.utcnow() + timedelta(minutes=2))
+    await hass.async_block_till_done()
+
+    assert hass.states.get(AC).state == HVACMode.OFF
+    assert ("turn_off", {}) in child.calls
+```
+
+Add a switch regression next to them: with a switch-only heater already off, Off sends no extra service call.
+
+(Imports: `timedelta` and `dt_util` as in the other tests of the file.)
+
+- [ ] **Step 2: Run to verify failure**
+
+```bash
+./scripts/docker-test tests/features/test_climate_backed_devices.py -k "foreign_mode or no_role_owns" -v
+```
+
+Expected: FAIL (the child stays `fan_only`: every Off path still asks `is_active` first).
+
+- [ ] **Step 3: Implement**
+
+`GenericHVACDevice`:
+
+```python
+    async def async_stop(self) -> None:
+        """DST is Off: the entity must end up off, whatever it was doing."""
+        if self.entity_id is None:
+            return
+        await self.port.async_stop(self._context)
+        self.hvac_power.update_hvac_power(
+            self.strategy, self.target_env_attr, HVACAction.OFF
+        )
+```
+
+Use it in `GenericHVACDevice.async_control_hvac` (OFF branch: replace `if self.hvac_controller.is_active: ... await self.async_turn_off()` with `await self.async_stop()`) and `_async_check_device_initial_state` (when the mode is OFF).
+
+`ControlableHVACDevice`: declare `async_stop` (abstract) and in `async_set_hvac_mode` replace `if self.is_active: await self.async_turn_off()` in the OFF branch with `await self.async_stop()`.
+
+`MultiHvacDevice`:
+
+```python
+    async def async_stop(self) -> None:
+        for device in self.hvac_devices:
+            await device.async_stop()
+```
+
+`async_turn_off_all(time)`: keep the existing keep-alive branch (`time is not None` unconditional `async_turn_off`) and use `async_stop()` otherwise:
+
+```python
+        for device in self.hvac_devices:
+            if time is not None:
+                await device.async_turn_off()
+            else:
+                await device.async_stop()
+```
+
+Wrapper devices that subclass `MultiHvacDevice` inherit it. Switch behaviour is unchanged: `SwitchPort.async_stop` only acts when the switch is active, exactly the old `if is_active` guard.
+
+- [ ] **Step 4: Run to verify pass and the whole suite**
+
+```bash
+./scripts/docker-test tests/features/test_climate_backed_devices.py -v
+./scripts/docker-test
+```
+
+Expected: PASS.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add -A
+git commit -m "Off means off: every Off path stops climate children in any mode
+
+Refs #281"
+```
+
+---
+
+## Task 7: Lint and phase wrap-up
 
 - [ ] **Step 1: Lint**
 
@@ -1240,3 +1396,4 @@ Refs #281"
 4. Unavailable child: no calls. `assumed_state` child: control works from DST's own record, one `set_hvac_mode` per engagement.
 5. `min_cycle_duration` respected on climate roles.
 6. A device class with no role mode cannot be built on a climate entity (clear setup error).
+7. DST Off turns every climate child off whatever mode it is in; a role's own stop stays scoped to its mode; switch behaviour is unchanged.

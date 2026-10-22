@@ -5,16 +5,17 @@
 - **Branch:** `feat/climate-entity-devices`
 - **Roadmap:** GitHub issue [#281](https://github.com/swingerman/ha-dual-smart-thermostat/issues/281) (agreed design in the owner's comment). Related: [#322](https://github.com/swingerman/ha-dual-smart-thermostat/issues/322) (number/switch-backed devices, out of scope, see section 12).
 
-## 0. Open questions for the owner
+## 0. Owner decisions (design review)
 
-Everything else in this document is decided. These are the few calls that are the owner's.
+The four open questions of the first draft are resolved. They are folded into the sections below; this table is the record.
 
-| # | Question | Default taken in this design |
-|---|---|---|
-| OQ1 | `setpoint_offset` is one thermostat-wide signed value added as-is (the agreed text). A single AC filling heater **and** cooler wants opposite signs (the "+3 heat / -5 cool" trick from the issue thread), which one value cannot express. Keep one value for v1, or add per-role override keys now? | One value, added as-is, applies to every climate-backed role. Per-role keys are an additive follow-up (no migration needed). |
-| OQ2 | `control_style: setpoint` combined with a **heat pump** role (climate heater + `heat_pump_cooling`) is rejected in v1. The heat pump device swaps strategies at runtime and the self-regulating strategy would need to follow. Acceptable? | Rejected with a validation error. A single AC is still fully covered by heater + cooler (+ fan, dryer) pointing at one climate. |
-| OQ3 | When DST is switched OFF it stops only the mode its own roles command. A child left in a mode none of the roles owns (say the user set `auto` on the AC remote) is not touched. The alternative is "OFF always sends `climate.turn_off`", which would also override a manual mode. | Do not touch foreign modes. Safer for shared devices, matches "DST owns the modes it has roles for". |
-| OQ4 | In `setpoint` style the child decides when it actually runs, so DST's `hvac_action` can only say "engaged" (HEATING/COOLING), not "idle between cycles". Reading the child's own `hvac_action` is possible but is a follow-up. | Report engaged, document it. |
+| # | Decision |
+|---|---|
+| OQ1 | **Offset is per role from the start.** Keys `heater_setpoint_offset` and `cooler_setpoint_offset` (default `0`, signed, added as-is). There is no thermostat-wide offset. Only roles that push a temperature get a key; fan and dryer push none, so they get none. A heat pump uses the heater key while heating and the cooler key while cooling. An `ac_mode` cooler (cooler served by the `heater` entity) uses the cooler key. |
+| OQ2 | `control_style: setpoint` with a climate heat pump is **rejected** in v1, with a clear validation error in YAML and in the flows. |
+| OQ3 | **Off means off.** When DST is Off it sends `climate.turn_off` to every climate child it holds, whatever mode the child is in, including a mode no role owns (for example `auto` set from a remote). |
+| OQ4 | In `setpoint` style `hvac_action` shows "engaged" only. Mirroring the child's own action is a follow-up and out of scope. |
+| New | **Fan speed for a climate child** (section 3.5, phase 3b): the child's `fan_modes` are used verbatim whenever a climate fills any role; one fan-speed target is chosen once at setup. |
 
 ## 1. Goal and scope
 
@@ -23,16 +24,17 @@ Let a device role (`heater`, `cooler`, `fan`, `dryer`, heat pump) be backed by a
 ### In scope
 - Climate domain accepted for the five roles (YAML, config, reconfigure, options flows).
 - `control_style`: `on_off` (default) and `setpoint`.
-- `setpoint_offset` (default `0`).
+- `heater_setpoint_offset` and `cooler_setpoint_offset` (default `0`, per role).
+- Fan speed (`fan_mode`) for a climate child, from its own `fan_modes` (section 3.5).
 - `target_sensor` optional when a climate role exists (falls back to the child's `current_temperature`).
 - One climate entity filling several roles without the roles fighting.
 - Device safety: min cycle duration, availability, `assumed_state` (IR) devices.
 - Dependency tracking, translations, README and example.
 
 ### Out of scope
-- Fan speed control through the climate's `fan_mode` (a climate fan role has no speed control, like a `switch` fan today).
 - Humidity from the child's `current_humidity` (a dryer still needs `humidity_sensor`).
-- Mirroring the child's `hvac_action` into DST (OQ4).
+- Mirroring the child's `hvac_action` into DST (OQ4, follow-up).
+- A fan-speed option or mapping (child `fan_modes` are used verbatim, no config).
 - Climate as `secondary_heater` (aux). Stays switch-like only.
 - Number/switch-pair devices from #322 (section 12).
 - Any change to existing YAML semantics.
@@ -43,15 +45,16 @@ Let a device role (`heater`, `cooler`, `fan`, `dryer`, heat pump) be backed by a
 |---|---|
 | D1 | **The seam is one object per role: `EntityPort`.** Today the stack touches its entity in exactly three ways, all inside `GenericHVACDevice` / `GenericHvacController`: read "is it on" (`hass.states.is_state(id, "on")`), read "how long in this state" (`condition.state(..., min_cycle)`), command it (`homeassistant.turn_on/off`, valve open/close). All three move behind `EntityPort` (`is_active`, `ran_long_enough`, `async_turn_on`, `async_turn_off`). Two implementations: `SwitchPort` (today's code, valve included, moved not changed) and `ClimatePort`. Controllers, managers, `climate.py`, `MultiHvacDevice` keep calling `async_turn_on/off` / `is_active` and do not change. |
 | D2 | **No default port.** `GenericHVACDevice` builds its port from the entity domain via `make_port`; a device class without a role mode mapping cannot be built on a climate entity (raises at setup). No code path can silently drive a `climate.*` entity with `homeassistant.turn_on` and then wait for the state `on` (it never comes, the failure class a naive "just allow the domain" change would create). |
-| D3 | **Role conflicts are structurally impossible.** One `ClimateChild` per real climate entity (per `hass`, keyed by entity id) owns the only record of that device's mode. A role's "active" is a derived predicate `child.mode == my_mode`, never stored per role. Two roles on one climate therefore cannot both be active, and `turn_off` of a role is a no-op unless the child is currently in that role's mode, so a keep-alive `turn_off` from the idle cooler cannot stop the heater. The existing `in_use` guard in `MultiHvacDevice` (#637) keeps working because shared entity ids already compare equal. |
+| D3 | **Role conflicts are structurally impossible.** One `ClimateChild` per real climate entity (per `hass`, keyed by entity id) owns the only record of that device's mode. A role's "active" is a derived predicate `child.mode == my_mode`, never stored per role. Two roles on one climate therefore cannot both be active, and a role's `turn_off` (the controller stopping its own role) is a no-op unless the child is currently in that role's mode, so a keep-alive `turn_off` from the idle cooler cannot stop the heater. "DST is Off" is a different call, `async_stop`, which turns the child off whatever its mode (OQ3). The existing `in_use` guard in `MultiHvacDevice` (#637) keeps working because shared entity ids already compare equal. |
 | D4 | **`control_style` is a property of the port, not a new device class.** `on_off`: DST's strategy decides (existing code path). `setpoint`: the port reports `self_regulating = True`; `GenericHVACDevice` then swaps in a strategy whose goal is never reached and skips the min-cycle gate. The unchanged controller therefore keeps the child engaged, pauses it for openings and floor limits, and restores it afterwards. No second control loop. |
-| D5 | **Target mirroring is one idempotent method**, `port.async_sync()`, called at the top of `async_control_hvac`. Every trigger that already reaches control (target change, preset, mode change, sensor tick, keep-alive) mirrors the target; it only calls the child when the desired value differs from what the child reports. Pushed value = `target + setpoint_offset`, clamped to the child's `min_temp`/`max_temp`, rounded to `target_temp_step`. |
+| D5 | **Target mirroring is one idempotent method**, `port.async_sync()`, called at the top of `async_control_hvac`. Every trigger that already reaches control (target change, preset, mode change, sensor tick, keep-alive) mirrors the target; it only calls the child when the desired value differs from what the child reports. Pushed value = `target + the role's setpoint offset`, clamped to the child's `min_temp`/`max_temp`, rounded to `target_temp_step`. |
 | D6 | **Temperature source is an entity id plus a reader.** When `target_sensor` is missing, config normalisation sets it to the first climate role entity (heater, cooler, fan, dryer order). `EnvironmentManager.update_temp_from_state` reads `attributes["current_temperature"]` when `state.domain == "climate"`, else `state.state`. Listeners, stale detection and startup read all keep using `sensor_entity_id` unchanged. An explicit `target_sensor: climate.x` works by the same rule. |
 | D7 | **State truth.** Non-assumed child: its reported `state` is the mode and `last_changed` is the mode age. `assumed_state` child (IR): DST's own last commanded mode and timestamp are authoritative, initialised from the restored state. One property (`ClimateChild.mode`) hides the difference. Commands are serialised by one lock per child. |
 | D8 | **Availability.** Unavailable/unknown child: commands are skipped (same rule `SwitchPort` has today, #499) and `mode` is `None`. A mode the child does not list in `hvac_modes` is logged once and not sent. |
-| D9 | **Config surface.** Two new keys, `control_style` (`on_off`/`setpoint`) and `setpoint_offset` (float, default 0), both thermostat-wide. One new flow step `climate_control`, shown only when a role is a climate entity, placed right after the entity step (before `features`), so it respects the openings/presets-last rule. A single helper (`climate_roles.py`) answers "which roles are climate" for YAML validation, the flows and runtime, so the three cannot drift. |
+| D9 | **Config surface.** `control_style` (`on_off`/`setpoint`, thermostat-wide) and per-role `heater_setpoint_offset` / `cooler_setpoint_offset` (float, default 0). Each offset key requires the matching role to be a climate entity. One new flow step `climate_control`, shown only when a role is a climate entity, shows only the offset fields that apply, and sits right after the entity step (before `features`), so openings/presets stay last. A single helper (`climate_roles.py`) answers "which roles are climate" and "which offsets apply" for YAML validation, the flows and runtime, so they cannot drift. |
 | D10 | **Same entity in several roles is allowed for climate only.** The factory guard "cooler equals heater, ignore cooler" and the flow errors `same_heater_cooler` stay for switch-like entities. |
-| D11 | **Role to child mode:** heater `heat`, cooler `cool`, fan `fan_only`, dryer `dry`, heat pump `heat` or `cool` following `heat_pump_cooling` (evaluated lazily). Only heater, cooler and heat pump push a temperature. |
+| D12 | **One fan-speed target, chosen once.** `FeatureManager` holds exactly one `FanSpeedControl`, selected in the factory (section 3.5). Nothing downstream asks which entity owns fan speed. |
+| D11 | **Role to child mode:** heater `heat`, cooler `cool`, fan `fan_only`, dryer `dry`, heat pump `heat` or `cool` following `heat_pump_cooling` (evaluated lazily). Only heater, cooler and heat pump push a temperature, each with its own offset (heat pump: heater offset while heating, cooler offset while cooling). |
 
 ## 3. Architecture
 
@@ -73,6 +76,8 @@ class EntityPort(ABC):
     async def async_turn_off(self, context) -> None: ...
     async def async_sync(self, context) -> None:    # default: nothing to mirror
         return
+    @abstractmethod
+    async def async_stop(self, context) -> None:    # "DST is Off": off means off
 
 
 class SwitchPort(EntityPort): ...     # today's logic from GenericHVACDevice/GenericHvacController, valve included
@@ -88,10 +93,11 @@ class ClimateChild:                   # one per real climate entity, shared by r
 
 class ClimatePort(EntityPort):        # one per role, thin: derives everything from the child
     def __init__(self, child, role_mode: Callable[[], HVACMode], target: Callable[[], float | None],
-                 offset: float, style: str) -> None: ...
+                 offset: Callable[[], float], style: str, fan_speed=...) -> None: ...
 
 
-def make_port(hass, entity_id, *, role_mode, target, style, offset) -> EntityPort: ...
+def make_port(hass, entity_id, *, role_mode, target, style, offset: Callable[[], float],
+              fan_speed: Callable[[], FanSpeedControl | None]) -> EntityPort: ...
 ```
 
 `climate_child(hass, entity_id)` is a get-or-create over `hass.data["dual_smart_thermostat_climate_children"]`. The child holds no thermostat config (no min cycle, offset, style); those live in the per-role port, so a reload cannot leave stale config behind. The only retained state is the last commanded mode/time, which stays true across reloads.
@@ -103,6 +109,7 @@ def make_port(hass, entity_id, *, role_mode, target, style, offset) -> EntityPor
 | `is_active` | `child.mode == role_mode()` | same |
 | `async_turn_on` | child unavailable: skip. Else `climate.set_hvac_mode(role_mode)`, then push target (+offset) for heater/cooler/heat pump | same |
 | `async_turn_off` | only if `child.mode == role_mode()`: `climate.turn_off` | same |
+| `async_stop` (DST Off) | `SwitchPort`: turn off if active (today's behaviour). `ClimatePort`: if the child is available and not already off, `climate.turn_off`, whatever its mode | same |
 | `async_sync` | if `child.mode == role_mode()` and desired target differs from the child's reported `temperature` (assumed: last pushed): push | same |
 | `ran_long_enough(d)` | `now - child.since >= d` | always `True` (no DST cycling) |
 | `self_regulating` | `False` | `True` |
@@ -114,6 +121,8 @@ def make_port(hass, entity_id, *, role_mode, target, style, offset) -> EntityPor
 - `GenericHVACDevice.__init__`: build `self.port = make_port(...)` first, pass `self.port` to the controller. Replace `_entity_state`, `_is_valve`, `_entity_features`, `_supports_*_valve`, `is_on`, `_async_turn_on_entity`, `_async_turn_off_entity` and the valve helpers with calls to the port (`SwitchPort` owns them). Add `role_mode()` (default `None`) overridden by Heater/Cooler/Fan/Dryer/HeatPump devices. Add one line in `async_control_hvac`: `await self.port.async_sync(self._context)` after the OFF branch.
 - `GenericHvacController`: constructor takes `port` instead of `hass, entity_id`; `is_active` and `ran_long_enough` delegate to it. `entity_id` stays as a property of the port for logging. `HeaterHvacConroller` and `CoolerHvacController` pass it through.
 - `HvacEnvStrategy`: one classmethod `self_regulating(goal, reached_reason, not_reached_reason)` returning a strategy with `hvac_goal_reached == False` and `hvac_goal_not_reached == True`.
+- Off paths: `ControlableHVACDevice.async_set_hvac_mode` (OFF), `GenericHVACDevice.async_control_hvac` (OFF branch), `_async_check_device_initial_state` and `MultiHvacDevice.async_turn_off_all` call the new `async_stop()` instead of `if is_active: turn_off`. Keep-alive (`time is not None`) keeps its unconditional `turn_off`. `GenericHVACDevice.async_stop` delegates to `port.async_stop` and updates hvac power as `async_turn_off` does.
+- Offsets: each device class returns its offset via `setpoint_offset()` (Heater: `features.heater_setpoint_offset`, Cooler: `features.cooler_setpoint_offset`, HeatPump: by `_heat_pump_is_cooling`, Fan/Dryer: `0.0`); the port reads it lazily.
 - `HVACDeviceFactory`: relax the cooler-equals-heater guard for climate entities.
 - `MultiHvacDevice.get_device_ids`: de-duplicate (a shared child would otherwise register the state listener twice).
 - `EnvironmentManager.update_temp_from_state`: the domain-aware reader (D6).
@@ -139,6 +148,23 @@ child state_changed -> existing listener (_async_switch_changed) -> write state 
 
 HeaterDevice with a `SwitchPort` is the same code as before, reached through the same port calls.
 
+### 3.5 Fan speed for a climate child (phase 3b)
+
+Today fan speed lives inside `FanDevice` (`_detect_fan_capabilities`, `async_set_fan_mode`, `restore_fan_mode`, `redetect_capabilities`) and `climate.py` reaches it through `features.fan_device`. Speed control is extracted into one small class, `FanSpeedControl(hass, entity_id)`, with the same members and one more detection source:
+
+| Source | Modes | Set with |
+|---|---|---|
+| `fan` entity with `preset_modes` | the presets (as today) | `fan.set_preset_mode` |
+| `fan` entity with `percentage` | `auto/low/medium/high` (as today) | `fan.set_percentage` |
+| `switch` / `input_boolean` | none | n/a |
+| **`climate` entity with `fan_modes`** | **its `fan_modes` verbatim** (values like `quiet`, `strong` survive; no mapping) | **`climate.set_fan_mode`** |
+
+- **One target, chosen once (D12).** `FanDevice` owns a `FanSpeedControl` for its entity. The factory selects the single control for the thermostat: if a fan device exists (a fan entity is configured for the fan role, or the fan role is the climate itself) its control wins; otherwise, if any role is a climate entity, a `FanSpeedControl` over the first climate role (heater, cooler, fan, dryer order) is created; otherwise none. It is stored with `features.set_fan_speed(control)` (replaces `set_fan_device`). A cooler-only AC therefore gets speed control, and when a separate fan entity is configured the AC's own fan speed is never touched. `climate.py`, `FeatureManager` (`supports_fan_mode`, `fan_modes`, restore) and the state-change redetect use that one object.
+- **Re-apply after turn on.** Many ACs, IR ones especially, reset the fan speed when the mode changes. `ClimatePort.async_turn_on` calls `fan_speed.async_reapply(entity_id)` after the mode (and target) are set; it acts only when the control targets that same climate entity, so a separate fan entity or a different climate is never touched. `FanDevice.async_turn_on` skips its own explicit apply when its control is climate-backed (the port already did it).
+- **Restore across restarts** and **late discovery** reuse today's mechanism unchanged: `restore_fan_mode` holds the value until detection succeeds; `redetect_capabilities` runs on the child's state changes (the child is always in the thermostat's listened entity ids because it fills a role).
+- **No new config option.** Detection is automatic, as today (`hvac_device/CLAUDE.md`).
+- Setting the speed on an unavailable child, or to a value outside `fan_modes`, is logged and skipped (same as fans).
+
 ## 4. Role conflicts (one climate, several roles)
 
 Heater, cooler, fan and dryer pointing at the same `climate.x` are four `ClimatePort`s over one `ClimateChild`.
@@ -147,6 +173,7 @@ Heater, cooler, fan and dryer pointing at the same `climate.x` are four `Climate
 - **Switching modes.** `MultiHvacDevice` already stops the devices that do not handle the new mode before running the one that does, sparing entities the running device also owns. Heat to cool: the heater port turns the child off (it is in `heat`), the cooler port sets `cool`. Even if the stop is skipped, `set_hvac_mode(cool)` replaces `heat` because the child holds one mode.
 - **No cross-kill.** An idle role's keep-alive or OFF-mode `turn_off` is a no-op unless the child is in that role's mode.
 - **Min cycle** is measured on the child (`since`), which is also what protects the compressor when heat and cool alternate.
+- **Off is global.** `async_stop` turns the child off in any mode, so Off cannot be defeated by a mode no role owns. (A role's own stop stays mode-scoped.)
 - **Config guard.** The factory and flow "same entity" checks apply only to non-climate entities.
 - **Self reference.** A role pointing at the DST entity itself would loop; rejected when the entity is added.
 
@@ -169,8 +196,9 @@ Heater, cooler, fan and dryer pointing at the same `climate.x` are four `Climate
 | Key | Type | Default | Notes |
 |---|---|---|---|
 | `heater`, `cooler`, `fan`, `dryer` | entity id | existing | `climate` accepted (YAML already uses `cv.entity_id`) |
-| `control_style` | `on_off` / `setpoint` | `on_off` | requires a climate role; not with climate heat pump (OQ2) |
-| `setpoint_offset` | float | `0` | requires a climate role |
+| `control_style` | `on_off` / `setpoint` | `on_off` | requires a climate role; rejected with a climate heat pump (OQ2) |
+| `heater_setpoint_offset` | float | `0` | requires `heater` to be a climate entity (not when it only serves as an `ac_mode` cooler) |
+| `cooler_setpoint_offset` | float | `0` | requires `cooler` to be a climate entity, or an `ac_mode` / heat pump `heater` that is climate |
 | `target_sensor` | entity id | required | optional when a climate role exists |
 | `secondary_heater` | entity id | existing | climate rejected |
 
@@ -178,9 +206,9 @@ Heater, cooler, fan and dryer pointing at the same `climate.x` are four `Climate
 
 - Entity selectors for heater/cooler/dryer add the `climate` domain. The fan selector already allows `fan`; it adds `climate`.
 - Sensor selector becomes optional in every schema that has it. `EntityValidator` returns `sensor_required` when there is neither a sensor nor a climate role.
-- New step `climate_control` (`control_style` select, `setpoint_offset` number) in the config flow, reachable from reconfigure, and a `climate_control_options` step in the options flow. Both guarded by `has_climate_role(config)`.
+- New step `climate_control` (`control_style` select plus the applicable `heater_setpoint_offset` / `cooler_setpoint_offset` numbers) in the config flow, reachable from reconfigure, and a `climate_control_options` step in the options flow. Both guarded by `has_climate_role(config)`.
 - Ordering (`docs/config_flow/step_ordering.md`): entity step, **climate_control**, features, ..., openings, presets. Climate control is part of "basic entity configuration".
-- Dependency tracking: `control_style` and `setpoint_offset` require a climate role; `target_sensor` is conditionally required. Recorded in `tools/focused_config_dependencies.json`, `tools/config_validator.py`, `docs/config/CRITICAL_CONFIG_DEPENDENCIES.md`.
+- Dependency tracking: `control_style` requires a climate role and each offset key requires its own role to be climate; `target_sensor` is conditionally required. Recorded in `tools/focused_config_dependencies.json`, `tools/config_validator.py`, `docs/config/CRITICAL_CONFIG_DEPENDENCIES.md`.
 - Translations: `en.json` (step, field labels, `sensor_required` error, `control_style` option labels); other locales follow the existing fallback practice.
 
 ### 6.3 YAML
@@ -192,7 +220,7 @@ climate:
     heater: switch.room_heater_plug       # switch-like
     cooler: climate.room_ac               # climate
     control_style: on_off                 # default
-    setpoint_offset: 0                    # default
+    cooler_setpoint_offset: 0             # default; per role
     target_sensor: sensor.room_temperature
 ```
 
@@ -218,8 +246,9 @@ Per `docs/TESTING.md`: no standalone bug-fix files; flow tests go in the existin
 | Phase | Plan | Delivers |
 |---|---|---|
 | 1 | `2026-10-20-climate-entity-devices-phase-1-port-seam.md` | `EntityPort`/`SwitchPort` extraction, `ClimatePort` on_off, YAML, single role, mixed setup |
-| 2 | `2026-10-20-climate-entity-devices-phase-2-setpoint-style.md` | `control_style: setpoint`, `setpoint_offset`, target mirroring, clamp |
+| 2 | `2026-10-20-climate-entity-devices-phase-2-setpoint-style.md` | `control_style: setpoint`, per-role `*_setpoint_offset`, target mirroring, clamp |
 | 3 | `2026-10-20-climate-entity-devices-phase-3-shared-climate-and-sensor-fallback.md` | one climate in several roles, heat pump role, `target_sensor` fallback, self-reference guard |
+| 3b | `2026-10-20-climate-entity-devices-phase-3b-climate-fan-speed.md` | `FanSpeedControl` extraction, climate `fan_modes` source, single fan-speed target, re-apply after turn on |
 | 4 | `2026-10-20-climate-entity-devices-phase-4-config-flows.md` | config, reconfigure, options flows, dependency tracking, translations, README and example |
 | 5 | `2026-10-20-climate-entity-devices-phase-5-real-device-verification.md` | HAOS checklist for the two rigs |
 
@@ -227,6 +256,7 @@ Per `docs/TESTING.md`: no standalone bug-fix files; flow tests go in the existin
 
 **New**
 - `custom_components/dual_smart_thermostat/hvac_device/entity_port.py`
+- `custom_components/dual_smart_thermostat/hvac_device/fan_speed.py`
 - `custom_components/dual_smart_thermostat/climate_roles.py`
 - `tests/features/test_climate_backed_devices.py`
 - `examples/basic_configurations/climate_entity_roles.yaml`
@@ -260,7 +290,7 @@ Per `docs/TESTING.md`: no standalone bug-fix files; flow tests go in the existin
 
 1. Each role accepts a `climate.*` entity in YAML and in the config, reconfigure and options flows.
 2. Mixed setup (climate cooler, switch heater) cycles both correctly in one thermostat.
-3. `on_off`: DST's loop turns the child on (mode plus target plus offset) and off (`climate.turn_off`) with tolerances and min cycle respected.
+3. `on_off`: DST's loop turns the child on (mode plus target plus the role's offset) and off (`climate.turn_off`) with tolerances and min cycle respected.
 4. `setpoint`: child stays engaged; target, mode and presets mirrored; openings pause and restore it; no DST cycling.
 5. `target_sensor` omitted: current temperature, stale detection and startup use the child's `current_temperature`.
 6. One climate in heater+cooler+fan+dryer never has two active roles; an idle role cannot stop an active one.
@@ -268,3 +298,5 @@ Per `docs/TESTING.md`: no standalone bug-fix files; flow tests go in the existin
 8. Existing suite passes unchanged; `./scripts/docker-lint` passes.
 9. Dependency validator (`python tools/config_validator.py`) knows the new keys.
 10. Phase 5 checklist passes on both rigs.
+11. DST Off sends `climate.turn_off` to every climate child in any mode.
+12. A climate child's own `fan_modes` drive `fan_mode` for any role; a separately configured fan entity takes precedence and the AC's fan speed is then untouched; the mode is re-applied after each turn on, restored after restart and detected late.

@@ -1,10 +1,10 @@
-# Climate Entity Devices - Phase 2: `setpoint` Control Style and `setpoint_offset` - Implementation Plan
+# Climate Entity Devices - Phase 2: `setpoint` Control Style and Per-Role Setpoint Offsets - Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add `control_style: setpoint` (the child stays engaged and regulates itself; DST mirrors target, mode, presets and openings and adds no cycling) and `setpoint_offset` (added to every pushed target, clamped to the child's range). Both configurable in YAML; flows come in phase 4.
+**Goal:** Add `control_style: setpoint` (the child stays engaged and regulates itself; DST mirrors target, mode, presets and openings and adds no cycling) and per-role `heater_setpoint_offset` / `cooler_setpoint_offset` (each added to that role's pushed target, clamped to the child's range; there is no thermostat-wide offset, and fan and dryer push no temperature so they have none). A heat pump uses the heater offset while heating and the cooler offset while cooling. All configurable in YAML; flows come in phase 4.
 
-**Architecture:** Style is a property of the port, not a new device class. `ClimatePort` gains `offset` and `style`; `style == "setpoint"` makes `self_regulating` true. `GenericHVACDevice` reacts to that single flag twice: it swaps in a strategy whose goal is never reached (`HvacEnvStrategy.self_regulating`) and the port's `ran_long_enough` becomes always true. Target mirroring is one idempotent `port.async_sync()` called at the top of `async_control_hvac`, which every existing trigger already reaches. The unchanged controller then keeps the child engaged, pauses it for openings and floor limits, and restores it.
+**Architecture:** Style is a property of the port, not a new device class. `ClimatePort` gains `offset` (a callable, so the heat pump can switch between its two keys) and `style`; `style == "setpoint"` makes `self_regulating` true. `GenericHVACDevice` reacts to that single flag twice: it swaps in a strategy whose goal is never reached (`HvacEnvStrategy.self_regulating`) and the port's `ran_long_enough` becomes always true. Target mirroring is one idempotent `port.async_sync()` called at the top of `async_control_hvac`, which every existing trigger already reaches. The unchanged controller then keeps the child engaged, pauses it for openings and floor limits, and restores it.
 
 **Tech Stack:** Python 3.14, Home Assistant 2026.3.2+, pytest.
 
@@ -41,7 +41,7 @@ That is exactly the `setpoint` contract with zero new branching.
 
 ### Pushed target
 
-`pushed = round_to_step(clamp(target + setpoint_offset, child.min_temp, child.max_temp), child.target_temperature_step)`. A push is skipped when the child already reports that value (`attributes["temperature"]`; for an assumed child, DST's last pushed value).
+`pushed = round_to_step(clamp(target + role_offset, child.min_temp, child.max_temp), child.target_temperature_step)`. A push is skipped when the child already reports that value (`attributes["temperature"]`; for an assumed child, DST's last pushed value).
 
 ---
 
@@ -73,15 +73,62 @@ def _yaml(**extra):
     }
 
 
-def test_control_style_and_offset_accepted_with_climate_role() -> None:
+def test_control_style_and_cooler_offset_accepted_with_climate_cooler() -> None:
     cfg = PLATFORM_SCHEMA(
-        _yaml(cooler="climate.ac", control_style="setpoint", setpoint_offset=-3)
+        _yaml(cooler="climate.ac", control_style="setpoint", cooler_setpoint_offset=-3)
     )
     assert cfg["control_style"] == "setpoint"
-    assert cfg["setpoint_offset"] == -3.0
+    assert cfg["cooler_setpoint_offset"] == -3.0
 
 
-@pytest.mark.parametrize("key,value", [("control_style", "on_off"), ("setpoint_offset", 1)])
+def test_each_offset_needs_its_own_climate_role() -> None:
+    # heater is a switch: its offset has nothing to apply to
+    with pytest.raises(vol.Invalid, match="heater_setpoint_offset"):
+        PLATFORM_SCHEMA(_yaml(cooler="climate.ac", heater_setpoint_offset=2))
+    # cooler is a switch: same for the cooler offset
+    with pytest.raises(vol.Invalid, match="cooler_setpoint_offset"):
+        PLATFORM_SCHEMA(_yaml(heater="climate.ac", cooler="switch.c", cooler_setpoint_offset=2))
+
+
+def test_ac_mode_climate_heater_serves_as_the_cooler() -> None:
+    cfg = PLATFORM_SCHEMA(_yaml(heater="climate.ac", ac_mode=True, cooler_setpoint_offset=-2))
+    assert cfg["cooler_setpoint_offset"] == -2.0
+    with pytest.raises(vol.Invalid, match="heater_setpoint_offset"):
+        PLATFORM_SCHEMA(_yaml(heater="climate.ac", ac_mode=True, heater_setpoint_offset=2))
+
+
+def test_climate_heat_pump_accepts_both_offsets() -> None:
+    cfg = PLATFORM_SCHEMA(
+        _yaml(
+            heater="climate.hp",
+            heat_pump_cooling="binary_sensor.cooling",
+            heater_setpoint_offset=3,
+            cooler_setpoint_offset=-5,
+        )
+    )
+    assert (cfg["heater_setpoint_offset"], cfg["cooler_setpoint_offset"]) == (3.0, -5.0)
+
+
+def test_applicable_offset_keys_follow_the_roles() -> None:
+    from custom_components.dual_smart_thermostat.climate_roles import applicable_offset_keys
+
+    assert applicable_offset_keys({"heater": "switch.h", "cooler": "climate.ac"}) == [
+        "cooler_setpoint_offset"
+    ]
+    assert applicable_offset_keys({"heater": "climate.h", "cooler": "climate.c"}) == [
+        "heater_setpoint_offset",
+        "cooler_setpoint_offset",
+    ]
+    assert applicable_offset_keys({"heater": "climate.h", "fan": "climate.h"}) == [
+        "heater_setpoint_offset"
+    ]
+    assert applicable_offset_keys({"heater": "switch.h"}) == []
+
+
+@pytest.mark.parametrize(
+    "key,value",
+    [("control_style", "on_off"), ("heater_setpoint_offset", 1), ("cooler_setpoint_offset", 1)],
+)
 def test_climate_only_options_rejected_without_a_climate_role(key, value) -> None:
     with pytest.raises(vol.Invalid, match="climate"):
         PLATFORM_SCHEMA(_yaml(**{key: value}))
@@ -111,7 +158,7 @@ def test_climate_aux_heater_rejected() -> None:
 - [ ] **Step 2: Run to verify failure**
 
 ```bash
-./scripts/docker-test tests/unit/test_config_validation_integration.py -k "control_style or climate_only or heat_pump_rejected or aux_heater_rejected" -v
+./scripts/docker-test tests/unit/test_config_validation_integration.py -k "control_style or climate_only or heat_pump or aux_heater_rejected or offset or ac_mode" -v
 ```
 
 Expected: FAIL (`extra keys not allowed` / no error raised).
@@ -122,7 +169,8 @@ Expected: FAIL (`extra keys not allowed` / no error raised).
 
 ```python
 CONF_CONTROL_STYLE = "control_style"
-CONF_SETPOINT_OFFSET = "setpoint_offset"
+CONF_HEATER_SETPOINT_OFFSET = "heater_setpoint_offset"
+CONF_COOLER_SETPOINT_OFFSET = "cooler_setpoint_offset"
 
 
 class ControlStyle(enum.StrEnum):
@@ -133,7 +181,7 @@ class ControlStyle(enum.StrEnum):
 
 
 DEFAULT_CONTROL_STYLE = ControlStyle.ON_OFF
-DEFAULT_SETPOINT_OFFSET = 0.0
+DEFAULT_SETPOINT_OFFSET = 0.0  # per role: heater_/cooler_setpoint_offset
 ```
 
 `climate_roles.py` (add):
@@ -143,11 +191,35 @@ import voluptuous as vol
 
 from .const import (
     CONF_AUX_HEATER,
+    CONF_AC_MODE,
     CONF_CONTROL_STYLE,
+    CONF_COOLER,
     CONF_HEAT_PUMP_COOLING,
-    CONF_SETPOINT_OFFSET,
+    CONF_COOLER_SETPOINT_OFFSET,
+    CONF_HEATER_SETPOINT_OFFSET,
     ControlStyle,
 )
+
+
+def applicable_offset_keys(config: Mapping[str, Any]) -> list[str]:
+    """Which per-role offsets mean something for these roles.
+
+    Only roles that push a temperature have one. A climate `heater` that only
+    serves as the cooler (`ac_mode`, no `cooler`) uses the cooler offset; a heat
+    pump uses the heater offset while heating and the cooler offset while cooling.
+    """
+    heater_is_climate = is_climate_entity(config.get(CONF_HEATER))
+    ac_only = bool(config.get(CONF_AC_MODE)) and not config.get(CONF_COOLER)
+    heat_pump = bool(config.get(CONF_HEAT_PUMP_COOLING))
+
+    keys = []
+    if heater_is_climate and (not ac_only or heat_pump):
+        keys.append(CONF_HEATER_SETPOINT_OFFSET)
+    if is_climate_entity(config.get(CONF_COOLER)) or (
+        heater_is_climate and (ac_only or heat_pump)
+    ):
+        keys.append(CONF_COOLER_SETPOINT_OFFSET)
+    return keys
 
 
 def setpoint_unsupported(config: Mapping[str, Any]) -> bool:
@@ -162,10 +234,15 @@ def setpoint_unsupported(config: Mapping[str, Any]) -> bool:
 def validate_climate_options(config: dict[str, Any]) -> dict[str, Any]:
     """Cross-field rules for climate-backed roles (shared by YAML and the flows)."""
     has_role = has_climate_role(config)
-    for key in (CONF_CONTROL_STYLE, CONF_SETPOINT_OFFSET):
-        if key in config and not has_role:
+    if CONF_CONTROL_STYLE in config and not has_role:
+        raise vol.Invalid(
+            "control_style needs heater, cooler, fan or dryer to be a climate entity"
+        )
+    applicable = applicable_offset_keys(config)
+    for key in (CONF_HEATER_SETPOINT_OFFSET, CONF_COOLER_SETPOINT_OFFSET):
+        if key in config and key not in applicable:
             raise vol.Invalid(
-                f"{key} needs heater, cooler, fan or dryer to be a climate entity"
+                f"{key} needs the matching role to be a climate entity (climate)"
             )
     if setpoint_unsupported(config):
         raise vol.Invalid(
@@ -180,7 +257,8 @@ def validate_climate_options(config: dict[str, Any]) -> dict[str, Any]:
 
 ```python
         vol.Optional(CONF_CONTROL_STYLE): vol.Coerce(ControlStyle),
-        vol.Optional(CONF_SETPOINT_OFFSET): vol.Coerce(float),
+        vol.Optional(CONF_HEATER_SETPOINT_OFFSET): vol.Coerce(float),
+        vol.Optional(CONF_COOLER_SETPOINT_OFFSET): vol.Coerce(float),
 ```
 
 and wrap the result: `PLATFORM_SCHEMA = vol.All(PLATFORM_SCHEMA.extend({...}), validate_climate_options)`. First `grep -n "PLATFORM_SCHEMA" custom_components` to confirm nothing later calls `.extend` on it (HA itself calls it as a plain validator).
@@ -197,7 +275,7 @@ Expected: PASS.
 
 ```bash
 git add -A
-git commit -m "Add control_style / setpoint_offset keys and climate role validation
+git commit -m "Add control_style and per-role setpoint offset keys with climate role validation
 
 Refs #281"
 ```
@@ -219,13 +297,14 @@ from custom_components.dual_smart_thermostat.const import ControlStyle
 
 
 def _port2(hass, entity_id, mode, target, *, offset=0.0, style=ControlStyle.ON_OFF):
+    # offset is read lazily through a callable (a heat pump switches between two keys)
     return make_port(
         hass,
         entity_id,
         role_mode=lambda: mode,
         target=lambda: target,
         style=style,
-        offset=offset,
+        offset=lambda: offset,
     )
 
 
@@ -315,7 +394,7 @@ class ClimateChild:
 `ClimatePort`:
 
 ```python
-    def __init__(self, child, role_mode, target, offset: float, style: ControlStyle):
+    def __init__(self, child, role_mode, target, offset: Callable[[], float], style: ControlStyle):
         ...
         self._offset = offset
         self.self_regulating = style == ControlStyle.SETPOINT
@@ -328,16 +407,16 @@ class ClimateChild:
     async def _push(self, context) -> None:
         target = self._target()
         if target is not None:
-            await self._child.async_push_target(target + self._offset, context)
+            await self._child.async_push_target(target + self._offset(), context)
 
     async def async_turn_on(self, context):
         if await self._child.async_set_mode(self._role_mode(), context):
             await self._push(context)
 ```
 
-`make_port(hass, entity_id, *, role_mode, target, style=ControlStyle.ON_OFF, offset=0.0)` forwards both to `ClimatePort`.
+`make_port(hass, entity_id, *, role_mode, target, style=ControlStyle.ON_OFF, offset=lambda: 0.0)` forwards both to `ClimatePort`.
 
-`FeatureManager`: two read-only properties over the config, mirroring existing ones such as `heat_pump_cooling_entity_id`:
+`FeatureManager`: read-only properties over the config, mirroring existing ones such as `heat_pump_cooling_entity_id`:
 
 ```python
     @property
@@ -345,11 +424,41 @@ class ClimateChild:
         return ControlStyle(self._config.get(CONF_CONTROL_STYLE, DEFAULT_CONTROL_STYLE))
 
     @property
-    def setpoint_offset(self) -> float:
-        return float(self._config.get(CONF_SETPOINT_OFFSET, DEFAULT_SETPOINT_OFFSET))
+    def heater_setpoint_offset(self) -> float:
+        return float(self._config.get(CONF_HEATER_SETPOINT_OFFSET, DEFAULT_SETPOINT_OFFSET))
+
+    @property
+    def cooler_setpoint_offset(self) -> float:
+        return float(self._config.get(CONF_COOLER_SETPOINT_OFFSET, DEFAULT_SETPOINT_OFFSET))
 ```
 
-`GenericHVACDevice.__init__`: pass `style=features.climate_control_style, offset=features.setpoint_offset` to `make_port`.
+Each device class says which offset its role uses (fan and dryer push no temperature, so the default is `0.0`):
+
+```python
+# GenericHVACDevice
+    def setpoint_offset(self) -> float:
+        return 0.0
+
+# HeaterDevice
+    def setpoint_offset(self) -> float:
+        return self.features.heater_setpoint_offset
+
+# CoolerDevice  (also the ac_mode cooler on the heater entity)
+    def setpoint_offset(self) -> float:
+        return self.features.cooler_setpoint_offset
+
+# HeatPumpDevice
+    def setpoint_offset(self) -> float:
+        return (
+            self.features.cooler_setpoint_offset
+            if self._heat_pump_is_cooling
+            else self.features.heater_setpoint_offset
+        )
+```
+
+(`FanDevice` extends `CoolerDevice`: override it back to `0.0`; `DryerDevice` inherits the default.)
+
+`GenericHVACDevice.__init__`: pass `style=features.climate_control_style, offset=self.setpoint_offset` (the bound method, read lazily) to `make_port`.
 
 - [ ] **Step 4: Run to verify pass**
 
@@ -363,7 +472,7 @@ Expected: PASS.
 
 ```bash
 git add -A
-git commit -m "Climate roles: setpoint_offset, clamp and step on the pushed target
+git commit -m "Climate roles: per-role setpoint offsets, clamp and step on the pushed target
 
 Refs #281"
 ```
@@ -566,24 +675,31 @@ async def test_setpoint_style_opening_pauses_and_restores_the_child(
     assert ("set_temperature", {"temperature": 22.0}) in child.calls
 
 
-async def test_setpoint_style_offset_applies_to_every_push(hass: HomeAssistant) -> None:
-    hass.states.async_set(SENSOR, 26.0)
+async def test_setpoint_style_each_role_uses_its_own_offset(hass: HomeAssistant) -> None:
+    heater_ac = "climate.test_heater_ac"
+    hass.states.async_set(SENSOR, 18.0)
     await _setup(
         hass,
-        heater=HEATER,
+        heater=heater_ac,
         cooler=AC,
-        initial_hvac_mode=HVACMode.COOL,
+        initial_hvac_mode=HVACMode.HEAT,
         control_style="setpoint",
-        setpoint_offset=-5,
+        heater_setpoint_offset=3,
+        cooler_setpoint_offset=-5,
     )
-    child = await common.add_fake_climate(hass, AC)
+    heater_child = await common.add_fake_climate(hass, heater_ac)
+    cooler_child = await common.add_fake_climate(hass, AC)
+
+    await common.async_set_temperature(hass, 22, "climate.test")
+    await hass.async_block_till_done()
+    assert ("set_temperature", {"temperature": 25.0}) in heater_child.calls  # 22 + 3
+
+    hass.states.async_set(SENSOR, 28.0)
+    await common.async_set_hvac_mode(hass, HVACMode.COOL, "climate.test")
     await common.async_set_temperature(hass, 24, "climate.test")
     await hass.async_block_till_done()
-    await common.async_set_temperature(hass, 25, "climate.test")
-    await hass.async_block_till_done()
-
-    pushed = [c[1]["temperature"] for c in child.calls if c[0] == "set_temperature"]
-    assert pushed == [19.0, 20.0]
+    assert ("set_temperature", {"temperature": 19.0}) in cooler_child.calls  # 24 - 5
+    assert all(c[1].get("temperature") != 19.0 for c in heater_child.calls)
 
 
 async def test_on_off_style_is_unchanged_by_the_new_code(hass: HomeAssistant) -> None:
@@ -677,6 +793,6 @@ Refs #281"`
 1. `control_style: setpoint` keeps the child engaged beyond the target; no DST-initiated turn-off at target; no min-cycle wait.
 2. Target, preset and mode changes reach the child; unchanged values are not resent.
 3. An opening pauses and restores a setpoint child; floor limits still apply to a climate heater.
-4. `setpoint_offset` applies to every push and is clamped and stepped to the child's range.
+4. `heater_setpoint_offset` / `cooler_setpoint_offset` apply to their own role's pushes only (heat pump: by direction) and are clamped and stepped to the child's range; there is no thermostat-wide offset.
 5. `on_off` default behaviour unchanged.
-6. `control_style` / `setpoint_offset` without a climate role, a climate heat pump with `setpoint`, and a climate `secondary_heater` are rejected at YAML validation.
+6. `control_style` without a climate role, an offset key whose role is not a climate entity, a climate heat pump with `setpoint`, and a climate `secondary_heater` are rejected at YAML validation.
