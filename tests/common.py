@@ -21,6 +21,9 @@ from homeassistant.components.climate import (
     SERVICE_SET_PRESET_MODE,
     SERVICE_SET_TEMPERATURE,
     SERVICE_TOGGLE,
+    ClimateEntity,
+    ClimateEntityFeature,
+    HVACMode,
 )
 from homeassistant.components.humidifier import ATTR_HUMIDITY
 from homeassistant.const import (
@@ -29,6 +32,7 @@ from homeassistant.const import (
     ENTITY_MATCH_ALL,
     SERVICE_TURN_OFF,
     SERVICE_TURN_ON,
+    UnitOfTemperature,
 )
 from homeassistant.core import (
     HomeAssistant,
@@ -43,8 +47,10 @@ from homeassistant.helpers import event, restore_state
 from homeassistant.helpers.dispatcher import SignalType, async_dispatcher_connect
 from homeassistant.helpers.json import JSONEncoder
 from homeassistant.loader import bind_hass
+from homeassistant.setup import async_setup_component
 from homeassistant.util.async_ import run_callback_threadsafe
 import homeassistant.util.dt as dt_util
+from pytest_homeassistant_custom_component.common import MockEntityPlatform
 import voluptuous as vol
 
 from custom_components.dual_smart_thermostat.const import (
@@ -483,3 +489,72 @@ def async_mock_signal(
     async_dispatcher_connect(hass, signal, mock_signal_handler)
 
     return calls
+
+
+class FakeClimateChild(ClimateEntity):
+    """A real climate entity standing in for a physical AC / radiator valve."""
+
+    _attr_temperature_unit = UnitOfTemperature.CELSIUS
+    _attr_supported_features = (
+        ClimateEntityFeature.TARGET_TEMPERATURE
+        | ClimateEntityFeature.TURN_OFF
+        | ClimateEntityFeature.TURN_ON
+    )
+    _attr_hvac_modes = [
+        HVACMode.OFF,
+        HVACMode.HEAT,
+        HVACMode.COOL,
+        HVACMode.FAN_ONLY,
+        HVACMode.DRY,
+    ]
+    _attr_min_temp = 16
+    _attr_max_temp = 30
+    _attr_target_temperature_step = 0.5
+    _attr_should_poll = False
+
+    def __init__(self, entity_id, mode=HVACMode.OFF, *, assumed=False, current=22.0):
+        """Create the child; `assumed` never reports its state back."""
+        self.entity_id = entity_id
+        self._attr_hvac_mode = mode
+        self._attr_assumed_state = assumed
+        self._attr_target_temperature = 21.0
+        self._attr_current_temperature = current
+        self.calls: list[tuple[str, dict]] = []
+
+    def _follow(self, mode):
+        # An assumed-state device never reports back: the state stays put.
+        if not self._attr_assumed_state:
+            self._attr_hvac_mode = mode
+            self.async_write_ha_state()
+
+    async def async_set_hvac_mode(self, hvac_mode):
+        """Record the call; follow it unless assumed."""
+        self.calls.append(("set_hvac_mode", {"hvac_mode": hvac_mode}))
+        self._follow(hvac_mode)
+
+    async def async_turn_off(self):
+        """Record the call; follow it unless assumed."""
+        self.calls.append(("turn_off", {}))
+        self._follow(HVACMode.OFF)
+
+    async def async_set_temperature(self, **kwargs):
+        """Record the call; follow it unless assumed."""
+        self.calls.append(("set_temperature", dict(kwargs)))
+        if "temperature" in kwargs and not self._attr_assumed_state:
+            self._attr_target_temperature = kwargs["temperature"]
+            self.async_write_ha_state()
+
+    def set_current_temperature(self, value):
+        """Report a new measured temperature."""
+        self._attr_current_temperature = value
+        self.async_write_ha_state()
+
+
+async def add_fake_climate(hass, entity_id, mode=HVACMode.OFF, **kwargs):
+    """Register a FakeClimateChild; the real climate services act on it."""
+    assert await async_setup_component(hass, DOMAIN, {})
+    child = FakeClimateChild(entity_id, mode, **kwargs)
+    platform = MockEntityPlatform(hass, domain=DOMAIN, platform_name="fake")
+    await platform.async_add_entities([child])
+    await hass.async_block_till_done()
+    return child
