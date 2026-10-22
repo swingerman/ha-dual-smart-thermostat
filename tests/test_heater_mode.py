@@ -3292,3 +3292,50 @@ async def test_heater_cooler_with_fan_off_with_heater_keeps_legacy_behavior(
         if c.service == SERVICE_TURN_ON and c.data.get("entity_id") == common.ENT_FAN
     ]
     assert len(fan_on) == 0, f"fan must stay off without opt-in, got: {calls}"
+
+
+@pytest.mark.parametrize("expected_lingering_timers", [True])
+async def test_heater_valve_min_cycle_no_keep_alive(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory, setup_comp_1  # noqa: F811
+) -> None:
+    """Valve heater with min_cycle_duration (no keep_alive) opens, then closes (#663)."""
+    hass.config.units = METRIC_SYSTEM
+    calls = setup_valve(hass, False)
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "heater": common.ENT_VALVE,
+                "target_sensor": common.ENT_SENSOR,
+                "initial_hvac_mode": HVACMode.HEAT,
+                "min_cycle_duration": timedelta(seconds=15),
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    freezer.tick(timedelta(seconds=20))
+    common.async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+
+    setup_sensor(hass, 18)
+    await hass.async_block_till_done()
+    await common.async_set_temperature(hass, 23)
+    await hass.async_block_till_done()
+    assert [c.service for c in calls] == [SERVICE_OPEN_VALVE]
+
+    # valve reports open; wait out min_cycle, then reach the opposite side
+    calls.clear()
+    hass.states.async_set(
+        common.ENT_VALVE, STATE_OPEN, dict(hass.states.get(common.ENT_VALVE).attributes)
+    )
+    freezer.tick(timedelta(seconds=20))
+    common.async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+
+    setup_sensor(hass, 24)
+    await hass.async_block_till_done()
+    assert SERVICE_CLOSE_VALVE in [c.service for c in calls]
