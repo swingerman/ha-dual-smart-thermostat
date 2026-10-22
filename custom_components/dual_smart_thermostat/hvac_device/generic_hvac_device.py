@@ -63,6 +63,7 @@ class GenericHVACDevice(
             role_mode=self.role_mode,
             target=self.climate_target,
             offset=self.setpoint_offset,
+            style=features.climate_control_style,
         )
 
         self.hvac_controller: HvacController = GenericHvacController(
@@ -81,6 +82,13 @@ class GenericHVACDevice(
             self.target_env_attr_not_reached_reason,
             self.hvac_goal,
         )
+
+        if self.port.self_regulating:
+            self.strategy = HvacEnvStrategy.self_regulating(
+                self.hvac_goal,
+                self.target_env_attr_reached_reason,
+                self.target_env_attr_not_reached_reason,
+            )
 
         if initial_hvac_mode in self.hvac_modes:
             self._hvac_mode = initial_hvac_mode

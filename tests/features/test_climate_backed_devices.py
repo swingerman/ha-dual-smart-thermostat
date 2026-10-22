@@ -730,3 +730,153 @@ async def test_target_is_never_pushed_before_the_role_owns_the_mode(
     await hass.async_block_till_done()
 
     assert [c[0] for c in child.calls] == ["set_hvac_mode", "set_temperature"]
+
+
+async def test_setpoint_style_never_turns_the_child_off_at_target(
+    hass: HomeAssistant,
+) -> None:
+    """The child regulates itself: DST does not stop it when the goal is met."""
+    hass.states.async_set(SENSOR, 20.0)
+    await _setup(
+        hass, heater=AC, initial_hvac_mode=HVACMode.HEAT, control_style="setpoint"
+    )
+    child = await common.add_fake_climate(hass, AC)
+    await common.async_set_temperature(hass, 22, "climate.test")
+    await hass.async_block_till_done()
+    assert hass.states.get(AC).state == HVACMode.HEAT
+
+    hass.states.async_set(SENSOR, 25.0)  # far above target: on_off would stop here
+    await hass.async_block_till_done()
+
+    assert hass.states.get(AC).state == HVACMode.HEAT
+    assert "turn_off" not in [c[0] for c in child.calls]
+
+
+@pytest.mark.parametrize("expected_lingering_timers", [True])
+async def test_setpoint_style_ignores_min_cycle_duration(hass: HomeAssistant) -> None:
+    """DST adds no cycle limit on a self-regulating child."""
+    hass.states.async_set(SENSOR, 20.0)
+    hass.states.async_set("binary_sensor.window", "off")
+    await _setup(
+        hass,
+        heater=AC,
+        initial_hvac_mode=HVACMode.HEAT,
+        control_style="setpoint",
+        min_cycle_duration=timedelta(minutes=30),
+        openings=["binary_sensor.window"],
+    )
+    await common.add_fake_climate(hass, AC)
+    await common.async_set_temperature(hass, 22, "climate.test")
+    await hass.async_block_till_done()
+    assert hass.states.get(AC).state == HVACMode.HEAT
+
+    # An opening must pause the child at once, not after the 30 minute "cycle".
+    hass.states.async_set("binary_sensor.window", "on")
+    hass.states.async_set(SENSOR, 20.1)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(AC).state == HVACMode.OFF
+
+
+async def test_setpoint_style_opening_pauses_and_restores_the_child(
+    hass: HomeAssistant,
+) -> None:
+    """Openings and restore go through the unchanged controller."""
+    hass.states.async_set(SENSOR, 20.0)
+    hass.states.async_set("binary_sensor.window", "off")
+    await _setup(
+        hass,
+        heater=AC,
+        initial_hvac_mode=HVACMode.HEAT,
+        control_style="setpoint",
+        openings=["binary_sensor.window"],
+    )
+    child = await common.add_fake_climate(hass, AC)
+    await common.async_set_temperature(hass, 22, "climate.test")
+    await hass.async_block_till_done()
+    assert hass.states.get(AC).state == HVACMode.HEAT
+
+    hass.states.async_set("binary_sensor.window", "on")
+    hass.states.async_set(SENSOR, 20.1)
+    await hass.async_block_till_done()
+    assert hass.states.get(AC).state == HVACMode.OFF
+
+    child.calls.clear()
+    hass.states.async_set("binary_sensor.window", "off")
+    hass.states.async_set(SENSOR, 20.2)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(AC).state == HVACMode.HEAT
+    # the child kept its 22 degree setpoint, so only the mode is restored
+    assert child.calls == [("set_hvac_mode", {"hvac_mode": HVACMode.HEAT})]
+
+
+async def test_setpoint_style_each_role_uses_its_own_offset(
+    hass: HomeAssistant,
+) -> None:
+    """Heater and cooler children get their own role's offset only."""
+    heater_ac = "climate.test_heater_ac"
+    hass.states.async_set(SENSOR, 18.0)
+    await _setup(
+        hass,
+        heater=heater_ac,
+        cooler=AC,
+        heat_cool_mode=False,
+        initial_hvac_mode=HVACMode.HEAT,
+        control_style="setpoint",
+        heater_setpoint_offset=3,
+        cooler_setpoint_offset=-5,
+    )
+    heater_child = await common.add_fake_climate(hass, heater_ac)
+    cooler_child = await common.add_fake_climate(hass, AC)
+
+    await common.async_set_temperature(hass, 22, "climate.test")
+    await hass.async_block_till_done()
+    assert ("set_temperature", {"temperature": 25.0}) in heater_child.calls  # 22 + 3
+
+    hass.states.async_set(SENSOR, 28.0)
+    await common.async_set_hvac_mode(hass, HVACMode.COOL, "climate.test")
+    await common.async_set_temperature(hass, 24, "climate.test")
+    await hass.async_block_till_done()
+    assert ("set_temperature", {"temperature": 19.0}) in cooler_child.calls  # 24 - 5
+    assert all(c[1].get("temperature") != 19.0 for c in heater_child.calls)
+
+
+async def test_on_off_style_is_unchanged_by_the_new_code(hass: HomeAssistant) -> None:
+    """Default style still stops the child at the goal."""
+    hass.states.async_set(SENSOR, 20.0)
+    await _setup(hass, heater=AC, initial_hvac_mode=HVACMode.HEAT)  # default style
+    await common.add_fake_climate(hass, AC)
+    await common.async_set_temperature(hass, 22, "climate.test")
+    await hass.async_block_till_done()
+
+    hass.states.async_set(SENSOR, 25.0)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(AC).state == HVACMode.OFF
+
+
+async def test_setpoint_style_cooler_stays_engaged_below_target(
+    hass: HomeAssistant,
+) -> None:
+    """The cooler goal is never reached either (LOWER direction)."""
+    hass.states.async_set(SENSOR, 28.0)
+    setup_switch(hass, False, HEATER)
+    await _setup(
+        hass,
+        heater=HEATER,
+        cooler=AC,
+        heat_cool_mode=False,
+        initial_hvac_mode=HVACMode.COOL,
+        control_style="setpoint",
+    )
+    child = await common.add_fake_climate(hass, AC)
+    await common.async_set_temperature(hass, 24, "climate.test")
+    await hass.async_block_till_done()
+    assert hass.states.get(AC).state == HVACMode.COOL
+
+    hass.states.async_set(SENSOR, 20.0)  # far below target: on_off would stop here
+    await hass.async_block_till_done()
+
+    assert hass.states.get(AC).state == HVACMode.COOL
+    assert "turn_off" not in [c[0] for c in child.calls]

@@ -38,6 +38,24 @@ class HvacEnvStrategy:
         self.goal_not_reached_reason = goal_not_reached_reason
         self.goal = goal
 
+    @classmethod
+    def self_regulating(cls, goal, goal_reached_reason, goal_not_reached_reason):
+        """Strategy for a device that regulates itself: goal never reached.
+
+        The controller then keeps the device engaged and only lets openings and
+        floor limits pause it. `above`/`below` are positional the way devices
+        build them: RAISE reads `below()` for reached and `above()` for
+        not-reached, LOWER the other way round.
+        """
+        raise_goal = goal == HvacGoal.RAISE
+        return cls(
+            lambda: raise_goal,
+            lambda: not raise_goal,
+            goal_reached_reason,
+            goal_not_reached_reason,
+            goal,
+        )
+
     @property
     def hvac_goal_reached(self) -> bool:
         _LOGGER.debug(

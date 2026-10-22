@@ -22,6 +22,7 @@ from ..const import (
     CONF_AUX_HEATER,
     CONF_AUX_HEATING_DUAL_MODE,
     CONF_AUX_HEATING_TIMEOUT,
+    CONF_CONTROL_STYLE,
     CONF_COOLER,
     CONF_COOLER_SETPOINT_OFFSET,
     CONF_DRYER,
@@ -39,7 +40,9 @@ from ..const import (
     CONF_HUMIDITY_SENSOR,
     CONF_HVAC_POWER_LEVELS,
     CONF_HVAC_POWER_TOLERANCE,
+    DEFAULT_CONTROL_STYLE,
     DEFAULT_SETPOINT_OFFSET,
+    ControlStyle,
 )
 from ..managers.environment_manager import EnvironmentManager
 from ..managers.state_manager import StateManager
@@ -72,6 +75,9 @@ class FeatureManager(StateManager):
         self._dryer_entity_id = config.get(CONF_DRYER)
         self._humidity_sensor_entity_id = config.get(CONF_HUMIDITY_SENSOR)
         self._heat_pump_cooling_entity_id = config.get(CONF_HEAT_PUMP_COOLING)
+        self._control_style = ControlStyle(
+            config.get(CONF_CONTROL_STYLE, DEFAULT_CONTROL_STYLE)
+        )
         self._heater_setpoint_offset = float(
             config.get(CONF_HEATER_SETPOINT_OFFSET, DEFAULT_SETPOINT_OFFSET)
         )
@@ -95,6 +101,10 @@ class FeatureManager(StateManager):
 
         # Fan device reference for speed control
         self._fan_device = None
+
+    @property
+    def climate_control_style(self) -> ControlStyle:
+        return self._control_style
 
     @property
     def heater_setpoint_offset(self) -> float:

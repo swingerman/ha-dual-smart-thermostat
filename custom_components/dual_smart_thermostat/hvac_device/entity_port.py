@@ -40,6 +40,7 @@ from homeassistant.helpers import condition
 from homeassistant.util import dt as dt_util
 
 from ..climate_roles import CLIMATE_DOMAIN, is_climate_entity
+from ..const import ControlStyle
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -48,6 +49,8 @@ class EntityPort(ABC):
     """What a device role needs from its entity."""
 
     entity_id: str
+    # True when the entity regulates itself and DST must not cycle it.
+    self_regulating: bool = False
 
     @property
     @abstractmethod
@@ -368,11 +371,13 @@ class ClimatePort(EntityPort):
         role_mode: Callable[[], HVACMode],
         target: Callable[[], float | None],
         offset: Callable[[], float],
+        style: ControlStyle,
     ) -> None:
         self._child = child
         self._role_mode = role_mode
         self._target = target
         self._offset = offset
+        self.self_regulating = style == ControlStyle.SETPOINT
         self.entity_id = child.entity_id
 
     @property
@@ -380,6 +385,8 @@ class ClimatePort(EntityPort):
         return self._child.mode == self._role_mode()
 
     def ran_long_enough(self, min_cycle: timedelta) -> bool:
+        if self.self_regulating:  # the child cycles itself; DST adds no cycle limit
+            return True
         since = self._child.since
         return since is not None and dt_util.utcnow() - since >= min_cycle
 
@@ -421,8 +428,11 @@ def make_port(
     role_mode: Callable[[], HVACMode],
     target: Callable[[], float | None],
     offset: Callable[[], float] = lambda: 0.0,
+    style: ControlStyle = ControlStyle.ON_OFF,
 ) -> EntityPort:
     """Build the port for a role from the entity domain."""
     if is_climate_entity(entity_id):
-        return ClimatePort(climate_child(hass, entity_id), role_mode, target, offset)
+        return ClimatePort(
+            climate_child(hass, entity_id), role_mode, target, offset, style
+        )
     return SwitchPort(hass, entity_id)
