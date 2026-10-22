@@ -19,6 +19,12 @@ class FanDevice(CoolerDevice):
     hvac_modes = [HVACMode.FAN_ONLY, HVACMode.OFF]
     fan_air_surce_outside = False
 
+    def role_mode(self) -> HVACMode | None:
+        return HVACMode.FAN_ONLY
+
+    def climate_target(self) -> float | None:
+        return None
+
     def __init__(
         self,
         hass: HomeAssistant,

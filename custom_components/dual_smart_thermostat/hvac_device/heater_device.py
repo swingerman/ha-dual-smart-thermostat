@@ -19,6 +19,9 @@ class HeaterDevice(GenericHVACDevice):
 
     hvac_modes = [HVACMode.HEAT, HVACMode.OFF]
 
+    def role_mode(self) -> HVACMode | None:
+        return HVACMode.HEAT
+
     def __init__(
         self,
         hass: HomeAssistant,

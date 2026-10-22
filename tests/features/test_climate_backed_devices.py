@@ -2,10 +2,14 @@
 
 from datetime import timedelta
 
-from homeassistant.components.climate import HVACMode
+from homeassistant.components.climate import DOMAIN as CLIMATE, HVACMode
 from homeassistant.const import STATE_OFF, STATE_ON
 from homeassistant.core import HomeAssistant
+from homeassistant.setup import async_setup_component
+from homeassistant.util.unit_system import METRIC_SYSTEM
+import pytest
 
+from custom_components.dual_smart_thermostat.const import DOMAIN
 from custom_components.dual_smart_thermostat.hvac_device.entity_port import (
     ClimatePort,
     SwitchPort,
@@ -237,3 +241,176 @@ async def test_failed_command_rolls_back_the_assumed_record(
     await cool.async_turn_on(None)
 
     assert cool.is_active is False
+
+
+AC = "climate.test_ac"
+SENSOR = "sensor.room_temperature"
+HEATER = "switch.room_heater"
+
+
+async def _setup(hass, **config):
+    hass.config.units = METRIC_SYSTEM
+    base = {
+        "platform": DOMAIN,
+        "name": "test",
+        "target_sensor": SENSOR,
+        "cold_tolerance": 0.3,
+        "hot_tolerance": 0.3,
+    }
+    assert await async_setup_component(hass, CLIMATE, {CLIMATE: {**base, **config}})
+    await hass.async_block_till_done()
+
+
+async def test_climate_cooler_cycles_with_switch_heater(hass: HomeAssistant) -> None:
+    """Mixed setup: relay heater and climate cooler in one thermostat."""
+    heater_calls = setup_switch(hass, False, HEATER)
+    hass.states.async_set(SENSOR, 22.0)
+    await _setup(
+        hass,
+        heater=HEATER,
+        cooler=AC,
+        heat_cool_mode=False,
+        initial_hvac_mode=HVACMode.COOL,
+    )
+    child = await common.add_fake_climate(hass, AC)
+    await common.async_set_temperature(hass, 24, "climate.test")
+    await hass.async_block_till_done()
+
+    hass.states.async_set(SENSOR, 26.0)  # hotter than target + tolerance
+    await hass.async_block_till_done()
+
+    assert ("set_hvac_mode", {"hvac_mode": HVACMode.COOL}) in child.calls
+    assert hass.states.get(AC).state == HVACMode.COOL
+    assert hass.states.get("climate.test").attributes["hvac_action"] == "cooling"
+
+    hass.states.async_set(SENSOR, 23.0)  # below target - tolerance
+    await hass.async_block_till_done()
+
+    assert hass.states.get(AC).state == HVACMode.OFF
+    assert heater_calls == []  # the relay heater was never involved
+
+
+async def test_climate_heater_turns_on_and_off(hass: HomeAssistant) -> None:
+    """A climate heater gets mode and target, then turns off at the goal."""
+    hass.states.async_set(SENSOR, 20.0)
+    await _setup(hass, heater=AC, initial_hvac_mode=HVACMode.HEAT)
+    child = await common.add_fake_climate(hass, AC)
+    await common.async_set_temperature(hass, 22, "climate.test")
+    await hass.async_block_till_done()
+
+    assert hass.states.get(AC).state == HVACMode.HEAT
+    assert ("set_temperature", {"temperature": 22.0}) in child.calls
+
+    hass.states.async_set(SENSOR, 23.0)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(AC).state == HVACMode.OFF
+
+
+async def test_hvac_off_stops_the_child(hass: HomeAssistant) -> None:
+    """Setting the thermostat Off turns the climate child off."""
+    hass.states.async_set(SENSOR, 20.0)
+    await _setup(hass, heater=AC, initial_hvac_mode=HVACMode.HEAT)
+    await common.add_fake_climate(hass, AC)
+    await common.async_set_temperature(hass, 22, "climate.test")
+    await hass.async_block_till_done()
+    assert hass.states.get(AC).state == HVACMode.HEAT
+
+    await common.async_set_hvac_mode(hass, HVACMode.OFF, "climate.test")
+    await hass.async_block_till_done()
+
+    assert hass.states.get(AC).state == HVACMode.OFF
+
+
+@pytest.mark.parametrize("expected_lingering_timers", [True])
+async def test_climate_respects_min_cycle_duration(
+    hass: HomeAssistant, freezer
+) -> None:
+    """The child's time in its mode gates turning it off."""
+    hass.states.async_set(SENSOR, 20.0)
+    await _setup(
+        hass,
+        heater=AC,
+        initial_hvac_mode=HVACMode.HEAT,
+        min_cycle_duration=timedelta(minutes=5),
+    )
+    await common.add_fake_climate(hass, AC)
+    await common.async_set_temperature(hass, 22, "climate.test")
+    await hass.async_block_till_done()
+    assert hass.states.get(AC).state == HVACMode.HEAT
+
+    hass.states.async_set(SENSOR, 24.0)  # goal reached, but too soon to stop
+    await hass.async_block_till_done()
+    assert hass.states.get(AC).state == HVACMode.HEAT
+
+    freezer.tick(timedelta(minutes=6))
+    hass.states.async_set(SENSOR, 24.1)
+    await hass.async_block_till_done()
+    assert hass.states.get(AC).state == HVACMode.OFF
+
+
+async def test_assumed_state_child_is_not_commanded_twice(
+    hass: HomeAssistant,
+) -> None:
+    """IR device: state never confirms, DST must still know it is cooling."""
+    hass.states.async_set(SENSOR, 26.0)
+    setup_switch(hass, False, HEATER)
+    await _setup(hass, heater=HEATER, cooler=AC, initial_hvac_mode=HVACMode.COOL)
+    child = await common.add_fake_climate(hass, AC, assumed=True)
+    await common.async_set_temperature(hass, 24, "climate.test")
+    await hass.async_block_till_done()
+
+    for temp in (26.5, 27.0, 26.8):  # more sensor ticks while "on"
+        hass.states.async_set(SENSOR, temp)
+        await hass.async_block_till_done()
+
+    assert [c[0] for c in child.calls].count("set_hvac_mode") == 1
+
+
+async def test_unavailable_child_receives_no_commands(hass: HomeAssistant) -> None:
+    """No calls while the child is unavailable."""
+    hass.states.async_set(SENSOR, 26.0)
+    setup_switch(hass, False, HEATER)
+    await _setup(hass, heater=HEATER, cooler=AC, initial_hvac_mode=HVACMode.COOL)
+    child = await common.add_fake_climate(hass, AC)
+    hass.states.async_set(AC, "unavailable")
+    await common.async_set_temperature(hass, 24, "climate.test")
+    await hass.async_block_till_done()
+
+    assert child.calls == []
+
+
+@pytest.mark.parametrize(
+    ("role", "extra", "mode"),
+    [
+        ("fan", {"heater": HEATER}, HVACMode.FAN_ONLY),
+        (
+            "dryer",
+            {"heater": HEATER, "humidity_sensor": "sensor.hum", "target_humidity": 40},
+            HVACMode.DRY,
+        ),
+    ],
+)
+async def test_fan_and_dryer_roles_use_their_climate_mode(
+    hass: HomeAssistant, role, extra, mode
+) -> None:
+    """Fan and dryer roles drive the child's fan_only / dry modes."""
+    hass.states.async_set(SENSOR, 26.0)
+    hass.states.async_set("sensor.hum", 60.0)
+    setup_switch(hass, False, HEATER)
+    await _setup(hass, **extra, **{role: AC}, initial_hvac_mode=mode)
+    child = await common.add_fake_climate(hass, AC)
+    await common.async_set_hvac_mode(hass, mode, "climate.test")
+    await common.async_set_temperature(hass, 24, "climate.test")
+    await hass.async_block_till_done()
+
+    assert ("set_hvac_mode", {"hvac_mode": mode}) in child.calls
+    assert not [c for c in child.calls if c[0] == "set_temperature"]
+
+
+async def test_role_without_a_mode_cannot_be_built_on_a_climate(
+    hass: HomeAssistant,
+) -> None:
+    """No code path may drive a climate entity as if it were a switch."""
+    with pytest.raises(ValueError, match="cannot be backed by a climate entity"):
+        make_port(hass, AC, role_mode=lambda: None, target=lambda: None)

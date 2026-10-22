@@ -19,6 +19,9 @@ class CoolerDevice(GenericHVACDevice):
 
     hvac_modes = [HVACMode.COOL, HVACMode.OFF]
 
+    def role_mode(self) -> HVACMode | None:
+        return HVACMode.COOL
+
     def __init__(
         self,
         hass: HomeAssistant,

@@ -60,7 +60,7 @@ class GenericHVACDevice(
             hass,
             entity_id,
             role_mode=self.role_mode,
-            target=lambda: getattr(self.environment, self.target_env_attr, None),
+            target=self.climate_target,
         )
 
         self.hvac_controller: HvacController = GenericHvacController(
@@ -94,6 +94,10 @@ class GenericHVACDevice(
     def role_mode(self) -> HVACMode | None:
         """The hvac mode a climate entity must be in to serve this role."""
         return None
+
+    def climate_target(self) -> float | None:
+        """The temperature a climate entity serving this role is told to hold."""
+        return getattr(self.environment, self.target_env_attr, None)
 
     @property
     def target_env_attr(self) -> str:
