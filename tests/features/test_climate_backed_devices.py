@@ -6,6 +6,7 @@ from homeassistant.components.climate import DOMAIN as CLIMATE, HVACMode
 from homeassistant.const import STATE_OFF, STATE_ON
 from homeassistant.core import HomeAssistant
 from homeassistant.setup import async_setup_component
+from homeassistant.util import dt as dt_util
 from homeassistant.util.unit_system import METRIC_SYSTEM
 import pytest
 
@@ -414,3 +415,57 @@ async def test_role_without_a_mode_cannot_be_built_on_a_climate(
     """No code path may drive a climate entity as if it were a switch."""
     with pytest.raises(ValueError, match="cannot be backed by a climate entity"):
         make_port(hass, AC, role_mode=lambda: None, target=lambda: None)
+
+
+async def test_hvac_off_stops_a_child_running_a_mode_no_role_owns(
+    hass: HomeAssistant,
+) -> None:
+    """Off means off, even for a mode set from a remote that no role owns."""
+    hass.states.async_set(SENSOR, 20.0)
+    setup_switch(hass, False, HEATER)
+    await _setup(hass, heater=HEATER, cooler=AC, initial_hvac_mode=HVACMode.COOL)
+    child = await common.add_fake_climate(hass, AC, HVACMode.FAN_ONLY)  # no fan role
+
+    await common.async_set_hvac_mode(hass, HVACMode.OFF, "climate.test")
+    await hass.async_block_till_done()
+
+    assert hass.states.get(AC).state == HVACMode.OFF
+    assert [c[0] for c in child.calls].count("turn_off") == 1
+
+
+@pytest.mark.parametrize("expected_lingering_timers", [True])
+async def test_keep_alive_in_off_stops_a_child_set_to_a_foreign_mode(
+    hass: HomeAssistant,
+) -> None:
+    """Keep-alive while Off also enforces Off on a child in a foreign mode."""
+    hass.states.async_set(SENSOR, 20.0)
+    setup_switch(hass, False, HEATER)
+    await _setup(
+        hass,
+        heater=HEATER,
+        cooler=AC,
+        keep_alive=timedelta(minutes=1),
+        initial_hvac_mode=HVACMode.OFF,
+    )
+    child = await common.add_fake_climate(hass, AC, HVACMode.FAN_ONLY)
+
+    common.async_fire_time_changed(hass, dt_util.utcnow() + timedelta(minutes=2))
+    await hass.async_block_till_done()
+
+    assert hass.states.get(AC).state == HVACMode.OFF
+    assert ("turn_off", {}) in child.calls
+
+
+async def test_hvac_off_sends_nothing_to_a_switch_that_is_already_off(
+    hass: HomeAssistant,
+) -> None:
+    """Switch behaviour is unchanged: Off only stops a running switch."""
+    calls = setup_switch(hass, False, HEATER)
+    hass.states.async_set(SENSOR, 20.0)
+    await _setup(hass, heater=HEATER, cooler=AC, initial_hvac_mode=HVACMode.COOL)
+    await common.add_fake_climate(hass, AC)
+
+    await common.async_set_hvac_mode(hass, HVACMode.OFF, "climate.test")
+    await hass.async_block_till_done()
+
+    assert calls == []

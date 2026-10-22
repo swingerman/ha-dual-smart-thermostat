@@ -190,12 +190,7 @@ class GenericHVACDevice(
         # here — only turn the switch off if it ended up on externally.
         # See issue #587.
         if self._hvac_mode == HVACMode.OFF:
-            if self.hvac_controller.is_active:
-                _LOGGER.info(
-                    "Climate mode is OFF but %s is on; turning it off",
-                    self.entity_id,
-                )
-                await self.async_turn_off()
+            await self.async_stop()
             return
 
         if self.hvac_controller.is_active:
@@ -234,12 +229,8 @@ class GenericHVACDevice(
 
     async def _async_check_device_initial_state(self) -> None:
         """Prevent the device from keep running if HVACMode.OFF."""
-        if self._hvac_mode == HVACMode.OFF and self.hvac_controller.is_active:
-            _LOGGER.warning(
-                "The climate mode is OFF, but the switch device is ON. Turning off device %s",
-                self.entity_id,
-            )
-            await self.async_turn_off()
+        if self._hvac_mode == HVACMode.OFF:
+            await self.async_stop()
 
     async def async_turn_on(self):
         _LOGGER.debug(
@@ -263,6 +254,17 @@ class GenericHVACDevice(
             return
 
         await self.port.async_turn_off(self._context)
+
+        self.hvac_power.update_hvac_power(
+            self.strategy, self.target_env_attr, HVACAction.OFF
+        )
+
+    async def async_stop(self) -> None:
+        """DST is Off: the entity must end up off, whatever it was doing."""
+        if self.entity_id is None:
+            return
+
+        await self.port.async_stop(self._context)
 
         self.hvac_power.update_hvac_power(
             self.strategy, self.target_env_attr, HVACAction.OFF

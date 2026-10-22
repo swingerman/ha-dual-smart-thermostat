@@ -53,8 +53,7 @@ class ControlableHVACDevice(ABC):
             self.hvac_mode = HVACMode.OFF
 
         if self.hvac_mode == HVACMode.OFF:
-            if self.is_active:
-                await self.async_turn_off()
+            await self.async_stop()
             self._hvac_action_reason = HVACActionReason.NONE
         else:
             await self.async_control_hvac(force=True)
@@ -100,6 +99,11 @@ class ControlableHVACDevice(ABC):
 
     @abstractmethod
     async def async_turn_off(self):
+        pass
+
+    @abstractmethod
+    async def async_stop(self):
+        """DST is Off: concrete implementations must leave the device off."""
         pass
 
     @abstractmethod
