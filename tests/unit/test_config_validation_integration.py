@@ -393,3 +393,19 @@ def test_setpoint_heat_cool_error_names_the_target_limits() -> None:
                 target_temp_high=24,
             )
         )
+
+
+def test_models_accept_a_config_without_sensor_when_a_climate_is_a_role() -> None:
+    """A flow-created entry may omit target_sensor: the climate's own is used."""
+    from custom_components.dual_smart_thermostat.config_validation import (
+        validate_config_with_models,
+    )
+
+    config = {
+        "name": "T",
+        "system_type": "heater_cooler",
+        "heater": "switch.h",
+        "cooler": "climate.ac",
+    }
+    assert validate_config_with_models(config) is True
+    assert "target_sensor" not in config  # the caller's config is not changed
