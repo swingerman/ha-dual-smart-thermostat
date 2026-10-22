@@ -200,7 +200,7 @@ def get_base_schema():
             # Basic Information
             vol.Required(CONF_NAME): get_text_selector(),
             # Sensors
-            vol.Required(CONF_SENSOR): get_entity_selector(SENSOR_DOMAIN),
+            vol.Optional(CONF_SENSOR): get_entity_selector(SENSOR_DOMAIN),
         }
     )
 
@@ -331,7 +331,7 @@ def get_basic_ac_schema(hass=None, defaults=None, include_name=True):
 
     # Sensors
     core_schema[
-        vol.Required(
+        vol.Optional(
             CONF_SENSOR,
             default=defaults.get(CONF_SENSOR) if defaults else vol.UNDEFINED,
         )
@@ -380,7 +380,7 @@ def get_simple_heater_schema(hass=None, defaults=None, include_name=True):
 
     # Sensors
     core_schema[
-        vol.Required(
+        vol.Optional(
             CONF_SENSOR,
             default=defaults.get(CONF_SENSOR) if defaults else vol.UNDEFINED,
         )
@@ -430,7 +430,7 @@ def get_heater_cooler_schema(hass=None, defaults=None, include_name=True):
 
     # Sensors
     core_schema[
-        vol.Required(
+        vol.Optional(
             CONF_SENSOR,
             default=defaults.get(CONF_SENSOR) if defaults else vol.UNDEFINED,
         )
@@ -511,7 +511,7 @@ def get_heat_pump_schema(hass=None, defaults=None, include_name=True):
 
     # Sensors
     core_schema[
-        vol.Required(
+        vol.Optional(
             CONF_SENSOR,
             default=defaults.get(CONF_SENSOR) if defaults else vol.UNDEFINED,
         )
@@ -798,7 +798,7 @@ def get_core_schema(
             get_text_selector()
         )
 
-    schema_dict[vol.Required(CONF_SENSOR, default=defaults.get(CONF_SENSOR))] = (
+    schema_dict[vol.Optional(CONF_SENSOR, default=defaults.get(CONF_SENSOR))] = (
         get_entity_selector(SENSOR_DOMAIN)
     )
 

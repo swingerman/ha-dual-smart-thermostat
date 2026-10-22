@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from .climate_roles import CLIMATE_ROLE_KEYS, is_climate_entity
 from .const import (
     ATTR_CLOSING_TIMEOUT,
     ATTR_OPENING_TIMEOUT,
@@ -19,26 +20,8 @@ class EntityValidator:
 
     @staticmethod
     def validate_basic_config(user_input: dict[str, Any]) -> bool:
-        """Validate basic configuration.
-
-        Args:
-            user_input: User input data
-
-        Returns:
-            True if validation passes, False otherwise
-        """
-        # Validate that heater and sensor are different entities
-        heater = user_input.get(CONF_HEATER)
-        sensor = user_input.get(CONF_SENSOR)
-        if heater and sensor and heater == sensor:
-            return False
-
-        # Validate that heater and cooler are different if both specified
-        cooler = user_input.get(CONF_COOLER)
-        if heater and cooler and heater == cooler:
-            return False
-
-        return True
+        """Validate basic configuration (the same rules as the error messages)."""
+        return not EntityValidator.get_validation_errors(user_input)
 
     @staticmethod
     def get_validation_errors(user_input: dict[str, Any]) -> dict[str, str]:
@@ -55,10 +38,15 @@ class EntityValidator:
         sensor = user_input.get(CONF_SENSOR)
         cooler = user_input.get(CONF_COOLER)
 
-        if heater and sensor and heater == sensor:
+        # A climate entity is legitimately several roles and its own temperature source.
+        if heater and sensor and heater == sensor and not is_climate_entity(heater):
             errors["base"] = "same_heater_sensor"
-        elif heater and cooler and heater == cooler:
+        elif heater and cooler and heater == cooler and not is_climate_entity(heater):
             errors["base"] = "same_heater_cooler"
+        elif not sensor and not any(
+            is_climate_entity(user_input.get(key)) for key in CLIMATE_ROLE_KEYS
+        ):
+            errors["base"] = "sensor_required"
 
         return errors
 

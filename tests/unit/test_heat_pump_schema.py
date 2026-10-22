@@ -202,8 +202,11 @@ class TestHeatPumpSchema:
 
         # Core fields should be required
         assert CONF_NAME in required_fields
-        assert CONF_SENSOR in required_fields
         assert CONF_HEATER in required_fields
+
+        # The sensor is optional: a climate device can supply the temperature
+        # (EntityValidator enforces "sensor or a climate role")
+        assert CONF_SENSOR in optional_fields
 
         # Heat pump cooling and advanced settings should be optional
         assert (

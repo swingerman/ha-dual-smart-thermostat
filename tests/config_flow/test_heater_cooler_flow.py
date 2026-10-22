@@ -470,3 +470,81 @@ class TestHeaterCoolerOptionsFlow:
         # Verify updated runtime parameters
         assert flow.collected_config[CONF_COLD_TOLERANCE] == 0.5
         assert flow.collected_config[CONF_HOT_TOLERANCE] == 0.5
+
+
+class TestClimateRolesInHeaterCoolerFlow:
+    """Climate entities as device roles (issue #281)."""
+
+    async def test_same_climate_entity_as_heater_and_cooler_is_allowed(self, mock_hass):
+        """One climate entity may fill both roles."""
+        flow = ConfigFlowHandler()
+        flow.hass = mock_hass
+        flow.collected_config = {CONF_SYSTEM_TYPE: SYSTEM_TYPE_HEATER_COOLER}
+
+        result = await flow.async_step_heater_cooler(
+            {
+                CONF_NAME: "AC",
+                CONF_SENSOR: "sensor.t",
+                CONF_HEATER: "climate.ac",
+                CONF_COOLER: "climate.ac",
+                CONF_HEAT_COOL_MODE: False,
+            }
+        )
+
+        assert result["type"] == FlowResultType.FORM
+        assert result["step_id"] != "heater_cooler"  # moved on, no error
+
+    async def test_same_switch_as_heater_and_cooler_is_still_rejected(self, mock_hass):
+        """The duplicate rule still applies to switch-like entities."""
+        flow = ConfigFlowHandler()
+        flow.hass = mock_hass
+        flow.collected_config = {CONF_SYSTEM_TYPE: SYSTEM_TYPE_HEATER_COOLER}
+
+        result = await flow.async_step_heater_cooler(
+            {
+                CONF_NAME: "AC",
+                CONF_SENSOR: "sensor.t",
+                CONF_HEATER: "switch.x",
+                CONF_COOLER: "switch.x",
+                CONF_HEAT_COOL_MODE: False,
+            }
+        )
+
+        assert result["step_id"] == "heater_cooler"
+        assert result["errors"] == {"base": "same_heater_cooler"}
+
+    async def test_sensor_is_required_without_a_climate_role(self, mock_hass):
+        """Without a climate role there is no other temperature source."""
+        flow = ConfigFlowHandler()
+        flow.hass = mock_hass
+        flow.collected_config = {CONF_SYSTEM_TYPE: SYSTEM_TYPE_HEATER_COOLER}
+
+        result = await flow.async_step_heater_cooler(
+            {
+                CONF_NAME: "T",
+                CONF_HEATER: "switch.h",
+                CONF_COOLER: "switch.c",
+                CONF_HEAT_COOL_MODE: False,
+            }
+        )
+
+        assert result["step_id"] == "heater_cooler"
+        assert result["errors"] == {"base": "sensor_required"}
+
+    async def test_sensor_is_optional_with_a_climate_role(self, mock_hass):
+        """The climate's own temperature is used when no sensor is given."""
+        flow = ConfigFlowHandler()
+        flow.hass = mock_hass
+        flow.collected_config = {CONF_SYSTEM_TYPE: SYSTEM_TYPE_HEATER_COOLER}
+
+        result = await flow.async_step_heater_cooler(
+            {
+                CONF_NAME: "T",
+                CONF_HEATER: "switch.h",
+                CONF_COOLER: "climate.ac",
+                CONF_HEAT_COOL_MODE: False,
+            }
+        )
+
+        assert result["step_id"] != "heater_cooler"
+        assert CONF_SENSOR not in flow.collected_config

@@ -24,7 +24,6 @@ from .const import (
     CONF_HUMIDITY_SENSOR,
     CONF_PRECISION,
     CONF_PRESETS,
-    CONF_SENSOR,
     CONF_SYSTEM_TYPE,
     CONF_TEMP_STEP,
     DOMAIN,
@@ -425,14 +424,7 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
                     user_input.update(advanced_settings)
 
             if not await self._validate_basic_config(user_input):
-                heater = user_input.get(CONF_HEATER)
-                sensor = user_input.get(CONF_SENSOR)
-                cooler = user_input.get(CONF_COOLER)
-
-                if heater and sensor and heater == sensor:
-                    errors["base"] = "same_heater_sensor"
-                elif heater and cooler and heater == cooler:
-                    errors["base"] = "same_heater_cooler"
+                errors = EntityValidator.get_validation_errors(user_input)
             else:
                 self.collected_config.update(user_input)
                 return await self._determine_next_step()
@@ -463,11 +455,7 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
                     user_input.update(advanced_settings)
 
             if not await self._validate_basic_config(user_input):
-                heater = user_input.get(CONF_HEATER)
-                sensor = user_input.get(CONF_SENSOR)
-
-                if heater and sensor and heater == sensor:
-                    errors["base"] = "same_heater_sensor"
+                errors = EntityValidator.get_validation_errors(user_input)
             else:
                 self.collected_config.update(user_input)
                 return await self._determine_next_step()
@@ -492,11 +480,7 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             if not await self._validate_basic_config(user_input):
-                heater = user_input.get(CONF_HEATER)
-                sensor = user_input.get(CONF_SENSOR)
-
-                if heater and sensor and heater == sensor:
-                    errors["base"] = "same_heater_sensor"
+                errors = EntityValidator.get_validation_errors(user_input)
             else:
                 self.collected_config.update(user_input)
                 return await self.async_step_dual_stage_config()
