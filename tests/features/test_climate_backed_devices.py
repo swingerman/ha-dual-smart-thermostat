@@ -1075,3 +1075,86 @@ async def test_setpoint_port_keeps_the_users_min_cycle(hass: HomeAssistant) -> N
     )
 
     assert port.ran_long_enough(timedelta(minutes=5)) is False
+
+
+async def test_standalone_ac_uses_its_own_temperature(hass: HomeAssistant) -> None:
+    """No target_sensor: the AC's current_temperature drives everything."""
+    hass.config.units = METRIC_SYSTEM
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            CLIMATE: {
+                "platform": DOMAIN,
+                "name": "test",
+                "heater": AC,
+                "cooler": AC,
+                "cold_tolerance": 0.3,
+                "hot_tolerance": 0.3,
+                "initial_hvac_mode": HVACMode.COOL,
+            }
+        },
+    )
+    child = await common.add_fake_climate(hass, AC, current=22.0)
+    await common.async_set_temperature(hass, 24, "climate.test")
+    await hass.async_block_till_done()
+    assert hass.states.get("climate.test").attributes["current_temperature"] == 22.0
+
+    child.set_current_temperature(26.0)  # hotter than target + tolerance
+    await hass.async_block_till_done()
+
+    assert hass.states.get("climate.test").attributes["current_temperature"] == 26.0
+    assert hass.states.get(AC).state == HVACMode.COOL
+
+    child.set_current_temperature(23.0)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(AC).state == HVACMode.OFF
+
+
+async def test_child_temperature_read_at_startup(hass: HomeAssistant) -> None:
+    """The first reading comes from the child before any change event."""
+    # Only the state matters at startup; the real entity comes later (adding it
+    # would set the climate component up without the platform config).
+    hass.states.async_set(AC, "off", {"current_temperature": 21.5})
+    hass.config.units = METRIC_SYSTEM
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {CLIMATE: {"platform": DOMAIN, "name": "test", "heater": AC}},
+    )
+    await hass.async_block_till_done()
+
+    assert hass.states.get("climate.test").attributes["current_temperature"] == 21.5
+
+
+@pytest.mark.parametrize("expected_lingering_timers", [True])
+async def test_stale_child_temperature_triggers_the_emergency_stop(
+    hass: HomeAssistant, freezer
+) -> None:
+    """A child that stops reporting is treated like a stale sensor."""
+    hass.config.units = METRIC_SYSTEM
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            CLIMATE: {
+                "platform": DOMAIN,
+                "name": "test",
+                "heater": AC,
+                "sensor_stale_duration": timedelta(minutes=2),
+                "initial_hvac_mode": HVACMode.HEAT,
+            }
+        },
+    )
+    child = await common.add_fake_climate(hass, AC, current=18.0)
+    await common.async_set_temperature(hass, 22, "climate.test")
+    child.set_current_temperature(18.5)  # a real reading arms the watchdog
+    await hass.async_block_till_done()
+    assert hass.states.get(AC).state == HVACMode.HEAT
+
+    freezer.tick(timedelta(minutes=3))
+    common.async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(AC).state == HVACMode.OFF

@@ -1467,10 +1467,24 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
     ) -> None:
         """Handle ambient teperature changes."""
         data = event.data
+        new_state = data["new_state"]
+
+        # A climate used as the temperature source also reports every command we
+        # send it. Only a new reading counts as the sensor reporting (a plain
+        # sensor fires no event for an unchanged value either); otherwise our own
+        # commands would keep the stale-sensor watchdog fed.
+        if (
+            new_state is not None
+            and new_state.domain == "climate"
+            and not self._sensor_stalled
+            and new_state.attributes.get("current_temperature")
+            == self.environment.cur_temp
+        ):
+            return
 
         trigger_control = self.hvac_device.hvac_mode != HVACMode.OFF
 
-        await self._async_sensor_changed(data["new_state"], trigger_control)
+        await self._async_sensor_changed(new_state, trigger_control)
 
     async def _async_sensor_changed(
         self, new_state: State | None, trigger_control=True

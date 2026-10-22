@@ -614,11 +614,18 @@ class EnvironmentManager(StateManager):
 
     @callback
     def update_temp_from_state(self, state: State) -> None:
-        """Update thermostat with latest state from sensor."""
+        """Update thermostat with latest state from sensor (or climate entity)."""
+        raw = (
+            state.attributes.get("current_temperature")
+            if state.domain == "climate"
+            else state.state
+        )
+        if raw is None:  # a climate that has no reading yet
+            return
         try:
-            cur_temp = float(state.state)
+            cur_temp = float(raw)
             if not math.isfinite(cur_temp):
-                raise ValueError(f"Sensor has illegal state {state.state}")
+                raise ValueError(f"Sensor has illegal state {raw}")
             self._cur_temp = cur_temp
         except ValueError as ex:
             _LOGGER.error("Unable to update from sensor: %s", ex)
