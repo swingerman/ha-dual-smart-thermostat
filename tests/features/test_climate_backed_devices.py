@@ -85,8 +85,15 @@ async def test_switch_port_skips_command_when_unavailable(
     assert calls == []
 
 
-def _port(hass, entity_id, mode, target=lambda: 24.0):
-    return make_port(hass, entity_id, role_mode=lambda: mode, target=target)
+def _port(hass, entity_id, mode, target=lambda: 24.0, *, offset=0.0):
+    # offset is read lazily through a callable (a heat pump switches between two keys)
+    return make_port(
+        hass,
+        entity_id,
+        role_mode=lambda: mode,
+        target=target,
+        offset=lambda: offset,
+    )
 
 
 async def test_climate_port_is_active_follows_child_mode(hass: HomeAssistant) -> None:
@@ -598,3 +605,61 @@ async def test_lone_switch_in_off_keep_alive_sends_nothing_when_already_off(
         await hass.async_block_till_done()
 
     assert calls == []
+
+
+async def test_offset_is_added_to_the_pushed_target(hass: HomeAssistant) -> None:
+    """The role's offset is added as-is to the pushed target."""
+    child = await common.add_fake_climate(hass, "climate.test_ac")
+    cool = _port(hass, "climate.test_ac", HVACMode.COOL, lambda: 24.0, offset=-2.0)
+
+    await cool.async_turn_on(None)
+
+    assert ("set_temperature", {"temperature": 22.0}) in child.calls
+
+
+async def test_pushed_target_is_clamped_to_the_child_range(hass: HomeAssistant) -> None:
+    """Target plus offset never leaves the child's min/max."""
+    child = await common.add_fake_climate(hass, "climate.test_ac")  # 16..30
+    heat = _port(hass, "climate.test_ac", HVACMode.HEAT, lambda: 29.0, offset=5.0)
+
+    await heat.async_turn_on(None)
+
+    assert ("set_temperature", {"temperature": 30}) in child.calls
+
+
+async def test_pushed_target_is_rounded_to_the_child_step(hass: HomeAssistant) -> None:
+    """The pushed value is rounded to the child's target_temp_step."""
+    child = await common.add_fake_climate(hass, "climate.test_ac")  # step 0.5
+    heat = _port(hass, "climate.test_ac", HVACMode.HEAT, lambda: 21.3)
+
+    await heat.async_turn_on(None)
+
+    assert ("set_temperature", {"temperature": 21.5}) in child.calls
+
+
+async def test_target_not_resent_when_child_already_has_it(hass: HomeAssistant) -> None:
+    """A value the child already reports is not pushed again."""
+    child = await common.add_fake_climate(hass, "climate.test_ac")
+    child._attr_target_temperature = 22.0
+    child.async_write_ha_state()
+    heat = _port(hass, "climate.test_ac", HVACMode.HEAT, lambda: 22.0)
+
+    await heat.async_turn_on(None)
+
+    assert [c[0] for c in child.calls] == ["set_hvac_mode"]
+
+
+async def test_assumed_child_target_resent_only_after_a_mode_change(
+    hass: HomeAssistant,
+) -> None:
+    """An assumed child cannot report its target: DST's last push stands in."""
+    child = await common.add_fake_climate(hass, "climate.test_ir", assumed=True)
+    cool = _port(hass, "climate.test_ir", HVACMode.COOL, lambda: 24.0)
+
+    await cool.async_turn_on(None)
+    await cool.async_turn_on(None)  # keep-alive resend of the same mode
+    assert [c[0] for c in child.calls].count("set_temperature") == 1
+
+    await cool.async_turn_off(None)
+    await cool.async_turn_on(None)  # mode changed: the device may have dropped it
+    assert [c[0] for c in child.calls].count("set_temperature") == 2

@@ -9,9 +9,10 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 import asyncio
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from datetime import datetime, timedelta
 import logging
+from typing import Any
 
 from homeassistant.components.climate import (
     ATTR_HVAC_MODE,
@@ -197,6 +198,7 @@ class ClimateChild:
         self._lock = asyncio.Lock()
         self._commanded: str | None = None
         self._commanded_at: datetime | None = None
+        self._last_pushed: float | None = None
         self._warned: set[str] = set()
 
     @property
@@ -245,6 +247,8 @@ class ClimateChild:
         self._adopt_reported()
         if self._commanded != mode:
             self._commanded, self._commanded_at = mode, dt_util.utcnow()
+            # A mode change may reset the device's setpoint: push it again.
+            self._last_pushed = None
 
     async def async_set_mode(self, mode: str, context: Context | None) -> bool:
         """Command a mode. False when nothing was sent or the call failed."""
@@ -268,7 +272,7 @@ class ClimateChild:
             # assumed device cannot report, so keep-alive resends are the point.
             if not self.assumed and self.state.state == mode:
                 return True
-            before = (self._commanded, self._commanded_at)
+            before = (self._commanded, self._commanded_at, self._last_pushed)
             self._record(mode)
             try:
                 await self.hass.services.async_call(
@@ -282,7 +286,7 @@ class ClimateChild:
                 _LOGGER.error(
                     "Error setting %s on %s. Error: %s", mode, self.entity_id, e
                 )
-                self._commanded, self._commanded_at = before
+                self._commanded, self._commanded_at, self._last_pushed = before
                 return False
             return True
 
@@ -290,7 +294,7 @@ class ClimateChild:
         async with self._lock:
             if not self.available:
                 return
-            before = (self._commanded, self._commanded_at)
+            before = (self._commanded, self._commanded_at, self._last_pushed)
             self._record(HVACMode.OFF)
             try:
                 await self.hass.services.async_call(
@@ -302,7 +306,7 @@ class ClimateChild:
                 )
             except Exception as e:  # noqa: BLE001
                 _LOGGER.error("Error turning off %s. Error: %s", self.entity_id, e)
-                self._commanded, self._commanded_at = before
+                self._commanded, self._commanded_at, self._last_pushed = before
 
     async def async_push_target(self, value: float, context: Context | None) -> None:
         async with self._lock:
@@ -313,6 +317,11 @@ class ClimateChild:
                 features is not None
                 and not features & ClimateEntityFeature.TARGET_TEMPERATURE
             ):
+                return
+            attrs = self.state.attributes
+            value = self._fit(value, attrs)
+            current = self._last_pushed if self.assumed else attrs.get("temperature")
+            if current == value:
                 return
             try:
                 await self.hass.services.async_call(
@@ -326,6 +335,20 @@ class ClimateChild:
                 _LOGGER.error(
                     "Error setting target on %s. Error: %s", self.entity_id, e
                 )
+                return
+            self._last_pushed = value
+
+    @staticmethod
+    def _fit(value: float, attrs: Mapping[str, Any]) -> float:
+        """Round to the child's step, then clamp to its range."""
+        if step := attrs.get("target_temp_step"):
+            value = round(round(value / step) * step, 4)
+        low, high = attrs.get("min_temp"), attrs.get("max_temp")
+        if low is not None:
+            value = max(value, low)
+        if high is not None:
+            value = min(value, high)
+        return value
 
 
 def climate_child(hass: HomeAssistant, entity_id: str) -> ClimateChild:
@@ -344,10 +367,12 @@ class ClimatePort(EntityPort):
         child: ClimateChild,
         role_mode: Callable[[], HVACMode],
         target: Callable[[], float | None],
+        offset: Callable[[], float],
     ) -> None:
         self._child = child
         self._role_mode = role_mode
         self._target = target
+        self._offset = offset
         self.entity_id = child.entity_id
 
     @property
@@ -358,12 +383,14 @@ class ClimatePort(EntityPort):
         since = self._child.since
         return since is not None and dt_util.utcnow() - since >= min_cycle
 
-    async def async_turn_on(self, context: Context | None) -> None:
-        if not await self._child.async_set_mode(self._role_mode(), context):
-            return
+    async def _push(self, context: Context | None) -> None:
         target = self._target()
         if target is not None:
-            await self._child.async_push_target(target, context)
+            await self._child.async_push_target(target + self._offset(), context)
+
+    async def async_turn_on(self, context: Context | None) -> None:
+        if await self._child.async_set_mode(self._role_mode(), context):
+            await self._push(context)
 
     async def async_turn_off(self, context: Context | None) -> None:
         # Only the role the child is currently serving may stop it, so an idle
@@ -388,8 +415,9 @@ def make_port(
     *,
     role_mode: Callable[[], HVACMode],
     target: Callable[[], float | None],
+    offset: Callable[[], float] = lambda: 0.0,
 ) -> EntityPort:
     """Build the port for a role from the entity domain."""
     if is_climate_entity(entity_id):
-        return ClimatePort(climate_child(hass, entity_id), role_mode, target)
+        return ClimatePort(climate_child(hass, entity_id), role_mode, target, offset)
     return SwitchPort(hass, entity_id)

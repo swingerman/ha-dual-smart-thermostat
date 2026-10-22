@@ -22,6 +22,9 @@ class HeaterDevice(GenericHVACDevice):
     def role_mode(self) -> HVACMode:
         return HVACMode.HEAT
 
+    def setpoint_offset(self) -> float:
+        return self.features.heater_setpoint_offset
+
     def __init__(
         self,
         hass: HomeAssistant,

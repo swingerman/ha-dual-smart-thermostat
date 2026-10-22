@@ -110,6 +110,13 @@ class HeatPumpDevice(GenericHVACDevice):
     def role_mode(self) -> HVACMode:
         return HVACMode.COOL if self._heat_pump_is_cooling else HVACMode.HEAT
 
+    def setpoint_offset(self) -> float:
+        return (
+            self.features.cooler_setpoint_offset
+            if self._heat_pump_is_cooling
+            else self.features.heater_setpoint_offset
+        )
+
     @property
     def hvac_action(self) -> HVACAction:
         if self.hvac_mode == HVACMode.OFF:

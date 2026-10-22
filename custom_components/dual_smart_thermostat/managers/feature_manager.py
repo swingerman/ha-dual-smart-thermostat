@@ -23,6 +23,7 @@ from ..const import (
     CONF_AUX_HEATING_DUAL_MODE,
     CONF_AUX_HEATING_TIMEOUT,
     CONF_COOLER,
+    CONF_COOLER_SETPOINT_OFFSET,
     CONF_DRYER,
     CONF_FAN,
     CONF_FAN_AIR_OUTSIDE,
@@ -34,9 +35,11 @@ from ..const import (
     CONF_HEAT_COOL_MODE,
     CONF_HEAT_PUMP_COOLING,
     CONF_HEATER,
+    CONF_HEATER_SETPOINT_OFFSET,
     CONF_HUMIDITY_SENSOR,
     CONF_HVAC_POWER_LEVELS,
     CONF_HVAC_POWER_TOLERANCE,
+    DEFAULT_SETPOINT_OFFSET,
 )
 from ..managers.environment_manager import EnvironmentManager
 from ..managers.state_manager import StateManager
@@ -69,6 +72,12 @@ class FeatureManager(StateManager):
         self._dryer_entity_id = config.get(CONF_DRYER)
         self._humidity_sensor_entity_id = config.get(CONF_HUMIDITY_SENSOR)
         self._heat_pump_cooling_entity_id = config.get(CONF_HEAT_PUMP_COOLING)
+        self._heater_setpoint_offset = float(
+            config.get(CONF_HEATER_SETPOINT_OFFSET, DEFAULT_SETPOINT_OFFSET)
+        )
+        self._cooler_setpoint_offset = float(
+            config.get(CONF_COOLER_SETPOINT_OFFSET, DEFAULT_SETPOINT_OFFSET)
+        )
 
         self._aux_heater_entity_id = config.get(CONF_AUX_HEATER)
         self._aux_heater_timeout = config.get(CONF_AUX_HEATING_TIMEOUT)
@@ -86,6 +95,14 @@ class FeatureManager(StateManager):
 
         # Fan device reference for speed control
         self._fan_device = None
+
+    @property
+    def heater_setpoint_offset(self) -> float:
+        return self._heater_setpoint_offset
+
+    @property
+    def cooler_setpoint_offset(self) -> float:
+        return self._cooler_setpoint_offset
 
     @property
     def heat_pump_cooling_entity_id(self) -> str:

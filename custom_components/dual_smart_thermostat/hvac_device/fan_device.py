@@ -25,6 +25,9 @@ class FanDevice(CoolerDevice):
     def climate_target(self) -> float | None:
         return None
 
+    def setpoint_offset(self) -> float:
+        return 0.0
+
     def __init__(
         self,
         hass: HomeAssistant,

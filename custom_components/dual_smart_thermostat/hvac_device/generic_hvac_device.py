@@ -62,6 +62,7 @@ class GenericHVACDevice(
             entity_id,
             role_mode=self.role_mode,
             target=self.climate_target,
+            offset=self.setpoint_offset,
         )
 
         self.hvac_controller: HvacController = GenericHvacController(
@@ -95,6 +96,10 @@ class GenericHVACDevice(
     @abstractmethod
     def role_mode(self) -> HVACMode:
         """The hvac mode a climate entity must be in to serve this role."""
+
+    def setpoint_offset(self) -> float:
+        """Offset added to the temperature pushed to a climate entity."""
+        return 0.0
 
     def climate_target(self) -> float | None:
         """The temperature a climate entity serving this role is told to hold."""
