@@ -2,7 +2,7 @@ from datetime import timedelta
 import logging
 
 from homeassistant.components.climate import HVACAction, HVACMode
-from homeassistant.core import HomeAssistant, State
+from homeassistant.core import HomeAssistant
 
 from ..hvac_device.cooler_device import CoolerDevice
 from ..hvac_device.fan_speed import FanSpeedControl
@@ -22,9 +22,6 @@ class FanDevice(CoolerDevice):
 
     def role_mode(self) -> HVACMode:
         return HVACMode.FAN_ONLY
-
-    def setpoint_offset(self) -> float:
-        return 0.0
 
     def __init__(
         self,
@@ -53,38 +50,6 @@ class FanDevice(CoolerDevice):
 
         # Fan speed control capabilities (detected on construction)
         self.speed = FanSpeedControl(hass, entity_id)
-
-    @property
-    def supports_fan_mode(self) -> bool:
-        """Return if fan supports speed control."""
-        return self.speed.supports_fan_mode
-
-    @property
-    def fan_modes(self) -> list[str]:
-        """Return list of available fan modes."""
-        return self.speed.fan_modes
-
-    @property
-    def uses_preset_modes(self) -> bool:
-        """Return if fan uses preset modes (vs percentage)."""
-        return self.speed.uses_preset_modes
-
-    @property
-    def current_fan_mode(self) -> str | None:
-        """Return current fan mode."""
-        return self.speed.current_fan_mode
-
-    def restore_fan_mode(self, fan_mode: str) -> None:
-        """Restore fan mode from persisted state."""
-        self.speed.restore_fan_mode(fan_mode)
-
-    async def async_set_fan_mode(self, fan_mode: str) -> None:
-        """Set the fan speed mode."""
-        await self.speed.async_set_fan_mode(fan_mode)
-
-    def redetect_capabilities(self, entity_id: str, new_state: State) -> bool:
-        """Retry detection once our entity shows up."""
-        return self.speed.redetect_capabilities(entity_id, new_state)
 
     async def async_turn_on(self):
         """Turn on the fan and apply the selected fan mode."""
