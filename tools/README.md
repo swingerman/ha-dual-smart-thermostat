@@ -24,7 +24,7 @@ target_sensor: sensor.temperature
 ```
 
 **Features:**
-- Validates 22 critical conditional dependencies
+- Validates 25 critical conditional dependencies
 - Detects configuration conflicts
 - Provides fix suggestions
 - Analyzes feature groups
@@ -40,7 +40,7 @@ python tools/focused_config_dependencies.py
 
 ### `focused_config_dependencies.json`
 Core dependency data containing:
-- 22 conditional parameter dependencies
+- 25 conditional parameter dependencies
 - Configuration examples for 6 feature groups
 - Dependency relationships and validation rules
 

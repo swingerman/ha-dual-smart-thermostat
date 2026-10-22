@@ -94,6 +94,21 @@
       "required_parameter": "hvac_power_levels",
       "description": "Power tolerance only works when power levels are defined",
       "example": "hvac_power_levels: 5 \u2192 hvac_power_tolerance: 0.5"
+    },
+    "control_style": {
+      "required_parameter": "heater|cooler|fan|dryer as a climate.* entity",
+      "description": "Control style only works when a device is a climate entity",
+      "example": "heater: climate.ac \u2192 control_style: setpoint"
+    },
+    "heater_setpoint_offset": {
+      "required_parameter": "heater|cooler|fan|dryer as a climate.* entity",
+      "description": "Heater setpoint offset only works when the heater is a climate entity",
+      "example": "heater: climate.heater_ac \u2192 heater_setpoint_offset: 2"
+    },
+    "cooler_setpoint_offset": {
+      "required_parameter": "heater|cooler|fan|dryer as a climate.* entity",
+      "description": "Cooler setpoint offset only works when the cooler (or an ac_mode/heat pump heater) is a climate entity",
+      "example": "cooler: climate.ac \u2192 cooler_setpoint_offset: -2"
     }
   },
   "dependency_groups": {
@@ -211,6 +226,24 @@
         "target": "hvac_power_tolerance",
         "description": "Power tolerance only works when power levels are defined",
         "example": "hvac_power_levels: 5 \u2192 hvac_power_tolerance: 0.5"
+      },
+      {
+        "source": "climate_role",
+        "target": "control_style",
+        "description": "Control style only works when a device is a climate entity",
+        "example": "heater: climate.ac \u2192 control_style: setpoint"
+      },
+      {
+        "source": "climate_role",
+        "target": "heater_setpoint_offset",
+        "description": "Heater setpoint offset only works when the heater is a climate entity",
+        "example": "heater: climate.heater_ac \u2192 heater_setpoint_offset: 2"
+      },
+      {
+        "source": "climate_role",
+        "target": "cooler_setpoint_offset",
+        "description": "Cooler setpoint offset only works when the cooler (or an ac_mode/heat pump heater) is a climate entity",
+        "example": "cooler: climate.ac \u2192 cooler_setpoint_offset: -2"
       }
     ],
     "mutual_exclusive": [

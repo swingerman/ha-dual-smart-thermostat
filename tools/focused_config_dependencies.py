@@ -231,6 +231,33 @@ class FocusedConfigDependencies:
             ]
         )
 
+        # === CLIMATE ENTITY DEVICE DEPENDENCIES ===
+        self.dependencies.extend(
+            [
+                ConfigDependency(
+                    source="climate_role",
+                    target="control_style",
+                    type=DependencyType.ENABLES,
+                    description="Control style only works when a device is a climate entity",
+                    example="heater: climate.ac → control_style: setpoint",
+                ),
+                ConfigDependency(
+                    source="climate_role",
+                    target="heater_setpoint_offset",
+                    type=DependencyType.ENABLES,
+                    description="Heater setpoint offset only works when the heater is a climate entity",
+                    example="heater: climate.heater_ac → heater_setpoint_offset: 2",
+                ),
+                ConfigDependency(
+                    source="climate_role",
+                    target="cooler_setpoint_offset",
+                    type=DependencyType.ENABLES,
+                    description="Cooler setpoint offset only works when the cooler (or an ac_mode/heat pump heater) is a climate entity",
+                    example="cooler: climate.ac → cooler_setpoint_offset: -2",
+                ),
+            ]
+        )
+
         # === ENTITY CONFLICTS ===
         self.dependencies.extend(
             [
