@@ -7,6 +7,10 @@ import pytest
 import voluptuous as vol
 
 from custom_components.dual_smart_thermostat.climate import PLATFORM_SCHEMA
+from custom_components.dual_smart_thermostat.climate_roles import (
+    applicable_offset_keys,
+    setpoint_unsupported,
+)
 from custom_components.dual_smart_thermostat.config_flow import ConfigFlowHandler
 from custom_components.dual_smart_thermostat.const import CONF_HEATER, CONF_SENSOR
 
@@ -160,3 +164,95 @@ def test_platform_schema_accepts_climate_cooler() -> None:
             "cooler": "climate.ac",
         }
     )
+
+
+def _yaml(**extra):
+    return {
+        "platform": "dual_smart_thermostat",
+        "name": "t",
+        "target_sensor": "sensor.t",
+        "heater": "switch.h",
+        **extra,
+    }
+
+
+def test_control_style_and_cooler_offset_accepted_with_climate_cooler() -> None:
+    """Climate cooler takes the style and its own offset."""
+    cfg = PLATFORM_SCHEMA(
+        _yaml(cooler="climate.ac", control_style="setpoint", cooler_setpoint_offset=-3)
+    )
+    assert cfg["control_style"] == "setpoint"
+    assert cfg["cooler_setpoint_offset"] == -3.0
+
+
+def test_each_offset_needs_its_own_climate_role() -> None:
+    """An offset for a role that is not a climate entity has nothing to apply to."""
+    with pytest.raises(vol.Invalid, match="heater_setpoint_offset"):
+        PLATFORM_SCHEMA(_yaml(cooler="climate.ac", heater_setpoint_offset=2))
+    with pytest.raises(vol.Invalid, match="cooler_setpoint_offset"):
+        PLATFORM_SCHEMA(
+            _yaml(heater="climate.ac", cooler="switch.c", cooler_setpoint_offset=2)
+        )
+
+
+def test_ac_mode_climate_heater_serves_as_the_cooler() -> None:
+    """An ac_mode climate heater uses the cooler offset only."""
+    cfg = PLATFORM_SCHEMA(
+        _yaml(heater="climate.ac", ac_mode=True, cooler_setpoint_offset=-2)
+    )
+    assert cfg["cooler_setpoint_offset"] == -2.0
+    with pytest.raises(vol.Invalid, match="heater_setpoint_offset"):
+        PLATFORM_SCHEMA(
+            _yaml(heater="climate.ac", ac_mode=True, heater_setpoint_offset=2)
+        )
+
+
+def test_applicable_offset_keys_follow_the_roles() -> None:
+    """Offsets exist only for roles that push a temperature."""
+    assert applicable_offset_keys({"heater": "switch.h", "cooler": "climate.ac"}) == [
+        "cooler_setpoint_offset"
+    ]
+    assert applicable_offset_keys({"heater": "climate.h", "cooler": "climate.c"}) == [
+        "heater_setpoint_offset",
+        "cooler_setpoint_offset",
+    ]
+    assert applicable_offset_keys({"heater": "climate.h", "fan": "climate.h"}) == [
+        "heater_setpoint_offset"
+    ]
+    assert applicable_offset_keys({"heater": "switch.h"}) == []
+    # a heat pump uses the heater offset while heating, the cooler one while cooling
+    assert applicable_offset_keys(
+        {"heater": "climate.hp", "heat_pump_cooling": "binary_sensor.c"}
+    ) == ["heater_setpoint_offset", "cooler_setpoint_offset"]
+
+
+@pytest.mark.parametrize(
+    ("key", "value"),
+    [
+        ("control_style", "on_off"),
+        ("heater_setpoint_offset", 1),
+        ("cooler_setpoint_offset", 1),
+    ],
+)
+def test_climate_only_options_rejected_without_a_climate_role(key, value) -> None:
+    """These options mean nothing when no role is a climate entity."""
+    with pytest.raises(vol.Invalid, match="climate"):
+        PLATFORM_SCHEMA(_yaml(**{key: value}))
+
+
+def test_unknown_control_style_rejected() -> None:
+    """Only on_off and setpoint exist."""
+    with pytest.raises(vol.Invalid):
+        PLATFORM_SCHEMA(_yaml(cooler="climate.ac", control_style="auto"))
+
+
+def test_setpoint_with_climate_heat_pump_rejected() -> None:
+    """Spec OQ2: reported as a setpoint problem, not just a heat pump one."""
+    config = _yaml(
+        heater="climate.hp",
+        heat_pump_cooling="binary_sensor.cooling",
+        control_style="setpoint",
+    )
+    assert setpoint_unsupported(config)
+    with pytest.raises(vol.Invalid, match="setpoint is not supported"):
+        PLATFORM_SCHEMA(config)

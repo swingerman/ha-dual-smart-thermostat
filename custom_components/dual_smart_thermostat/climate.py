@@ -83,8 +83,10 @@ from .const import (
     CONF_AUX_HEATING_DUAL_MODE,
     CONF_AUX_HEATING_TIMEOUT,
     CONF_COLD_TOLERANCE,
+    CONF_CONTROL_STYLE,
     CONF_COOL_TOLERANCE,
     CONF_COOLER,
+    CONF_COOLER_SETPOINT_OFFSET,
     CONF_DRY_TOLERANCE,
     CONF_DRYER,
     CONF_FAN,
@@ -99,6 +101,7 @@ from .const import (
     CONF_HEAT_PUMP_COOLING,
     CONF_HEAT_TOLERANCE,
     CONF_HEATER,
+    CONF_HEATER_SETPOINT_OFFSET,
     CONF_HOT_TOLERANCE,
     CONF_HUMIDITY_SENSOR,
     CONF_HVAC_POWER_LEVELS,
@@ -135,6 +138,7 @@ from .const import (
     MIN_CYCLE_KEEP_ALIVE,
     SET_HVAC_ACTION_REASON_SENSOR_SIGNAL,
     TIMED_OPENING_SCHEMA,
+    ControlStyle,
 )
 from .hvac_action_reason.hvac_action_reason import (
     SERVICE_SET_HVAC_ACTION_REASON,
@@ -284,6 +288,12 @@ PLATFORM_SCHEMA = vol.All(
         {
             vol.Optional(v): validate_template_or_number
             for (k, v) in CONF_PRESETS_OLD.items()
+        }
+    ).extend(
+        {
+            vol.Optional(CONF_CONTROL_STYLE): vol.Coerce(ControlStyle),
+            vol.Optional(CONF_HEATER_SETPOINT_OFFSET): vol.Coerce(float),
+            vol.Optional(CONF_COOLER_SETPOINT_OFFSET): vol.Coerce(float),
         }
     ),
     validate_climate_roles,
