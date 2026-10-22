@@ -217,7 +217,9 @@ class GenericHVACDevice(
             await self.async_stop(keep_alive=time is not None)
             return
 
-        await self.port.async_sync(self._context)
+        # An open opening is about to stop the device: do not push a setpoint first.
+        if not any_opening_open:
+            await self.port.async_sync(self._context)
 
         if self.hvac_controller.is_active:
             await self.hvac_controller.async_control_device_when_on(

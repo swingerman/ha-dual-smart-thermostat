@@ -1031,3 +1031,33 @@ async def test_child_without_a_step_gets_whole_degrees_and_one_push(
     assert [c for c in child.calls if c[0] == "set_temperature"] == [
         ("set_temperature", {"temperature": 22.0})
     ]
+
+
+async def test_target_change_during_an_opening_is_not_pushed(
+    hass: HomeAssistant,
+) -> None:
+    """No push-then-off: while an opening is open the setpoint is left alone."""
+    hass.states.async_set(SENSOR, 20.0)
+    hass.states.async_set("binary_sensor.window", "off")
+    await _setup(
+        hass,
+        heater=AC,
+        initial_hvac_mode=HVACMode.HEAT,
+        openings=["binary_sensor.window"],
+    )
+    child = await common.add_fake_climate(hass, AC)
+    await common.async_set_temperature(hass, 22, "climate.test")
+    await hass.async_block_till_done()
+
+    async def ignore_off():  # the device is slow: still engaged when control runs
+        child.calls.append(("turn_off", {}))
+
+    child.async_turn_off = ignore_off
+    child.calls.clear()
+
+    hass.states.async_set("binary_sensor.window", "on")
+    await common.async_set_temperature(hass, 23, "climate.test")
+    await hass.async_block_till_done()
+
+    assert ("set_temperature", {"temperature": 23.0}) not in child.calls
+    assert ("turn_off", {}) in child.calls
