@@ -1013,3 +1013,21 @@ async def test_setpoint_style_does_not_apply_to_a_climate_fan(
     await hass.async_block_till_done()
 
     assert hass.states.get(AC).state == HVACMode.OFF
+
+
+async def test_child_without_a_step_gets_whole_degrees_and_one_push(
+    hass: HomeAssistant,
+) -> None:
+    """The pushed value is one the child can hold, so it is never re-pushed."""
+    child = await common.add_fake_climate(hass, "climate.test_ac")
+    child._attr_target_temperature_step = None  # reports no step
+    child.async_write_ha_state()
+    heat = _port(hass, "climate.test_ac", HVACMode.HEAT, lambda: 22.3)
+
+    for _ in range(3):
+        await heat.async_sync(None)  # inactive: nothing
+        await heat.async_turn_on(None)
+
+    assert [c for c in child.calls if c[0] == "set_temperature"] == [
+        ("set_temperature", {"temperature": 22.0})
+    ]

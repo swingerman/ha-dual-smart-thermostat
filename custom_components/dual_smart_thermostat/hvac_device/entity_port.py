@@ -343,9 +343,13 @@ class ClimateChild:
 
     @staticmethod
     def _fit(value: float, attrs: Mapping[str, Any]) -> float:
-        """Round to the child's step, then clamp to its range."""
-        if step := attrs.get("target_temp_step"):
-            value = round(round(value / step) * step, 4)
+        """Round to the child's step (whole degrees if it has none), then clamp.
+
+        The pushed value is one the child can hold, so what it reports back
+        equals what was pushed and the "already set" check cannot loop.
+        """
+        step = attrs.get("target_temp_step") or 1
+        value = round(round(value / step) * step, 4)
         low, high = attrs.get("min_temp"), attrs.get("max_temp")
         if low is not None:
             value = max(value, low)
