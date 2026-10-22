@@ -100,7 +100,7 @@ def make_port(hass, entity_id, *, role_mode, target, style, offset: Callable[[],
               fan_speed: Callable[[], FanSpeedControl | None]) -> EntityPort: ...
 ```
 
-`climate_child(hass, entity_id)` is a get-or-create over `hass.data["dual_smart_thermostat_climate_children"]`. The child holds no thermostat config (no min cycle, offset, style); those live in the per-role port, so a reload cannot leave stale config behind. The only retained state is the last commanded mode/time, which stays true across reloads.
+`acquire_climate_child(hass, entity_id)` is a reference-counted get-or-create over `hass.data["dual_smart_thermostat_climate_children"]`: each port holds one reference, released (idempotently) when its thermostat is removed; the last release drops the child, so a reload starts from a fresh record and a shared child is never pulled from under another thermostat. The child holds no thermostat config (no min cycle, offset, style); those live in the per-role port, so a reload cannot leave stale config behind. The only retained state is the last commanded mode/time, which stays true across reloads.
 
 ### 3.2 `ClimatePort` behaviour
 
