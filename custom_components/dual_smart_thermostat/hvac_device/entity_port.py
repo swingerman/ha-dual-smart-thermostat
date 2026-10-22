@@ -12,7 +12,7 @@ import asyncio
 from collections.abc import Callable, Mapping
 from datetime import datetime, timedelta
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.climate import (
     ATTR_HVAC_MODE,
@@ -41,7 +41,9 @@ from homeassistant.util import dt as dt_util
 
 from ..climate_roles import CLIMATE_DOMAIN, is_climate_entity
 from ..const import ControlStyle
-from .fan_speed import FanSpeedControl
+
+if TYPE_CHECKING:
+    from .fan_speed import FanSpeedControl
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -362,6 +364,11 @@ class ClimateChild:
         if high is not None:
             value = min(value, high)
         return value
+
+
+def peek_climate_child(hass: HomeAssistant, entity_id: str) -> ClimateChild | None:
+    """The shared ClimateChild if a port holds one, without taking a reference."""
+    return hass.data.get(_CHILDREN_KEY, {}).get(entity_id)
 
 
 def acquire_climate_child(hass: HomeAssistant, entity_id: str) -> ClimateChild:

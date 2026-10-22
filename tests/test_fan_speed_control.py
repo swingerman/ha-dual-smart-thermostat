@@ -2094,3 +2094,17 @@ async def test_climate_fan_modes_keep_their_case(hass: HomeAssistant):
 
     assert speed.fan_modes == ["Quiet", "Strong"]
     assert speed.current_fan_mode == "Quiet"
+
+
+@pytest.mark.asyncio
+async def test_assumed_state_child_that_is_off_is_not_sent_a_fan_speed(
+    hass: HomeAssistant,
+):
+    """An IR frame can power an AC on: an off (assumed) child gets no speed now."""
+    child = await common.add_fake_climate(hass, "climate.test_ir", assumed=True)
+    speed = FanSpeedControl(hass, "climate.test_ir")
+
+    await speed.async_set_fan_mode("strong")
+
+    assert child.calls == []
+    assert speed.current_fan_mode == "strong"  # recorded for the next turn on

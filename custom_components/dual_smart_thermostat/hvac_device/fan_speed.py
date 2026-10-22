@@ -8,7 +8,9 @@ from homeassistant.components.climate import HVACMode
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import HomeAssistant, State, callback
 
+from ..climate_roles import is_climate_entity
 from ..const import FAN_MODE_TO_PERCENTAGE
+from .entity_port import peek_climate_child
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -19,7 +21,7 @@ class FanSpeedControl:
     def __init__(self, hass: HomeAssistant, entity_id: str) -> None:
         self.hass = hass
         self.entity_id = entity_id
-        self._is_climate = entity_id.startswith("climate.")
+        self._is_climate = is_climate_entity(entity_id)
         self._supports_fan_mode = False
         self._fan_modes: list[str] = []
         self._uses_preset_modes = False
@@ -194,14 +196,14 @@ class FanSpeedControl:
         if self._is_climate:
             state = self.hass.states.get(self.entity_id)
             assumed = bool(state and state.attributes.get("assumed_state"))
+            # Is the child running? An assumed-state (IR) child never reports it,
+            # so its mode is DST's own record (the shared ClimateChild), if any.
+            child = peek_climate_child(self.hass, self.entity_id)
+            mode = child.mode if child is not None else state and state.state
             # An off or unavailable child gets nothing now: the selection is only
-            # recorded and async_reapply sends it on the next turn on. (An
-            # assumed-state child's reported state says nothing about being off.)
-            if (
-                state is None
-                or state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN)
-                or (not assumed and state.state == HVACMode.OFF)
-            ):
+            # recorded and async_reapply sends it on the next turn on. An IR frame
+            # could otherwise power the AC on while the thermostat is Off.
+            if mode in (None, False, HVACMode.OFF, STATE_UNAVAILABLE, STATE_UNKNOWN):
                 self._current_fan_mode = fan_mode
                 return
             # A reported-state child that already has it needs no call; an
