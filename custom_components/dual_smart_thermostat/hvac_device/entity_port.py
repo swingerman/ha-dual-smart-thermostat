@@ -72,8 +72,11 @@ class EntityPort(ABC):
         return
 
     @abstractmethod
-    async def async_stop(self, context: Context | None) -> None:
-        """DST is Off: make sure the entity is off. Off means off."""
+    async def async_stop(self, context: Context | None, force: bool = False) -> None:
+        """DST is Off: make sure the entity is off. Off means off.
+
+        `force` is the keep-alive: resend off even if it already looks off.
+        """
 
 
 class SwitchPort(EntityPort):
@@ -106,12 +109,15 @@ class SwitchPort(EntityPort):
         return self._is_valve and self._features & ValveEntityFeature.CLOSE
 
     @property
+    def _on_state(self) -> str:
+        return STATE_OPEN if self._is_valve else STATE_ON
+
+    @property
     def is_active(self) -> bool:
-        on_state = STATE_OPEN if self._is_valve else STATE_ON
-        return self.hass.states.is_state(self.entity_id, on_state)
+        return self.hass.states.is_state(self.entity_id, self._on_state)
 
     def ran_long_enough(self, min_cycle: timedelta) -> bool:
-        current_state = STATE_ON if self.is_active else HVACMode.OFF
+        current_state = self._on_state if self.is_active else HVACMode.OFF
         try:
             return condition.state(self.hass, self.entity_id, current_state, min_cycle)
         except ConditionError:
@@ -144,9 +150,9 @@ class SwitchPort(EntityPort):
             return
         await self._call(SERVICE_TURN_OFF, context)
 
-    async def async_stop(self, context: Context | None) -> None:
+    async def async_stop(self, context: Context | None, force: bool = False) -> None:
         # Today's Off behaviour for switches: stop it if it is running.
-        if self.is_active:
+        if force or self.is_active:
             await self.async_turn_off(context)
 
     def _unavailable(self) -> bool:
@@ -230,6 +236,12 @@ class ClimateChild:
             return self._commanded_at
         return self.state.last_changed
 
+    def _record(self, mode: str) -> None:
+        """Note a command. The mode age restarts only when the mode changes."""
+        self._adopt_reported()
+        if self._commanded != mode:
+            self._commanded, self._commanded_at = mode, dt_util.utcnow()
+
     async def async_set_mode(self, mode: str, context: Context | None) -> bool:
         """Command a mode. False when nothing was sent or the call failed."""
         async with self._lock:
@@ -253,7 +265,7 @@ class ClimateChild:
             if not self.assumed and self.state.state == mode:
                 return True
             before = (self._commanded, self._commanded_at)
-            self._commanded, self._commanded_at = mode, dt_util.utcnow()
+            self._record(mode)
             try:
                 await self.hass.services.async_call(
                     CLIMATE_DOMAIN,
@@ -275,7 +287,7 @@ class ClimateChild:
             if not self.available:
                 return
             before = (self._commanded, self._commanded_at)
-            self._commanded, self._commanded_at = HVACMode.OFF, dt_util.utcnow()
+            self._record(HVACMode.OFF)
             try:
                 await self.hass.services.async_call(
                     CLIMATE_DOMAIN,
@@ -356,9 +368,12 @@ class ClimatePort(EntityPort):
         if self.is_active:
             await self._child.async_turn_off(context)
 
-    async def async_stop(self, context: Context | None) -> None:
+    async def async_stop(self, context: Context | None, force: bool = False) -> None:
         # Off means off: whatever mode the child is in, even one no role owns.
-        if self._child.mode not in (None, HVACMode.OFF):
+        # An assumed child may have missed the last off, so a forced stop resends.
+        if self._child.mode not in (None, HVACMode.OFF) or (
+            force and self._child.assumed and self._child.available
+        ):
             await self._child.async_turn_off(context)
 
 

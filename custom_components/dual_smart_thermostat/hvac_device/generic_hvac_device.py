@@ -259,12 +259,12 @@ class GenericHVACDevice(
             self.strategy, self.target_env_attr, HVACAction.OFF
         )
 
-    async def async_stop(self) -> None:
+    async def async_stop(self, force: bool = False) -> None:
         """DST is Off: the entity must end up off, whatever it was doing."""
         if self.entity_id is None:
             return
 
-        await self.port.async_stop(self._context)
+        await self.port.async_stop(self._context, force)
 
         self.hvac_power.update_hvac_power(
             self.strategy, self.target_env_attr, HVACAction.OFF

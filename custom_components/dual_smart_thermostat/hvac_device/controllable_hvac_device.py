@@ -102,7 +102,7 @@ class ControlableHVACDevice(ABC):
         pass
 
     @abstractmethod
-    async def async_stop(self):
+    async def async_stop(self, force: bool = False):
         """DST is Off: concrete implementations must leave the device off."""
 
     @abstractmethod
