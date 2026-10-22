@@ -19,9 +19,12 @@ from .const import (
     CONF_COOLER_SETPOINT_OFFSET,
     CONF_DRYER,
     CONF_FAN,
+    CONF_HEAT_COOL_MODE,
     CONF_HEAT_PUMP_COOLING,
     CONF_HEATER,
     CONF_HEATER_SETPOINT_OFFSET,
+    CONF_TARGET_TEMP_HIGH,
+    CONF_TARGET_TEMP_LOW,
     ControlStyle,
 )
 
@@ -71,11 +74,34 @@ def setpoint_unsupported(config: Mapping[str, Any]) -> bool:
     )
 
 
+def setpoint_shared_heat_cool(config: Mapping[str, Any]) -> bool:
+    """Setpoint style cannot serve heat_cool from one climate in both roles.
+
+    Heater and cooler would both stay engaged ("goal never reached") and keep
+    flipping the one child between its heat and cool modes.
+    """
+    heat_cool = config.get(CONF_HEAT_COOL_MODE) or (
+        config.get(CONF_TARGET_TEMP_LOW) is not None
+        and config.get(CONF_TARGET_TEMP_HIGH) is not None
+    )
+    return bool(
+        config.get(CONF_CONTROL_STYLE) == ControlStyle.SETPOINT
+        and heat_cool
+        and is_climate_entity(config.get(CONF_HEATER))
+        and config.get(CONF_HEATER) == config.get(CONF_COOLER)
+    )
+
+
 def validate_climate_roles(config: dict[str, Any]) -> dict[str, Any]:
     """Voluptuous validator: cross-field rules for climate-backed roles."""
     if setpoint_unsupported(config):
         raise vol.Invalid(
             "control_style: setpoint is not supported for a climate heat pump"
+        )
+    if setpoint_shared_heat_cool(config):
+        raise vol.Invalid(
+            "control_style: setpoint cannot do heat_cool with one climate as both "
+            "heater and cooler"
         )
     if bad := unsupported_climate_roles(config):
         raise vol.Invalid(f"{', '.join(bad)} cannot be a climate entity")

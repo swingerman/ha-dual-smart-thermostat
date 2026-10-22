@@ -256,3 +256,39 @@ def test_setpoint_with_climate_heat_pump_rejected() -> None:
     assert setpoint_unsupported(config)
     with pytest.raises(vol.Invalid, match="setpoint is not supported"):
         PLATFORM_SCHEMA(config)
+
+
+@pytest.mark.parametrize(
+    "heat_cool",
+    [{"heat_cool_mode": True}, {"target_temp_low": 19, "target_temp_high": 24}],
+)
+def test_setpoint_with_one_climate_as_heater_and_cooler_cannot_heat_cool(
+    heat_cool,
+) -> None:
+    """Both roles would stay engaged in heat_cool and flip the one child's mode."""
+    with pytest.raises(vol.Invalid, match="heat_cool"):
+        PLATFORM_SCHEMA(
+            _yaml(
+                heater="climate.ac",
+                cooler="climate.ac",
+                control_style="setpoint",
+                **heat_cool,
+            )
+        )
+
+
+def test_setpoint_heat_cool_is_fine_with_separate_climates_or_without_heat_cool() -> (
+    None
+):
+    """Only the shared child cannot serve heat_cool in setpoint style."""
+    PLATFORM_SCHEMA(
+        _yaml(
+            heater="climate.heat",
+            cooler="climate.cool",
+            control_style="setpoint",
+            heat_cool_mode=True,
+        )
+    )
+    PLATFORM_SCHEMA(
+        _yaml(heater="climate.ac", cooler="climate.ac", control_style="setpoint")
+    )
