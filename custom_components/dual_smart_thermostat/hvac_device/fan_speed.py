@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import logging
 
+from homeassistant.components.climate import HVACMode
+from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import HomeAssistant, State, callback
 
 from ..const import FAN_MODE_TO_PERCENTAGE
@@ -191,13 +193,20 @@ class FanSpeedControl:
 
         if self._is_climate:
             state = self.hass.states.get(self.entity_id)
+            assumed = bool(state and state.attributes.get("assumed_state"))
+            # An off or unavailable child gets nothing now: the selection is only
+            # recorded and async_reapply sends it on the next turn on. (An
+            # assumed-state child's reported state says nothing about being off.)
+            if (
+                state is None
+                or state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN)
+                or (not assumed and state.state == HVACMode.OFF)
+            ):
+                self._current_fan_mode = fan_mode
+                return
             # A reported-state child that already has it needs no call; an
             # assumed-state one cannot tell us, so it is always sent.
-            if (
-                state is not None
-                and not state.attributes.get("assumed_state")
-                and state.attributes.get("fan_mode") == fan_mode
-            ):
+            if not assumed and state.attributes.get("fan_mode") == fan_mode:
                 self._current_fan_mode = fan_mode
                 return
             await self.hass.services.async_call(

@@ -2047,7 +2047,7 @@ async def test_climate_without_fan_modes_has_no_speed_control(hass: HomeAssistan
 @pytest.mark.asyncio
 async def test_climate_speed_is_set_with_climate_set_fan_mode(hass: HomeAssistant):
     """The speed goes out through climate.set_fan_mode."""
-    child = await common.add_fake_climate(hass, "climate.test_ac")
+    child = await common.add_fake_climate(hass, "climate.test_ac", HVACMode.COOL)
     speed = FanSpeedControl(hass, "climate.test_ac")
 
     await speed.async_set_fan_mode("strong")
@@ -2079,3 +2079,18 @@ async def test_climate_speed_already_set_is_not_resent(hass: HomeAssistant):
     await speed.async_set_fan_mode("strong")
 
     assert child.calls == []
+
+
+@pytest.mark.asyncio
+async def test_climate_fan_modes_keep_their_case(hass: HomeAssistant):
+    """The child's modes pass through verbatim, whatever their case."""
+    hass.states.async_set(
+        "climate.cased",
+        "cool",
+        {"fan_modes": ["Quiet", "Strong"], "fan_mode": "Quiet"},
+    )
+
+    speed = FanSpeedControl(hass, "climate.cased")
+
+    assert speed.fan_modes == ["Quiet", "Strong"]
+    assert speed.current_fan_mode == "Quiet"

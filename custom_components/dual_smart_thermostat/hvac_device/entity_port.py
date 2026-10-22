@@ -436,7 +436,12 @@ class ClimatePort(EntityPort):
         # Last, so the speed lands after the mode change that may have reset it.
         speed = self._fan_speed()
         if speed is not None:
-            await speed.async_reapply(self.entity_id)
+            try:
+                await speed.async_reapply(self.entity_id)
+            except Exception as e:  # noqa: BLE001
+                _LOGGER.error(
+                    "Error re-applying fan speed on %s. Error: %s", self.entity_id, e
+                )
 
     async def async_sync(self, context: Context | None) -> None:
         # Only the role the child is serving may touch its setpoint.

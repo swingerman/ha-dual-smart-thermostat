@@ -1371,10 +1371,11 @@ FAN = "fan.test_fan"
 
 async def test_cooler_only_ac_gets_fan_speed_control(hass: HomeAssistant) -> None:
     """Any climate role exposes the child's fan modes, set via climate.set_fan_mode."""
-    hass.states.async_set(SENSOR, 24.0)
+    hass.states.async_set(SENSOR, 27.0)
     setup_switch(hass, False, HEATER)
     await _setup(hass, heater=HEATER, cooler=AC, initial_hvac_mode=HVACMode.COOL)
-    child = await common.add_fake_climate(hass, AC)
+    child = await common.add_fake_climate(hass, AC, HVACMode.COOL)
+    await common.async_set_temperature(hass, 24, "climate.test")
     await hass.async_block_till_done()
 
     state = hass.states.get("climate.test")
@@ -1609,3 +1610,67 @@ async def test_late_child_without_fan_modes_never_gains_speed_control(
     await hass.async_block_till_done()
 
     assert "fan_modes" not in hass.states.get("climate.test").attributes
+
+
+async def test_failed_fan_speed_reapply_does_not_abort_the_control_cycle(
+    hass: HomeAssistant, caplog
+) -> None:
+    """A child that rejects set_fan_mode still gets its mode and target."""
+    hass.states.async_set(SENSOR, 26.0)
+    setup_switch(hass, False, HEATER)
+    await _setup(hass, heater=HEATER, cooler=AC, initial_hvac_mode=HVACMode.COOL)
+    child = await common.add_fake_climate(hass, AC, HVACMode.COOL)
+    await hass.services.async_call(
+        "climate",
+        "set_fan_mode",
+        {"entity_id": "climate.test", "fan_mode": "quiet"},
+        blocking=True,
+    )
+    await common.async_set_hvac_mode(hass, HVACMode.OFF, "climate.test")
+    await hass.async_block_till_done()
+
+    async def reject(fan_mode):
+        raise RuntimeError("device rejected the fan mode")
+
+    child.async_set_fan_mode = reject
+    child.calls.clear()
+
+    await common.async_set_hvac_mode(hass, HVACMode.COOL, "climate.test")
+    await common.async_set_temperature(hass, 24, "climate.test")
+    await hass.async_block_till_done()
+
+    assert ("set_hvac_mode", {"hvac_mode": HVACMode.COOL}) in child.calls
+    assert ("set_temperature", {"temperature": 24.0}) in child.calls
+    assert hass.states.get(AC).state == HVACMode.COOL
+    # handled where it happens (logged), not left to abort the control cycle
+    assert any(
+        r.name.endswith("entity_port") and "fan speed" in r.getMessage()
+        for r in caplog.records
+    )
+
+
+async def test_fan_speed_chosen_while_the_ac_is_off_is_applied_on_turn_on(
+    hass: HomeAssistant,
+) -> None:
+    """Nothing is sent to an off child; the selection waits for the next turn on."""
+    hass.states.async_set(SENSOR, 20.0)
+    setup_switch(hass, False, HEATER)
+    await _setup(hass, heater=HEATER, cooler=AC, initial_hvac_mode=HVACMode.COOL)
+    child = await common.add_fake_climate(hass, AC, resets_fan_on_mode_change=True)
+    await common.async_set_temperature(hass, 24, "climate.test")
+    await hass.async_block_till_done()
+    assert hass.states.get(AC).state == HVACMode.OFF  # nothing to cool at 20
+
+    await hass.services.async_call(
+        "climate",
+        "set_fan_mode",
+        {"entity_id": "climate.test", "fan_mode": "strong"},
+        blocking=True,
+    )
+    assert all(c[0] != "set_fan_mode" for c in child.calls)
+
+    hass.states.async_set(SENSOR, 27.0)  # too hot: the AC turns on
+    await hass.async_block_till_done()
+
+    assert ("set_fan_mode", {"fan_mode": "strong"}) in child.calls
+    assert hass.states.get(AC).attributes["fan_mode"] == "strong"
