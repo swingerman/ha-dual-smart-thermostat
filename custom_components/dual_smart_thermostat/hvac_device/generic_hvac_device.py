@@ -287,6 +287,10 @@ class GenericHVACDevice(
             self.strategy, self.target_env_attr, HVACAction.OFF
         )
 
+    def release(self) -> None:
+        """The thermostat is being removed: release the port's resources."""
+        self.port.release()
+
     async def async_stop(self, keep_alive: bool = False) -> None:
         """DST is Off: the entity must end up off, whatever it was doing."""
         if self.entity_id is None:

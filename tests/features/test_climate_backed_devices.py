@@ -1218,3 +1218,50 @@ async def test_entity_cannot_be_its_own_device(hass: HomeAssistant, caplog) -> N
 
     assert hass.states.get("climate.test") is None
     assert "itself" in caplog.text
+
+
+CHILDREN_KEY = "dual_smart_thermostat_climate_children"
+
+
+async def test_child_is_shared_until_the_last_port_releases_it(
+    hass: HomeAssistant,
+) -> None:
+    """One thermostat going away must not pull the child from under another."""
+    await common.add_fake_climate(hass, "climate.test_ac")
+    first = _port(hass, "climate.test_ac", HVACMode.HEAT)
+    second = _port(hass, "climate.test_ac", HVACMode.COOL)
+    assert first._child is second._child
+
+    first.release()
+    first.release()  # idempotent: a double release cannot steal the other's reference
+    assert "climate.test_ac" in hass.data[CHILDREN_KEY]
+
+    second.release()
+    assert "climate.test_ac" not in hass.data[CHILDREN_KEY]
+
+
+async def test_reload_starts_from_a_fresh_child_record(hass: HomeAssistant) -> None:
+    """A stale DST record of an IR child cannot survive its thermostat."""
+    await common.add_fake_climate(hass, "climate.test_ir", assumed=True)
+    old = _port(hass, "climate.test_ir", HVACMode.COOL)
+    await old.async_turn_on(None)
+    assert old.is_active is True
+    old.release()
+
+    new = _port(hass, "climate.test_ir", HVACMode.COOL)
+
+    assert new.is_active is False  # adopted from the reported state (off), not stale
+
+
+async def test_removing_a_thermostat_releases_its_children(
+    hass: HomeAssistant,
+) -> None:
+    """Entity removal drops the thermostat's references."""
+    hass.states.async_set(SENSOR, 20.0)
+    await _setup(hass, heater=AC, cooler=AC)
+    await common.add_fake_climate(hass, AC)
+    assert AC in hass.data[CHILDREN_KEY]
+
+    await hass.data["climate"].get_entity("climate.test").async_remove()
+
+    assert AC not in hass.data[CHILDREN_KEY]

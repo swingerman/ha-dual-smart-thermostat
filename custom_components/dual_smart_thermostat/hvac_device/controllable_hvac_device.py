@@ -102,6 +102,10 @@ class ControlableHVACDevice(ABC):
         pass
 
     @abstractmethod
+    def release(self) -> None:
+        """The thermostat is being removed: release shared resources."""
+
+    @abstractmethod
     async def async_stop(self, keep_alive: bool = False):
         """DST is Off: concrete implementations must leave the device off."""
 

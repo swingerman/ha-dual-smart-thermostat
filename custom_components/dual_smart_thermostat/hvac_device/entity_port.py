@@ -73,6 +73,10 @@ class EntityPort(ABC):
         """Mirror DST state onto the entity. Nothing to mirror by default."""
         return
 
+    def release(self) -> None:
+        """The thermostat is going away: let go of shared resources."""
+        return
+
     @abstractmethod
     async def async_stop(
         self, context: Context | None, keep_alive: bool = False
@@ -203,6 +207,7 @@ class ClimateChild:
         self._commanded_at: datetime | None = None
         self._last_pushed: float | None = None
         self._warned: set[str] = set()
+        self.refs = 0  # ports holding this child; it is dropped at zero
 
     @property
     def state(self) -> State | None:
@@ -358,12 +363,25 @@ class ClimateChild:
         return value
 
 
-def climate_child(hass: HomeAssistant, entity_id: str) -> ClimateChild:
-    """Get or create the single ClimateChild for a real climate entity."""
+def acquire_climate_child(hass: HomeAssistant, entity_id: str) -> ClimateChild:
+    """Get or create the single ClimateChild for a real climate entity.
+
+    Reference counted: every port holds one reference until it is released, so
+    a thermostat going away can neither strand a stale record of the device nor
+    pull the child from under another thermostat that shares it.
+    """
     children = hass.data.setdefault(_CHILDREN_KEY, {})
     if entity_id not in children:
         children[entity_id] = ClimateChild(hass, entity_id)
+    children[entity_id].refs += 1
     return children[entity_id]
+
+
+def release_climate_child(child: ClimateChild) -> None:
+    """Drop one reference; the last one removes the child."""
+    child.refs -= 1
+    if child.refs <= 0:
+        child.hass.data.get(_CHILDREN_KEY, {}).pop(child.entity_id, None)
 
 
 class ClimatePort(EntityPort):
@@ -383,6 +401,12 @@ class ClimatePort(EntityPort):
         self._offset = offset
         self.self_regulating = style == ControlStyle.SETPOINT
         self.entity_id = child.entity_id
+        self._released = False
+
+    def release(self) -> None:
+        if not self._released:  # idempotent: one reference per port, once
+            self._released = True
+            release_climate_child(self._child)
 
     @property
     def is_active(self) -> bool:
@@ -437,6 +461,6 @@ def make_port(
     """Build the port for a role from the entity domain."""
     if is_climate_entity(entity_id):
         return ClimatePort(
-            climate_child(hass, entity_id), role_mode, target, offset, style
+            acquire_climate_child(hass, entity_id), role_mode, target, offset, style
         )
     return SwitchPort(hass, entity_id)

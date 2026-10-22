@@ -810,6 +810,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         if self.entity_id in self.hvac_device.get_device_ids():
             msg = f"{self.entity_id} is configured as one of its own devices"
             _LOGGER.error("%s; a thermostat cannot control itself", msg)
+            self.hvac_device.release()
             raise HomeAssistantError(msg)
 
         # Add listener
@@ -1056,6 +1057,8 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         """Call when entity will be removed from hass."""
         # Remove template listeners
         await self._remove_template_listeners()
+
+        self.hvac_device.release()
 
         if self._remove_signal_hvac_action_reason:
             self._remove_signal_hvac_action_reason()
