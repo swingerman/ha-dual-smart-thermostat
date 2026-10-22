@@ -232,3 +232,17 @@ class TestHeatPumpSchema:
                         or default_value is False
                     )
                 break
+
+
+def test_heat_pump_heater_accepts_climate_entity():
+    """A climate entity can be the heat pump."""
+    schema = get_heat_pump_schema(defaults=None, include_name=True)
+    validated = schema(
+        {
+            CONF_NAME: "T",
+            CONF_SENSOR: "sensor.t",
+            CONF_HEATER: "climate.hp",
+            CONF_HEAT_PUMP_COOLING: "binary_sensor.cooling",
+        }
+    )
+    assert validated[CONF_HEATER] == "climate.hp"

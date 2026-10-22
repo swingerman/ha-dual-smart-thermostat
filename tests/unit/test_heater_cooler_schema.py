@@ -6,18 +6,28 @@ Issue: #415
 """
 
 from homeassistant.const import CONF_NAME
+import pytest
 import voluptuous as vol
 
 from custom_components.dual_smart_thermostat.const import (
+    CONF_AUX_HEATER,
     CONF_COLD_TOLERANCE,
     CONF_COOLER,
+    CONF_DRYER,
+    CONF_FAN,
     CONF_HEAT_COOL_MODE,
     CONF_HEATER,
     CONF_HOT_TOLERANCE,
+    CONF_HUMIDITY_SENSOR,
     CONF_MIN_DUR,
     CONF_SENSOR,
 )
-from custom_components.dual_smart_thermostat.schemas import get_heater_cooler_schema
+from custom_components.dual_smart_thermostat.schemas import (
+    get_dual_stage_schema,
+    get_fan_schema,
+    get_heater_cooler_schema,
+    get_humidity_schema,
+)
 
 
 class TestHeaterCoolerSchema:
@@ -185,4 +195,40 @@ class TestHeaterCoolerSchema:
         assert (
             CONF_HEAT_COOL_MODE in optional_fields
             or "advanced_settings" in optional_fields
+        )
+
+
+def test_heater_and_cooler_accept_climate_entities():
+    """A climate entity can back the heater and cooler roles."""
+    schema = get_heater_cooler_schema(defaults=None, include_name=True)
+    validated = schema(
+        {
+            CONF_NAME: "T",
+            CONF_SENSOR: "sensor.t",
+            CONF_HEATER: "climate.ac",
+            CONF_COOLER: "climate.ac",
+        }
+    )
+    assert validated[CONF_HEATER] == "climate.ac"
+    assert validated[CONF_COOLER] == "climate.ac"
+
+
+def test_fan_accepts_climate_entity():
+    """A climate entity can be the fan role."""
+    schema = get_fan_schema(defaults={})
+    assert schema({CONF_FAN: "climate.ac"})[CONF_FAN] == "climate.ac"
+
+
+def test_dryer_accepts_climate_entity():
+    """A climate entity can be the dryer role."""
+    schema = get_humidity_schema(defaults={})
+    validated = schema({CONF_HUMIDITY_SENSOR: "sensor.h", CONF_DRYER: "climate.ac"})
+    assert validated[CONF_DRYER] == "climate.ac"
+
+
+def test_aux_heater_still_rejects_climate_entity():
+    """Aux heating stays switch-like."""
+    with pytest.raises(vol.Invalid):
+        get_dual_stage_schema()(
+            {CONF_HEATER: "switch.h", CONF_AUX_HEATER: "climate.ac"}
         )

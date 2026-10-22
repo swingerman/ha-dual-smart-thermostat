@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from homeassistant.components.binary_sensor import DOMAIN as BINARY_SENSOR_DOMAIN
+from homeassistant.components.climate import DOMAIN as CLIMATE_DOMAIN
 from homeassistant.components.fan import DOMAIN as FAN_DOMAIN
 from homeassistant.components.input_boolean import DOMAIN as INPUT_BOOLEAN_DOMAIN
 from homeassistant.components.sensor import DOMAIN as SENSOR_DOMAIN
@@ -81,7 +82,9 @@ from .schema_utils import (
 _LOGGER = logging.getLogger(__name__)
 
 # Domains accepted by the fan field (single source for all flows)
-FAN_ENTITY_DOMAINS = [SWITCH_DOMAIN, INPUT_BOOLEAN_DOMAIN, FAN_DOMAIN]
+# What a heater, cooler or dryer role may be backed by.
+DEVICE_ENTITY_DOMAINS = [SWITCH_DOMAIN, INPUT_BOOLEAN_DOMAIN, CLIMATE_DOMAIN]
+FAN_ENTITY_DOMAINS = [SWITCH_DOMAIN, INPUT_BOOLEAN_DOMAIN, FAN_DOMAIN, CLIMATE_DOMAIN]
 
 
 # Load translations at module import time to avoid blocking I/O in async context
@@ -340,7 +343,7 @@ def get_basic_ac_schema(hass=None, defaults=None, include_name=True):
             CONF_HEATER,
             default=defaults.get(CONF_HEATER) if defaults else vol.UNDEFINED,
         )
-    ] = get_entity_selector([SWITCH_DOMAIN, INPUT_BOOLEAN_DOMAIN])
+    ] = get_entity_selector(DEVICE_ENTITY_DOMAINS)
 
     # Tolerance fields OUTSIDE section (so defaults are pre-filled in UI)
     core_schema.update(
@@ -389,7 +392,7 @@ def get_simple_heater_schema(hass=None, defaults=None, include_name=True):
             CONF_HEATER,
             default=defaults.get(CONF_HEATER) if defaults else vol.UNDEFINED,
         )
-    ] = get_entity_selector([SWITCH_DOMAIN, INPUT_BOOLEAN_DOMAIN])
+    ] = get_entity_selector(DEVICE_ENTITY_DOMAINS)
 
     # Tolerance fields OUTSIDE section (so defaults are pre-filled in UI)
     core_schema.update(
@@ -439,7 +442,7 @@ def get_heater_cooler_schema(hass=None, defaults=None, include_name=True):
             CONF_HEATER,
             default=defaults.get(CONF_HEATER) if defaults else vol.UNDEFINED,
         )
-    ] = get_entity_selector([SWITCH_DOMAIN, INPUT_BOOLEAN_DOMAIN])
+    ] = get_entity_selector(DEVICE_ENTITY_DOMAINS)
 
     # Cooler switch
     core_schema[
@@ -447,7 +450,7 @@ def get_heater_cooler_schema(hass=None, defaults=None, include_name=True):
             CONF_COOLER,
             default=defaults.get(CONF_COOLER) if defaults else vol.UNDEFINED,
         )
-    ] = get_entity_selector([SWITCH_DOMAIN, INPUT_BOOLEAN_DOMAIN])
+    ] = get_entity_selector(DEVICE_ENTITY_DOMAINS)
 
     # Heat/Cool mode toggle
     core_schema[
@@ -520,7 +523,7 @@ def get_heat_pump_schema(hass=None, defaults=None, include_name=True):
             CONF_HEATER,
             default=defaults.get(CONF_HEATER) if defaults else vol.UNDEFINED,
         )
-    ] = get_entity_selector([SWITCH_DOMAIN, INPUT_BOOLEAN_DOMAIN])
+    ] = get_entity_selector(DEVICE_ENTITY_DOMAINS)
 
     # Heat pump cooling mode sensor - entity_id of a sensor that indicates cooling state
     # The sensor's state should be 'on' (cooling) or 'off' (heating)
@@ -571,12 +574,12 @@ def get_grouped_schema(
     # Core entities based on system type
     if show_heater:
         schema_dict[vol.Required(CONF_HEATER)] = get_entity_selector(
-            [SWITCH_DOMAIN, INPUT_BOOLEAN_DOMAIN]
+            DEVICE_ENTITY_DOMAINS
         )
 
     if show_cooler:
         schema_dict[vol.Required(CONF_COOLER)] = get_entity_selector(
-            [SWITCH_DOMAIN, INPUT_BOOLEAN_DOMAIN]
+            DEVICE_ENTITY_DOMAINS
         )
 
     if show_aux_heater:
@@ -586,7 +589,7 @@ def get_grouped_schema(
 
     if show_dryer:
         schema_dict[vol.Required(CONF_DRYER)] = get_entity_selector(
-            [SWITCH_DOMAIN, INPUT_BOOLEAN_DOMAIN]
+            DEVICE_ENTITY_DOMAINS
         )
 
     # Special modes
@@ -612,22 +615,14 @@ def get_grouped_schema(
 def get_heating_schema():
     """Get heating-specific configuration schema."""
     return vol.Schema(
-        {
-            vol.Required(CONF_HEATER): get_entity_selector(
-                [SWITCH_DOMAIN, INPUT_BOOLEAN_DOMAIN]
-            )
-        }
+        {vol.Required(CONF_HEATER): get_entity_selector(DEVICE_ENTITY_DOMAINS)}
     )
 
 
 def get_cooling_schema():
     """Get cooling-specific configuration schema."""
     return vol.Schema(
-        {
-            vol.Required(CONF_COOLER): get_entity_selector(
-                [SWITCH_DOMAIN, INPUT_BOOLEAN_DOMAIN]
-            )
-        }
+        {vol.Required(CONF_COOLER): get_entity_selector(DEVICE_ENTITY_DOMAINS)}
     )
 
 
@@ -635,9 +630,7 @@ def get_dual_stage_schema():
     """Get dual stage heating configuration schema."""
     return vol.Schema(
         {
-            vol.Required(CONF_HEATER): get_entity_selector(
-                [SWITCH_DOMAIN, INPUT_BOOLEAN_DOMAIN]
-            ),
+            vol.Required(CONF_HEATER): get_entity_selector(DEVICE_ENTITY_DOMAINS),
             vol.Optional(CONF_AUX_HEATER): get_entity_selector(
                 [SWITCH_DOMAIN, INPUT_BOOLEAN_DOMAIN]
             ),
@@ -817,18 +810,18 @@ def get_core_schema(
                 CONF_HEATER,
                 default=defaults.get(CONF_HEATER) or defaults.get(CONF_COOLER),
             )
-        ] = get_entity_selector([SWITCH_DOMAIN, INPUT_BOOLEAN_DOMAIN])
+        ] = get_entity_selector(DEVICE_ENTITY_DOMAINS)
     else:
         # Heater is required unless system explicitly hides it
         schema_dict[vol.Required(CONF_HEATER, default=defaults.get(CONF_HEATER))] = (
-            get_entity_selector([SWITCH_DOMAIN, INPUT_BOOLEAN_DOMAIN])
+            get_entity_selector(DEVICE_ENTITY_DOMAINS)
         )
 
         # Show cooler for systems that have separate cooler
         if system_type == "heater_cooler":
             schema_dict[
                 vol.Optional(CONF_COOLER, default=defaults.get(CONF_COOLER))
-            ] = get_entity_selector([SWITCH_DOMAIN, INPUT_BOOLEAN_DOMAIN])
+            ] = get_entity_selector(DEVICE_ENTITY_DOMAINS)
 
             # Expose heat/cool mode toggle when using the core schema for
             # heater+cooler combinations so the options flow (which often
@@ -1005,7 +998,7 @@ def get_humidity_schema(defaults: dict[str, Any] | None = None):
             ): get_entity_selector(SENSOR_DOMAIN),
             vol.Optional(
                 CONF_DRYER, default=defaults.get(CONF_DRYER)
-            ): get_entity_selector([SWITCH_DOMAIN, INPUT_BOOLEAN_DOMAIN]),
+            ): get_entity_selector(DEVICE_ENTITY_DOMAINS),
             vol.Optional(
                 CONF_TARGET_HUMIDITY, default=defaults.get(CONF_TARGET_HUMIDITY, 50)
             ): get_percentage_selector(),
