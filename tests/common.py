@@ -500,13 +500,6 @@ class FakeClimateChild(ClimateEntity):
         | ClimateEntityFeature.TURN_OFF
         | ClimateEntityFeature.TURN_ON
     )
-    _attr_hvac_modes = [
-        HVACMode.OFF,
-        HVACMode.HEAT,
-        HVACMode.COOL,
-        HVACMode.FAN_ONLY,
-        HVACMode.DRY,
-    ]
     _attr_min_temp = 16
     _attr_max_temp = 30
     _attr_target_temperature_step = 0.5
@@ -516,6 +509,13 @@ class FakeClimateChild(ClimateEntity):
         """Create the child; `assumed` never reports its state back."""
         self.entity_id = entity_id
         self._attr_hvac_mode = mode
+        self._attr_hvac_modes = [
+            HVACMode.OFF,
+            HVACMode.HEAT,
+            HVACMode.COOL,
+            HVACMode.FAN_ONLY,
+            HVACMode.DRY,
+        ]
         self._attr_assumed_state = assumed
         self._attr_target_temperature = 21.0
         self._attr_current_temperature = current

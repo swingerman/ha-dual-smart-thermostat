@@ -7,7 +7,8 @@ it stays switch-like.
 
 from __future__ import annotations
 
-from typing import Any, Mapping
+from collections.abc import Mapping
+from typing import Any
 
 from .const import CONF_COOLER, CONF_DRYER, CONF_FAN, CONF_HEATER
 

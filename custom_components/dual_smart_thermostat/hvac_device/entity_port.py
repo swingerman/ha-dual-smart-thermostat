@@ -9,9 +9,9 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 import asyncio
+from collections.abc import Callable
 from datetime import datetime, timedelta
 import logging
-from typing import Callable
 
 from homeassistant.components.climate import (
     ATTR_HVAC_MODE,
@@ -163,7 +163,7 @@ class SwitchPort(EntityPort):
                 context=context,
                 blocking=True,
             )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001
             _LOGGER.error(
                 "Error calling %s on %s. Error: %s", service, self.entity_id, e
             )
@@ -262,7 +262,7 @@ class ClimateChild:
                     context=context,
                     blocking=True,
                 )
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 _LOGGER.error(
                     "Error setting %s on %s. Error: %s", mode, self.entity_id, e
                 )
@@ -284,7 +284,7 @@ class ClimateChild:
                     context=context,
                     blocking=True,
                 )
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 _LOGGER.error("Error turning off %s. Error: %s", self.entity_id, e)
                 self._commanded, self._commanded_at = before
 
@@ -306,7 +306,7 @@ class ClimateChild:
                     context=context,
                     blocking=True,
                 )
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001
                 _LOGGER.error(
                     "Error setting target on %s. Error: %s", self.entity_id, e
                 )
