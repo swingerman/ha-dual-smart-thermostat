@@ -28,5 +28,6 @@ climate:
     target_sensor: sensor.living_room_temperature
     control_style: setpoint
     cooler_setpoint_offset: -2
+    follow_device_changes: true  # default: a change on the AC's remote is adopted
     openings:
       - binary_sensor.living_room_window

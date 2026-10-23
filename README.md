@@ -87,6 +87,10 @@ Any of `heater`, `cooler`, `fan`, `dryer` (and the `heater` of a [heat pump](#he
 
 `setpoint` is not supported for a climate heat pump, nor with one climate entity as both heater and cooler while heat/cool mode is enabled; both are rejected with a clear error.
 
+### Following the device
+
+`follow_device_changes` (default `true`, needs a climate device) makes a change on the device itself the thermostat's new setting. It is shown in the "Climate Entity Control" step. With `false` the thermostat stays authoritative and re-asserts its setting on its next control run.
+
 ### Setpoint offsets
 
 `heater_setpoint_offset` and `cooler_setpoint_offset` (per role, signed, default `0`) are added to the target temperature sent to that role's device, which is then limited to the device's own range and step. Use them when the device's own sensor reads differently from your room sensor, or a negative cooler offset to keep an AC cooling. An offset is only valid when its own role is a climate entity (a heat pump uses the heater offset while heating and the cooler offset while cooling). Fan and dryer push no temperature, so they have none.
@@ -94,7 +98,7 @@ Any of `heater`, `cooler`, `fan`, `dryer` (and the `heater` of a [heat pump](#he
 ### Behaviour notes
 
 - **Off means off, once.** When the thermostat is set to Off it turns every climate device off, whatever mode the device was in (also one set from the device's own remote). While it stays Off it leaves the climate alone, keep-alive included, so you can still switch the AC on with its own remote.
-- **Remote changes.** A change made on the AC's own remote is re-asserted by the thermostat within seconds. To hand control back to the remote, set the thermostat to Off: while it stays Off nothing is sent to the AC (keep-alive included), so the remote works freely. Infrared devices that report an assumed state are controlled from what the thermostat last sent: a change made on the remote is not corrected until the thermostat's next mode change.
+- **Changes made on the device.** By default the thermostat follows changes made on the device itself (remote, vendor app, an automation): the new mode, target, fan speed or off becomes the thermostat's setting at once, and nothing is sent back. A mode the thermostat has no role for turns it off and leaves the device alone. Open windows, floor limits, a stale sensor and the minimum cycle still take precedence. After a Home Assistant restart or a reconnect the thermostat re-asserts its own setting (a remote change made while Home Assistant was down is overridden once). Turn `follow_device_changes` off to keep the thermostat in charge: it then puts the device back on its next control run. While the thermostat is Off nothing is sent to the device (keep-alive included), so the remote works freely. Devices that report an assumed state (infrared) are not followed.
 - **Temperature source.** `target_sensor` is optional when a device is a climate entity: its own `current_temperature` is then used (also for the stale sensor protection).
 - **Fan speed.** A climate device's own fan modes become the thermostat's fan mode (see [Fan Speed Control](#fan-speed-control)).
 - **One climate in several roles.** One climate entity can be heater, cooler, fan and dryer at once; it runs one mode at a time. `fan_on_with_ac` and `fan_on_with_heater` are ignored for a fan on the same climate (its own cool mode already runs its fan).
@@ -844,6 +848,10 @@ The reason is grouped into three categories:
 ### control_style
 
   _(optional) (string)_ `on_off` (default) or `setpoint`; how climate devices are controlled. See [Climate entities as devices](#climate-entities-as-devices).
+
+### follow_device_changes
+
+  _(optional) (boolean)_ adopt changes made on a `climate` device (remote, app, automation) as the thermostat's own setting. _default: true_. See [Climate entities as devices](#climate-entities-as-devices).
 
 ### heater_setpoint_offset / cooler_setpoint_offset
 
