@@ -4,7 +4,7 @@ from typing import Callable
 
 from homeassistant.components.climate import HVACMode
 from homeassistant.components.valve import DOMAIN as VALVE_DOMAIN
-from homeassistant.const import STATE_ON, STATE_OPEN
+from homeassistant.const import STATE_CLOSED, STATE_OFF, STATE_ON, STATE_OPEN
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConditionError
 from homeassistant.helpers import condition
@@ -55,6 +55,13 @@ class GenericHvacController(HvacController):
         return domain == VALVE_DOMAIN
 
     @property
+    def _on_off_states(self) -> tuple[str, str]:
+        """(on, off) entity states for this device's domain."""
+        if self._is_valve:
+            return STATE_OPEN, STATE_CLOSED
+        return STATE_ON, STATE_OFF
+
+    @property
     def hvac_action_reason(self) -> HVACActionReason:
         return self._hvac_action_reason
 
@@ -65,7 +72,7 @@ class GenericHvacController(HvacController):
     @property
     def is_active(self) -> bool:
         """If the toggleable hvac device is currently active."""
-        on_state = STATE_OPEN if self._is_valve else STATE_ON
+        on_state = self._on_off_states[0]
 
         _LOGGER.debug(
             "Checking if device is active: %s, on_state: %s",
@@ -79,10 +86,8 @@ class GenericHvacController(HvacController):
         return False
 
     def ran_long_enough(self) -> bool:
-        if self.is_active:
-            current_state = STATE_ON
-        else:
-            current_state = HVACMode.OFF
+        on_state, off_state = self._on_off_states
+        current_state = on_state if self.is_active else off_state
 
         _LOGGER.debug("Checking if device ran long enough: %s", self.entity_id)
         _LOGGER.debug("current_state: %s", current_state)
