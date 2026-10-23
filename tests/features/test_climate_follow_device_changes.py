@@ -15,7 +15,10 @@ from custom_components.dual_smart_thermostat.const import DOMAIN
 from custom_components.dual_smart_thermostat.hvac_device.climate_follow import (
     ClimateFollower,
 )
-from custom_components.dual_smart_thermostat.hvac_device.entity_port import ClimateChild
+from custom_components.dual_smart_thermostat.hvac_device.entity_port import (
+    ClimateChild,
+    peek_climate_child,
+)
 from tests import common, setup_switch
 
 AC = "climate.test_ac"
@@ -1585,3 +1588,42 @@ async def test_a_zero_keep_alive_does_not_switch_the_min_cycle_off(hass, freezer
     await common.async_set_temperature(hass, 15, "climate.test")
     await _idle(hass)
     assert "turn_off" not in [c[0] for c in child.calls]
+
+
+def _mentions(child, owner) -> list[str]:
+    """Every place in the child's per-owner records that still names `owner`."""
+    found = []
+    for name, value in vars(child).items():
+        if isinstance(value, dict):
+            if owner in value:
+                found.append(name)
+            for inner in value.values():
+                if isinstance(inner, dict):
+                    for entries in inner.values():
+                        if any(
+                            getattr(e, "origin", None) is owner
+                            or (isinstance(e, tuple) and e[1:2] == (owner,))
+                            for e in entries
+                        ):
+                            found.append(f"{name}[..]")
+        elif isinstance(value, set) and owner in value:
+            found.append(name)
+    return found
+
+
+async def test_releasing_one_of_two_thermostats_leaves_no_trace_of_it_on_the_child(
+    hass,
+):
+    await _start_two(hass)
+    child = peek_climate_child(hass, AC)  # the shared record, not the fake entity
+    await _tick(hass, 18.0)
+    await common.async_set_hvac_mode(hass, HVACMode.HEAT, "climate.test2")
+    await common.async_set_hvac_mode(hass, HVACMode.HEAT, "climate.test")
+    await _idle(hass)
+    gone = hass.data["climate"].get_entity("climate.test2")
+    owner = gone.features
+    assert _mentions(child, owner)  # it was there
+
+    gone.hvac_device.release()
+
+    assert _mentions(child, owner) == []

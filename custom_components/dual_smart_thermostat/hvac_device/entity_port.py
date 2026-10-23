@@ -478,6 +478,20 @@ class ClimateChild:
             for attr, pending in attrs.items():
                 attrs[attr] = [e for e in pending if e[1] is not origin]
 
+    def forget(self, owner: Any) -> None:
+        """The thermostat is going away: no record of it may outlive it."""
+        self.clear(owner)
+        for record in (
+            self._pending,
+            self._sending,
+            self._adopting,
+            self._deferred,
+            self._last_fan,
+        ):
+            record.pop(owner, None)
+        self._fan_sent.discard(owner)
+        self._fan_resent.discard(owner)
+
     def reset(self, observer: Any) -> None:
         """The child went away: nothing pending is meaningful any more."""
         self._pending.pop(observer, None)
@@ -872,7 +886,7 @@ class ClimatePort(EntityPort):
             self._released = True
             self._child.ports.discard(self)
             if not any(p.owner is self.owner for p in self._child.ports):
-                self._child.clear(self.owner)
+                self._child.forget(self.owner)
             release_climate_child(self._child)
 
     @property
