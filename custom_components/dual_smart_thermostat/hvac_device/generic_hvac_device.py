@@ -219,6 +219,13 @@ class GenericHVACDevice(
                 await self.async_turn_off()
             return
 
+        # Inside the minimum cycle nothing switches; keep-alive only re-sends
+        # the current state (#668).
+        if not self.hvac_controller.min_cycle_elapsed(force):
+            if time is not None and self.hvac_controller.is_active:
+                await self.async_turn_on()
+            return
+
         if self.hvac_controller.is_active:
             await self.hvac_controller.async_control_device_when_on(
                 self.strategy,
