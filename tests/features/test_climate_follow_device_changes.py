@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 from homeassistant.components.climate import DOMAIN as CLIMATE, HVACMode
 from homeassistant.core import Context, HomeAssistant, State, callback
+from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.setup import async_setup_component
 from homeassistant.util import dt as dt_util
 from homeassistant.util.unit_system import METRIC_SYSTEM
@@ -933,3 +934,143 @@ async def test_external_heat_after_a_restored_off_is_left_alone_by_keep_alive(
         await _idle(hass)
     assert child.calls == []
     assert hass.states.get(AC).state == HVACMode.HEAT
+
+
+# ----------------- restart, reconnect, assumed state, automation interference, stale poll
+
+
+async def test_restored_setting_is_reasserted_not_adopted_at_startup(
+    hass, adoptions
+):  # G1
+    common.mock_restore_cache(
+        hass,
+        [State("climate.test", "cool", {"temperature": 24, "fan_mode": "auto"})],
+    )
+    hass.states.async_set(SENSOR, 28.0)  # hot: DST wants cooling
+    hass.states.async_set("sensor.hum", 50.0)
+    await _setup(hass, **ALL_ROLES)
+    # the child is up with other settings when DST first sees it
+    child = await common.add_fake_climate(hass, AC, HVACMode.HEAT)
+    await _idle(hass)
+    assert child.calls  # DST re-asserted its setting
+    assert adoptions == []
+    assert _dst(hass).state == HVACMode.COOL
+    assert _dst(hass).attributes["temperature"] == 24.0
+    assert hass.states.get(AC).state == HVACMode.COOL  # re-asserted
+    assert hass.states.get(AC).attributes["temperature"] == 24.0
+
+
+async def test_reconnect_adopts_nothing_and_dst_reasserts(hass, adoptions):  # G2
+    child = await _start(hass, HVACMode.HEAT)
+    await _tick(hass, 18.0)  # cold room: DST wants heat
+    hass.states.async_set(AC, "unavailable")
+    await _idle(hass)
+    child.calls.clear()
+    child.remote(mode=HVACMode.COOL)  # comes back in another mode
+    await _idle(hass)
+    assert adoptions == []
+    assert _dst(hass).state == HVACMode.HEAT
+    await _tick(hass, 17.9)
+    assert hass.states.get(AC).state == HVACMode.HEAT  # set back
+
+
+async def test_a_child_appearing_late_adopts_nothing(hass, adoptions):  # G3
+    hass.states.async_set(SENSOR, 18.0)
+    hass.states.async_set("sensor.hum", 50.0)
+    await _setup(hass, **ALL_ROLES, initial_hvac_mode=HVACMode.HEAT)
+    await common.add_fake_climate(hass, AC, HVACMode.COOL)  # first sight: not a change
+    await _idle(hass)
+    assert adoptions == []
+    assert _dst(hass).state == HVACMode.HEAT
+
+
+async def test_assumed_child_adopts_nothing(hass, adoptions):  # H1
+    child = await _start(hass, HVACMode.COOL, child_kwargs={"assumed": True})
+    child.remote(mode=HVACMode.HEAT, temperature=28.0)  # reported anyway
+    await _idle(hass)
+    assert adoptions == []
+    assert _dst(hass).state == HVACMode.COOL
+    assert _dst(hass).attributes["temperature"] != 28.0
+
+
+def _automation(hass, trigger, **forced):
+    """An external automation: when `trigger` says so, force the child's values."""
+
+    @callback
+    def _on_change(event):
+        new, old = event.data["new_state"], event.data["old_state"]
+        if new is None or old is None or not trigger(old, new):
+            return
+        hass.async_create_task(_force())
+
+    async def _force():
+        current = hass.states.get(AC)
+        if all(
+            (current.state if key == "mode" else current.attributes.get(key)) == value
+            for key, value in forced.items()
+        ):
+            return
+        hass.data["climate"].get_entity(AC).remote(**forced)
+
+    async_track_state_change_event(hass, [AC], _on_change)
+
+
+async def test_an_automation_forcing_the_fan_mode_on_each_mode_change_is_followed_without_a_storm(
+    hass, adoptions
+):  # I1
+    child = await _start(
+        hass, HVACMode.HEAT, child_kwargs={"resets_fan_on_mode_change": True}
+    )
+    await hass.services.async_call(
+        "climate",
+        "set_fan_mode",
+        {"entity_id": "climate.test", "fan_mode": "quiet"},
+        blocking=True,
+    )
+    _automation(hass, lambda old, new: old.state != new.state, fan_mode="strong")
+    child.calls.clear()
+    for room in (26.0, 18.0, 26.0, 18.0, 26.0):  # DST turns the AC on and off
+        await _tick(hass, room)
+    assert _dst(hass).attributes["fan_mode"] == "strong"  # followed
+    turn_ons = len([c for c in child.calls if c[0] == "set_hvac_mode"])
+    assert len([c for c in child.calls if c[0] == "set_fan_mode"]) <= turn_ons
+
+    child.calls.clear()
+    for room in (22.0, 22.1, 21.9, 22.0, 22.1):  # idle: no storm
+        await _tick(hass, room)
+    assert child.calls == []
+
+
+async def test_an_automation_forcing_the_mode_is_followed_without_a_loop(hass):  # I2
+    child = await _start(hass, HVACMode.COOL)
+    _automation(hass, lambda old, new: new.state != HVACMode.HEAT, mode=HVACMode.HEAT)
+    child.remote(
+        mode=HVACMode.OFF
+    )  # something moves it off; the automation forces heat
+    await _idle(hass)
+    assert _dst(hass).state == HVACMode.HEAT
+    for room in (22.0, 22.1, 21.9, 22.0, 22.1):
+        await _tick(hass, room)
+    assert _no_stale_push(child) == []
+
+
+async def test_not_following_an_automation_forced_fan_does_not_storm(hass):  # I3
+    child = await _start(
+        hass,
+        HVACMode.HEAT,
+        follow_device_changes=False,
+        child_kwargs={"resets_fan_on_mode_change": True},
+    )
+    await hass.services.async_call(
+        "climate",
+        "set_fan_mode",
+        {"entity_id": "climate.test", "fan_mode": "quiet"},
+        blocking=True,
+    )
+    _automation(hass, lambda old, new: old.state != new.state, fan_mode="strong")
+    child.remote(mode=HVACMode.COOL)  # triggers the automation
+    await _idle(hass)
+    child.calls.clear()
+    for room in (22.0, 22.1, 21.9, 22.0, 22.1):
+        await _tick(hass, room)
+    assert [c for c in child.calls if c[0] == "set_fan_mode"] == []
