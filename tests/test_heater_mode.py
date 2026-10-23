@@ -3339,3 +3339,99 @@ async def test_heater_valve_min_cycle_no_keep_alive(
     setup_sensor(hass, 24)
     await hass.async_block_till_done()
     assert SERVICE_CLOSE_VALVE in [c.service for c in calls]
+
+
+@pytest.mark.parametrize("ac_mode", [False, True])
+@pytest.mark.parametrize("is_valve", [False, True])
+@pytest.mark.parametrize("starts_on", [True, False])
+@pytest.mark.parametrize("expected_lingering_timers", [True])
+async def test_keep_alive_respects_min_cycle(
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+    setup_comp_1,  # noqa: F811
+    starts_on,
+    is_valve,
+    ac_mode,
+) -> None:
+    """keep_alive + min_cycle_duration: ticks re-send state, never switch early (#668).
+
+    Covers heater and cooler (ac_mode), switch and valve.
+    """
+    hass.config.units = METRIC_SYSTEM
+    entity = common.ENT_VALVE if is_valve else common.ENT_SWITCH
+    config = {
+        "platform": DOMAIN,
+        "name": "test",
+        "heater": entity,
+        "target_sensor": common.ENT_SENSOR,
+        "initial_hvac_mode": HVACMode.COOL if ac_mode else HVACMode.HEAT,
+        "keep_alive": timedelta(seconds=20),
+        "min_cycle_duration": timedelta(seconds=60),
+    }
+    if ac_mode:
+        config["ac_mode"] = True
+    assert await async_setup_component(hass, CLIMATE, {"climate": config})
+    await hass.async_block_till_done()
+
+    calls = setup_valve(hass, starts_on) if is_valve else setup_switch(hass, starts_on)
+    on_service = SERVICE_OPEN_VALVE if is_valve else SERVICE_TURN_ON
+    off_service = SERVICE_CLOSE_VALVE if is_valve else SERVICE_TURN_OFF
+
+    # starts_on: goal reached, wants to turn off; else goal not reached, wants on
+    hot = starts_on != ac_mode
+    await common.async_set_temperature(hass, 22)
+    setup_sensor(hass, 25 if hot else 18)
+    await hass.async_block_till_done()
+    calls.clear()
+
+    # keep-alive tick inside min cycle: re-send current state, never switch
+    freezer.tick(timedelta(seconds=20))
+    common.async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    assert [c.service for c in calls] == ([on_service] if starts_on else [])
+
+    # first tick after min cycle may switch
+    calls.clear()
+    freezer.tick(timedelta(seconds=45))
+    common.async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    assert [c.service for c in calls] == [off_service if starts_on else on_service]
+
+
+@pytest.mark.parametrize("is_valve", [False, True])
+@pytest.mark.parametrize("expected_lingering_timers", [True])
+async def test_keep_alive_off_mode_turns_off_inside_min_cycle(
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+    setup_comp_1,  # noqa: F811
+    is_valve,
+) -> None:
+    """Off is not a cycle: keep-alive turns off an unexpectedly-on device (#668)."""
+    hass.config.units = METRIC_SYSTEM
+    entity = common.ENT_VALVE if is_valve else common.ENT_SWITCH
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "heater": entity,
+                "target_sensor": common.ENT_SENSOR,
+                "initial_hvac_mode": HVACMode.OFF,
+                "keep_alive": timedelta(seconds=20),
+                "min_cycle_duration": timedelta(seconds=60),
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    calls = setup_valve(hass, True) if is_valve else setup_switch(hass, True)
+    await hass.async_block_till_done()
+    calls.clear()
+
+    freezer.tick(timedelta(seconds=20))
+    common.async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    off_service = SERVICE_CLOSE_VALVE if is_valve else SERVICE_TURN_OFF
+    assert [c.service for c in calls] == [off_service]

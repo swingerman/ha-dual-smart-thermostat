@@ -914,7 +914,7 @@ The reason is grouped into three categories:
 
 ### min_cycle_duration
 
-  _(optional) (time, integer)_  Set a minimum amount of time that the switch specified in the _heater_  and/or _cooler_ option must be in its current state prior to being switched either off or on. This option will be ignored if the `keep_alive` option is set.
+  _(optional) (time, integer)_  Set a minimum amount of time that the switch specified in the _heater_  and/or _cooler_ option must be in its current state prior to being switched either off or on. It works together with `keep_alive`: a keep-alive call never switches the device inside this time, it only re-sends the current state.
 
 ### cold_tolerance
 
@@ -962,7 +962,7 @@ The reason is grouped into three categories:
 
 ### keep_alive
 
-  _(optional) (time, integer)_ Set a keep-alive interval. If set, the switch specified in the _heater_ and/or _cooler_ option will be triggered every time the interval elapses. Use with heaters and A/C units that shut off if they don't receive a signal from their remote for a while. Use also with switches that might lose state. The keep-alive call is done with the current valid climate integration state (either on or off). When `keep_alive` is set the `min_cycle_duration` option will be ignored.
+  _(optional) (time, integer)_ Set a keep-alive interval. If set, the switch specified in the _heater_ and/or _cooler_ option will be triggered every time the interval elapses. Use with heaters and A/C units that shut off if they don't receive a signal from their remote for a while. Use also with switches that might lose state. The keep-alive call is done with the current valid climate integration state (either on or off). If `min_cycle_duration` is also set, keep-alive only re-sends the current state while the minimum cycle runs; it never switches the device early.
 
   _default: 300 seconds (5 minutes)_
 

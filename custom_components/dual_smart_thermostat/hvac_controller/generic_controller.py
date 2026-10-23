@@ -126,17 +126,15 @@ class GenericHvacController(HvacController):
             )
             return False
 
-        if not force and time is None:
-            # If the `force` argument is True, we
-            # ignore `min_cycle_duration`.
-            # If the `time` argument is not none, we were invoked for
-            # keep-alive purposes, and `min_cycle_duration` is irrelevant.
-            if self.min_cycle_duration:
-                _LOGGER.debug(
-                    "Checking if device ran long enough: %s", self.ran_long_enough()
-                )
-                return self.ran_long_enough()
         return True
+
+    def min_cycle_elapsed(self, force=False) -> bool:
+        """True if the device may change its on/off state now."""
+        if force or not self.min_cycle_duration:
+            return True
+        long_enough = self.ran_long_enough()
+        _LOGGER.debug("Checking if device ran long enough: %s", long_enough)
+        return long_enough
 
     async def async_control_device_when_on(
         self,
