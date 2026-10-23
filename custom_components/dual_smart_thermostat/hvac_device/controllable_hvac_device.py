@@ -46,6 +46,10 @@ class ControlableHVACDevice(ABC):
         _LOGGER.debug("%s: Setting hvac mode to %s", self.__class__.__name__, hvac_mode)
         self._hvac_mode = hvac_mode
 
+    async def async_keep_alive_off(self) -> None:
+        """A keep-alive tick while Off: resend turn_off whether or not it looks active."""
+        await self.async_turn_off()
+
     @asynccontextmanager
     async def control_pass(self):
         """Bracket one control run (set mode / control). Nothing to do by default."""

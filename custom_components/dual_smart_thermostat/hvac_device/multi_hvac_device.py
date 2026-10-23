@@ -223,6 +223,12 @@ class MultiHvacDevice(HVACDevice, ControlableHVACDevice):
     async def async_turn_off(self):
         await self.async_turn_off_all(time=None)
 
+    async def async_keep_alive_off(self) -> None:
+        # A wrapper is not stopped by a tick: each sub-device decides for itself
+        # (a switch resends turn_off, a climate is left alone).
+        for device in self.hvac_devices:
+            await device.async_keep_alive_off()
+
     def release(self) -> None:
         for device in self.hvac_devices:
             device.release()
@@ -260,7 +266,7 @@ class MultiHvacDevice(HVACDevice, ControlableHVACDevice):
             if keep_alive:
                 # Keep-alive: resend turn_off whether or not it looks active.
                 # If a switch still reads on afterwards, the stop below repeats it.
-                await device.async_turn_off()
+                await device.async_keep_alive_off()
             await device.async_stop(keep_alive=keep_alive)
 
     async def _async_check_device_initial_state(self) -> None:

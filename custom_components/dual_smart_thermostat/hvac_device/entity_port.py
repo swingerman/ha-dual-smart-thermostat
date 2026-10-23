@@ -288,6 +288,7 @@ class ClimateChild:
         self._sending: dict[Any, int] = {}
         self._adopting: dict[Any, int] = {}
         self._deferred: dict[Any, Callable[[], None]] = {}
+        self._off_sent_for: datetime | None = None
 
     @property
     def state(self) -> State | None:
@@ -549,6 +550,23 @@ class ClimateChild:
                 mode=HVACMode.OFF,
             )
 
+    async def async_stop_unscoped(self, context: Context | None, owner: Any) -> None:
+        """Off means off: one turn_off per child, however many roles ask for it.
+
+        Several roles (and a slow device that has not reported yet) can all see the
+        child still running; the first off is enough until the child reports
+        something new.
+        """
+        state = self.state
+        if (
+            state is not None
+            and self._off_sent_for is not None
+            and state.last_changed == self._off_sent_for
+        ):
+            return
+        self._off_sent_for = state.last_changed if state is not None else None
+        await self.async_turn_off(context, owner)
+
     async def async_push_target(
         self, value: float, context: Context | None, owner: Any
     ) -> None:
@@ -750,7 +768,7 @@ class ClimatePort(EntityPort):
         if self._child.wanted_on:
             await self.async_turn_off(context)
         elif self._child.mode not in (None, HVACMode.OFF):
-            await self._child.async_turn_off(context, self.owner)
+            await self._child.async_stop_unscoped(context, self.owner)
 
 
 def make_port(hass: HomeAssistant, device: Any) -> EntityPort:

@@ -6,6 +6,7 @@ from unittest.mock import patch
 from homeassistant.components.climate import DOMAIN as CLIMATE, HVACMode
 from homeassistant.core import Context, HomeAssistant, State, callback
 from homeassistant.setup import async_setup_component
+from homeassistant.util import dt as dt_util
 from homeassistant.util.unit_system import METRIC_SYSTEM
 import pytest
 
@@ -800,3 +801,135 @@ async def test_min_cycle_still_applies_to_ticks_after_an_adoption(hass, freezer)
     freezer.tick(timedelta(minutes=6))
     await _tick(hass, 26.1)
     assert [c[0] for c in child.calls] == ["turn_off"]
+
+
+# ------------------------------------------------- Off, and follow_device_changes: false
+
+
+async def test_transition_to_off_sends_one_unscoped_off(hass):  # E1
+    child = await _start(
+        hass, HVACMode.HEAT, follow_device_changes=False, **_HEATER_COOLER_ONLY
+    )
+    child.remote(mode=HVACMode.AUTO)  # a mode no role owns; not followed
+    await common.async_set_hvac_mode(hass, HVACMode.OFF, "climate.test")
+    await _idle(hass)
+    assert child.calls == [("turn_off", {})]
+    assert hass.states.get(AC).state == HVACMode.OFF
+
+
+@pytest.mark.parametrize("expected_lingering_timers", [True])
+async def test_keep_alive_while_off_sends_nothing_to_climate_children(hass):  # E2
+    child = await _start(
+        hass,
+        HVACMode.OFF,
+        follow_device_changes=False,
+        keep_alive=timedelta(minutes=1),
+    )
+    child.remote(mode=HVACMode.HEAT)
+    for minutes in (2, 4, 6):
+        common.async_fire_time_changed(
+            hass, dt_util.utcnow() + timedelta(minutes=minutes)
+        )
+        await _idle(hass)
+    assert child.calls == []
+    assert hass.states.get(AC).state == HVACMode.HEAT
+
+
+async def test_remote_use_while_off_is_adopted_when_following(hass):  # E3
+    child = await _start(hass, HVACMode.OFF, target=22)
+    await _tick(hass, 22.0)
+    child.remote(mode=HVACMode.HEAT, temperature=22.0)
+    await _idle(hass)
+    assert (_dst(hass).state, _dst(hass).attributes["temperature"]) == (
+        HVACMode.HEAT,
+        22.0,
+    )
+    assert child.calls == []
+
+
+@pytest.mark.parametrize("expected_lingering_timers", [True])
+async def test_remote_use_while_off_is_ignored_and_never_fought_when_not_following(
+    hass,
+):  # E4
+    child = await _start(
+        hass,
+        HVACMode.OFF,
+        follow_device_changes=False,
+        keep_alive=timedelta(minutes=1),
+    )
+    child.remote(mode=HVACMode.HEAT, temperature=22.0)
+    await _idle(hass)
+    common.async_fire_time_changed(hass, dt_util.utcnow() + timedelta(minutes=3))
+    await _idle(hass)
+    assert _dst(hass).state == HVACMode.OFF
+    assert hass.states.get(AC).state == HVACMode.HEAT
+    assert child.calls == []
+
+
+async def test_not_following_reasserts_the_mode_on_the_next_tick(hass, adoptions):  # F1
+    child = await _start(hass, HVACMode.COOL, follow_device_changes=False)
+    child.remote(mode=HVACMode.HEAT)
+    await _idle(hass)
+    assert _dst(hass).state == HVACMode.COOL  # not adopted
+    assert adoptions == []
+    await _tick(hass, 26.0)  # hot room: DST wants cooling
+    assert [c for c in child.calls if c[0] == "set_hvac_mode"] == [
+        ("set_hvac_mode", {"hvac_mode": HVACMode.COOL})
+    ]
+
+
+async def test_not_following_reasserts_the_target_on_the_next_run(hass):  # F2
+    child = await _start(hass, HVACMode.HEAT, target=22, follow_device_changes=False)
+    child.remote(temperature=25.0)
+    await _idle(hass)
+    assert _dst(hass).attributes["temperature"] == 22.0
+    await _tick(hass, 22.1)
+    assert child.calls == [("set_temperature", {"temperature": 22.0})]
+
+
+# --------------------------------- restored Off: asserted once at setup, then hands-off
+
+
+async def _restored_off(hass, *, child_mode, **cfg):
+    """DST restored as Off (a reload or restart) on the one AC in all four roles."""
+    common.mock_restore_cache(
+        hass, [State("climate.test", "off", {"temperature": 22, "fan_mode": "auto"})]
+    )
+    hass.states.async_set(SENSOR, 22.0)
+    hass.states.async_set("sensor.hum", 50.0)
+    await _setup(hass, **{**ALL_ROLES, **cfg})
+    # the child shows up (or is first seen) in its mode, after the platform is set up
+    child = await common.add_fake_climate(hass, AC, child_mode)
+    await _idle(hass)
+    return child
+
+
+async def test_restored_off_with_the_child_already_running_sends_one_off_at_setup(
+    hass,
+):  # G4
+    child = await _restored_off(hass, child_mode=HVACMode.HEAT)
+    assert _dst(hass).state == HVACMode.OFF
+    assert hass.states.get(AC).state == HVACMode.OFF
+    # one child, one off: not one per role
+    assert [c[0] for c in child.calls].count("turn_off") == 1
+
+
+@pytest.mark.parametrize("expected_lingering_timers", [True])
+async def test_external_heat_after_a_restored_off_is_left_alone_by_keep_alive(
+    hass,
+):  # G5
+    child = await _restored_off(
+        hass,
+        child_mode=HVACMode.OFF,
+        follow_device_changes=False,
+        keep_alive=timedelta(minutes=2),
+    )
+    assert child.calls == []  # already off: nothing to assert at setup
+    child.remote(mode=HVACMode.HEAT)  # the remote
+    for minutes in (2, 4, 6):
+        common.async_fire_time_changed(
+            hass, dt_util.utcnow() + timedelta(minutes=minutes)
+        )
+        await _idle(hass)
+    assert child.calls == []
+    assert hass.states.get(AC).state == HVACMode.HEAT

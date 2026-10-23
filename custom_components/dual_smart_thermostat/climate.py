@@ -1901,6 +1901,14 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         child = peek_climate_child(self.hass, entity_id)
         if child is None:
             return
+        if (
+            event.data["old_state"] is None
+            and event.data["new_state"] is not None
+            and self.hvac_device.hvac_mode == HVACMode.OFF
+        ):
+            # First sight of a child while we are Off (restored or configured): Off
+            # is asserted once here; nothing is adopted from first sight.
+            self.hass.async_create_task(self._async_assert_off())
         # Always classify (it consumes this thermostat's echoes), adopt only if following.
         external = child.external(
             self.features, event.data["old_state"], event.data["new_state"]
@@ -1919,6 +1927,10 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             # Another thermostat mid-sequence on this child: adopt when it is done.
             if not child.defer_while_sending(self.features, adopt):
                 adopt()
+
+    async def _async_assert_off(self) -> None:
+        async with self.hvac_device.control_pass():
+            await self.hvac_device.async_stop()
 
     async def _async_adopt(self, child) -> None:
         """Make the child's current settings DST's own, then carry on controlling."""

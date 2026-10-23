@@ -1854,7 +1854,14 @@ async def test_a_switched_out_role_is_stopped_when_the_new_role_stays_idle(
 ) -> None:
     """Nothing to cool: the child leaves the old mode with exactly one stop."""
     hass.states.async_set(SENSOR, 20.0)
-    await _setup(hass, heater=AC, cooler=AC, fan=AC, fan_mode=True)
+    await _setup(
+        hass,
+        heater=AC,
+        cooler=AC,
+        fan=AC,
+        fan_mode=True,
+        initial_hvac_mode=HVACMode.HEAT,  # not Off: a child first seen is left alone
+    )
     child = await common.add_fake_climate(hass, AC, HVACMode.FAN_ONLY)
     await common.async_set_temperature(hass, 24, "climate.test")
     await hass.async_block_till_done()
