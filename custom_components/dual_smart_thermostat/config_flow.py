@@ -40,7 +40,7 @@ from .feature_steps import (
     OpeningsSteps,
     PresetsSteps,
 )
-from .flow_utils import EntityValidator
+from .flow_utils import EntityValidator, ExcludeOwnEntity
 from .schemas import (
     get_additional_sensors_schema,
     get_base_schema,
@@ -65,7 +65,7 @@ _LOGGER = logging.getLogger(__name__)
 # They are imported above and used by the ConfigFlowHandler and OptionsFlowHandler classes
 
 
-class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
+class ConfigFlowHandler(ExcludeOwnEntity, ConfigFlow, domain=DOMAIN):
     """Handle a config or options flow for Dual Smart Thermostat."""
 
     VERSION = 1
@@ -180,6 +180,11 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
                 "floor_heating": "Floor heating with temperature protection",
             },
         )
+
+    def _entry_id(self) -> str | None:
+        if self.source != SOURCE_RECONFIGURE:
+            return None
+        return self._get_reconfigure_entry().entry_id
 
     async def async_step_reconfigure(
         self, user_input: dict[str, Any] | None = None
@@ -313,7 +318,9 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
                     user_input.update(advanced_settings)
 
             if not await self._validate_basic_config(user_input):
-                errors = EntityValidator.get_validation_errors(user_input)
+                errors = EntityValidator.get_validation_errors(
+                    user_input, self._own_entity_ids()
+                )
             else:
                 # For AC-only systems, force AC mode to true
                 if system_type == SystemType.AC_ONLY:
@@ -359,7 +366,9 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
                     user_input.update(advanced_settings)
 
             if not await self._validate_basic_config(user_input):
-                errors = EntityValidator.get_validation_errors(user_input)
+                errors = EntityValidator.get_validation_errors(
+                    user_input, self._own_entity_ids()
+                )
             else:
                 user_input[CONF_AC_MODE] = True
 
@@ -430,7 +439,9 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
                     user_input.update(advanced_settings)
 
             if not await self._validate_basic_config(user_input):
-                errors = EntityValidator.get_validation_errors(user_input)
+                errors = EntityValidator.get_validation_errors(
+                    user_input, self._own_entity_ids()
+                )
             else:
                 self._collect_entity_input(user_input)
                 return await self._determine_next_step()
@@ -461,7 +472,9 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
                     user_input.update(advanced_settings)
 
             if not await self._validate_basic_config(user_input):
-                errors = EntityValidator.get_validation_errors(user_input)
+                errors = EntityValidator.get_validation_errors(
+                    user_input, self._own_entity_ids()
+                )
             else:
                 self._collect_entity_input(user_input)
                 return await self._determine_next_step()
@@ -486,7 +499,9 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             if not await self._validate_basic_config(user_input):
-                errors = EntityValidator.get_validation_errors(user_input)
+                errors = EntityValidator.get_validation_errors(
+                    user_input, self._own_entity_ids()
+                )
             else:
                 self._collect_entity_input(user_input)
                 return await self.async_step_dual_stage_config()
@@ -709,7 +724,7 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
 
     async def _validate_basic_config(self, user_input: dict[str, Any]) -> bool:
         """Validate basic configuration."""
-        return EntityValidator.validate_basic_config(user_input)
+        return EntityValidator.validate_basic_config(user_input, self._own_entity_ids())
 
     async def _determine_next_step(self) -> FlowResult:
         """Determine the next step based on configuration dependencies.

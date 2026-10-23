@@ -60,12 +60,13 @@ from .feature_steps import (
     OpeningsSteps,
     PresetsSteps,
 )
+from .flow_utils import ExcludeOwnEntity
 from .schema_utils import get_tolerance_selector
 
 _LOGGER = logging.getLogger(__name__)
 
 
-class OptionsFlowHandler(OptionsFlowWithReload):
+class OptionsFlowHandler(ExcludeOwnEntity, OptionsFlowWithReload):
     """Handle options flow for Dual Smart Thermostat."""
 
     def __init__(self, config_entry) -> None:
@@ -87,6 +88,10 @@ class OptionsFlowHandler(OptionsFlowWithReload):
         self.humidity_steps = HumiditySteps()
         self.presets_steps = PresetsSteps()
         self.floor_steps = FloorSteps()
+
+    def _entry_id(self) -> str | None:
+        entry_id = getattr(self._get_entry(), "entry_id", None)
+        return entry_id if isinstance(entry_id, str) else None
 
     @staticmethod
     def _get_excluded_flags() -> set[str]:

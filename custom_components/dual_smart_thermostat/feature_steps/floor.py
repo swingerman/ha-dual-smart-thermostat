@@ -43,7 +43,9 @@ class FloorSteps:
             # Reuse the flow's basic validation helper (the flow instance is
             # passed in so we can call its helpers from here).
             if not await flow_instance._validate_basic_config(user_input):
-                errors = EntityValidator.get_validation_errors(user_input)
+                errors = EntityValidator.get_validation_errors(
+                    user_input, flow_instance._own_entity_ids()
+                )
 
                 # Render the same grouped schema used by the flow with errors
                 base = get_base_schema()

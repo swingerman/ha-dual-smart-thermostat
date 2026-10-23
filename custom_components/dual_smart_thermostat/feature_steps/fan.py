@@ -8,6 +8,7 @@ from typing import Any
 from homeassistant.data_entry_flow import FlowResult
 
 from ..const import CONF_FAN, CONF_FAN_AIR_OUTSIDE, CONF_FAN_MODE, CONF_FAN_ON_WITH_AC
+from ..flow_utils import EntityValidator
 from ..schemas import get_fan_schema, get_fan_toggle_schema
 
 _LOGGER = logging.getLogger(__name__)
@@ -45,6 +46,13 @@ class FanSteps:
         next_step_handler,
     ) -> FlowResult:
         """Handle fan configuration."""
+        errors: dict[str, str] = {}
+        if user_input is not None and (
+            errors := EntityValidator.get_own_entity_errors(
+                user_input, flow_instance._own_entity_ids()
+            )
+        ):
+            user_input = None  # show the form again with the error
         if user_input is not None:
             _LOGGER.debug(
                 "Fan config - user_input received: %s",
@@ -65,6 +73,7 @@ class FanSteps:
             data_schema=get_fan_schema(
                 hass=flow_instance.hass, defaults=collected_config
             ),
+            errors=errors,
         )
 
     async def async_step_options(
@@ -76,6 +85,13 @@ class FanSteps:
         current_config: dict,
     ) -> FlowResult:
         """Handle fan options (for options flow)."""
+        errors: dict[str, str] = {}
+        if user_input is not None and (
+            errors := EntityValidator.get_own_entity_errors(
+                user_input, flow_instance._own_entity_ids()
+            )
+        ):
+            user_input = None
         if user_input is not None:
             _LOGGER.debug(
                 "Fan options - user_input received: %s",
@@ -107,4 +123,5 @@ class FanSteps:
             data_schema=get_fan_schema(
                 hass=flow_instance.hass, defaults=current_config
             ),
+            errors=errors,
         )
