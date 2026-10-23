@@ -10,6 +10,7 @@ Simple, ready-to-use configurations for common setups:
 - [Cooler Only (AC)](basic_configurations/cooler_only.yaml) - Air conditioning only
 - [Heat Pump](basic_configurations/heat_pump.yaml) - Single switch heat/cool
 - [Heater + Cooler (Dual)](basic_configurations/heater_cooler.yaml) - Separate heating and cooling
+- [Climate Entities as Devices](basic_configurations/climate_entity_roles.yaml) - IR AC + switch heater, standalone AC, AC as temperature source
 
 ### 🚀 Advanced Features
 Complex feature configurations:
