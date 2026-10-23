@@ -1,5 +1,6 @@
 """Following changes made on the device itself (issue #281, phase 6)."""
 
+from datetime import timedelta
 from unittest.mock import patch
 
 from homeassistant.components.climate import DOMAIN as CLIMATE, HVACMode
@@ -692,3 +693,110 @@ async def test_a_stale_value_reported_after_our_command_is_followed_as_the_devic
     await _idle(hass)
     assert adoptions == ["heat"]  # documented: DST yields to what the device reports
     assert _dst(hass).state == HVACMode.HEAT
+
+
+# ------------------------------------------------------------ safety precedence
+
+
+async def test_open_window_keeps_the_adopted_intent_and_applies_it_after_closing(
+    hass,
+):  # D1
+    hass.states.async_set(WINDOW, "off")
+    child = await _start(hass, HVACMode.HEAT, openings=[WINDOW])
+    hass.states.async_set(WINDOW, "on")
+    await _idle(hass)
+    assert hass.states.get(AC).state == HVACMode.OFF  # paused by the opening
+    child.calls.clear()
+
+    child.remote(mode=HVACMode.HEAT, temperature=24.0)  # the remote switches it back on
+    await _idle(hass)
+    assert (_dst(hass).state, _dst(hass).attributes["temperature"]) == (
+        HVACMode.HEAT,
+        24.0,
+    )
+    assert hass.states.get(AC).state == HVACMode.OFF  # the window still wins
+    assert [c[0] for c in child.calls] == ["turn_off"]
+    # the adoption's flag is released before the control run: nothing is held back
+    shared = hass.data["dual_smart_thermostat_climate_children"][AC]
+    assert not any(shared._adopting.values())
+
+    child.calls.clear()
+    hass.states.async_set(WINDOW, "off")
+    await _idle(hass)
+    assert hass.states.get(AC).state == HVACMode.HEAT
+    assert hass.states.get(AC).attributes["temperature"] == 24.0
+
+
+async def test_an_openings_stop_goes_out_while_a_remote_change_is_being_adopted(
+    hass,
+):
+    """adopting drops DST's commands only while the setters run, never the stop."""
+    hass.states.async_set(WINDOW, "on")
+    child = await _start(hass, HVACMode.OFF, openings=[WINDOW])
+    child.calls.clear()
+
+    child.remote(mode=HVACMode.COOL)  # in a room whose window is open
+    await _idle(hass)
+
+    assert _dst(hass).state == HVACMode.COOL
+    assert [c[0] for c in child.calls] == ["turn_off"]
+    assert hass.states.get(AC).state == HVACMode.OFF
+
+
+async def test_floor_limit_wins_over_an_adopted_heat(hass):  # D2
+    hass.states.async_set("sensor.floor", 30.0)
+    child = await _start(
+        hass,
+        HVACMode.OFF,
+        cooler=None,
+        floor_sensor="sensor.floor",
+        max_floor_temp=28,
+        **_HEATER_COOLER_ONLY,
+    )
+    await _tick(hass, 18.0)
+    child.calls.clear()
+    child.remote(mode=HVACMode.HEAT, temperature=22.0)
+    await _idle(hass)
+    assert _dst(hass).state == HVACMode.HEAT
+    assert [c[0] for c in child.calls] == ["turn_off"]
+
+
+@pytest.mark.parametrize("expected_lingering_timers", [True])
+async def test_stale_sensor_stops_the_child_and_keeps_the_intent(hass, freezer):  # D3
+    child = await _start(
+        hass, HVACMode.HEAT, sensor_stale_duration=timedelta(minutes=2)
+    )
+    freezer.tick(timedelta(minutes=3))
+    common.async_fire_time_changed(hass)
+    await _idle(hass)
+    assert hass.states.get(AC).state == HVACMode.OFF  # emergency stop
+    child.calls.clear()
+
+    child.remote(mode=HVACMode.HEAT, temperature=23.0)
+    await _idle(hass)
+    assert _dst(hass).state == HVACMode.HEAT
+    assert [c[0] for c in child.calls] == ["turn_off"]
+
+    child.calls.clear()
+    await _tick(hass, 18.0)  # the sensor recovers
+    assert hass.states.get(AC).state == HVACMode.HEAT
+
+
+@pytest.mark.parametrize("expected_lingering_timers", [True])
+async def test_min_cycle_still_applies_to_ticks_after_an_adoption(hass, freezer):  # D4
+    """The adoption's own control run is forced, like a manual change (the user's new
+    intent is not held back by the minimum cycle). Automatic ticks afterwards still
+    wait for it."""
+    child = await _start(hass, HVACMode.OFF, min_cycle_duration=timedelta(minutes=5))
+    await _tick(hass, 22.0)
+    child.remote(mode=HVACMode.HEAT, temperature=22.0)  # at the target: keeps running
+    await _idle(hass)
+    assert _dst(hass).state == HVACMode.HEAT
+    assert child.calls == []
+
+    await _tick(hass, 26.0)  # goal reached, but the minimum cycle has not run out
+    assert child.calls == []
+
+    freezer.tick(timedelta(minutes=6))
+    await _tick(hass, 26.1)
+    assert [c[0] for c in child.calls] == ["turn_off"]
