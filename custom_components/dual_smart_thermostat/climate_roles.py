@@ -189,35 +189,38 @@ def validate_climate_roles(config: dict[str, Any]) -> dict[str, Any]:
     """Voluptuous validator: cross-field rules for climate-backed roles."""
     if setpoint_unsupported(config):
         raise vol.Invalid(
-            "control_style: setpoint is not supported for a climate heat pump"
+            "setpoint is not supported for a climate heat pump",
+            path=[CONF_CONTROL_STYLE],
         )
     if setpoint_shared_heat_cool(config):
         raise vol.Invalid(
-            "control_style: setpoint cannot do heat_cool with one climate as both "
-            "heater and cooler (heat_cool_mode, or target_temp_low/high both set, "
-            "enables heat_cool)"
+            "setpoint cannot do heat_cool with one climate as both heater and "
+            "cooler (heat_cool_mode, or target_temp_low/high both set, enables "
+            "heat_cool)",
+            path=[CONF_CONTROL_STYLE],
         )
     if bad := unsupported_climate_roles(config):
-        raise vol.Invalid(f"{', '.join(bad)} cannot be a climate entity")
+        raise vol.Invalid("cannot be a climate entity", path=[bad[0]])
     has_role = has_climate_role(config)
     if sensor_required(config):
         raise vol.Invalid(
-            "target_sensor is required unless heater, cooler, fan or dryer is a "
-            "climate entity"
+            "is required unless heater, cooler, fan or dryer is a climate entity",
+            path=[CONF_SENSOR],
         )
     if CONF_FOLLOW_DEVICE_CHANGES in config and not has_role:
         raise vol.Invalid(
-            "follow_device_changes needs heater, cooler, fan or dryer to be a "
-            "climate entity"
+            "needs heater, cooler, fan or dryer to be a climate entity",
+            path=[CONF_FOLLOW_DEVICE_CHANGES],
         )
     if CONF_CONTROL_STYLE in config and not has_role:
         raise vol.Invalid(
-            "control_style needs heater, cooler, fan or dryer to be a climate entity"
+            "needs heater, cooler, fan or dryer to be a climate entity",
+            path=[CONF_CONTROL_STYLE],
         )
     applicable = applicable_offset_keys(config)
     for key in (CONF_HEATER_SETPOINT_OFFSET, CONF_COOLER_SETPOINT_OFFSET):
         if key in config and key not in applicable:
             raise vol.Invalid(
-                f"{key} needs the matching role to be a climate entity (climate)"
+                "needs the matching role to be a climate entity", path=[key]
             )
     return config

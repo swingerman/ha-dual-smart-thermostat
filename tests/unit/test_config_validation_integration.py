@@ -475,3 +475,22 @@ def test_tools_validator_agrees_with_yaml_validation(config) -> None:
         yaml_valid = False
 
     assert tool_valid == yaml_valid
+
+
+def test_a_climate_only_option_error_is_one_clean_line(hass) -> None:
+    """HA's check_config output: no empty path and no dump of the whole config."""
+    from homeassistant.config import format_schema_error
+
+    config = {
+        "platform": "dual_smart_thermostat",
+        "name": "t",
+        "heater": "switch.heater",
+        "target_sensor": "sensor.t",
+        "control_style": "setpoint",
+    }
+    with pytest.raises(vol.Invalid) as err:
+        PLATFORM_SCHEMA(config)
+    assert format_schema_error(hass, err.value, "climate", config) == (
+        "Invalid config for 'climate': needs heater, cooler, fan or dryer to be a "
+        "climate entity 'control_style', got 'setpoint'"
+    )
