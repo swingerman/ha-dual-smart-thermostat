@@ -13,7 +13,6 @@ from ..const import (
     CONF_MIN_FLOOR_TEMP,
     SYSTEM_TYPE_SIMPLE_HEATER,
 )
-from ..flow_utils import EntityValidator
 from ..schemas import get_base_schema, get_floor_heating_schema, get_grouped_schema
 
 
@@ -43,9 +42,7 @@ class FloorSteps:
             # Reuse the flow's basic validation helper (the flow instance is
             # passed in so we can call its helpers from here).
             if not await flow_instance._validate_basic_config(user_input):
-                errors = EntityValidator.get_validation_errors(
-                    user_input, flow_instance._own_entity_ids()
-                )
+                errors = flow_instance._entity_errors(user_input)
 
                 # Render the same grouped schema used by the flow with errors
                 base = get_base_schema()

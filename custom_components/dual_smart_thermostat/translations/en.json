@@ -37,6 +37,7 @@
             "sensor_required": "Choose a temperature sensor, or use a climate entity as a device (its own temperature is then used)",
             "setpoint_heat_pump_unsupported": "Setpoint control is not supported for a climate heat pump",
             "setpoint_heat_cool_shared_climate": "Setpoint control cannot do heat/cool when one climate entity is both heater and cooler",
+            "setpoint_needs_heater_or_cooler": "Setpoint control needs the heater or the cooler to be a climate entity",
             "self_controlled": "A thermostat cannot use its own entity as one of its devices"
         },
         "step": {
@@ -1033,6 +1034,7 @@
         "error": {
             "setpoint_heat_pump_unsupported": "Setpoint control is not supported for a climate heat pump",
             "setpoint_heat_cool_shared_climate": "Setpoint control cannot do heat/cool when one climate entity is both heater and cooler",
+            "setpoint_needs_heater_or_cooler": "Setpoint control needs the heater or the cooler to be a climate entity",
             "self_controlled": "A thermostat cannot use its own entity as one of its devices"
         }
     },

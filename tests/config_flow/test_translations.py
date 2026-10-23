@@ -132,6 +132,7 @@ def test_climate_control_strings_exist_in_english():
         "sensor_required",
         "setpoint_heat_pump_unsupported",
         "setpoint_heat_cool_shared_climate",
+        "setpoint_needs_heater_or_cooler",
     }
     assert errors <= set(en["config"]["error"])
     assert errors - {"sensor_required"} <= set(en["options"]["error"])

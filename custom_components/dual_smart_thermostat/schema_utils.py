@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from homeassistant.components.climate import DOMAIN as CLIMATE_DOMAIN
 from homeassistant.const import DEGREE, PERCENTAGE, UnitOfTemperature
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import section
@@ -234,7 +235,7 @@ def exclude_entities_from_schema(
     def _walk(value):
         if isinstance(value, selector.EntitySelector):
             domains = value.config.get("domain") or []
-            if "climate" in ([domains] if isinstance(domains, str) else domains):
+            if CLIMATE_DOMAIN in ([domains] if isinstance(domains, str) else domains):
                 config = dict(value.config)
                 config["exclude_entities"] = [
                     *config.get("exclude_entities", []),

@@ -5,13 +5,19 @@ import voluptuous as vol
 
 from custom_components.dual_smart_thermostat.climate import PLATFORM_SCHEMA
 from custom_components.dual_smart_thermostat.climate_roles import (
+    allowed_control_styles,
+    allowed_domains,
     applicable_offset_keys,
     climate_control_keys,
+    climate_role_errors,
     drop_inapplicable,
+    fan_shares_cooler,
+    fan_shares_heater,
     is_climate_entity,
     sensor_required,
     unsupported_climate_roles,
 )
+from custom_components.dual_smart_thermostat.const import CONF_AUX_HEATER, ControlStyle
 
 
 def test_is_climate_entity_by_domain() -> None:
@@ -52,12 +58,25 @@ def test_heat_pump_heater_keeps_its_offset_even_with_ac_mode():
     ]
 
 
-def test_control_style_only_matters_for_heater_or_cooler():
-    """Fan and dryer are always on_off: no style to choose for them."""
+def test_control_style_key_for_any_climate_role_setpoint_for_heater_or_cooler():
+    """Any climate role has the style key; only a heater or cooler may use setpoint."""
     assert climate_control_keys({"heater": "switch.h", "fan": "climate.f"}) == [
-        "follow_device_changes"
+        "control_style",
+        "follow_device_changes",
     ]
-    assert climate_control_keys({"dryer": "climate.d"}) == ["follow_device_changes"]
+    assert climate_control_keys({"dryer": "climate.d"}) == [
+        "control_style",
+        "follow_device_changes",
+    ]
+    assert allowed_control_styles({"dryer": "climate.d"}) == [ControlStyle.ON_OFF]
+    assert allowed_control_styles({"heater": "switch.h", "fan": "climate.f"}) == [
+        ControlStyle.ON_OFF
+    ]
+    assert allowed_control_styles({"cooler": "climate.ac"}) == list(ControlStyle)
+    assert climate_role_errors(
+        {"target_sensor": "sensor.t", "fan": "climate.f", "control_style": "setpoint"}
+    ) == [("control_style", "setpoint_needs_heater_or_cooler")]
+    assert not climate_role_errors({"fan": "climate.f", "control_style": "on_off"})
     assert climate_control_keys({"heater": "switch.h", "cooler": "climate.ac"}) == [
         "control_style",
         "follow_device_changes",
@@ -134,3 +153,43 @@ def test_follow_option_is_offered_for_any_climate_role() -> None:
     assert "follow_device_changes" not in climate_control_keys({"heater": "switch.h"})
     kept = drop_inapplicable({"heater": "switch.h", "follow_device_changes": False})
     assert "follow_device_changes" not in kept
+
+
+def test_setpoint_needs_a_heater_or_cooler_climate_in_yaml() -> None:
+    """A fan or dryer climate is always on_off; on_off is fine for any climate role."""
+    with pytest.raises(vol.Invalid, match="setpoint needs heater or cooler"):
+        PLATFORM_SCHEMA(
+            _yaml(heater="switch.h", fan="climate.f", control_style="setpoint")
+        )
+    cfg = PLATFORM_SCHEMA(
+        _yaml(heater="switch.h", fan="climate.f", control_style="on_off")
+    )
+    assert cfg["control_style"] == "on_off"
+    cfg = PLATFORM_SCHEMA(_yaml(heater="climate.h", control_style="setpoint"))
+    assert cfg["control_style"] == "setpoint"
+
+
+def test_drop_inapplicable_resets_a_setpoint_style_that_lost_its_setpoint_role() -> (
+    None
+):
+    config = {"fan": "climate.f", "heater": "switch.h", "control_style": "setpoint"}
+    assert "control_style" not in drop_inapplicable(config)
+    assert (
+        drop_inapplicable({**config, "control_style": "on_off"})["control_style"]
+        == "on_off"
+    )
+
+
+def test_allowed_domains_per_role() -> None:
+    assert allowed_domains("heater") == ["switch", "input_boolean", "climate"]
+    assert allowed_domains("fan") == ["switch", "input_boolean", "climate", "fan"]
+    assert allowed_domains(CONF_AUX_HEATER) == ["switch", "input_boolean"]
+
+
+def test_fan_shares_the_climate_of_the_cooler_or_heater() -> None:
+    both = {"fan": "climate.ac", "heater": "climate.ac"}
+    assert fan_shares_heater(both)
+    assert not fan_shares_cooler(both)
+    assert fan_shares_cooler({**both, "ac_mode": True})  # the heater is the cooler
+    assert fan_shares_cooler({"fan": "climate.ac", "cooler": "climate.ac"})
+    assert not fan_shares_cooler({"fan": "switch.f", "cooler": "switch.f"})

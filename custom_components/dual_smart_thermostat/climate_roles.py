@@ -10,6 +10,10 @@ from collections.abc import Mapping
 from typing import Any
 
 from homeassistant.components.climate import DOMAIN as CLIMATE_DOMAIN
+from homeassistant.components.fan import DOMAIN as FAN_DOMAIN
+from homeassistant.components.input_boolean import DOMAIN as INPUT_BOOLEAN_DOMAIN
+from homeassistant.components.switch import DOMAIN as SWITCH_DOMAIN
+from homeassistant.core import split_entity_id
 import voluptuous as vol
 
 from .const import (
@@ -45,9 +49,26 @@ CLIMATE_OPTION_KEYS = (
 )
 
 
+_SWITCH_DOMAINS = [SWITCH_DOMAIN, INPUT_BOOLEAN_DOMAIN]
+_ROLE_DOMAINS = {
+    CONF_HEATER: [*_SWITCH_DOMAINS, CLIMATE_DOMAIN],
+    CONF_COOLER: [*_SWITCH_DOMAINS, CLIMATE_DOMAIN],
+    CONF_DRYER: [*_SWITCH_DOMAINS, CLIMATE_DOMAIN],
+    CONF_FAN: [*_SWITCH_DOMAINS, CLIMATE_DOMAIN, FAN_DOMAIN],
+    CONF_AUX_HEATER: _SWITCH_DOMAINS,  # a second stage is never a climate
+}
+
+
+def allowed_domains(role_key: str) -> list[str]:
+    """The entity domains that may back this role: every device selector uses it."""
+    return list(_ROLE_DOMAINS[role_key])
+
+
 def is_climate_entity(entity_id: Any) -> bool:
     """True when the id belongs to the climate domain."""
-    return isinstance(entity_id, str) and entity_id.startswith(f"{CLIMATE_DOMAIN}.")
+    if not isinstance(entity_id, str) or "." not in entity_id:
+        return False
+    return split_entity_id(entity_id)[0] == CLIMATE_DOMAIN
 
 
 def may_share_entity(entity_id: Any) -> bool:
@@ -101,28 +122,41 @@ def applicable_offset_keys(config: Mapping[str, Any]) -> list[str]:
     return keys
 
 
+def has_setpoint_role(config: Mapping[str, Any]) -> bool:
+    """True when a climate heater or cooler exists: the roles that push a setpoint."""
+    return any(is_climate_entity(config.get(key)) for key in (CONF_HEATER, CONF_COOLER))
+
+
+def allowed_control_styles(config: Mapping[str, Any]) -> list[ControlStyle]:
+    """setpoint needs a heater or cooler; a fan or dryer is always on_off."""
+    if has_setpoint_role(config):
+        return list(ControlStyle)
+    return [ControlStyle.ON_OFF]
+
+
 def climate_control_keys(config: Mapping[str, Any]) -> list[str]:
     """The climate options that mean something for these roles (flow fields).
 
-    control_style only matters for a heater or cooler (fan and dryer push no
-    setpoint and are always on_off); each offset needs its own role.
+    control_style and follow_device_changes need any climate role; each offset
+    needs its own role.
     """
-    style = (
-        [CONF_CONTROL_STYLE]
-        if any(is_climate_entity(config.get(key)) for key in (CONF_HEATER, CONF_COOLER))
+    keys = (
+        [CONF_CONTROL_STYLE, CONF_FOLLOW_DEVICE_CHANGES]
+        if has_climate_role(config)
         else []
     )
-    follow = [CONF_FOLLOW_DEVICE_CHANGES] if has_climate_role(config) else []
-    return style + follow + applicable_offset_keys(config)
+    return keys + applicable_offset_keys(config)
 
 
 def drop_inapplicable(config: Mapping[str, Any]) -> dict[str, Any]:
     """A copy without the climate options that no longer apply to the roles."""
     keep = climate_control_keys(config)
+    styles = allowed_control_styles(config)
     return {
         key: value
         for key, value in config.items()
-        if key not in CLIMATE_OPTION_KEYS or key in keep
+        if (key not in CLIMATE_OPTION_KEYS or key in keep)
+        and not (key == CONF_CONTROL_STYLE and value not in styles)
     }
 
 
@@ -158,6 +192,21 @@ def setpoint_shared_heat_cool(config: Mapping[str, Any]) -> bool:
     )
 
 
+def fan_shares_cooler(config: Mapping[str, Any]) -> bool:
+    """The fan is the same climate as the cooler (or the ac_mode heater)."""
+    fan = config.get(CONF_FAN)
+    cooler = config.get(CONF_COOLER) or (
+        config.get(CONF_HEATER) if config.get(CONF_AC_MODE) else None
+    )
+    return is_climate_entity(fan) and fan == cooler
+
+
+def fan_shares_heater(config: Mapping[str, Any]) -> bool:
+    """The fan is the same climate as the heater."""
+    fan = config.get(CONF_FAN)
+    return is_climate_entity(fan) and fan == config.get(CONF_HEATER)
+
+
 def normalize_climate_roles(config: Mapping[str, Any]) -> dict[str, Any]:
     """Resolve what climate roles imply, once, before anything reads the config.
 
@@ -171,56 +220,72 @@ def normalize_climate_roles(config: Mapping[str, Any]) -> dict[str, Any]:
     if source and not config.get(CONF_SENSOR):
         config[CONF_SENSOR] = source
 
-    fan = config.get(CONF_FAN)
-    if is_climate_entity(fan):
-        heater = config.get(CONF_HEATER)
-        cooler = config.get(CONF_COOLER) or (
-            heater if config.get(CONF_AC_MODE) else None
-        )
-        if fan == cooler and config.get(CONF_FAN_ON_WITH_AC):
-            config[CONF_FAN_ON_WITH_AC] = False
-        if fan == heater and config.get(CONF_FAN_ON_WITH_HEATER):
-            config[CONF_FAN_ON_WITH_HEATER] = False
+    if fan_shares_cooler(config) and config.get(CONF_FAN_ON_WITH_AC):
+        config[CONF_FAN_ON_WITH_AC] = False
+    if fan_shares_heater(config) and config.get(CONF_FAN_ON_WITH_HEATER):
+        config[CONF_FAN_ON_WITH_HEATER] = False
 
     return config
 
 
+# code -> the one-line YAML message. The codes are also the translation keys the
+# flows show for them.
+ERROR_MESSAGES = {
+    "setpoint_heat_pump_unsupported": "setpoint is not supported for a climate heat pump",
+    "setpoint_heat_cool_shared_climate": (
+        "setpoint cannot do heat_cool with one climate as both heater and "
+        "cooler (heat_cool_mode, or target_temp_low/high both set, enables "
+        "heat_cool)"
+    ),
+    "setpoint_needs_heater_or_cooler": (
+        "setpoint needs heater or cooler to be a climate entity"
+    ),
+    "aux_heater_not_climate": "cannot be a climate entity",
+    "sensor_required": (
+        "is required unless heater, cooler, fan or dryer is a climate entity"
+    ),
+    "needs_climate_role": "needs heater, cooler, fan or dryer to be a climate entity",
+    "offset_needs_role": "needs the matching role to be a climate entity",
+}
+
+
+def climate_role_errors(config: Mapping[str, Any]) -> list[tuple[str, str]]:
+    """Every broken cross-field rule as (field, code), in the order they are judged."""
+    errors: list[tuple[str, str]] = []
+    has_role = has_climate_role(config)
+    if setpoint_unsupported(config):
+        errors.append((CONF_CONTROL_STYLE, "setpoint_heat_pump_unsupported"))
+    if setpoint_shared_heat_cool(config):
+        errors.append((CONF_CONTROL_STYLE, "setpoint_heat_cool_shared_climate"))
+    if (
+        has_role
+        and config.get(CONF_CONTROL_STYLE) == ControlStyle.SETPOINT
+        and not has_setpoint_role(config)
+    ):
+        errors.append((CONF_CONTROL_STYLE, "setpoint_needs_heater_or_cooler"))
+    errors += [
+        (key, "aux_heater_not_climate") for key in unsupported_climate_roles(config)
+    ]
+    if sensor_required(config):
+        errors.append((CONF_SENSOR, "sensor_required"))
+    if not has_role:
+        errors += [
+            (key, "needs_climate_role")
+            for key in (CONF_FOLLOW_DEVICE_CHANGES, CONF_CONTROL_STYLE)
+            if key in config
+        ]
+    applicable = applicable_offset_keys(config)
+    errors += [
+        (key, "offset_needs_role")
+        for key in (CONF_HEATER_SETPOINT_OFFSET, CONF_COOLER_SETPOINT_OFFSET)
+        if key in config and key not in applicable
+    ]
+    return errors
+
+
 def validate_climate_roles(config: dict[str, Any]) -> dict[str, Any]:
     """Voluptuous validator: cross-field rules for climate-backed roles."""
-    if setpoint_unsupported(config):
-        raise vol.Invalid(
-            "setpoint is not supported for a climate heat pump",
-            path=[CONF_CONTROL_STYLE],
-        )
-    if setpoint_shared_heat_cool(config):
-        raise vol.Invalid(
-            "setpoint cannot do heat_cool with one climate as both heater and "
-            "cooler (heat_cool_mode, or target_temp_low/high both set, enables "
-            "heat_cool)",
-            path=[CONF_CONTROL_STYLE],
-        )
-    if bad := unsupported_climate_roles(config):
-        raise vol.Invalid("cannot be a climate entity", path=[bad[0]])
-    has_role = has_climate_role(config)
-    if sensor_required(config):
-        raise vol.Invalid(
-            "is required unless heater, cooler, fan or dryer is a climate entity",
-            path=[CONF_SENSOR],
-        )
-    if CONF_FOLLOW_DEVICE_CHANGES in config and not has_role:
-        raise vol.Invalid(
-            "needs heater, cooler, fan or dryer to be a climate entity",
-            path=[CONF_FOLLOW_DEVICE_CHANGES],
-        )
-    if CONF_CONTROL_STYLE in config and not has_role:
-        raise vol.Invalid(
-            "needs heater, cooler, fan or dryer to be a climate entity",
-            path=[CONF_CONTROL_STYLE],
-        )
-    applicable = applicable_offset_keys(config)
-    for key in (CONF_HEATER_SETPOINT_OFFSET, CONF_COOLER_SETPOINT_OFFSET):
-        if key in config and key not in applicable:
-            raise vol.Invalid(
-                "needs the matching role to be a climate entity", path=[key]
-            )
+    if errors := climate_role_errors(config):
+        field, code = errors[0]
+        raise vol.Invalid(ERROR_MESSAGES[code], path=[field])
     return config

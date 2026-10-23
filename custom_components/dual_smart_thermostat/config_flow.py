@@ -318,9 +318,7 @@ class ConfigFlowHandler(ExcludeOwnEntity, ConfigFlow, domain=DOMAIN):
                     user_input.update(advanced_settings)
 
             if not await self._validate_basic_config(user_input):
-                errors = EntityValidator.get_validation_errors(
-                    user_input, self._own_entity_ids()
-                )
+                errors = self._entity_errors(user_input)
             else:
                 # For AC-only systems, force AC mode to true
                 if system_type == SystemType.AC_ONLY:
@@ -366,9 +364,7 @@ class ConfigFlowHandler(ExcludeOwnEntity, ConfigFlow, domain=DOMAIN):
                     user_input.update(advanced_settings)
 
             if not await self._validate_basic_config(user_input):
-                errors = EntityValidator.get_validation_errors(
-                    user_input, self._own_entity_ids()
-                )
+                errors = self._entity_errors(user_input)
             else:
                 user_input[CONF_AC_MODE] = True
 
@@ -439,9 +435,7 @@ class ConfigFlowHandler(ExcludeOwnEntity, ConfigFlow, domain=DOMAIN):
                     user_input.update(advanced_settings)
 
             if not await self._validate_basic_config(user_input):
-                errors = EntityValidator.get_validation_errors(
-                    user_input, self._own_entity_ids()
-                )
+                errors = self._entity_errors(user_input)
             else:
                 self._collect_entity_input(user_input)
                 return await self._determine_next_step()
@@ -472,9 +466,7 @@ class ConfigFlowHandler(ExcludeOwnEntity, ConfigFlow, domain=DOMAIN):
                     user_input.update(advanced_settings)
 
             if not await self._validate_basic_config(user_input):
-                errors = EntityValidator.get_validation_errors(
-                    user_input, self._own_entity_ids()
-                )
+                errors = self._entity_errors(user_input)
             else:
                 self._collect_entity_input(user_input)
                 return await self._determine_next_step()
@@ -499,9 +491,7 @@ class ConfigFlowHandler(ExcludeOwnEntity, ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             if not await self._validate_basic_config(user_input):
-                errors = EntityValidator.get_validation_errors(
-                    user_input, self._own_entity_ids()
-                )
+                errors = self._entity_errors(user_input)
             else:
                 self._collect_entity_input(user_input)
                 return await self.async_step_dual_stage_config()

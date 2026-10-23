@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from typing import Any
 
+from homeassistant.components.climate import DOMAIN as CLIMATE_DOMAIN
 from homeassistant.helpers import entity_registry as er
 
-from .climate_roles import may_share_entity, sensor_required
+from .climate_roles import climate_role_errors, may_share_entity
 from .const import (
     ATTR_CLOSING_TIMEOUT,
     ATTR_OPENING_TIMEOUT,
@@ -16,6 +17,9 @@ from .const import (
     CONF_SENSOR,
 )
 from .schema_utils import exclude_entities_from_schema
+
+# role-rule code -> the translation key an entity step shows for it
+_FLOW_ERROR_KEYS = {"sensor_required": "sensor_required"}
 
 
 class ExcludeOwnEntity:
@@ -36,8 +40,16 @@ class ExcludeOwnEntity:
         return [
             entity.entity_id
             for entity in er.async_entries_for_config_entry(registry, entry_id)
-            if entity.domain == "climate"
+            if entity.domain == CLIMATE_DOMAIN
         ]
+
+    def _entity_errors(self, user_input: dict[str, Any]) -> dict[str, str]:
+        """The entity-step validation errors for this flow's thermostat."""
+        return EntityValidator.get_validation_errors(user_input, self._own_entity_ids())
+
+    def _own_entity_errors(self, user_input: dict[str, Any]) -> dict[str, str]:
+        """Only the "a thermostat cannot be its own device" error."""
+        return EntityValidator.get_own_entity_errors(user_input, self._own_entity_ids())
 
     def async_show_form(self, *, data_schema=None, **kwargs):
         if data_schema is not None and (own := self._own_entity_ids()):
@@ -89,8 +101,11 @@ class EntityValidator:
             errors["base"] = "same_heater_sensor"
         elif heater and cooler and heater == cooler and not may_share_entity(heater):
             errors["base"] = "same_heater_cooler"
-        elif sensor_required(user_input):
-            errors["base"] = "sensor_required"
+        else:
+            for _field, code in climate_role_errors(user_input):
+                if code in _FLOW_ERROR_KEYS:
+                    errors["base"] = _FLOW_ERROR_KEYS[code]
+                    break
 
         return errors
 

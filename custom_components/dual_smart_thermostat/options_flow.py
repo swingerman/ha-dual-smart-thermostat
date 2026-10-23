@@ -90,8 +90,7 @@ class OptionsFlowHandler(ExcludeOwnEntity, OptionsFlowWithReload):
         self.floor_steps = FloorSteps()
 
     def _entry_id(self) -> str | None:
-        entry_id = getattr(self._get_entry(), "entry_id", None)
-        return entry_id if isinstance(entry_id, str) else None
+        return self.config_entry.entry_id
 
     @staticmethod
     def _get_excluded_flags() -> set[str]:

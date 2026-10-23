@@ -7,7 +7,7 @@ Issue: #415
 
 from unittest.mock import Mock
 
-from homeassistant.const import CONF_NAME
+from homeassistant.const import CONF_NAME, UnitOfTemperature
 from homeassistant.data_entry_flow import FlowResultType
 import pytest
 
@@ -746,16 +746,26 @@ class TestClimateControlStep:
         assert result["step_id"] == "floor_heating"
         assert result["errors"] == {"base": "sensor_required"}
 
-    async def test_climate_fan_alone_offers_only_the_follow_option(self, mock_hass):
-        """A climate fan or dryer has no style or offset to choose, only follow."""
+    async def test_climate_fan_alone_offers_on_off_and_follow(self, mock_hass):
+        """A climate fan or dryer has no offset and no setpoint style to choose."""
         _, result = await self._heater_cooler(
             mock_hass, "switch.h", "switch.c", seed={"fan": "climate.f"}
         )
 
         assert result["step_id"] == "climate_control"
-        assert {str(k) for k in result["data_schema"].schema} == {
-            CONF_FOLLOW_DEVICE_CHANGES
-        }
+        keys = {str(k): v for k, v in result["data_schema"].schema.items()}
+        assert set(keys) == {CONF_CONTROL_STYLE, CONF_FOLLOW_DEVICE_CHANGES}
+        assert keys[CONF_CONTROL_STYLE].config["options"] == ["on_off"]
+
+    async def test_setpoint_offsets_are_deltas_scaled_for_fahrenheit(self, mock_hass):
+        """The offset selector is a temperature delta: unit label and range follow
+        the user's unit, like every other tolerance (#543)."""
+        mock_hass.config.units.temperature_unit = UnitOfTemperature.FAHRENHEIT
+        _, result = await self._heater_cooler(mock_hass, "switch.h", "climate.ac")
+        keys = {str(k): v for k, v in result["data_schema"].schema.items()}
+        config = keys[CONF_COOLER_SETPOINT_OFFSET].config
+        assert (config["min"], config["max"]) == (-36, 36)
+        assert config["unit_of_measurement"] == "°F"
 
     async def test_climate_control_step_offers_the_follow_option(self, mock_hass):
         """follow_device_changes defaults on, and False is stored."""

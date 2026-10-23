@@ -450,6 +450,18 @@ _PARITY_CONFIGS = [
         "control_style": "setpoint",
         "heat_cool_mode": True,
     },
+    {
+        "heater": "switch.h",
+        "target_sensor": "sensor.t",
+        "fan": "climate.f",
+        "control_style": "setpoint",
+    },
+    {
+        "heater": "switch.h",
+        "target_sensor": "sensor.t",
+        "fan": "climate.f",
+        "control_style": "on_off",
+    },
 ]
 
 

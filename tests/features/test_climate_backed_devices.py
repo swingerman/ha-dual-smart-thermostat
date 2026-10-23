@@ -1054,14 +1054,14 @@ async def test_setpoint_style_does_not_apply_to_a_climate_fan(
 ) -> None:
     """Only roles that push a setpoint can be self-regulating: a fan still stops."""
     hass.states.async_set(SENSOR, 26.0)
-    setup_switch(hass, False, HEATER)
     await _setup(
         hass,
-        heater=HEATER,
+        heater="climate.test_heater",  # setpoint needs a climate heater or cooler
         fan=AC,
         initial_hvac_mode=HVACMode.FAN_ONLY,
         control_style="setpoint",
     )
+    await common.add_fake_climate(hass, "climate.test_heater")
     await common.add_fake_climate(hass, AC)
     await common.async_set_temperature(hass, 24, "climate.test")
     await hass.async_block_till_done()

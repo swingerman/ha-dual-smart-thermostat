@@ -6,8 +6,16 @@ from typing import Any
 
 from homeassistant.data_entry_flow import FlowResult
 
-from ..climate_roles import setpoint_shared_heat_cool, setpoint_unsupported
+from ..climate_roles import climate_role_errors
+from ..const import CONF_CONTROL_STYLE
 from ..schemas import get_climate_control_schema
+
+# role-rule code -> translation key, for the rules this step can break
+_STEP_ERRORS = {
+    "setpoint_heat_pump_unsupported": "setpoint_heat_pump_unsupported",
+    "setpoint_heat_cool_shared_climate": "setpoint_heat_cool_shared_climate",
+    "setpoint_needs_heater_or_cooler": "setpoint_needs_heater_or_cooler",
+}
 
 
 class ClimateControlSteps:
@@ -26,16 +34,21 @@ class ClimateControlSteps:
         if user_input is not None:
             # The same rules YAML validation uses (climate_roles.py).
             candidate = {**collected_config, **user_input}
-            if setpoint_unsupported(candidate):
-                errors["base"] = "setpoint_heat_pump_unsupported"
-            elif setpoint_shared_heat_cool(candidate):
-                errors["base"] = "setpoint_heat_cool_shared_climate"
+            broken = [
+                _STEP_ERRORS[code]
+                for field, code in climate_role_errors(candidate)
+                if field == CONF_CONTROL_STYLE and code in _STEP_ERRORS
+            ]
+            if broken:
+                errors["base"] = broken[0]
             else:
                 collected_config.update(user_input)
                 return await next_step_handler()
         return flow_instance.async_show_form(
             step_id=step_id,
-            data_schema=get_climate_control_schema({**defaults, **(user_input or {})}),
+            data_schema=get_climate_control_schema(
+                {**defaults, **(user_input or {})}, flow_instance.hass
+            ),
             errors=errors,
         )
 

@@ -61,9 +61,14 @@ class ConfigValidator:
         ]
 
         # Climate-backed devices: options that need a climate role, and the roles
-        # whose entity may be a climate (mirrors climate_roles.py).
+        # whose entity may be a climate (mirrors climate_roles.py: CLIMATE_ROLE_KEYS
+        # and CLIMATE_OPTION_KEYS; the offsets have their own role, see below).
         self.climate_role_keys = ["heater", "cooler", "fan", "dryer"]
         self.climate_role_parameters = ["control_style", "follow_device_changes"]
+        self.climate_offset_parameters = [
+            "heater_setpoint_offset",
+            "cooler_setpoint_offset",
+        ]
 
         self.overrides = [
             ("cooler", "ac_mode", "AC mode is ignored when cooler is defined"),
@@ -154,6 +159,15 @@ class ConfigValidator:
                     f"Parameter '{param}' requires its own role to be a climate entity"
                 )
 
+        if (
+            config.get("control_style") == "setpoint"
+            and has_climate_role
+            and not (is_climate("heater") or is_climate("cooler"))
+        ):
+            errors.append(
+                "Parameter 'control_style: setpoint' needs heater or cooler to be a "
+                "climate entity"
+            )
         if (
             config.get("control_style") == "setpoint"
             and heat_pump
@@ -257,9 +271,8 @@ class ConfigValidator:
                     self._is_climate(config.get(key)) for key in self.climate_role_keys
                 ),
                 "parameters": [
-                    "control_style",
-                    "heater_setpoint_offset",
-                    "cooler_setpoint_offset",
+                    *self.climate_role_parameters,
+                    *self.climate_offset_parameters,
                 ],
                 "configured": [],
             },
