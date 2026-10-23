@@ -44,6 +44,8 @@ from homeassistant.const import (
     SERVICE_OPEN_VALVE,
     SERVICE_TURN_OFF,
     SERVICE_TURN_ON,
+    STATE_CLOSED,
+    STATE_OFF,
     STATE_ON,
     STATE_OPEN,
     STATE_UNAVAILABLE,
@@ -110,9 +112,10 @@ class EntityPort(ABC):
     # did. A climate's compressor is protected from that too (see ClimatePort).
     protects_min_cycle = False
 
-    def start_held(self, min_cycle: timedelta) -> bool:
-        """A start now would cycle the device too fast."""
-        return False
+    @property
+    def is_cold(self) -> bool:
+        """Starting the role starts the device itself (not a switch of its mode)."""
+        return True
 
     @abstractmethod
     async def async_turn_on(self, context: Context | None) -> None:
@@ -190,11 +193,15 @@ class SwitchPort(EntityPort):
         return STATE_OPEN if self._is_valve else STATE_ON
 
     @property
+    def _off_state(self) -> str:
+        return STATE_CLOSED if self._is_valve else STATE_OFF
+
+    @property
     def is_active(self) -> bool:
         return self.hass.states.is_state(self.entity_id, self._on_state)
 
     def ran_long_enough(self, min_cycle: timedelta) -> bool:
-        current_state = self._on_state if self.is_active else HVACMode.OFF
+        current_state = self._on_state if self.is_active else self._off_state
         try:
             return condition.state(self.hass, self.entity_id, current_state, min_cycle)
         except ConditionError:
@@ -858,23 +865,22 @@ class ClimatePort(EntityPort):
 
     protects_min_cycle = True
 
+    @property
+    def is_cold(self) -> bool:
+        # Switching a running child from one role's mode to another's is not a start.
+        return self._child.mode == HVACMode.OFF
+
     def ran_long_enough(self, min_cycle: timedelta) -> bool:
         if not min_cycle:  # none configured: nothing to wait for
             return True
-        since = self._child.since
-        return since is not None and dt_util.utcnow() - since >= min_cycle
-
-    def start_held(self, min_cycle: timedelta) -> bool:
-        # Only a child DST itself stopped counts: an off nobody saw running (a
-        # restart, a new entity) says nothing about the compressor. Switching a
-        # running child from one role's mode to another's is not a start.
         child = self._child
-        return (
-            child.mode == HVACMode.OFF
-            and child.commanded == HVACMode.OFF
-            and child.commanded_at is not None
-            and dt_util.utcnow() - child.commanded_at < min_cycle
-        )
+        if child.mode == HVACMode.OFF:
+            # Only an off DST itself commanded counts: an off nobody saw running (a
+            # restart, a new entity) says nothing about the compressor.
+            since = child.commanded_at if child.commanded == HVACMode.OFF else None
+            return since is None or dt_util.utcnow() - since >= min_cycle
+        since = child.since
+        return since is not None and dt_util.utcnow() - since >= min_cycle
 
     async def _push(self, context: Context | None) -> None:
         target = self._device.climate_target()

@@ -1437,7 +1437,7 @@ async def test_no_entry_point_stops_a_shared_child_before_the_new_role_starts(ha
 # ----------------------------------------- min cycle protects a climate's compressor
 
 
-async def _heating_with_min_cycle(hass, freezer):
+async def _heating_with_min_cycle(hass, freezer, **extra):
     """Heating on one climate with a 5 min minimum cycle, running for long enough."""
     hass.states.async_set(SENSOR, 18.0)
     hass.states.async_set("sensor.hum", 50.0)
@@ -1447,6 +1447,7 @@ async def _heating_with_min_cycle(hass, freezer):
             **ALL_ROLES,
             "initial_hvac_mode": HVACMode.HEAT,
             "min_cycle_duration": {"seconds": 300},
+            **extra,
         },
     )
     child = await common.add_fake_climate(hass, AC)
@@ -1565,3 +1566,12 @@ async def test_a_child_the_run_keeps_running_gets_its_new_setpoint(hass):
     await common.async_set_temperature(hass, 25, "climate.test")  # still heating
     await _idle(hass)
     assert [c[0] for c in child.calls] == ["set_temperature"]
+
+
+@pytest.mark.parametrize("expected_lingering_timers", [True])
+async def test_a_zero_keep_alive_does_not_switch_the_min_cycle_off(hass, freezer):
+    """keep_alive is stored as 0:00:00 when unset in the UI (#668)."""
+    child = await _heating_with_min_cycle(hass, freezer, keep_alive={"seconds": 0})
+    await common.async_set_temperature(hass, 15, "climate.test")
+    await _idle(hass)
+    assert "turn_off" not in [c[0] for c in child.calls]

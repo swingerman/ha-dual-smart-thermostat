@@ -227,6 +227,13 @@ class GenericHVACDevice(
             await self.async_stop(keep_alive=time is not None)
             return
 
+        # Inside the minimum cycle nothing switches; keep-alive only re-sends
+        # the current state (#668).
+        if not self.hvac_controller.min_cycle_elapsed(force):
+            if time is not None and self.hvac_controller.is_active:
+                await self.async_turn_on()
+            return
+
         # An open opening is about to stop the device: do not push a setpoint first.
         if not any_opening_open:
             await self.port.async_sync(self._context)

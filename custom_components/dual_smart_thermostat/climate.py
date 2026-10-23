@@ -472,15 +472,6 @@ async def _async_setup_config(
     sensor_heat_pump_cooling_entity_id = config.get(CONF_HEAT_PUMP_COOLING)
     keep_alive = config.get(CONF_KEEP_ALIVE)
 
-    # we ignore min cycle duration if keep alive is configured (conflicting config)
-    if keep_alive is not None:
-        if CONF_MIN_DUR in config:
-            _LOGGER.warning(
-                "The configuration option 'min_cycle_duration' will be ignored "
-                "because incompatible with the defined option 'keep_alive'."
-            )
-            config.pop(CONF_MIN_DUR)
-
     precision = config.get(CONF_PRECISION)
     unit = hass.config.units.temperature_unit
 

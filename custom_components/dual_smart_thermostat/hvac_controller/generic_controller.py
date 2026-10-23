@@ -66,17 +66,16 @@ class GenericHvacController(HvacController):
         return (
             (self.hold_stop_for_min_cycle or self.port.protects_min_cycle)
             and not safety
-            and bool(self.min_cycle_duration)
-            and not self.ran_long_enough()
+            and not self.min_cycle_elapsed()
         )
 
     def start_held_by_min_cycle(self, safety: bool = False) -> bool:
-        """A start waits for the minimum cycle on a device that protects it."""
+        """A start of a cold device waits for the minimum cycle where it is protected."""
         return (
             self.port.protects_min_cycle
+            and self.port.is_cold
             and not safety
-            and bool(self.min_cycle_duration)
-            and self.port.start_held(self.min_cycle_duration)
+            and not self.min_cycle_elapsed()
         )
 
     def ran_long_enough(self) -> bool:
@@ -106,17 +105,15 @@ class GenericHvacController(HvacController):
             )
             return False
 
-        if not force and time is None:
-            # If the `force` argument is True, we
-            # ignore `min_cycle_duration`.
-            # If the `time` argument is not none, we were invoked for
-            # keep-alive purposes, and `min_cycle_duration` is irrelevant.
-            if self.min_cycle_duration:
-                _LOGGER.debug(
-                    "Checking if device ran long enough: %s", self.ran_long_enough()
-                )
-                return self.ran_long_enough()
         return True
+
+    def min_cycle_elapsed(self, force=False) -> bool:
+        """True if the device may change its on/off state now."""
+        if force or not self.min_cycle_duration:
+            return True
+        long_enough = self.ran_long_enough()
+        _LOGGER.debug("Checking if device ran long enough: %s", long_enough)
+        return long_enough
 
     async def async_control_device_when_on(
         self,
