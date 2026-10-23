@@ -468,6 +468,32 @@ dual_smart_thermostat/
 └── README-DOCKER.md          # This file
 ```
 
+## Deploying to a real Home Assistant (HAOS)
+
+`scripts/ha-home` deploys a branch build to a HAOS instance over ssh and reads logs/state.
+Needs the Advanced SSH & Web Terminal add-on (key auth) and a long-lived access token.
+Create a gitignored `.env` in the repo root (or point `HA_ENV_FILE` at one):
+
+```bash
+HA_URL=http://<host>:8123
+HA_TOKEN=<long-lived token>
+HA_SSH=<user>@<host>
+HA_SSH_KEY=~/.ssh/<key>
+```
+
+```bash
+./scripts/ha-home backup                    # do this before the first deploy
+./scripts/ha-home deploy --dry-run          # list files, no ssh
+./scripts/ha-home deploy [--restart]        # copy + ha core check; restart only if asked
+./scripts/ha-home rollback <tag> [--restart]
+./scripts/ha-home logs [N]
+./scripts/ha-home state <entity_id>
+./scripts/ha-home call <domain.service> '<json>'
+```
+
+HA loads one copy of the integration, so a deploy also replaces the code behind existing
+production thermostats on that instance. Use `dst_test_*` entries for testing.
+
 ## Additional Resources
 
 - [Home Assistant Developer Docs](https://developers.home-assistant.io/)
