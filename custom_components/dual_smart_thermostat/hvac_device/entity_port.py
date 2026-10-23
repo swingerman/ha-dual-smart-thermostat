@@ -293,7 +293,8 @@ class ClimateChild:
         self._pass_depth = 0
         self._pass_set_mode = False
         self._pass_stops: list[tuple[ClimatePort, Context | None]] = []
-        self._pass_tail: dict[ClimatePort, Context | None] = {}
+        # role -> (context, whether a turn on, with its fan speed, is part of it)
+        self._pass_tail: dict[ClimatePort, tuple[Context | None, bool]] = {}
         # Per owner (the thermostat): the values it commanded and has not yet seen
         # reported, and the two short flags of section 3.6 of the spec.
         self._pending: dict[Any, dict[str, list[Any]]] = {}
@@ -538,9 +539,13 @@ class ClimateChild:
     def defer_stop(self, port: ClimatePort, context: Context | None) -> None:
         self._pass_stops.append((port, context))
 
-    def defer_tail(self, port: ClimatePort, context: Context | None) -> None:
-        """A turn on inside a run: its setpoint and fan speed wait for the run's end."""
-        self._pass_tail[port] = context
+    def defer_tail(
+        self, port: ClimatePort, context: Context | None, *, turn_on: bool
+    ) -> None:
+        """Inside a run the setpoint (and a turn on's fan speed) wait for its end:
+        the run decides the child's final state first, then sends it."""
+        _, was_turn_on = self._pass_tail.get(port, (None, False))
+        self._pass_tail[port] = (context, turn_on or was_turn_on)
 
     async def end_pass(self) -> None:
         """The run is over: the held-back setpoints and fan speeds, then the stop
@@ -551,11 +556,17 @@ class ClimateChild:
         stops, replaced = self._pass_stops, self._pass_set_mode
         tail = self._pass_tail
         self._pass_stops, self._pass_set_mode, self._pass_tail = [], False, {}
-        for port, context in tail.items():
-            # Once, with the run's final target, and only if its mode still stands.
-            if (self.pending_mode(port.owner) or self.mode) in port.device.role_modes():
+        for port, (context, turn_on) in tail.items():
+            # Once, with the run's final target, only if its mode still stands and
+            # the run does not stop it.
+            stopped = not replaced and any(p is port for p, _ in stops)
+            if (
+                not stopped
+                and (self.pending_mode(port.owner) or self.mode)
+                in port.device.role_modes()
+            ):
                 with self.sending(port.owner):
-                    await port.async_finish_turn_on(context)
+                    await port.async_finish_turn_on(context, turn_on=turn_on)
         if replaced:
             return  # the new mode replaced the old one: a stop would only race it
         for port, context in stops:
@@ -881,19 +892,25 @@ class ClimatePort(EntityPort):
             ):
                 return
             if self._child.in_pass:
-                self._child.defer_tail(self, context)  # one push, at the run's end
+                self._child.defer_tail(self, context, turn_on=True)
                 return
-            await self.async_finish_turn_on(context)
+            await self.async_finish_turn_on(context, turn_on=True)
 
-    async def async_finish_turn_on(self, context: Context | None) -> None:
+    async def async_finish_turn_on(
+        self, context: Context | None, *, turn_on: bool
+    ) -> None:
         await self._push(context)
-        # Last, so the speed lands after the mode change that may have reset it.
-        await self._reapply_fan_speed()
+        if turn_on:
+            # Last, so the speed lands after the mode change that may have reset it.
+            await self._reapply_fan_speed()
 
     async def async_sync(self, context: Context | None) -> None:
         # Only the role the child is serving may touch its setpoint.
         if self.is_active:
-            await self._push(context)
+            if self._child.in_pass:
+                self._child.defer_tail(self, context, turn_on=False)
+            else:
+                await self._push(context)
 
     async def async_turn_off(self, context: Context | None) -> None:
         # Only the role the child is currently serving may stop it, so an idle

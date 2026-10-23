@@ -542,8 +542,8 @@ async def test_preset_change_is_pushed_and_not_adopted_back(hass, adoptions):  #
     child = await _start(hass, HVACMode.HEAT, away={"temperature": 17})
     await common.async_set_preset_mode(hass, "away", "climate.test")
     await _idle(hass)
-    # pushed to the running child (17 is below the room, so it then stops: normal control)
-    assert child.calls[0] == ("set_temperature", {"temperature": 17.0})
+    # 17 is below the room: the run stops the child, so no setpoint is pushed first
+    assert child.calls == [("turn_off", {})]
     assert adoptions == []
     assert _dst(hass).attributes["preset_mode"] == "away"
     assert _dst(hass).attributes["temperature"] == 17.0
@@ -1551,3 +1551,17 @@ async def test_an_automation_fan_after_the_reset_is_adopted(hass, adoptions):
     child.remote(fan_mode="quiet")  # an automation's or the UI's own context
     await _idle(hass)
     assert _dst(hass).attributes["fan_mode"] == "quiet"  # last command wins
+
+
+async def test_a_child_the_run_stops_gets_no_setpoint_push_first(hass):
+    child = await _start(hass, HVACMode.HEAT)
+    await common.async_set_temperature(hass, 18, "climate.test")  # goal reached
+    await _idle(hass)
+    assert [c[0] for c in child.calls] == ["turn_off"]
+
+
+async def test_a_child_the_run_keeps_running_gets_its_new_setpoint(hass):
+    child = await _start(hass, HVACMode.HEAT)
+    await common.async_set_temperature(hass, 25, "climate.test")  # still heating
+    await _idle(hass)
+    assert [c[0] for c in child.calls] == ["set_temperature"]
