@@ -11,6 +11,7 @@ from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
 import voluptuous as vol
 
+from .climate_roles import climate_control_keys, drop_inapplicable
 from .config_validation import validate_config_with_models
 from .const import (
     CONF_AC_MODE,
@@ -32,13 +33,14 @@ from .const import (
     SystemType,
 )
 from .feature_steps import (
+    ClimateControlSteps,
     FanSteps,
     FloorSteps,
     HumiditySteps,
     OpeningsSteps,
     PresetsSteps,
 )
-from .flow_utils import EntityValidator
+from .flow_utils import ExcludeOwnEntity
 from .schemas import (
     get_additional_sensors_schema,
     get_base_schema,
@@ -63,7 +65,7 @@ _LOGGER = logging.getLogger(__name__)
 # They are imported above and used by the ConfigFlowHandler and OptionsFlowHandler classes
 
 
-class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
+class ConfigFlowHandler(ExcludeOwnEntity, ConfigFlow, domain=DOMAIN):
     """Handle a config or options flow for Dual Smart Thermostat."""
 
     VERSION = 1
@@ -77,6 +79,7 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
         # Initialize feature step handlers
         self.openings_steps = OpeningsSteps()
         self.fan_steps = FanSteps()
+        self.climate_control_steps = ClimateControlSteps()
         self.humidity_steps = HumiditySteps()
         self.presets_steps = PresetsSteps()
         self.floor_steps = FloorSteps()
@@ -92,6 +95,7 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
         excluded_flags = {
             "dual_stage_options_shown",
             "floor_options_shown",
+            "climate_control_shown",
             "features_shown",
             "fan_options_shown",
             "humidity_options_shown",
@@ -177,6 +181,11 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
             },
         )
 
+    def _entry_id(self) -> str | None:
+        if self.source != SOURCE_RECONFIGURE:
+            return None
+        return self._get_reconfigure_entry().entry_id
+
     async def async_step_reconfigure(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
@@ -206,6 +215,7 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
         # These flags are set during the flow to control navigation and should
         # not persist between reconfigurations
         flow_control_flags = {
+            "climate_control_shown",
             "features_shown",
             "dual_stage_options_shown",
             "floor_options_shown",
@@ -308,13 +318,13 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
                     user_input.update(advanced_settings)
 
             if not await self._validate_basic_config(user_input):
-                errors = EntityValidator.get_validation_errors(user_input)
+                errors = self._entity_errors(user_input)
             else:
                 # For AC-only systems, force AC mode to true
                 if system_type == SystemType.AC_ONLY:
                     user_input[CONF_AC_MODE] = True
 
-                self.collected_config.update(user_input)
+                self._collect_entity_input(user_input)
                 return await self._determine_next_step()
 
         # Use a shared core schema so config and options flows render the
@@ -354,11 +364,11 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
                     user_input.update(advanced_settings)
 
             if not await self._validate_basic_config(user_input):
-                errors = EntityValidator.get_validation_errors(user_input)
+                errors = self._entity_errors(user_input)
             else:
                 user_input[CONF_AC_MODE] = True
 
-                self.collected_config.update(user_input)
+                self._collect_entity_input(user_input)
                 return await self._determine_next_step()
 
         # Use AC-only specific schema with dedicated translations
@@ -425,16 +435,9 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
                     user_input.update(advanced_settings)
 
             if not await self._validate_basic_config(user_input):
-                heater = user_input.get(CONF_HEATER)
-                sensor = user_input.get(CONF_SENSOR)
-                cooler = user_input.get(CONF_COOLER)
-
-                if heater and sensor and heater == sensor:
-                    errors["base"] = "same_heater_sensor"
-                elif heater and cooler and heater == cooler:
-                    errors["base"] = "same_heater_cooler"
+                errors = self._entity_errors(user_input)
             else:
-                self.collected_config.update(user_input)
+                self._collect_entity_input(user_input)
                 return await self._determine_next_step()
 
         # Use dedicated heater+cooler schema with advanced settings in collapsible section
@@ -463,13 +466,9 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
                     user_input.update(advanced_settings)
 
             if not await self._validate_basic_config(user_input):
-                heater = user_input.get(CONF_HEATER)
-                sensor = user_input.get(CONF_SENSOR)
-
-                if heater and sensor and heater == sensor:
-                    errors["base"] = "same_heater_sensor"
+                errors = self._entity_errors(user_input)
             else:
-                self.collected_config.update(user_input)
+                self._collect_entity_input(user_input)
                 return await self._determine_next_step()
 
         # Use dedicated heat pump schema with advanced settings in collapsible section
@@ -492,13 +491,9 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             if not await self._validate_basic_config(user_input):
-                heater = user_input.get(CONF_HEATER)
-                sensor = user_input.get(CONF_SENSOR)
-
-                if heater and sensor and heater == sensor:
-                    errors["base"] = "same_heater_sensor"
+                errors = self._entity_errors(user_input)
             else:
-                self.collected_config.update(user_input)
+                self._collect_entity_input(user_input)
                 return await self.async_step_dual_stage_config()
 
         # Use grouped schema merged with base schema for better UI organization
@@ -556,6 +551,14 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
     ) -> FlowResult:
         """Handle openings toggle configuration."""
         return await self.openings_steps.async_step_toggle(
+            self, user_input, self.collected_config, self._determine_next_step
+        )
+
+    async def async_step_climate_control(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Choose how climate-backed devices are controlled."""
+        return await self.climate_control_steps.async_step_config(
             self, user_input, self.collected_config, self._determine_next_step
         )
 
@@ -622,7 +625,7 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(
             step_id="fan",
-            data_schema=get_fan_schema(hass=self.hass),
+            data_schema=get_fan_schema(hass=self.hass, defaults=self.collected_config),
         )
 
     async def async_step_humidity(
@@ -703,9 +706,15 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
             self, user_input, self.collected_config
         )
 
+    def _collect_entity_input(self, user_input: dict[str, Any]) -> None:
+        """Store an entity step's input; an emptied optional sensor is removed."""
+        if CONF_SENSOR not in user_input:
+            self.collected_config.pop(CONF_SENSOR, None)
+        self.collected_config.update(user_input)
+
     async def _validate_basic_config(self, user_input: dict[str, Any]) -> bool:
         """Validate basic configuration."""
-        return EntityValidator.validate_basic_config(user_input)
+        return not self._entity_errors(user_input)
 
     async def _determine_next_step(self) -> FlowResult:
         """Determine the next step based on configuration dependencies.
@@ -716,6 +725,18 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
         3. Feature configuration must be ordered based on dependencies
         """
         system_type = self.collected_config.get("system_type")
+
+        # Climate-backed devices: part of basic entity configuration, so it comes
+        # before features, openings and presets (step_ordering.md). Drop what no
+        # longer applies to the chosen roles first.
+        self.collected_config = drop_inapplicable(self.collected_config)
+        if (
+            climate_control_keys(self.collected_config)
+            and "climate_control_shown" not in self.collected_config
+        ):
+            self.collected_config["climate_control_shown"] = True
+            return await self.async_step_climate_control()
+
         # Show features configuration for all systems (when not already shown)
         if "features_shown" not in self.collected_config:
             self.collected_config["features_shown"] = True

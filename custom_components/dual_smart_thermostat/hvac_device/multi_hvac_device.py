@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 import logging
 from typing import Callable
 
@@ -102,7 +103,8 @@ class MultiHvacDevice(HVACDevice, ControlableHVACDevice):
         for device in self.hvac_devices:
             device_ids += device.get_device_ids()
 
-        return device_ids
+        # One entity can back several roles; listen to it once.
+        return list(dict.fromkeys(device_ids))
 
     def set_initial_hvac_mode(self, initial_hvac_mode: HVACMode):
         if initial_hvac_mode in self.hvac_modes:
@@ -144,6 +146,12 @@ class MultiHvacDevice(HVACDevice, ControlableHVACDevice):
                 device.hvac_mode = hvac_mode
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode):
+        # The pass belongs to the device: whoever calls, a role stop on a shared
+        # climate waits for the end of the run (passes nest).
+        async with self.control_pass():
+            await self._async_set_hvac_mode(hvac_mode)
+
+    async def _async_set_hvac_mode(self, hvac_mode: HVACMode):
         _LOGGER.info(
             "Attempting to set hvac mode to %s of %s", hvac_mode, self.hvac_modes
         )
@@ -174,6 +182,10 @@ class MultiHvacDevice(HVACDevice, ControlableHVACDevice):
         _LOGGER.info("Hvac mode set to %s", self._hvac_mode)
 
     async def async_control_hvac(self, time=None, force: bool = False):
+        async with self.control_pass():
+            await self._async_control_hvac(time, force)
+
+    async def _async_control_hvac(self, time=None, force: bool = False):
         _LOGGER.debug(
             "Controlling hvac %s, time: %s, force: %s", self._hvac_mode, time, force
         )
@@ -190,10 +202,13 @@ class MultiHvacDevice(HVACDevice, ControlableHVACDevice):
         # heater wrapper and a cooler wrapper may hold the same fan, and
         # stopping one would switch that fan off (#637).
         in_use = {
-            entity_id
+            port.entity_id
             for device in self.hvac_devices
             if self.hvac_mode in device.hvac_modes
-            for entity_id in device.get_device_ids()
+            for port in device.ports()
+            # A climate's stop is scoped to the role's own mode, so sharing one
+            # needs no protection (and would leave it in the old mode).
+            if not port.role_scoped
         }
 
         for device in self.hvac_devices:
@@ -216,10 +231,49 @@ class MultiHvacDevice(HVACDevice, ControlableHVACDevice):
     async def async_turn_off(self):
         await self.async_turn_off_all(time=None)
 
+    async def async_keep_alive_off(self) -> None:
+        # A wrapper is not stopped by a tick: each sub-device decides for itself
+        # (a switch resends turn_off, a climate is left alone).
+        for device in self.hvac_devices:
+            await device.async_keep_alive_off()
+
+    def release(self) -> None:
+        for device in self.hvac_devices:
+            device.release()
+
+    def ports(self) -> list:
+        return [port for device in self.hvac_devices for port in device.ports()]
+
+    @asynccontextmanager
+    async def control_pass(self):
+        """Hold back the role stops on shared climates until the run is over.
+
+        A climate holds one mode, so setting a role's mode replaces the previous
+        one. Stopping the old role first only adds a turn_off that a real device
+        can apply after the new mode. Within a run the stops are collected; at the
+        end they are sent only if no mode was set meanwhile and the climate is
+        still in the stopped role's mode. Passes nest.
+        """
+        ports = [port for port in self.ports() if port.role_scoped]
+        for port in ports:
+            port.begin_pass()
+        try:
+            yield
+        finally:
+            for port in ports:
+                await port.end_pass()
+
+    async def async_stop(self, *, keep_alive: bool = False):
+        for device in self.hvac_devices:
+            await device.async_stop(keep_alive=keep_alive)
+
     async def async_turn_off_all(self, time):
         for device in self.hvac_devices:
-            if device.is_active or time is not None:
-                await device.async_turn_off()
+            if time is not None:
+                # A keep-alive tick: one turn_off, whether or not it looks active.
+                await device.async_keep_alive_off()
+            else:
+                await device.async_stop()
 
     async def _async_check_device_initial_state(self) -> None:
         """Child devices on_startup handles this."""

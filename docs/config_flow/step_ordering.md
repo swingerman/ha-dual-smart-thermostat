@@ -27,7 +27,7 @@ The presets configuration steps (`preset_selection`, `presets`) must always be t
 
 When adding or modifying feature configuration steps, ensure they are ordered logically:
 
-1. **System type and basic entity configuration** (heater, cooler, sensor)
+1. **System type and basic entity configuration** (heater, cooler, sensor; including the `climate_control` step when a device is a climate entity)
 2. **Core feature toggles** (floor heating, fan, humidity)
 3. **Feature-specific configuration steps**
 4. **Openings configuration** (depends on system type and entities)

@@ -4,10 +4,12 @@ import logging
 import math
 
 from homeassistant.components.climate import (
+    ATTR_CURRENT_TEMPERATURE,
     ATTR_TARGET_TEMP_HIGH,
     ATTR_TARGET_TEMP_LOW,
     DEFAULT_MAX_TEMP,
     DEFAULT_MIN_TEMP,
+    DOMAIN as CLIMATE_DOMAIN,
 )
 from homeassistant.components.climate.const import PRESET_NONE, HVACMode
 from homeassistant.components.humidifier import ATTR_HUMIDITY
@@ -93,6 +95,28 @@ def _rothfusz_heat_index_f(t_f: float, rh: float) -> float:
         + 0.00085282 * t_f * rh * rh
         - 0.00000199 * t_f * t_f * rh * rh
     )
+
+
+def temperature_reading(state: State) -> float | None:
+    """The one rule for "is this state a temperature reading".
+
+    A sensor's reading is its state; a climate's is its `current_temperature`
+    attribute, and a climate without one has no reading (None). Used both to
+    update the temperature and to feed the stale-sensor watchdog, so a state
+    that is not a reading can never count as the sensor reporting.
+    Raises ValueError for a value that is not a finite number.
+    """
+    raw = (
+        state.attributes.get(ATTR_CURRENT_TEMPERATURE)
+        if state.domain == CLIMATE_DOMAIN
+        else state.state
+    )
+    if raw is None:
+        return None
+    reading = float(raw)
+    if not math.isfinite(reading):
+        raise ValueError(f"Sensor has illegal state {raw}")
+    return reading
 
 
 class EnvironmentManager(StateManager):
@@ -612,16 +636,32 @@ class EnvironmentManager(StateManager):
             return True
         return False
 
+    def is_new_reading(self, state: State | None) -> bool:
+        """Whether a sensor state is a new temperature reading.
+
+        A climate used as the temperature source also reports every command we
+        send it (and attribute changes). Only a new reading counts as the sensor
+        reporting; otherwise our own commands would keep the stale watchdog fed
+        and an echo would end a stall. A plain sensor only fires on a change.
+        """
+        if state is None or state.domain != CLIMATE_DOMAIN:
+            return True
+        try:
+            reading = temperature_reading(state)
+        except ValueError:
+            return False
+        return reading is not None and reading != self._cur_temp
+
     @callback
     def update_temp_from_state(self, state: State) -> None:
-        """Update thermostat with latest state from sensor."""
+        """Update thermostat with latest state from sensor (or climate entity)."""
         try:
-            cur_temp = float(state.state)
-            if not math.isfinite(cur_temp):
-                raise ValueError(f"Sensor has illegal state {state.state}")
-            self._cur_temp = cur_temp
+            cur_temp = temperature_reading(state)
         except ValueError as ex:
             _LOGGER.error("Unable to update from sensor: %s", ex)
+            return
+        if cur_temp is not None:
+            self._cur_temp = cur_temp
 
     @callback
     def update_floor_temp_from_state(self, state: State):

@@ -1,0 +1,47 @@
+# Climate entities as devices (issue #281)
+# Any heater, cooler, fan or dryer may be a climate.* entity. Generic ids only.
+
+climate:
+  # Mixed room: climate cooler, smart-plug heater.
+  - platform: dual_smart_thermostat
+    name: Bedroom
+    heater: switch.bedroom_heater_plug
+    cooler: climate.bedroom_ac
+    target_sensor: sensor.bedroom_temperature
+    min_cycle_duration:
+      minutes: 5
+    openings:
+      - binary_sensor.bedroom_window
+
+  # Standalone AC in every role. No target_sensor: the AC's own temperature is
+  # used. Offsets are added to the target sent to the AC per role.
+  # (The AC is the temperature source here.)
+  - platform: dual_smart_thermostat
+    name: Office
+    heater: climate.office_ac
+    cooler: climate.office_ac
+    fan: climate.office_ac
+    dryer: climate.office_ac
+    humidity_sensor: sensor.office_humidity
+    heater_setpoint_offset: 1
+    cooler_setpoint_offset: -2
+
+  # AC regulates itself; the thermostat mirrors target, presets and windows.
+  - platform: dual_smart_thermostat
+    name: Living room
+    cooler: climate.living_room_ac
+    heater: switch.living_room_radiator
+    target_sensor: sensor.living_room_temperature
+    control_style: setpoint
+    cooler_setpoint_offset: -2
+    follow_device_changes: true  # default: a change on the AC's remote is adopted
+    openings:
+      - binary_sensor.living_room_window
+
+  # AC as the temperature source: switch heater and no target_sensor, so the
+  # AC's own current_temperature is the room temperature (also used by the
+  # stale-sensor protection).
+  - platform: dual_smart_thermostat
+    name: Guest room
+    heater: switch.guest_room_heater
+    cooler: climate.guest_room_ac

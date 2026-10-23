@@ -445,3 +445,44 @@ async def test_reconfigure_heater_cooler_preserves_data(heater_cooler_entry):
         assert flow.collected_config[CONF_NAME] == "Heater Cooler"
         assert flow.collected_config[CONF_HEATER] == "switch.heater"
         assert flow.collected_config[CONF_COOLER] == "switch.cooler"
+
+
+async def test_reconfigure_from_climate_to_switches_drops_climate_keys():
+    """Reconfiguring a climate cooler into a switch leaves no climate keys behind."""
+    entry = Mock()
+    entry.entry_id = "test_heater_cooler_climate"
+    entry.data = {
+        CONF_NAME: "Heater Cooler",
+        CONF_SYSTEM_TYPE: SYSTEM_TYPE_HEATER_COOLER,
+        CONF_HEATER: "switch.h",
+        CONF_COOLER: "climate.ac",
+        "control_style": "setpoint",
+        "follow_device_changes": False,
+        "heater_setpoint_offset": 1.0,
+        "cooler_setpoint_offset": 2.0,
+    }
+    flow = ConfigFlowHandler()
+    flow.hass = Mock()
+
+    with patch.object(
+        type(flow), "source", new_callable=PropertyMock, return_value=SOURCE_RECONFIGURE
+    ):
+        flow._get_reconfigure_entry = Mock(return_value=entry)
+        await flow.async_step_reconfigure()
+        await flow.async_step_reconfigure_confirm(
+            {CONF_SYSTEM_TYPE: SYSTEM_TYPE_HEATER_COOLER}
+        )
+        result = await flow.async_step_heater_cooler(
+            {
+                CONF_NAME: "Heater Cooler",
+                CONF_HEATER: "switch.h",
+                CONF_COOLER: "switch.c",
+                CONF_SENSOR: "sensor.t",
+            }
+        )
+
+    assert result["step_id"] == "features"
+    assert "control_style" not in flow.collected_config
+    assert "follow_device_changes" not in flow.collected_config
+    assert "heater_setpoint_offset" not in flow.collected_config
+    assert "cooler_setpoint_offset" not in flow.collected_config

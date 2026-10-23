@@ -5,9 +5,9 @@ import logging
 from typing import Callable
 
 from homeassistant.components.climate import HVACMode
-from homeassistant.core import HomeAssistant
 
 from ..hvac_action_reason.hvac_action_reason import HVACActionReason
+from ..hvac_device.entity_port import EntityPort
 from ..managers.environment_manager import EnvironmentManager
 from ..managers.opening_manager import OpeningManager
 
@@ -38,6 +38,24 @@ class HvacEnvStrategy:
         self.goal_not_reached_reason = goal_not_reached_reason
         self.goal = goal
 
+    @classmethod
+    def self_regulating(cls, goal, goal_reached_reason, goal_not_reached_reason):
+        """Strategy for a device that regulates itself: goal never reached.
+
+        The controller then keeps the device engaged and only lets openings and
+        floor limits pause it. `above`/`below` are positional the way devices
+        build them: RAISE reads `below()` for reached and `above()` for
+        not-reached, LOWER the other way round.
+        """
+        raise_goal = goal == HvacGoal.RAISE
+        return cls(
+            lambda: raise_goal,
+            lambda: not raise_goal,
+            goal_reached_reason,
+            goal_not_reached_reason,
+            goal,
+        )
+
     @property
     def hvac_goal_reached(self) -> bool:
         _LOGGER.debug(
@@ -60,8 +78,7 @@ class HvacEnvStrategy:
 class HvacController(ABC):
     """Abstract class for controlling an HVAC device."""
 
-    hass: HomeAssistant
-    entity_id: str
+    port: EntityPort
     min_cycle_duration: timedelta
     _hvac_action_reason: HVACActionReason
     _environment: EnvironmentManager
@@ -71,8 +88,7 @@ class HvacController(ABC):
 
     def __init__(
         self,
-        hass: HomeAssistant,
-        entity_id,
+        port: EntityPort,
         min_cycle_duration: timedelta,
         environment: EnvironmentManager,
         openings: OpeningManager,
@@ -81,8 +97,7 @@ class HvacController(ABC):
     ) -> None:
         self._controller_type = self.__class__.__name__
 
-        self.hass = hass
-        self.entity_id = entity_id
+        self.port = port
         self.min_cycle_duration = min_cycle_duration
         self._environment = environment
         self._openings = openings
@@ -90,6 +105,10 @@ class HvacController(ABC):
         self.async_turn_off_callback = turn_off_callback
 
         self._hvac_action_reason = HVACActionReason.NONE
+
+    @property
+    def entity_id(self) -> str:
+        return self.port.entity_id
 
     @property
     def hvac_action_reason(self) -> HVACActionReason:

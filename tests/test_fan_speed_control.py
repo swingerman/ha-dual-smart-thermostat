@@ -13,7 +13,13 @@ from custom_components.dual_smart_thermostat.const import (
     FAN_MODE_TO_PERCENTAGE,
     PERCENTAGE_TO_FAN_MODE,
 )
+from custom_components.dual_smart_thermostat.hvac_device.climate_child import (
+    acquire_climate_child,
+)
 from custom_components.dual_smart_thermostat.hvac_device.fan_device import FanDevice
+from custom_components.dual_smart_thermostat.hvac_device.fan_speed import (
+    FanSpeedControl,
+)
 from custom_components.dual_smart_thermostat.managers.environment_manager import (
     EnvironmentManager,
 )
@@ -26,6 +32,7 @@ from custom_components.dual_smart_thermostat.managers.hvac_power_manager import 
 from custom_components.dual_smart_thermostat.managers.opening_manager import (
     OpeningManager,
 )
+from tests import common
 
 
 def setup_fan_services(hass: HomeAssistant) -> list:
@@ -117,10 +124,10 @@ async def test_fan_device_detects_preset_modes(hass: HomeAssistant):
     )
 
     # Check detection
-    assert fan_device.supports_fan_mode is True
-    assert fan_device.fan_modes == ["auto", "low", "medium", "high"]
-    assert fan_device.uses_preset_modes is True
-    assert fan_device.current_fan_mode == "auto"
+    assert fan_device.speed.supports_fan_mode is True
+    assert fan_device.speed.fan_modes == ["auto", "low", "medium", "high"]
+    assert fan_device.speed.uses_preset_modes is True
+    assert fan_device.speed.current_fan_mode == "auto"
 
 
 @pytest.mark.asyncio
@@ -151,9 +158,9 @@ async def test_fan_device_detects_percentage_support(hass: HomeAssistant):
         hvac_power,
     )
 
-    assert fan_device.supports_fan_mode is True
-    assert fan_device.fan_modes == ["auto", "low", "medium", "high"]
-    assert fan_device.uses_preset_modes is False
+    assert fan_device.speed.supports_fan_mode is True
+    assert fan_device.speed.fan_modes == ["auto", "low", "medium", "high"]
+    assert fan_device.speed.uses_preset_modes is False
 
 
 @pytest.mark.asyncio
@@ -178,12 +185,12 @@ async def test_fan_device_switch_no_speed_control(hass: HomeAssistant):
         hvac_power,
     )
 
-    assert fan_device.supports_fan_mode is False
-    assert fan_device.fan_modes == []
+    assert fan_device.speed.supports_fan_mode is False
+    assert fan_device.speed.fan_modes == []
 
     # A switch can never gain speed control, so re-detection changes nothing.
     assert (
-        fan_device.redetect_capabilities(
+        fan_device.speed.redetect_capabilities(
             "switch.test_fan", hass.states.get("switch.test_fan")
         )
         is False
@@ -210,8 +217,8 @@ async def test_fan_device_missing_entity_no_speed_control(hass: HomeAssistant):
         hvac_power,
     )
 
-    assert fan_device.supports_fan_mode is False
-    assert fan_device.fan_modes == []
+    assert fan_device.speed.supports_fan_mode is False
+    assert fan_device.speed.fan_modes == []
 
 
 @pytest.mark.asyncio
@@ -244,10 +251,10 @@ async def test_set_fan_mode_invalid_mode(hass: HomeAssistant):
     )
 
     # Try to set invalid mode
-    await fan_device.async_set_fan_mode("invalid")
+    await fan_device.speed.async_set_fan_mode("invalid")
 
     # State should not change
-    assert fan_device.current_fan_mode == "auto"  # Still the initial mode
+    assert fan_device.speed.current_fan_mode == "auto"  # Still the initial mode
 
 
 @pytest.mark.asyncio
@@ -273,13 +280,13 @@ async def test_set_fan_mode_unsupported_device(hass: HomeAssistant):
     )
 
     # Device should not support fan mode
-    assert fan_device.supports_fan_mode is False
+    assert fan_device.speed.supports_fan_mode is False
 
     # Try to set fan mode - should do nothing
-    await fan_device.async_set_fan_mode("low")
+    await fan_device.speed.async_set_fan_mode("low")
 
     # State should remain None
-    assert fan_device.current_fan_mode is None
+    assert fan_device.speed.current_fan_mode is None
 
 
 @pytest.mark.asyncio
@@ -315,8 +322,8 @@ async def test_turn_on_applies_fan_mode_preset(hass: HomeAssistant):
     )
 
     # Set a fan mode
-    await fan_device.async_set_fan_mode("medium")
-    assert fan_device.current_fan_mode == "medium"
+    await fan_device.speed.async_set_fan_mode("medium")
+    assert fan_device.speed.current_fan_mode == "medium"
 
     # Clear previous calls
     calls.clear()
@@ -371,8 +378,8 @@ async def test_turn_on_applies_fan_mode_percentage(hass: HomeAssistant):
     )
 
     # Set a fan mode
-    await fan_device.async_set_fan_mode("low")
-    assert fan_device.current_fan_mode == "low"
+    await fan_device.speed.async_set_fan_mode("low")
+    assert fan_device.speed.current_fan_mode == "low"
 
     # Clear previous calls
     calls.clear()
@@ -428,7 +435,7 @@ async def test_turn_on_without_fan_mode_set(hass: HomeAssistant):
     )
 
     # Don't set any fan mode - just turn on
-    assert fan_device.current_fan_mode is None
+    assert fan_device.speed.current_fan_mode is None
 
     # Turn on the fan
     await fan_device.async_turn_on()
@@ -525,7 +532,7 @@ async def test_turn_on_handles_fan_mode_service_failure_preset(
     )
 
     # Set a fan mode (this will succeed, just sets internal state)
-    fan_device._current_fan_mode = "medium"
+    fan_device.speed.current_fan_mode = "medium"
 
     # Turn on should not raise exception even though set_preset_mode fails
     with caplog.at_level(logging.WARNING):
@@ -587,7 +594,7 @@ async def test_turn_on_handles_fan_mode_service_failure_percentage(
     )
 
     # Set a fan mode (this will succeed, just sets internal state)
-    fan_device._current_fan_mode = "low"
+    fan_device.speed.current_fan_mode = "low"
 
     # Turn on should not raise exception even though set_percentage fails
     with caplog.at_level(logging.WARNING):
@@ -642,7 +649,7 @@ async def test_feature_manager_supports_fan_mode_with_preset_modes(hass: HomeAss
     )
 
     # Set the fan_device on FeatureManager (simulating what the device factory would do)
-    features.set_fan_device(fan_device)
+    features.set_fan_speed(fan_device.speed)
 
     # Check that FeatureManager reports support
     assert features.supports_fan_mode is True
@@ -687,7 +694,7 @@ async def test_feature_manager_supports_fan_mode_with_percentage(hass: HomeAssis
     )
 
     # Set the fan_device on FeatureManager
-    features.set_fan_device(fan_device)
+    features.set_fan_speed(fan_device.speed)
 
     # Check that FeatureManager reports support
     assert features.supports_fan_mode is True
@@ -726,7 +733,7 @@ async def test_feature_manager_no_fan_mode_support_switch(hass: HomeAssistant):
     )
 
     # Set the fan_device on FeatureManager
-    features.set_fan_device(fan_device)
+    features.set_fan_speed(fan_device.speed)
 
     # Check that FeatureManager reports no support
     assert features.supports_fan_mode is False
@@ -1884,12 +1891,12 @@ async def test_late_fan_ignores_other_entities(hass: HomeAssistant):
         "fan.late_fan", "off", {"preset_modes": ["quiet"], "preset_mode": "quiet"}
     )
     assert (
-        fan_device.redetect_capabilities(
+        fan_device.speed.redetect_capabilities(
             "switch.heater", hass.states.get("fan.late_fan")
         )
         is False
     )
-    assert fan_device.supports_fan_mode is False
+    assert fan_device.speed.supports_fan_mode is False
 
 
 @pytest.mark.asyncio
@@ -1907,8 +1914,8 @@ async def test_restored_fan_mode_applied_when_entity_appears_late(hass: HomeAssi
     )
 
     # Restore runs at startup, before the entity is available
-    fan_device.restore_fan_mode("boost")
-    assert fan_device.current_fan_mode is None
+    fan_device.speed.restore_fan_mode("boost")
+    assert fan_device.speed.current_fan_mode is None
 
     hass.states.async_set(
         "fan.late_fan",
@@ -1916,14 +1923,14 @@ async def test_restored_fan_mode_applied_when_entity_appears_late(hass: HomeAssi
         {"preset_modes": ["quiet", "boost"], "preset_mode": "quiet"},
     )
     assert (
-        fan_device.redetect_capabilities(
+        fan_device.speed.redetect_capabilities(
             "fan.late_fan", hass.states.get("fan.late_fan")
         )
         is True
     )
 
-    assert fan_device.fan_modes == ["quiet", "boost"]
-    assert fan_device.current_fan_mode == "boost"
+    assert fan_device.speed.fan_modes == ["quiet", "boost"]
+    assert fan_device.speed.current_fan_mode == "boost"
 
 
 @pytest.mark.asyncio
@@ -1981,3 +1988,130 @@ async def test_climate_gains_fan_mode_when_fan_entity_appears_late(
     state = hass.states.get("climate.test")
     assert state.attributes.get("supported_features") & ClimateEntityFeature.FAN_MODE
     assert set(state.attributes.get("fan_modes")) == {"quiet", "boost"}
+
+
+@pytest.mark.asyncio
+async def test_fan_speed_control_detects_fan_presets_without_a_device(
+    hass: HomeAssistant,
+):
+    """The control stands alone: no FanDevice needed to detect a fan's presets."""
+    hass.states.async_set(
+        "fan.test_fan",
+        "off",
+        {"preset_modes": ["auto", "low"], "preset_mode": "auto"},
+    )
+
+    speed = FanSpeedControl(hass, "fan.test_fan")
+
+    assert speed.supports_fan_mode is True
+    assert speed.fan_modes == ["auto", "low"]
+    assert speed.current_fan_mode == "auto"
+
+
+@pytest.mark.asyncio
+async def test_fan_device_exposes_its_speed_control(hass: HomeAssistant):
+    """FanDevice delegates its speed members to one FanSpeedControl."""
+    hass.states.async_set("fan.test_fan", "off", {"percentage": 0})
+    fan_device = FanDevice(
+        hass,
+        "fan.test_fan",
+        timedelta(seconds=5),
+        HVACMode.FAN_ONLY,
+        MagicMock(spec=EnvironmentManager),
+        MagicMock(spec=OpeningManager),
+        MagicMock(spec=FeatureManager),
+        MagicMock(spec=HvacPowerManager),
+    )
+
+    assert isinstance(fan_device.speed, FanSpeedControl)
+
+
+@pytest.mark.asyncio
+async def test_climate_fan_modes_are_used_verbatim(hass: HomeAssistant):
+    """A climate's own fan_modes are the modes: no mapping to low/medium/high."""
+    await common.add_fake_climate(hass, "climate.test_ac", fan_mode="quiet")
+
+    speed = FanSpeedControl(hass, "climate.test_ac")
+
+    assert speed.supports_fan_mode is True
+    assert speed.fan_modes == ["quiet", "strong", "auto"]
+    assert speed.current_fan_mode == "quiet"
+
+
+@pytest.mark.asyncio
+async def test_climate_without_fan_modes_has_no_speed_control(hass: HomeAssistant):
+    """A climate that lists no fan modes gets no speed control."""
+    hass.states.async_set("climate.bare", "off", {"hvac_modes": ["off", "cool"]})
+
+    assert FanSpeedControl(hass, "climate.bare").supports_fan_mode is False
+
+
+@pytest.mark.asyncio
+async def test_climate_speed_is_set_with_climate_set_fan_mode(hass: HomeAssistant):
+    """The speed goes out through climate.set_fan_mode."""
+    child = await common.add_fake_climate(hass, "climate.test_ac", HVACMode.COOL)
+    speed = FanSpeedControl(hass, "climate.test_ac")
+    acquire_climate_child(hass, "climate.test_ac")  # what a role port holds
+
+    await speed.async_set_fan_mode("strong")
+
+    assert ("set_fan_mode", {"fan_mode": "strong"}) in child.calls
+    assert speed.current_fan_mode == "strong"
+
+
+@pytest.mark.asyncio
+async def test_climate_speed_outside_the_childs_modes_is_refused(
+    hass: HomeAssistant, caplog
+):
+    """A mode the child does not list is logged and not sent."""
+    child = await common.add_fake_climate(hass, "climate.test_ac")
+    speed = FanSpeedControl(hass, "climate.test_ac")
+    acquire_climate_child(hass, "climate.test_ac")  # what a role port holds
+
+    await speed.async_set_fan_mode("turbo")
+
+    assert child.calls == []
+    assert "Invalid fan mode" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_climate_speed_already_set_is_not_resent(hass: HomeAssistant):
+    """A child that already reports the speed is not told again."""
+    child = await common.add_fake_climate(hass, "climate.test_ac", fan_mode="strong")
+    speed = FanSpeedControl(hass, "climate.test_ac")
+    acquire_climate_child(hass, "climate.test_ac")  # what a role port holds
+
+    await speed.async_set_fan_mode("strong")
+
+    assert child.calls == []
+
+
+@pytest.mark.asyncio
+async def test_climate_fan_modes_keep_their_case(hass: HomeAssistant):
+    """The child's modes pass through verbatim, whatever their case."""
+    hass.states.async_set(
+        "climate.cased",
+        "cool",
+        {"fan_modes": ["Quiet", "Strong"], "fan_mode": "Quiet"},
+    )
+
+    speed = FanSpeedControl(hass, "climate.cased")
+    acquire_climate_child(hass, "climate.cased")  # what a role port holds
+
+    assert speed.fan_modes == ["Quiet", "Strong"]
+    assert speed.current_fan_mode == "Quiet"
+
+
+@pytest.mark.asyncio
+async def test_assumed_state_child_that_is_off_is_not_sent_a_fan_speed(
+    hass: HomeAssistant,
+):
+    """An IR frame can power an AC on: an off (assumed) child gets no speed now."""
+    child = await common.add_fake_climate(hass, "climate.test_ir", assumed=True)
+    speed = FanSpeedControl(hass, "climate.test_ir")
+    acquire_climate_child(hass, "climate.test_ir")  # what a role port holds
+
+    await speed.async_set_fan_mode("strong")
+
+    assert child.calls == []
+    assert speed.current_fan_mode == "strong"  # recorded for the next turn on

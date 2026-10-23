@@ -4,6 +4,7 @@ import logging
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.typing import ConfigType
 
+from ..climate_roles import first_climate_role, may_share_entity
 from ..const import (
     CONF_AUX_HEATER,
     CONF_AUX_HEATING_DUAL_MODE,
@@ -22,6 +23,7 @@ from ..hvac_device.cooler_device import CoolerDevice
 from ..hvac_device.cooler_fan_device import CoolerFanDevice
 from ..hvac_device.dryer_device import DryerDevice
 from ..hvac_device.fan_device import FanDevice
+from ..hvac_device.fan_speed import FanSpeedControl
 from ..hvac_device.heat_pump_device import HeatPumpDevice
 from ..hvac_device.heater_aux_heater_device import HeaterAUXHeaterDevice
 from ..hvac_device.heater_cooler_device import HeaterCoolerDevice
@@ -43,12 +45,16 @@ class HVACDeviceFactory:
     ) -> None:
 
         self.hass = hass
+        self._config = config
         self._features = features
 
         self._heater_entity_id = config[CONF_HEATER]
         self._cooler_entity_id = None
         if cooler_entity_id := config.get(CONF_COOLER):
-            if cooler_entity_id == self._heater_entity_id:
+            # One climate entity may fill several roles; switches may not.
+            if cooler_entity_id == self._heater_entity_id and not may_share_entity(
+                cooler_entity_id
+            ):
                 _LOGGER.warning(
                     "'cooler' entity cannot be equal to 'heater' entity. "
                     "'cooler' entity will be ignored"
@@ -70,6 +76,14 @@ class HVACDeviceFactory:
         self._min_cycle_duration: timedelta = config.get(CONF_MIN_DUR)
 
         self._initial_hvac_mode = config.get(CONF_INITIAL_HVAC_MODE)
+
+    def _select_fan_speed(self, fan_device: FanDevice | None) -> FanSpeedControl | None:
+        """The one entity that owns fan_mode: the fan device if there is one,
+        otherwise the first climate role, otherwise nobody."""
+        if fan_device is not None:
+            return fan_device.speed
+        source = first_climate_role(self._config)
+        return FanSpeedControl(self.hass, source, self._features) if source else None
 
     def create_device(
         self,
@@ -223,8 +237,7 @@ class HVACDeviceFactory:
 
         # Set fan device on feature manager for speed control access
         # This must be done before returning any device
-        if fan_device:
-            self._features.set_fan_device(fan_device)
+        self._features.set_fan_speed(self._select_fan_speed(fan_device))
 
         if heater_device is not None and cooler_device is not None:
             _LOGGER.info("Creating heater cooler device")

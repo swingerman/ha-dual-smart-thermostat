@@ -60,6 +60,16 @@ class ConfigValidator:
             ("heater", "cooler", "Heater and cooler must be different entities"),
         ]
 
+        # Climate-backed devices: options that need a climate role, and the roles
+        # whose entity may be a climate (mirrors climate_roles.py: CLIMATE_ROLE_KEYS
+        # and CLIMATE_OPTION_KEYS; the offsets have their own role, see below).
+        self.climate_role_keys = ["heater", "cooler", "fan", "dryer"]
+        self.climate_role_parameters = ["control_style", "follow_device_changes"]
+        self.climate_offset_parameters = [
+            "heater_setpoint_offset",
+            "cooler_setpoint_offset",
+        ]
+
         self.overrides = [
             ("cooler", "ac_mode", "AC mode is ignored when cooler is defined"),
         ]
@@ -84,6 +94,9 @@ class ConfigValidator:
                         f"Parameter '{param}' requires '{required_param}' to be configured"
                     )
 
+        # Climate-backed device options need a climate role
+        errors.extend(self._climate_errors(config))
+
         # Check conflicts
         for param1, param2, message in self.conflicts:
             if (
@@ -92,7 +105,10 @@ class ConfigValidator:
                 and config[param1] is not None
                 and config[param2] is not None
             ):
-                if config[param1] == config[param2]:
+                # A climate entity may legitimately fill several roles
+                if config[param1] == config[param2] and not self._is_climate(
+                    config[param1]
+                ):
                     errors.append(
                         f"Conflict: {message} (both set to '{config[param1]}')"
                     )
@@ -109,6 +125,83 @@ class ConfigValidator:
 
         return len(errors) == 0, errors, warnings
 
+    @staticmethod
+    def _is_climate(value: Any) -> bool:
+        return str(value or "").startswith("climate.")
+
+    def _climate_errors(self, config: dict[str, Any]) -> list[str]:
+        """Rules for climate-backed devices (the same ones climate_roles.py applies)."""
+        errors = []
+
+        def is_climate(key: str) -> bool:
+            return self._is_climate(config.get(key))
+
+        has_climate_role = any(is_climate(key) for key in self.climate_role_keys)
+
+        for param in self.climate_role_parameters:
+            if config.get(param) is not None and not has_climate_role:
+                errors.append(
+                    f"Parameter '{param}' requires heater, cooler, fan or dryer "
+                    "to be a climate entity"
+                )
+
+        ac_only = bool(config.get("ac_mode")) and not config.get("cooler")
+        heat_pump = bool(config.get("heat_pump_cooling"))
+        offset_ok = {
+            "heater_setpoint_offset": is_climate("heater")
+            and (not ac_only or heat_pump),
+            "cooler_setpoint_offset": is_climate("cooler")
+            or (is_climate("heater") and (ac_only or heat_pump)),
+        }
+        for param, ok in offset_ok.items():
+            if config.get(param) is not None and not ok:
+                errors.append(
+                    f"Parameter '{param}' requires its own role to be a climate entity"
+                )
+
+        if (
+            config.get("control_style") == "setpoint"
+            and has_climate_role
+            and not (is_climate("heater") or is_climate("cooler"))
+        ):
+            errors.append(
+                "Parameter 'control_style: setpoint' needs heater or cooler to be a "
+                "climate entity"
+            )
+        if (
+            config.get("control_style") == "setpoint"
+            and heat_pump
+            and is_climate("heater")
+        ):
+            errors.append(
+                "Parameter 'control_style: setpoint' is not supported for a climate "
+                "heat pump"
+            )
+        if (
+            config.get("control_style") == "setpoint"
+            and is_climate("heater")
+            and config.get("heater") == config.get("cooler")
+            and (
+                config.get("heat_cool_mode")
+                or (
+                    config.get("target_temp_low") is not None
+                    and config.get("target_temp_high") is not None
+                )
+            )
+        ):
+            errors.append(
+                "Parameter 'control_style: setpoint' cannot do heat_cool with one "
+                "climate as both heater and cooler"
+            )
+        if self._is_climate(config.get("secondary_heater")):
+            errors.append("Parameter 'secondary_heater' cannot be a climate entity")
+        if not config.get("target_sensor") and not has_climate_role:
+            errors.append(
+                "Parameter 'target_sensor' is required unless heater, cooler, fan or "
+                "dryer is a climate entity"
+            )
+        return errors
+
     def suggest_fixes(self, config: Dict[str, Any]) -> List[str]:
         """Suggest fixes for configuration issues."""
         suggestions = []
@@ -120,6 +213,9 @@ class ConfigValidator:
                     suggestions.append(
                         f"Add '{required_param}' to enable '{param}' functionality"
                     )
+
+        for error in self._climate_errors(config):
+            suggestions.append(f"Fix: {error}")
 
         return suggestions
 
@@ -167,6 +263,16 @@ class ConfigValidator:
                     "max_humidity",
                     "dry_tolerance",
                     "moist_tolerance",
+                ],
+                "configured": [],
+            },
+            "climate_devices": {
+                "enabled": any(
+                    self._is_climate(config.get(key)) for key in self.climate_role_keys
+                ),
+                "parameters": [
+                    *self.climate_role_parameters,
+                    *self.climate_offset_parameters,
                 ],
                 "configured": [],
             },

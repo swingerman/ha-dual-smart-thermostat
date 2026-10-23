@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+from homeassistant.components.climate import DOMAIN as CLIMATE_DOMAIN
 from homeassistant.const import DEGREE, PERCENTAGE, UnitOfTemperature
 from homeassistant.core import HomeAssistant
+from homeassistant.data_entry_flow import section
 from homeassistant.helpers import selector
 from homeassistant.util.unit_conversion import TemperatureConverter
+import voluptuous as vol
 
 
 def seconds_to_duration(seconds: int) -> dict[str, int]:
@@ -186,14 +189,13 @@ def get_boolean_selector() -> selector.BooleanSelector:
 def get_select_selector(
     options: list[str] | list[dict[str, str]],
     mode: selector.SelectSelectorMode = selector.SelectSelectorMode.DROPDOWN,
+    translation_key: str | None = None,
 ) -> selector.SelectSelector:
     """Get a standardized select selector."""
-    return selector.SelectSelector(
-        selector.SelectSelectorConfig(
-            options=options,
-            mode=mode,
-        )
-    )
+    config = selector.SelectSelectorConfig(options=options, mode=mode)
+    if translation_key:
+        config["translation_key"] = translation_key
+    return selector.SelectSelector(config)
 
 
 def get_multi_select_selector(
@@ -220,3 +222,30 @@ def get_text_selector(
             type=type_,
         )
     )
+
+
+def exclude_entities_from_schema(
+    schema: vol.Schema, entity_ids: list[str]
+) -> vol.Schema:
+    """A copy of the schema whose climate-capable entity selectors leave `entity_ids` out.
+
+    One place for every form of a flow, so no selector can be forgotten.
+    """
+
+    def _walk(value):
+        if isinstance(value, selector.EntitySelector):
+            domains = value.config.get("domain") or []
+            if CLIMATE_DOMAIN in ([domains] if isinstance(domains, str) else domains):
+                config = dict(value.config)
+                config["exclude_entities"] = [
+                    *config.get("exclude_entities", []),
+                    *entity_ids,
+                ]
+                return selector.EntitySelector(selector.EntitySelectorConfig(**config))
+        elif isinstance(value, section):
+            return section(_walk(value.schema), value.options)
+        elif isinstance(value, vol.Schema) and isinstance(value.schema, dict):
+            return vol.Schema({key: _walk(item) for key, item in value.schema.items()})
+        return value
+
+    return _walk(schema)

@@ -2,11 +2,10 @@ from datetime import timedelta
 import logging
 from typing import Callable
 
-from homeassistant.core import HomeAssistant
-
 from ..hvac_action_reason.hvac_action_reason import HVACActionReason
 from ..hvac_controller.generic_controller import GenericHvacController
 from ..hvac_controller.hvac_controller import HvacEnvStrategy
+from ..hvac_device.entity_port import EntityPort
 from ..managers.environment_manager import EnvironmentManager
 from ..managers.opening_manager import OpeningManager
 
@@ -17,8 +16,7 @@ class HeaterHvacConroller(GenericHvacController):
 
     def __init__(
         self,
-        hass: HomeAssistant,
-        heater_entity_id: str,
+        port: EntityPort,
         min_cycle_duration: timedelta,
         environment: EnvironmentManager,
         openings: OpeningManager,
@@ -26,8 +24,7 @@ class HeaterHvacConroller(GenericHvacController):
         turn_off_callback: Callable,
     ) -> None:
         super().__init__(
-            hass,
-            heater_entity_id,
+            port,
             min_cycle_duration,
             environment,
             openings,
@@ -54,7 +51,9 @@ class HeaterHvacConroller(GenericHvacController):
         _LOGGER.debug("_async_control_device_when_on, floor hot: %s", is_floor_hot)
         _LOGGER.debug("_async_control_device_when_on, too_hot: %s", too_hot)
 
-        if ((too_hot or is_floor_hot) or any_opening_open) and not is_floor_cold:
+        if self.stop_held_by_min_cycle(any_opening_open or is_floor_hot):
+            _LOGGER.debug("Not stopping %s: minimum cycle", self.entity_id)
+        elif ((too_hot or is_floor_hot) or any_opening_open) and not is_floor_cold:
             _LOGGER.debug("Turning off heater %s", self.entity_id)
 
             await self.async_turn_off_callback()
@@ -91,7 +90,12 @@ class HeaterHvacConroller(GenericHvacController):
         is_floor_hot = self._environment.is_floor_hot
         is_floor_cold = self._environment.is_floor_cold
 
-        if (too_cold and not any_opening_open and not is_floor_hot) or is_floor_cold:
+        if (
+            too_cold
+            and not any_opening_open
+            and not is_floor_hot
+            and not self.start_held_by_min_cycle()
+        ) or is_floor_cold:
             _LOGGER.info("Turning on heater (from inactive) %s", self.entity_id)
 
             await self.async_turn_on_callback()

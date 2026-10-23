@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from .climate_roles import normalize_climate_roles
 from .const import (
     CONF_AC_MODE,
     CONF_COLD_TOLERANCE,
@@ -93,6 +94,8 @@ def _config_dict_to_model(config: dict[str, Any]) -> ThermostatConfig:
         ValueError: If system type is unknown or configuration is invalid
         KeyError: If required fields are missing
     """
+    # target_sensor may be omitted when a climate role supplies the temperature
+    config = normalize_climate_roles(config)
     system_type = config.get("system_type", SYSTEM_TYPE_SIMPLE_HEATER)
     name = config.get("name", "Dual Smart Thermostat")
 

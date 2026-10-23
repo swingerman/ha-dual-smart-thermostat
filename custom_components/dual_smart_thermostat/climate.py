@@ -46,6 +46,7 @@ from homeassistant.core import (
     State,
     callback,
 )
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import discovery
 import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.dispatcher import async_dispatcher_connect, dispatcher_send
@@ -63,6 +64,7 @@ from homeassistant.util.unit_conversion import TemperatureConverter
 import voluptuous as vol
 
 from . import DOMAIN, PLATFORMS
+from .climate_roles import normalize_climate_roles, validate_climate_roles
 from .config_validation import validate_config_with_models
 from .const import (
     ATTR_CLOSING_TIMEOUT,
@@ -82,8 +84,10 @@ from .const import (
     CONF_AUX_HEATING_DUAL_MODE,
     CONF_AUX_HEATING_TIMEOUT,
     CONF_COLD_TOLERANCE,
+    CONF_CONTROL_STYLE,
     CONF_COOL_TOLERANCE,
     CONF_COOLER,
+    CONF_COOLER_SETPOINT_OFFSET,
     CONF_DRY_TOLERANCE,
     CONF_DRYER,
     CONF_FAN,
@@ -94,10 +98,12 @@ from .const import (
     CONF_FAN_ON_WITH_AC,
     CONF_FAN_ON_WITH_HEATER,
     CONF_FLOOR_SENSOR,
+    CONF_FOLLOW_DEVICE_CHANGES,
     CONF_HEAT_COOL_MODE,
     CONF_HEAT_PUMP_COOLING,
     CONF_HEAT_TOLERANCE,
     CONF_HEATER,
+    CONF_HEATER_SETPOINT_OFFSET,
     CONF_HOT_TOLERANCE,
     CONF_HUMIDITY_SENSOR,
     CONF_HVAC_POWER_LEVELS,
@@ -134,6 +140,7 @@ from .const import (
     MIN_CYCLE_KEEP_ALIVE,
     SET_HVAC_ACTION_REASON_SENSOR_SIGNAL,
     TIMED_OPENING_SCHEMA,
+    ControlStyle,
 )
 from .hvac_action_reason.hvac_action_reason import (
     SERVICE_SET_HVAC_ACTION_REASON,
@@ -141,6 +148,7 @@ from .hvac_action_reason.hvac_action_reason import (
     HVACActionReason,
 )
 from .hvac_action_reason.hvac_action_reason_external import HVACActionReasonExternal
+from .hvac_device.climate_follow import ClimateFollower
 from .hvac_device.controllable_hvac_device import ControlableHVACDevice
 from .hvac_device.hvac_device_factory import HVACDeviceFactory
 from .managers.auto_mode_evaluator import AutoDecision, AutoModeEvaluator
@@ -221,7 +229,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
         vol.Required(CONF_HEATER): cv.entity_id,
         vol.Optional(CONF_COOLER): cv.entity_id,
-        vol.Required(CONF_SENSOR): cv.entity_id,
+        vol.Optional(CONF_SENSOR): cv.entity_id,
         vol.Optional(CONF_STALE_DURATION): vol.All(
             cv.time_period, cv.positive_timedelta
         ),
@@ -278,11 +286,21 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(HVAC_POWER_SCHEMA)
 
 # Add the old presets schema to avoid breaking change
 # Now supports both static numbers and templates
-PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
-    {
-        vol.Optional(v): validate_template_or_number
-        for (k, v) in CONF_PRESETS_OLD.items()
-    }
+PLATFORM_SCHEMA = vol.All(
+    PLATFORM_SCHEMA.extend(
+        {
+            vol.Optional(v): validate_template_or_number
+            for (k, v) in CONF_PRESETS_OLD.items()
+        }
+    ).extend(
+        {
+            vol.Optional(CONF_CONTROL_STYLE): vol.Coerce(ControlStyle),
+            vol.Optional(CONF_FOLLOW_DEVICE_CHANGES): cv.boolean,
+            vol.Optional(CONF_HEATER_SETPOINT_OFFSET): vol.Coerce(float),
+            vol.Optional(CONF_COOLER_SETPOINT_OFFSET): vol.Coerce(float),
+        }
+    ),
+    validate_climate_roles,
 )
 
 
@@ -420,6 +438,17 @@ async def _async_setup_config(
     # Normalize config values from config flow (strings to proper types)
     # This ensures consistency between YAML config and config entry setup
     config = _normalize_config_numeric_values(config)
+
+    normalized = normalize_climate_roles(config)
+    for key in normalized.keys() | config.keys():
+        if normalized.get(key) != config.get(key):
+            _LOGGER.info(
+                "%s: %s resolved from the climate roles: %s",
+                config.get(CONF_NAME, "thermostat"),
+                key,
+                normalized.get(key),
+            )
+    config = normalized
 
     # Validate configuration using data models for type safety
     if not validate_config_with_models(config):
@@ -582,6 +611,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self._remove_humidity_stale_tracking: Callable[[], None] | None = None
         self._remove_outside_stale_tracking: Callable[[], None] | None = None
         self._sensor_stalled = False
+        self._follower = ClimateFollower(self)
         self._humidity_sensor_stalled = False
         self._outside_sensor_stalled = False
 
@@ -772,6 +802,12 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         """Run when entity about to be added."""
         await super().async_added_to_hass()
 
+        if self.entity_id in self.hvac_device.get_device_ids():
+            msg = f"{self.entity_id} is configured as one of its own devices"
+            _LOGGER.error("%s; a thermostat cannot control itself", msg)
+            self.hvac_device.release()
+            raise HomeAssistantError(msg)
+
         # Add listener
         self.async_on_remove(
             async_track_state_change_event(
@@ -896,6 +932,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                 self.async_write_ha_state()
 
             await self.hvac_device.async_on_startup(self.async_write_ha_state)
+            self._follower.started = True
 
         if self.hass.state == CoreState.running:
             await _async_startup()
@@ -994,6 +1031,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         # Set up template listeners for preset temperatures
         await self._setup_template_listeners()
 
+        self._follower.restored = True
         self.async_write_ha_state()
 
     def _connect_hvac_action_reason_signal(self) -> None:
@@ -1016,6 +1054,8 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         """Call when entity will be removed from hass."""
         # Remove template listeners
         await self._remove_template_listeners()
+
+        self.hvac_device.release()
 
         if self._remove_signal_hvac_action_reason:
             self._remove_signal_hvac_action_reason()
@@ -1151,7 +1191,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         if not self.features.supports_fan_mode:
             return None
         # Access fan device through the feature manager
-        fan_device = self.features.fan_device
+        fan_device = self.features.fan_speed
         if fan_device is None:
             return None
         return fan_device.current_fan_mode
@@ -1341,23 +1381,27 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
         temperatures = TargetTemperatures(temperature, temp_high, temp_low)
 
-        if hvac_mode is not None:
-            _LOGGER.debug("Setting hvac mode with temperature: %s", hvac_mode)
-            await self.async_set_hvac_mode(hvac_mode)
+        # The mode is set first (with the old target), then the target: one pass, so
+        # the stop of a role switched out by the mode is not sent between the two.
+        async with self.hvac_device.control_pass():
 
-        if self.features.is_configured_for_heat_cool_mode:
-            self._set_temperatures_dual_mode(temperatures)
-        else:
-            if temperature is None:
-                return
-            self.environment.set_temperature_target(temperature)
-            self._target_temp = self.environment.target_temp
+            if hvac_mode is not None:
+                _LOGGER.debug("Setting hvac mode with temperature: %s", hvac_mode)
+                await self.async_set_hvac_mode(hvac_mode)
 
-        # Check for auto-preset selection after setting temperature
-        await self._check_auto_preset_selection()
+            if self.features.is_configured_for_heat_cool_mode:
+                self._set_temperatures_dual_mode(temperatures)
+            else:
+                if temperature is None:
+                    return
+                self.environment.set_temperature_target(temperature)
+                self._target_temp = self.environment.target_temp
 
-        await self._async_control_climate(force=True)
-        self.async_write_ha_state()
+            # Check for auto-preset selection after setting temperature
+            await self._check_auto_preset_selection()
+
+            await self._async_control_climate(force=True)
+            self.async_write_ha_state()
 
     async def async_set_humidity(self, humidity: float) -> None:
         """Set new target humidity."""
@@ -1381,9 +1425,10 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             return
 
         _LOGGER.info("Setting fan mode: %s", fan_mode)
+        self._follower.fan_chosen = True
 
         # Access fan device through the feature manager
-        fan_device = self.features.fan_device
+        fan_device = self.features.fan_speed
         if fan_device is None:
             _LOGGER.warning("Cannot set fan mode: fan device not found")
             return
@@ -1433,10 +1478,14 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
     ) -> None:
         """Handle ambient teperature changes."""
         data = event.data
+        new_state = data["new_state"]
+
+        if not self.environment.is_new_reading(new_state):
+            return
 
         trigger_control = self.hvac_device.hvac_mode != HVACMode.OFF
 
-        await self._async_sensor_changed(data["new_state"], trigger_control)
+        await self._async_sensor_changed(new_state, trigger_control)
 
     async def _async_sensor_changed(
         self, new_state: State | None, trigger_control=True
@@ -1813,15 +1862,38 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         # The fan entity may only now have turned up (issue #636). Only the
         # FAN_MODE bit can have changed, so set it directly - a full
         # _set_support_flags() would also reset target temps from presets.
-        fan_device = self.features.fan_device
+        fan_device = self.features.fan_speed
         if (
             fan_device is not None
             and data["new_state"] is not None
             and fan_device.redetect_capabilities(data["entity_id"], data["new_state"])
         ):
             self._attr_supported_features |= ClimateEntityFeature.FAN_MODE
+            # detection read the child (and kept a restored speed): first sight is done
+            self._follower.mark_seen(data["entity_id"])
 
+        self._follower.on_event(event)
         self._async_switch_changed(data["old_state"], data["new_state"])
+
+    @property
+    def hvac_mode_now(self) -> HVACMode | None:
+        return self.hvac_device.hvac_mode
+
+    async def async_adoption_run(self) -> None:
+        """After an adoption: carry on controlling with the new intent."""
+        if self._sensor_stalled:
+            # Safety first: the emergency stop stands; the intent is recorded.
+            await self.hvac_device.async_turn_off()
+        else:
+            # forced: the user's new intent (a climate still waits for its
+            # minimum cycle, so a device that just started is not stopped)
+            await self._async_control_climate(force=True)
+        self.async_write_ha_state()
+
+    async def async_assert_off(self) -> None:
+        """Off means off, once: the climate children are turned off."""
+        async with self.hvac_device.control_pass():
+            await self.hvac_device.async_stop()
 
     @callback
     def _async_switch_changed(

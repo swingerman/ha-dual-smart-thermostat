@@ -1443,3 +1443,64 @@ async def test_heater_cooler_repeated_options_flow_precision_persistence(hass):
     assert third_update_data[CONF_TEMP_STEP] == 0.1  # Stored as float
     # target_temp should be preserved from previous
     assert third_update_data[CONF_TARGET_TEMP] == 22.0
+
+
+async def _config_flow_with_climate_cooler(hass, climate_control):
+    """Run the config flow for a switch heater and a climate cooler, no sensor."""
+    from custom_components.dual_smart_thermostat.config_flow import ConfigFlowHandler
+
+    flow = ConfigFlowHandler()
+    flow.hass = hass
+    await flow.async_step_user({CONF_SYSTEM_TYPE: SYSTEM_TYPE_HEATER_COOLER})
+    result = await flow.async_step_heater_cooler(
+        {
+            CONF_NAME: "Test Thermostat",
+            CONF_HEATER: "switch.heater",
+            CONF_COOLER: "climate.ac",
+        }
+    )
+    assert result["step_id"] == "climate_control"
+    result = await flow.async_step_climate_control(climate_control)
+    assert result["step_id"] == "features"
+    return await flow.async_step_features({})
+
+
+@pytest.mark.asyncio
+async def test_heater_cooler_climate_control_persists_from_config_to_options(hass):
+    """control_style and the applicable offset survive config -> options and prefill."""
+    from custom_components.dual_smart_thermostat.options_flow import OptionsFlowHandler
+
+    result = await _config_flow_with_climate_cooler(
+        hass, {"control_style": "setpoint", "cooler_setpoint_offset": -2.0}
+    )
+    assert result["type"] == "create_entry"
+    data = result["data"]
+
+    assert data["control_style"] == "setpoint"
+    assert data["cooler_setpoint_offset"] == -2.0
+    assert "heater_setpoint_offset" not in data  # the heater is a switch
+    assert not data.get(CONF_SENSOR)  # optional with a climate role
+    assert "climate_control_shown" not in data  # transient flag
+
+    entry = MockConfigEntry(domain=DOMAIN, data=data, options={}, title="T")
+    entry.add_to_hass(hass)
+    options_flow = OptionsFlowHandler(entry)
+    options_flow.hass = hass
+
+    result = await options_flow.async_step_init({})
+
+    assert result["step_id"] == "climate_control_options"
+    defaults = {str(k): k.default() for k in result["data_schema"].schema}
+    assert defaults["control_style"] == "setpoint"
+    assert defaults["cooler_setpoint_offset"] == -2.0
+
+
+@pytest.mark.asyncio
+async def test_climate_control_falsy_values_are_kept(hass):
+    """An offset of 0.0 and the on_off style persist; they are not 'empty'."""
+    result = await _config_flow_with_climate_cooler(
+        hass, {"control_style": "on_off", "cooler_setpoint_offset": 0.0}
+    )
+
+    assert result["data"]["cooler_setpoint_offset"] == 0.0
+    assert result["data"]["control_style"] == "on_off"

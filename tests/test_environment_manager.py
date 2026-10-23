@@ -4,6 +4,7 @@ from unittest.mock import MagicMock
 
 from homeassistant.components.climate import HVACMode
 from homeassistant.const import UnitOfTemperature
+from homeassistant.core import State
 
 from custom_components.dual_smart_thermostat.managers.environment_manager import (
     EnvironmentManager,
@@ -252,3 +253,31 @@ def test_is_too_hot_uses_raw_when_flag_off() -> None:
     env._cur_humidity = 80.0
     env._hvac_mode = HVACMode.COOL
     assert env.is_too_hot() is False
+
+
+def test_update_temp_from_climate_state_reads_current_temperature() -> None:
+    """A climate entity's reading is an attribute, not its state."""
+    env = _make_env()
+    env.update_temp_from_state(
+        State("climate.ac", "cool", {"current_temperature": 23.5})
+    )
+    assert env.cur_temp == 23.5
+
+
+def test_update_temp_from_climate_without_reading_keeps_previous() -> None:
+    """A climate with no reading yet leaves the last value alone."""
+    env = _make_env()
+    env.update_temp_from_state(
+        State("climate.ac", "cool", {"current_temperature": 23.5})
+    )
+    env.update_temp_from_state(
+        State("climate.ac", "cool", {"current_temperature": None})
+    )
+    assert env.cur_temp == 23.5
+
+
+def test_update_temp_from_sensor_state_unchanged() -> None:
+    """Plain sensors keep reading their state."""
+    env = _make_env()
+    env.update_temp_from_state(State("sensor.room", "21.0"))
+    assert env.cur_temp == 21.0
