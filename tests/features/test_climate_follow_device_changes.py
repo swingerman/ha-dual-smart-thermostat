@@ -1340,3 +1340,34 @@ async def test_the_last_command_wins_over_an_automation_that_keeps_the_fan_quiet
     assert ("set_fan_mode", {"fan_mode": "strong"}) in child.calls  # DST sent it
     assert hass.states.get(AC).attributes["fan_mode"] == "quiet"  # automation flipped
     assert _dst(hass).attributes["fan_mode"] == "quiet"  # adopted: last wins
+
+
+async def _stale_fan_display(hass, **cfg):
+    """A restart: the child was already there, saying quiet; DST restored strong."""
+    common.mock_restore_cache(
+        hass, [State("climate.test", "off", {"temperature": 22, "fan_mode": "strong"})]
+    )
+    hass.states.async_set(SENSOR, 22.0)
+    hass.states.async_set("sensor.hum", 50.0)
+    attrs = {"fan_modes": ["quiet", "strong", "auto"], "fan_mode": "quiet"}
+    hass.states.async_set(AC, "off", {**attrs, "hvac_modes": ["off", "heat", "cool"]})
+    await _setup(hass, **{**ALL_ROLES, **cfg})
+    await _idle(hass)
+    assert _dst(hass).attributes["fan_mode"] == "strong"  # stale
+    hass.states.async_remove(AC)  # the integration reloads: the real entity is new
+    await _idle(hass)
+    child = await common.add_fake_climate(hass, AC, fan_mode="quiet")
+    await _idle(hass)
+    return child
+
+
+async def test_a_child_first_seen_shows_its_fan_mode_and_sends_nothing(hass):
+    child = await _stale_fan_display(hass)
+    assert _dst(hass).attributes["fan_mode"] == "quiet"
+    assert child.calls == []
+
+
+async def test_first_sight_leaves_the_display_alone_when_not_following(hass):
+    child = await _stale_fan_display(hass, follow_device_changes=False)
+    assert _dst(hass).attributes["fan_mode"] == "strong"
+    assert child.calls == []

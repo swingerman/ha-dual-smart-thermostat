@@ -153,7 +153,7 @@ from .hvac_action_reason.hvac_action_reason import (
 )
 from .hvac_action_reason.hvac_action_reason_external import HVACActionReasonExternal
 from .hvac_device.controllable_hvac_device import ControlableHVACDevice
-from .hvac_device.entity_port import peek_climate_child
+from .hvac_device.entity_port import is_unavailable, peek_climate_child
 from .hvac_device.hvac_device_factory import HVACDeviceFactory
 from .managers.auto_mode_evaluator import AutoDecision, AutoModeEvaluator
 from .managers.environment_manager import EnvironmentManager, TargetTemperatures
@@ -632,6 +632,8 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             False  # startup and state restore are done: changes can be adopted
         )
         self._restored = False
+        self._seen_children: set[str] = set()  # climate children seen available
+        self._fan_chosen = False  # the user picked a fan speed this session
         self._humidity_sensor_stalled = False
         self._outside_sensor_stalled = False
 
@@ -1446,6 +1448,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             return
 
         _LOGGER.info("Setting fan mode: %s", fan_mode)
+        self._fan_chosen = True
 
         # Access fan device through the feature manager
         fan_device = self.features.fan_speed
@@ -1890,6 +1893,8 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             and fan_device.redetect_capabilities(data["entity_id"], data["new_state"])
         ):
             self._attr_supported_features |= ClimateEntityFeature.FAN_MODE
+            # detection read the child (and kept a restored speed): first sight is done
+            self._seen_children.add(data["entity_id"])
 
         self._async_follow(event)
         self._async_switch_changed(data["old_state"], data["new_state"])
@@ -1900,6 +1905,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         entity_id = event.data["entity_id"]
         if not is_climate_entity(entity_id):
             return
+        self._sync_fan_display(entity_id, event.data["new_state"])
         child = peek_climate_child(self.hass, entity_id)
         if child is None:
             return
@@ -1934,6 +1940,27 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             # Another thermostat mid-sequence on this child: adopt when it is done.
             if not child.defer_while_sending(self.features, adopt):
                 adopt()
+
+    def _sync_fan_display(self, entity_id: str, new_state: State | None) -> None:
+        """A child seen for the first time: show its fan speed (nothing is sent).
+
+        The display would otherwise stay at a default or a stale restore. Not
+        after the user picked a speed: that selection is sent on the next turn on.
+        """
+        if is_unavailable(new_state) or entity_id in self._seen_children:
+            return
+        self._seen_children.add(entity_id)
+        speed = self.features.fan_speed
+        fan_mode = new_state.attributes.get(ATTR_FAN_MODE)
+        if (
+            self.features.follow_device_changes
+            and not self._fan_chosen
+            and speed is not None
+            and speed.entity_id == entity_id
+            and fan_mode in speed.fan_modes
+        ):
+            speed.current_fan_mode = fan_mode
+            self.async_write_ha_state()
 
     async def _async_assert_off(self) -> None:
         # The task may run later than the event that scheduled it: ask again.

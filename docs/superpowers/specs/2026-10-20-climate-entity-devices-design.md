@@ -210,6 +210,8 @@ Adoptions are serialised per thermostat and always read the snapshot when they r
 
 **Restart, reconnect, first sight (owner decision (b), section 0).** Nothing is adopted from first sight (startup, a child that appears late) or from a reconnect (unavailable to available). DST keeps its restored setting and re-asserts it on its next control run; a remote change made during downtime is overridden once. This is safe after a power cut, when an AC may power up off. There is no flag for it: events with an unavailable or missing old state are simply ignored.
 
+**First-sight fan display.** With `follow_device_changes` on and the fan speed climate-backed, the first time a child is seen available DST copies the child's `fan_mode` to its display. Display only: no command, no control run, so decision (b) stands. Skipped when the user has already picked a speed this session (that selection is sent on the next turn on) and when late detection has just read the child itself.
+
 **Option.** `follow_device_changes` (bool, default `true`), thermostat-wide, only valid with a climate role (`climate_roles` is the single rule source). Flows: shown in the `climate_control` and `climate_control_options` steps. Dependency tracking: requires a climate role.
 
 ## 4. Role conflicts (one climate, several roles)
