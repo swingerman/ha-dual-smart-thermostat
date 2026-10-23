@@ -15,7 +15,8 @@ The four open questions of the first draft are resolved. They are folded into th
 | OQ2 | `control_style: setpoint` with a climate heat pump is **rejected** in v1, with a clear validation error in YAML and in the flows. |
 | OQ3 | **Off means off.** When DST is Off it sends `climate.turn_off` to every climate child it holds, whatever mode the child is in, including a mode no role owns (for example `auto` set from a remote). |
 | OQ4 | In `setpoint` style `hvac_action` shows "engaged" only. Mirroring the child's own action is a follow-up and out of scope. |
-| Follow | **Follow device changes (phase 6, after real-device testing).** The physical remote (or the device's own app, or an automation calling the child) takes priority: latest intent wins. An external change on a climate child is adopted as the user's new DST setting (section 3.6). Option `follow_device_changes`, default on; off keeps DST authoritative. This **supersedes** the first-draft rule "DST re-asserts remote changes within seconds", which now holds only with `follow_device_changes: false`. |
+| Follow | **Follow device changes (phase 6, after real-device testing).** The physical remote (or the device's own app, or an automation acting on the child) takes priority: latest intent wins. An external change on a climate child is adopted at once as the user's new DST setting, detected by value against per-thermostat expectations (section 3.6). Option `follow_device_changes`, default on; off keeps DST authoritative. This **supersedes** the first-draft rule "DST re-asserts remote changes within seconds", which now holds only with `follow_device_changes: false`. |
+| Restart | **Restart, reconnect, first sight: decided (b).** DST re-asserts its restored setting; nothing is adopted from first sight or a reconnect. Reason: safe after power cuts (an AC may power up "off" and must not switch DST Off); the cost is that a remote change made while HA was down is overridden once. |
 | Off | "Off means off" as implemented: the transition to Off sends one unscoped `turn_off` to every climate child; keep-alive while Off sends nothing to climate children. |
 | New | **Fan speed for a climate child** (section 3.5, phase 3b): the child's `fan_modes` are used verbatim whenever a climate fills any role; one fan-speed target is chosen once at setup. |
 
@@ -169,42 +170,47 @@ Today fan speed lives inside `FanDevice` (`_detect_fan_capabilities`, `async_set
 
 ### 3.6 Following device changes (phase 6)
 
-The device is also operated from outside DST (remote, the vendor app, an automation). The latest intent wins, so an external change on a climate child becomes DST's setting instead of being corrected back.
+The device is also operated from outside DST (remote, vendor app, an automation). The latest intent wins, so an external change on a climate child becomes DST's setting instead of being corrected back. Detection is by **value**, never by context or time (reviewed against HA core: a state write within 5 s of a service call carries the caller's context, and coordinator refreshes are debounced for 10 s, so contexts and timing cannot tell DST's echo from a remote press).
 
-**What is external.** A change of the child's `hvac_mode`, `temperature` or `fan_mode` is external when all of these hold:
-1. neither the old nor the new state is unavailable/unknown (reconnects and restarts adopt nothing);
-2. the child is not `assumed_state` in either state (an assumed child's reported state is DST's own record, so nothing to adopt; an integration that decodes the remote but does not flag `assumed_state` simply looks like a normal device and is followed);
-3. the event's context id is not one DST created. `ClimateChild` creates or records a `Context` for every command it sends (fan commands too) and keeps the last 64 ids;
-4. the new value was not commanded by DST: it is neither the latest commanded value nor any value commanded within `ECHO_WINDOW` (30 s). This catches echoes that arrive without a context (polling integrations) and echoes that arrive out of order (an older command's echo landing after a newer command). Attribute-only noise (`current_temperature`, `hvac_action`) is never a change of interest.
+**Expectations (the only memory).** Each thermostat keeps, per child and per attribute (`mode`, `target`, `fan_mode`), a short list (at most 4) of the values *it* commanded and has not yet seen reported. It is kept on the child keyed by the thermostat (`FeatureManager` instance), so two thermostats on one child never see each other's expectations. Rules:
+- A command that will actually be sent appends its value. A command skipped because the child already reports that value appends nothing, and a failed command removes its entry. Assumed-state children record nothing.
+- When the child's state changes, each tracked attribute that changed is compared with that thermostat's list: if the new value is in the list it is an echo and only that entry is consumed (so echoes may arrive in any order: a late echo of an older command is still found in the list); otherwise the change is **external**.
+- Nothing expires on a timer. Entries die by being matched, by overflow, or by the next adoption, which clears the thermostat's lists.
+- Contexts are a hint only: every DST command goes out with a fresh `Context` (logbook attribution), the DST entity's own context is never passed down, and no decision reads a context.
 
-**Adoption.** External events are coalesced: the first one opens a `FOLLOW_SETTLE` (2 s) window, further ones restart it. While the window is open, and during adoption itself, the child is *held*: DST sends it no command (so a stale DST value cannot clobber the remote's second event, and a mode event followed by a target event is one change). When the window closes DST reads the child's **current** state once (latest wins, however the events were split or ordered) and applies it through its own public setters, in this order, with commands to the child suppressed:
+An event is ignored when either state is unavailable/unknown, when the child is `assumed_state` in either state (its reported state is DST's own record), or while this thermostat is mid-command (below). An integration that decodes the remote but is not flagged `assumed_state` just looks like a normal device and is followed.
+
+**Adoption is immediate.** There is no settle window and no hold. On an external change the thermostat reads a full snapshot of the child *at that moment* and applies it through its own public setters, in this order: fan mode (only if this child is the fan-speed target), mode, target. Then one normal forced control run follows. Two flags, both owned by the thermostat and both lasting milliseconds, keep this sound:
+- `adopting`: while the setters run, this thermostat's commands to the child are dropped (the child already holds the adopted state, and the setters reload targets from presets, which would otherwise be pushed back over the remote's value). The flag is released before the control run, so safety stops and every normal command go out at once. It never affects another thermostat.
+- `sending` (around one `turn_on` sequence): events that arrive while DST itself is sending mode, target and fan are the device's own side effects (many ACs reset the fan or setpoint on a mode change) and are not external. This keeps the fan re-apply of phase 3b working. A reset that a polling integration reports later than the sequence looks like a remote change and is followed (device is the truth).
 
 | Child state | DST becomes |
 |---|---|
-| fan_mode (only when this child is the fan-speed target) | `fan_mode` = that value (also fixes a stale displayed fan mode) |
-| mode owned by a role (`heat`, `cool`, `fan_only`, `dry`, heat pump's current direction) | `hvac_mode` = that mode |
+| fan_mode (this child is the fan-speed target and the value is one of its modes) | `fan_mode` |
+| mode owned by a role (heat, cool, fan_only, dry, a heat pump's current direction) | `hvac_mode` = that mode |
 | `off` | `Off` |
-| a mode no role owns (for example `auto`, or a heat pump mode against its flag) | `Off`, and hands-off: nothing is sent to the child |
-| target `T` (after the mode, because a mode change reloads targets from presets) | target = `T` minus that role's setpoint offset (heater key for heat, cooler key for cool, heat pump by direction), through the same path as a user-set temperature |
+| a mode no role owns (for example `auto`) | `Off`, and hands-off |
+| target `T` | target = `T` minus the owning role's setpoint offset, through the same path as a user-set temperature |
 
-Then the hold is released and **one** normal forced control run follows: DST keeps controlling from the adopted setting (cycling in `on_off` style, nothing in `setpoint` style). Every command that run would send is idempotent against a child that already holds the adopted state, so adoption never echoes a command back; a command DST does send (for example turning the child off because the goal is already reached) carries DST's context and is recognised as an echo. A DST user action (UI, service, preset) arriving while a window is open cancels the pending adoption and wins: latest intent wins in both directions.
+Adoptions are serialised per thermostat and always read the snapshot when they run; an event arriving during a running adoption marks it dirty and the adoption runs again. A split remote sequence (mode, then target) is simply two adoptions with nothing commanded in between. A chatty integration therefore cannot defer anything: an open window pauses the child on the control run that follows each adoption.
 
-**One change, one effect.** The child is shared by all roles, and a thermostat registers a single follower per child, so one external change causes exactly one adoption and no loop: the adopted state is already on the child, nothing is commanded, so no event comes back. A second thermostat sharing the child follows independently.
+**One change, one effect; two thermostats.** One external change causes one adoption per thermostat that follows the child, and the adopted state is already on the child, so nothing is commanded and nothing comes back. Two thermostats on one child follow each other the same way: A commands, B sees an external change and adopts it, without commanding. Last command wins between them, there is no fighting, and neither's safety stop is delayed by the other.
 
-**Safety precedence (adoption records the intent, safety decides what runs).**
-- Open window: the adopted mode and target are kept as DST's setting; normal control pauses the child (one `turn_off`) and restores it after the window closes.
-- Floor limits and min cycle: unchanged, they act inside the forced control run.
-- Stale sensor: the emergency stop wins. DST records the adopted setting, stops the child once, and resumes when the sensor recovers.
+**Safety precedence.** Adoption records the intent and then runs normal control: an open window pauses the child (restored after closing), floor limits and min cycle apply, and a stale sensor stops the child once (the intent is kept).
 
 **Edge cases decided.**
-- Remote then DST in the same second: DST's action cancels the pending adoption and applies (DST is later). DST then remote: the remote change differs from the latest commanded value and has no DST context, so it is adopted (the remote is later).
-- Echo after `ECHO_WINDOW`: treated as external (a 30 s old echo is indistinguishable from a real change).
-- Target outside DST's own min/max: DST clamps the adopted target like any user input, then pushes the clamped value to the child once.
-- Spontaneous device changes (defrost, protection shut-off, the unit's own timer) are indistinguishable from the remote and are adopted the same way.
-- HA restart: restored DST state is kept; the first child state is not an event, so nothing is adopted; control re-asserts DST's restored setting as before. Events during startup are ignored.
-- Option off (`follow_device_changes: false`): nothing is adopted; DST re-asserts on its next control run and does not fight while Off.
+- Remote then DST, and DST then remote, in any interleaving: the later one wins, because each is judged by value against the thermostat's own pending list. A remote press within 5 s of a DST command is adopted even though HA stamps it with DST's context.
+- A remote toggling A to B to A (target or mode) is followed each time: an echo is consumed once, it is not remembered as "DST's value".
+- A device that rewrites what it was sent (rounds a target differently than DST pushed) is followed, so DST's target takes the device's resolution.
+- A stale value polled back after DST's command (an optimistic write, then an old reading some seconds later) is followed as the device's truth. Documented, checked in the real-device run (P5 step 9), not guarded: guarding would mean timers, and the symptom (DST yields to what the device really reports) matches "the device is the truth".
+- A remote press landing inside the few milliseconds of an adoption's setters can be overwritten. Accepted.
+- Spontaneous device changes (defrost, protection shut-off, the unit's own timer) look like the remote and are adopted.
+- A target outside DST's own min/max is clamped like any user input, then pushed to the child once.
+- Option off (`follow_device_changes: false`): expectations are still consumed, nothing is adopted; DST re-asserts on its next control run and does not fight while Off.
 
-**Option.** `follow_device_changes` (bool, default `true`), thermostat-wide, only valid with a climate role (`climate_roles` is the single rule source, like the other climate options). Flows: shown in the `climate_control` and `climate_control_options` steps. Dependency tracking: requires a climate role. Fan speed and offsets keep working with it off.
+**Restart, reconnect, first sight (owner decision (b), section 0).** Nothing is adopted from first sight (startup, a child that appears late) or from a reconnect (unavailable to available). DST keeps its restored setting and re-asserts it on its next control run; a remote change made during downtime is overridden once. This is safe after a power cut, when an AC may power up off. There is no flag for it: events with an unavailable or missing old state are simply ignored.
+
+**Option.** `follow_device_changes` (bool, default `true`), thermostat-wide, only valid with a climate role (`climate_roles` is the single rule source). Flows: shown in the `climate_control` and `climate_control_options` steps. Dependency tracking: requires a climate role.
 
 ## 4. Role conflicts (one climate, several roles)
 
@@ -345,4 +351,4 @@ Per `docs/TESTING.md`: no standalone bug-fix files; flow tests go in the existin
 10. Phase 5 checklist passes on both rigs.
 11. DST Off sends `climate.turn_off` to every climate child in any mode.
 12. A climate child's own `fan_modes` drive `fan_mode` for any role; a separately configured fan entity takes precedence and the AC's fan speed is then untouched; the mode is re-applied after each turn on, restored after restart and detected late.
-13. With `follow_device_changes` on, an external change on a climate child (mode, off, target, fan mode, foreign mode) becomes DST's setting without any command echoed back; own echoes (including out-of-order and split ones), restored state, reconnects and `assumed_state` devices adopt nothing; openings, floor limits and a stale sensor still win. With it off DST re-asserts on its next control run.
+13. With `follow_device_changes` on, an external change on a climate child (mode, off, target, fan mode, foreign mode) becomes DST's setting at once, without any command echoed back; own echoes (including out-of-order, split and context-stamped ones) and `assumed_state` devices adopt nothing; a remote A to B to A is followed each time; openings, floor limits and a stale sensor still win immediately; two thermostats on one child follow each other without fighting. With it off DST re-asserts on its next control run. First sight and reconnect adopt nothing (owner decision).
