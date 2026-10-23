@@ -671,7 +671,11 @@ class ClimateChild:
         equals what was pushed and the "already set" check cannot loop.
         """
         step = attrs.get(ATTR_TARGET_TEMP_STEP) or 1
-        value = round(round(value / step) * step, 4)
+        # half rounds away from zero (the user's intent), not to even like round()
+        steps = value / step
+        value = round(
+            math.copysign(math.floor(abs(steps) + 0.5 + 1e-9), steps) * step, 4
+        )
         low, high = attrs.get(ATTR_MIN_TEMP), attrs.get(ATTR_MAX_TEMP)
         if low is not None:
             value = max(value, low)

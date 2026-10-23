@@ -2070,3 +2070,23 @@ def mock_hass_flow():
     hass.config_entries.async_entries = Mock(return_value=[])
     hass.data = {DOMAIN: {}}
     return hass
+
+
+@pytest.mark.parametrize(
+    ("target", "offset", "pushed"),
+    [(22.5, 2.0, 25.0), (21.5, 2.0, 24.0), (-22.5, -2.0, -25.0), (22.4, 2.0, 24.0)],
+)
+async def test_a_half_rounds_away_from_zero_toward_the_users_intent(
+    hass: HomeAssistant, target, offset, pushed
+) -> None:
+    """24.5 on a child with step 1 is 25, not 24 (Python's round goes to even)."""
+    child = await common.add_fake_climate(hass, "climate.test_ac")
+    child._attr_target_temperature_step = 1
+    child._attr_min_temp = -40
+    child._attr_max_temp = 40
+    child.async_write_ha_state()
+    heat = _port(hass, "climate.test_ac", HVACMode.HEAT, lambda: target, offset=offset)
+
+    await heat.async_turn_on(None)
+
+    assert ("set_temperature", {"temperature": pushed}) in child.calls
