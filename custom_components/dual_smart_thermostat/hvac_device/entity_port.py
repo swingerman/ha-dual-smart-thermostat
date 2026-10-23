@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 import asyncio
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from contextlib import contextmanager
 from datetime import datetime, timedelta
 import logging
@@ -287,6 +287,7 @@ class ClimateChild:
         self._pending: dict[Any, dict[str, list[Any]]] = {}
         self._sending: dict[Any, int] = {}
         self._adopting: dict[Any, int] = {}
+        self._deferred: dict[Any, Callable[[], None]] = {}
 
     @property
     def state(self) -> State | None:
@@ -347,6 +348,22 @@ class ClimateChild:
             yield
         finally:
             self._sending[owner] -= 1
+            if not any(self._sending.values()):
+                deferred, self._deferred = self._deferred, {}
+                for run in deferred.values():
+                    run()
+
+    def defer_while_sending(self, owner: Any, run: Callable[[], None]) -> bool:
+        """Run `run` once nobody is sending to the child any more.
+
+        Another thermostat's turn-on is a sequence of events (mode, target, fan);
+        adopting from the first one would read a half-finished child. Returns
+        False (and does nothing) when the child is idle, so the caller runs now.
+        """
+        if not any(self._sending.values()):
+            return False
+        self._deferred[owner] = run
+        return True
 
     @contextmanager
     def adopting(self, owner: Any):

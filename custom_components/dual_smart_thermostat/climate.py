@@ -1912,7 +1912,13 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             and self._restored
         ):
             self._adopt_dirty = True
-            self.hass.async_create_task(self._async_adopt(child))
+
+            def adopt() -> None:
+                self.hass.async_create_task(self._async_adopt(child))
+
+            # Another thermostat mid-sequence on this child: adopt when it is done.
+            if not child.defer_while_sending(self.features, adopt):
+                adopt()
 
     async def _async_adopt(self, child) -> None:
         """Make the child's current settings DST's own, then carry on controlling."""
