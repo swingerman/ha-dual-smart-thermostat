@@ -1993,12 +1993,11 @@ async def test_manual_target_change_bypasses_min_cycle_like_master(
     assert hass.states.get(AC).state == HVACMode.OFF  # at once
 
 
-async def test_fan_speed_reapply_overrides_an_external_fan_change_today(
+async def test_fan_speed_reapply_follows_an_external_fan_change(
     hass: HomeAssistant,
 ) -> None:
-    """Documents today's behaviour (phase 6 changes it to "follow"): a fan speed
-    changed on the AC's own remote is put back to the selected one on the next
-    turn on. Flip the final assertion when that changes."""
+    """Phase 6 (was "overrides today"): a fan speed changed on the AC's own remote
+    is adopted as the new selection, so the next turn on re-applies that one."""
     hass.states.async_set(SENSOR, 20.0)
     setup_switch(hass, False, HEATER)
     await _setup(hass, heater=HEATER, cooler=AC, initial_hvac_mode=HVACMode.COOL)
@@ -2024,8 +2023,8 @@ async def test_fan_speed_reapply_overrides_an_external_fan_change_today(
     hass.states.async_set(SENSOR, 27.0)
     await hass.async_block_till_done()
 
-    # today: DST's selection wins; phase 6: this becomes "quiet" (follow)
-    assert hass.states.get(AC).attributes["fan_mode"] == "strong"
+    assert hass.states.get("climate.test").attributes["fan_mode"] == "quiet"
+    assert hass.states.get(AC).attributes["fan_mode"] == "quiet"
 
 
 async def test_fan_step_defaults_shared_climate_fan_flags_off_in_the_flow(

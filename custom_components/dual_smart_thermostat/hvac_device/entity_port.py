@@ -333,6 +333,12 @@ class ClimateChild:
             port.device.hvac_mode not in (None, HVACMode.OFF) for port in self.ports
         )
 
+    def device_for(self, mode: str) -> Any | None:
+        """The role whose mode this is, if any role owns it."""
+        return next(
+            (p.device for p in self.ports if mode in p.device.role_modes()), None
+        )
+
     @contextmanager
     def sending(self, owner: Any):
         """DST sends a sequence: changes reported meanwhile are the device's side effects."""

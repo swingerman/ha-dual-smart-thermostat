@@ -3,7 +3,7 @@
 from unittest.mock import patch
 
 from homeassistant.components.climate import DOMAIN as CLIMATE, HVACMode
-from homeassistant.core import Context, HomeAssistant, State
+from homeassistant.core import Context, HomeAssistant, State, callback
 from homeassistant.setup import async_setup_component
 from homeassistant.util.unit_system import METRIC_SYSTEM
 import pytest
@@ -11,7 +11,7 @@ import pytest
 from custom_components.dual_smart_thermostat.climate import DualSmartThermostat
 from custom_components.dual_smart_thermostat.const import DOMAIN
 from custom_components.dual_smart_thermostat.hvac_device.entity_port import ClimateChild
-from tests import common
+from tests import common, setup_switch
 
 AC = "climate.test_ac"
 SENSOR = "sensor.room_temperature"
@@ -193,7 +193,7 @@ async def test_a_command_the_child_already_satisfies_leaves_no_expectation(
     await _idle(hass)
     child.remote(temperature=22.0)  # not the echo of the skipped command
     await _idle(hass)
-    # (the two adoptions this must cause are asserted once adoption exists)
+    assert len(adoptions) == 2
 
 
 async def test_external_ignores_an_assumed_flag_on_either_side(hass):  # H3
@@ -225,3 +225,250 @@ async def test_every_dst_command_uses_a_fresh_context(hass):
     assert parent.id not in {ctx.id for ctx in contexts}
     assert len({ctx.id for ctx in contexts}) == 2
     assert all(ctx.parent_id == parent.id for ctx in contexts)
+
+
+# ---------------------------------------------------------- immediate adoption
+
+
+async def test_remote_mode_is_adopted(hass, adoptions):  # A1, H2 (no assumed flag)
+    child = await _start(hass, HVACMode.HEAT)
+    assert not hass.states.get(AC).attributes.get("assumed_state")
+    child.remote(mode=HVACMode.COOL)
+    await _idle(hass)
+    assert _dst(hass).state == HVACMode.COOL
+    assert adoptions == ["cool"]
+    assert child.calls == []
+
+
+async def test_remote_target_is_adopted(hass):  # A2
+    child = await _start(hass, HVACMode.HEAT, target=22)
+    child.remote(temperature=24.0)
+    await _idle(hass)
+    assert _dst(hass).attributes["temperature"] == 24.0
+    assert child.calls == []
+
+
+async def test_remote_target_minus_heater_offset(hass):  # A3
+    child = await _start(hass, HVACMode.HEAT, heater_setpoint_offset=3)
+    child.remote(temperature=25.0)
+    await _idle(hass)
+    assert _dst(hass).attributes["temperature"] == 22.0
+    assert child.calls == []
+
+
+async def test_remote_target_minus_cooler_offset(hass):  # A4
+    child = await _start(hass, HVACMode.COOL, target=24, cooler_setpoint_offset=-5)
+    child.remote(temperature=19.0)
+    await _idle(hass)
+    assert _dst(hass).attributes["temperature"] == 24.0
+    assert child.calls == []
+
+
+async def test_remote_fan_mode_is_adopted(hass):  # A5
+    child = await _start(hass, HVACMode.HEAT)
+    assert _dst(hass).attributes["fan_mode"] == "auto"  # the stale display
+    child.remote(fan_mode="quiet")
+    await _idle(hass)
+    assert _dst(hass).attributes["fan_mode"] == "quiet"
+    assert child.calls == []
+
+
+async def test_remote_off_is_adopted(hass):  # A6
+    child = await _start(hass, HVACMode.HEAT)
+    child.remote(mode=HVACMode.OFF)
+    await _idle(hass)
+    assert _dst(hass).state == HVACMode.OFF
+    assert child.calls == []
+
+
+_HEATER_COOLER_ONLY = {
+    "dryer": None,
+    "humidity_sensor": None,
+    "target_humidity": None,
+    "fan": None,
+    "fan_mode": None,
+}
+
+
+async def test_foreign_mode_turns_dst_off_and_stays_hands_off(hass):  # B1
+    child = await _start(hass, HVACMode.HEAT, **_HEATER_COOLER_ONLY)
+    child.remote(mode=HVACMode.AUTO)
+    await _idle(hass)
+    assert _dst(hass).state == HVACMode.OFF
+    for room in (21.0, 25.0, 15.0):
+        await _tick(hass, room)
+    assert child.calls == []
+    assert hass.states.get(AC).state == HVACMode.AUTO  # the remote's choice stays
+
+
+async def test_shared_child_adopts_each_role_mode_without_a_loop(hass):  # B2
+    child = await _start(hass, HVACMode.HEAT)
+    child.remote(mode=HVACMode.DRY)
+    await _idle(hass)
+    assert _dst(hass).state == HVACMode.DRY
+    child.remote(mode=HVACMode.FAN_ONLY)
+    await _idle(hass)
+    assert _dst(hass).state == HVACMode.FAN_ONLY
+    for room in (22.1, 22.0, 21.9, 22.0, 22.1):
+        await _tick(hass, room)
+    assert child.calls == []  # one change, one adoption, no echo, no loop
+
+
+async def test_heat_pump_owns_only_its_current_direction(hass):  # B3
+    hass.states.async_set("binary_sensor.hp_cooling", "off")
+    child = await _start(
+        hass,
+        HVACMode.HEAT,
+        heater=AC,
+        cooler=None,
+        heat_pump_cooling="binary_sensor.hp_cooling",
+        **_HEATER_COOLER_ONLY,
+    )
+    child.remote(mode=HVACMode.COOL)  # the pump is heating: cool is not its mode
+    await _idle(hass)
+    assert _dst(hass).state == HVACMode.OFF
+    assert child.calls == []
+
+
+async def test_setpoint_style_adopts_the_target_without_commands(hass):  # B4
+    child = await _start(
+        hass,
+        HVACMode.COOL,
+        target=24,
+        control_style="setpoint",
+        cooler_setpoint_offset=-2,
+        heater="switch.room_heater",
+        **_HEATER_COOLER_ONLY,
+    )
+    child.remote(temperature=20.0)
+    await _idle(hass)
+    assert _dst(hass).attributes["temperature"] == 22.0
+    assert child.calls == []
+
+
+async def test_fan_change_is_ignored_when_a_separate_fan_entity_owns_fan_mode(
+    hass,
+):  # B5
+    hass.states.async_set(
+        "fan.test_fan", "off", {"preset_modes": ["low", "high"], "preset_mode": "low"}
+    )
+    child = await _start(hass, HVACMode.HEAT, fan="fan.test_fan")
+    child.remote(fan_mode="strong")
+    await _idle(hass)
+    assert _dst(hass).attributes["fan_modes"] == ["low", "high"]
+    assert _dst(hass).attributes["fan_mode"] == "low"
+    assert child.calls == []
+
+
+async def test_adopted_target_outside_the_dst_range_is_clamped_and_pushed_once(
+    hass,
+):  # B6
+    child = await _start(hass, HVACMode.HEAT, max_temp=26)
+    child.remote(temperature=29.0)
+    await _idle(hass)
+    assert _dst(hass).attributes["temperature"] == 26.0
+    assert child.calls == [("set_temperature", {"temperature": 26.0})]
+
+
+async def test_mixed_rig_adopting_cool_stops_the_switch_heater_once(hass):  # B7
+    heater_calls = setup_switch(hass, True, "switch.room_heater")
+
+    def real_switch(state):  # a real switch really changes state
+        @callback
+        def handler(call) -> None:
+            heater_calls.append(call)
+            hass.states.async_set("switch.room_heater", state)
+
+        return handler
+
+    hass.services.async_register("homeassistant", "turn_on", real_switch("on"))
+    hass.services.async_register("homeassistant", "turn_off", real_switch("off"))
+    child = await _start(
+        hass,
+        HVACMode.HEAT,
+        heater="switch.room_heater",
+        **_HEATER_COOLER_ONLY,
+    )
+    heater_calls.clear()
+    child.remote(mode=HVACMode.COOL)
+    await _idle(hass)
+    assert _dst(hass).state == HVACMode.COOL
+    assert child.calls == []
+    assert [c.service for c in heater_calls] == ["turn_off"]
+
+
+async def test_remote_target_a_b_a_is_followed_each_time(hass, adoptions):  # L1
+    child = await _start(hass, HVACMode.HEAT, target=22)
+    child.remote(temperature=24.0)
+    await _idle(hass)
+    assert _dst(hass).attributes["temperature"] == 24.0
+    child.remote(
+        temperature=22.0
+    )  # back to the value DST once pushed: still the user's
+    await _idle(hass)
+    assert _dst(hass).attributes["temperature"] == 22.0
+    assert len(adoptions) == 2
+    assert child.calls == []  # DST must not re-push 24
+
+
+async def test_remote_mode_a_b_a_is_followed_each_time(hass, adoptions):  # L2
+    child = await _start(hass, HVACMode.HEAT)
+    child.remote(mode=HVACMode.COOL)
+    await _idle(hass)
+    assert _dst(hass).state == HVACMode.COOL
+    child.remote(mode=HVACMode.HEAT)
+    await _idle(hass)
+    assert _dst(hass).state == HVACMode.HEAT
+    assert adoptions == ["cool", "heat"]
+    assert child.calls == []
+
+
+async def test_a_remote_change_within_five_seconds_of_a_dst_command_is_adopted(
+    hass, adoptions
+):  # L3
+    child = await _start(hass, HVACMode.OFF)
+    await _tick(hass, 18.0)
+    child.calls.clear()
+    await common.async_set_hvac_mode(hass, HVACMode.HEAT, "climate.test")
+    await _tick(hass, 22.0)  # the room is at the target: a running device keeps running
+    # HA stamps any write within 5 s of a service call with that call's context:
+    child.remote(mode=HVACMode.COOL, reuse_context=True)
+    await _idle(hass)
+    assert adoptions == ["cool"]
+    assert _dst(hass).state == HVACMode.COOL
+    assert [c[0] for c in child.calls] == ["set_hvac_mode", "set_temperature"]
+
+
+async def test_a_fan_reset_caused_by_our_own_mode_command_is_not_adopted(
+    hass, adoptions
+):  # L4
+    child = await _start(
+        hass, HVACMode.OFF, child_kwargs={"resets_fan_on_mode_change": True}
+    )
+    await hass.services.async_call(
+        "climate",
+        "set_fan_mode",
+        {"entity_id": "climate.test", "fan_mode": "quiet"},
+        blocking=True,
+    )
+    await _tick(hass, 18.0)
+    child.calls.clear()
+    await common.async_set_hvac_mode(hass, HVACMode.HEAT, "climate.test")
+    await _idle(hass)
+    assert adoptions == []
+    assert _dst(hass).attributes["fan_mode"] == "quiet"
+    assert hass.states.get(AC).attributes["fan_mode"] == "quiet"  # re-applied
+    assert [c[0] for c in child.calls][-1] == "set_fan_mode"
+
+
+async def test_an_adoption_clears_the_pending_expectations(hass, adoptions):  # L6
+    child = await _start(hass, HVACMode.HEAT)
+    await _tick(hass, 26.0)  # the heater stops
+    child.hold_echoes()
+    await _tick(hass, 18.0)  # commands heat: pending
+    child.remote(mode=HVACMode.COOL)  # external: adopted, expectations cleared
+    await _idle(hass)
+    assert adoptions == ["cool"]
+    child.remote(mode=HVACMode.HEAT)  # no longer anyone's echo
+    await _idle(hass)
+    assert adoptions == ["cool", "heat"]

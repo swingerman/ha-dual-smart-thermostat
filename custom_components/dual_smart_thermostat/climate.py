@@ -64,7 +64,11 @@ from homeassistant.util.unit_conversion import TemperatureConverter
 import voluptuous as vol
 
 from . import DOMAIN, PLATFORMS
-from .climate_roles import normalize_climate_roles, validate_climate_roles
+from .climate_roles import (
+    is_climate_entity,
+    normalize_climate_roles,
+    validate_climate_roles,
+)
 from .config_validation import validate_config_with_models
 from .const import (
     ATTR_CLOSING_TIMEOUT,
@@ -149,6 +153,7 @@ from .hvac_action_reason.hvac_action_reason import (
 )
 from .hvac_action_reason.hvac_action_reason_external import HVACActionReasonExternal
 from .hvac_device.controllable_hvac_device import ControlableHVACDevice
+from .hvac_device.entity_port import peek_climate_child
 from .hvac_device.hvac_device_factory import HVACDeviceFactory
 from .managers.auto_mode_evaluator import AutoDecision, AutoModeEvaluator
 from .managers.environment_manager import EnvironmentManager, TargetTemperatures
@@ -619,6 +624,12 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self._remove_humidity_stale_tracking: Callable[[], None] | None = None
         self._remove_outside_stale_tracking: Callable[[], None] | None = None
         self._sensor_stalled = False
+        self._adopt_lock = asyncio.Lock()
+        self._adopt_dirty = False
+        self._started = (
+            False  # startup and state restore are done: changes can be adopted
+        )
+        self._restored = False
         self._humidity_sensor_stalled = False
         self._outside_sensor_stalled = False
 
@@ -939,6 +950,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                 self.async_write_ha_state()
 
             await self.hvac_device.async_on_startup(self.async_write_ha_state)
+            self._started = True
 
         if self.hass.state == CoreState.running:
             await _async_startup()
@@ -1037,6 +1049,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         # Set up template listeners for preset temperatures
         await self._setup_template_listeners()
 
+        self._restored = True
         self.async_write_ha_state()
 
     def _connect_hvac_action_reason_signal(self) -> None:
@@ -1876,10 +1889,78 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         ):
             self._attr_supported_features |= ClimateEntityFeature.FAN_MODE
 
+        self._async_follow(event)
         self._async_switch_changed(data["old_state"], data["new_state"])
 
+    @callback
+    def _async_follow(self, event: Event[EventStateChangedData]) -> None:
+        """Consume our own echoes; adopt anything that came from outside."""
+        entity_id = event.data["entity_id"]
+        if not is_climate_entity(entity_id):
+            return
+        child = peek_climate_child(self.hass, entity_id)
+        if child is None:
+            return
+        # Always classify (it consumes this thermostat's echoes), adopt only if following.
+        external = child.external(
+            self.features, event.data["old_state"], event.data["new_state"]
+        )
+        if (
+            external
+            and self.features.follow_device_changes
+            and self._started
+            and self._restored
+        ):
+            self._adopt_dirty = True
+            self.hass.async_create_task(self._async_adopt(child))
+
+    async def _async_adopt(self, child) -> None:
+        """Make the child's current settings DST's own, then carry on controlling."""
+        if self._adopt_lock.locked():
+            return  # the running adoption sees the dirty flag and goes round again
+        async with self._adopt_lock:
+            while self._adopt_dirty:
+                self._adopt_dirty = False
+                state = child.state
+                if state is None or not child.available:
+                    return
+                with child.adopting(
+                    self.features
+                ):  # our commands to it are dropped, briefly
+                    await self._async_adopt_state(child, state)
+                child.clear(self.features)
+                if self._sensor_stalled:
+                    # Safety first: the emergency stop stands; the intent is recorded.
+                    await self.hvac_device.async_turn_off()
+                else:
+                    await self._async_control_climate(force=True)
+                self.async_write_ha_state()
+
     async def _async_adopt_state(self, child, state: State) -> None:
-        """Make the child's current settings DST's own (filled in with the adoption)."""
+        """Apply the child's snapshot through DST's own setters (commands are dropped)."""
+        speed = self.features.fan_speed
+        fan_mode = state.attributes.get(ATTR_FAN_MODE)
+        if (
+            speed is not None
+            and speed.entity_id == child.entity_id
+            and fan_mode in speed.fan_modes
+        ):
+            await self.async_set_fan_mode(fan_mode)
+
+        mode = state.state
+        role = child.device_for(mode)
+        if mode == HVACMode.OFF or role is None or mode not in self.hvac_modes:
+            # off, or a mode no role owns: Off, and hands-off
+            await self.async_set_hvac_mode(HVACMode.OFF)
+            return
+        await self.async_set_hvac_mode(HVACMode(mode))
+        target = state.attributes.get(ATTR_TEMPERATURE)
+        if target is not None:  # after the mode: a mode change reloads presets' targets
+            # like any user input: inside DST's own range
+            wanted = round(target - role.setpoint_offset(), 4)
+            await self.async_set_temperature(
+                temperature=min(max(wanted, self.min_temp), self.max_temp)
+            )
 
     @callback
     def _async_switch_changed(
