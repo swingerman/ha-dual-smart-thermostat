@@ -84,6 +84,14 @@ Specialized heat pump configuration:
 - Heat pump specific settings
 - Auxiliary heating options
 
+#### Climate Entity Control (`climate_control`, options: `climate_control_options`)
+Shown right after the basic entity step, only when a heater, cooler, fan or dryer is a `climate.*` entity:
+- Control style (`on_off` or `setpoint`)
+- Heater / cooler setpoint offsets (each shown only when that role is a climate entity)
+- Follow changes made on the device
+
+`target_sensor` is optional when a device is a climate entity. See [Climate entities as devices](../../README.md#climate-entities-as-devices).
+
 ### 4. Feature Configuration Steps
 Based on selections in step 3, users proceed through relevant feature configuration:
 

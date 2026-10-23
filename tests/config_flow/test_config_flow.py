@@ -21,6 +21,7 @@ from custom_components.dual_smart_thermostat.const import (
     SYSTEM_TYPE_HEATER_COOLER,
     SYSTEM_TYPE_SIMPLE_HEATER,
 )
+from custom_components.dual_smart_thermostat.flow_utils import EntityValidator
 
 
 @pytest.fixture
@@ -405,3 +406,17 @@ if __name__ == "__main__":
 
     success = asyncio.run(run_all_tests())
     sys.exit(0 if success else 1)
+
+
+def test_climate_entity_may_be_heater_and_temperature_source():
+    """A climate is legitimately a role and its own temperature source."""
+    cfg = {"heater": "climate.ac", "target_sensor": "climate.ac"}
+    assert EntityValidator.validate_basic_config(cfg) is True
+    assert EntityValidator.get_validation_errors(cfg) == {}
+
+
+def test_missing_sensor_without_climate_role_is_an_error():
+    """sensor_required unless a climate role supplies the temperature."""
+    errors = EntityValidator.get_validation_errors({"heater": "switch.h"})
+    assert errors == {"base": "sensor_required"}
+    assert EntityValidator.validate_basic_config({"heater": "switch.h"}) is False

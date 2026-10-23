@@ -19,6 +19,12 @@ class CoolerDevice(GenericHVACDevice):
 
     hvac_modes = [HVACMode.COOL, HVACMode.OFF]
 
+    def role_modes(self) -> tuple[HVACMode, ...]:
+        return (HVACMode.COOL,)
+
+    def setpoint_offset(self) -> float:
+        return self.features.cooler_setpoint_offset
+
     def __init__(
         self,
         hass: HomeAssistant,
@@ -43,8 +49,7 @@ class CoolerDevice(GenericHVACDevice):
         )
 
         self.hvac_controller = CoolerHvacController(
-            hass,
-            entity_id,
+            self.port,
             min_cycle_duration,
             environment,
             openings,

@@ -19,6 +19,12 @@ class HeaterDevice(GenericHVACDevice):
 
     hvac_modes = [HVACMode.HEAT, HVACMode.OFF]
 
+    def role_modes(self) -> tuple[HVACMode, ...]:
+        return (HVACMode.HEAT,)
+
+    def setpoint_offset(self) -> float:
+        return self.features.heater_setpoint_offset
+
     def __init__(
         self,
         hass: HomeAssistant,
@@ -43,8 +49,7 @@ class HeaterDevice(GenericHVACDevice):
         )
 
         self.hvac_controller = HeaterHvacConroller(
-            hass,
-            entity_id,
+            self.port,
             min_cycle_duration,
             environment,
             openings,

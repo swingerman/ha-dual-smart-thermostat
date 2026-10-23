@@ -45,6 +45,11 @@ class FanSteps:
         next_step_handler,
     ) -> FlowResult:
         """Handle fan configuration."""
+        errors: dict[str, str] = {}
+        if user_input is not None and (
+            errors := flow_instance._own_entity_errors(user_input)
+        ):
+            user_input = None  # show the form again with the error
         if user_input is not None:
             _LOGGER.debug(
                 "Fan config - user_input received: %s",
@@ -62,7 +67,10 @@ class FanSteps:
         _LOGGER.debug("Fan config - Showing form with no defaults (new config)")
         return flow_instance.async_show_form(
             step_id="fan",
-            data_schema=get_fan_schema(hass=flow_instance.hass),
+            data_schema=get_fan_schema(
+                hass=flow_instance.hass, defaults=collected_config
+            ),
+            errors=errors,
         )
 
     async def async_step_options(
@@ -74,6 +82,11 @@ class FanSteps:
         current_config: dict,
     ) -> FlowResult:
         """Handle fan options (for options flow)."""
+        errors: dict[str, str] = {}
+        if user_input is not None and (
+            errors := flow_instance._own_entity_errors(user_input)
+        ):
+            user_input = None
         if user_input is not None:
             _LOGGER.debug(
                 "Fan options - user_input received: %s",
@@ -105,4 +118,5 @@ class FanSteps:
             data_schema=get_fan_schema(
                 hass=flow_instance.hass, defaults=current_config
             ),
+            errors=errors,
         )

@@ -123,6 +123,10 @@ CONF_OPENINGS = "openings"
 CONF_OPENINGS_SCOPE = "openings_scope"
 CONF_HEAT_COOL_MODE = "heat_cool_mode"
 CONF_HEAT_PUMP_COOLING = "heat_pump_cooling"
+CONF_CONTROL_STYLE = "control_style"
+CONF_HEATER_SETPOINT_OFFSET = "heater_setpoint_offset"
+CONF_FOLLOW_DEVICE_CHANGES = "follow_device_changes"
+CONF_COOLER_SETPOINT_OFFSET = "cooler_setpoint_offset"
 
 # HVAC power levels
 CONF_HVAC_POWER_LEVELS = "hvac_power_levels"
@@ -185,3 +189,15 @@ class ToleranceDevice(enum.StrEnum):
     COOLER = "cooler"
     DRYER = "dryer"
     AUTO = "auto"
+
+
+class ControlStyle(enum.StrEnum):
+    """How a climate-backed device is controlled."""
+
+    ON_OFF = "on_off"
+    SETPOINT = "setpoint"
+
+
+DEFAULT_CONTROL_STYLE = ControlStyle.ON_OFF
+DEFAULT_FOLLOW_DEVICE_CHANGES = True
+DEFAULT_SETPOINT_OFFSET = 0.0  # per role: heater_/cooler_setpoint_offset

@@ -4,6 +4,10 @@ from __future__ import annotations
 
 from typing import Any
 
+from homeassistant.components.climate import DOMAIN as CLIMATE_DOMAIN
+from homeassistant.helpers import entity_registry as er
+
+from .climate_roles import climate_role_errors, may_share_entity
 from .const import (
     ATTR_CLOSING_TIMEOUT,
     ATTR_OPENING_TIMEOUT,
@@ -12,36 +16,71 @@ from .const import (
     CONF_OPENINGS_SCOPE,
     CONF_SENSOR,
 )
+from .schema_utils import exclude_entities_from_schema
+
+# role-rule code -> the translation key an entity step shows for it
+_FLOW_ERROR_KEYS = {"sensor_required": "sensor_required"}
+
+
+class ExcludeOwnEntity:
+    """Flow mixin: no form offers the thermostat's own climate entity as a device.
+
+    The check is on the one method every step shows its form through.
+    """
+
+    def _entry_id(self) -> str | None:
+        """The config entry being edited, if any."""
+        return None
+
+    def _own_entity_ids(self) -> list[str]:
+        entry_id = self._entry_id()
+        if entry_id is None:
+            return []
+        registry = er.async_get(self.hass)
+        return [
+            entity.entity_id
+            for entity in er.async_entries_for_config_entry(registry, entry_id)
+            if entity.domain == CLIMATE_DOMAIN
+        ]
+
+    def _entity_errors(self, user_input: dict[str, Any]) -> dict[str, str]:
+        """The entity-step validation errors for this flow's thermostat."""
+        return EntityValidator.get_validation_errors(user_input, self._own_entity_ids())
+
+    def _own_entity_errors(self, user_input: dict[str, Any]) -> dict[str, str]:
+        """Only the "a thermostat cannot be its own device" error."""
+        return EntityValidator.get_own_entity_errors(user_input, self._own_entity_ids())
+
+    def async_show_form(self, *, data_schema=None, **kwargs):
+        if data_schema is not None and (own := self._own_entity_ids()):
+            data_schema = exclude_entities_from_schema(data_schema, own)
+        return super().async_show_form(data_schema=data_schema, **kwargs)
 
 
 class EntityValidator:
     """Validator for entity configurations."""
 
     @staticmethod
-    def validate_basic_config(user_input: dict[str, Any]) -> bool:
-        """Validate basic configuration.
-
-        Args:
-            user_input: User input data
-
-        Returns:
-            True if validation passes, False otherwise
-        """
-        # Validate that heater and sensor are different entities
-        heater = user_input.get(CONF_HEATER)
-        sensor = user_input.get(CONF_SENSOR)
-        if heater and sensor and heater == sensor:
-            return False
-
-        # Validate that heater and cooler are different if both specified
-        cooler = user_input.get(CONF_COOLER)
-        if heater and cooler and heater == cooler:
-            return False
-
-        return True
+    def validate_basic_config(
+        user_input: dict[str, Any], own_entities: list[str] | None = None
+    ) -> bool:
+        """Validate basic configuration (the same rules as the error messages)."""
+        return not EntityValidator.get_validation_errors(user_input, own_entities)
 
     @staticmethod
-    def get_validation_errors(user_input: dict[str, Any]) -> dict[str, str]:
+    def get_own_entity_errors(
+        user_input: dict[str, Any], own_entities: list[str] | None
+    ) -> dict[str, str]:
+        """A thermostat cannot be its own device. The selectors leave the entity
+        out; this is for submits that skip them."""
+        if own_entities and any(value in own_entities for value in user_input.values()):
+            return {"base": "self_controlled"}
+        return {}
+
+    @staticmethod
+    def get_validation_errors(
+        user_input: dict[str, Any], own_entities: list[str] | None = None
+    ) -> dict[str, str]:
         """Get specific validation errors for user input.
 
         Args:
@@ -55,10 +94,18 @@ class EntityValidator:
         sensor = user_input.get(CONF_SENSOR)
         cooler = user_input.get(CONF_COOLER)
 
-        if heater and sensor and heater == sensor:
+        # A climate entity is legitimately several roles and its own temperature source.
+        if EntityValidator.get_own_entity_errors(user_input, own_entities):
+            errors["base"] = "self_controlled"
+        elif heater and sensor and heater == sensor and not may_share_entity(heater):
             errors["base"] = "same_heater_sensor"
-        elif heater and cooler and heater == cooler:
+        elif heater and cooler and heater == cooler and not may_share_entity(heater):
             errors["base"] = "same_heater_cooler"
+        else:
+            for _field, code in climate_role_errors(user_input):
+                if code in _FLOW_ERROR_KEYS:
+                    errors["base"] = _FLOW_ERROR_KEYS[code]
+                    break
 
         return errors
 

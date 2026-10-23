@@ -3,15 +3,11 @@ import logging
 from typing import Callable
 
 from homeassistant.components.climate import HVACMode
-from homeassistant.components.valve import DOMAIN as VALVE_DOMAIN
-from homeassistant.const import STATE_ON, STATE_OPEN
-from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConditionError
-from homeassistant.helpers import condition
 import homeassistant.util.dt as dt_util
 
 from ..hvac_action_reason.hvac_action_reason import HVACActionReason
 from ..hvac_controller.hvac_controller import HvacController, HvacEnvStrategy
+from ..hvac_device.entity_port import EntityPort
 from ..managers.environment_manager import EnvironmentManager
 from ..managers.opening_manager import OpeningManager
 
@@ -20,14 +16,12 @@ _LOGGER = logging.getLogger(__name__)
 
 class GenericHvacController(HvacController):
 
-    entity_id: str
     min_cycle_duration: timedelta
     _hvac_action_reason: HVACActionReason
 
     def __init__(
         self,
-        hass: HomeAssistant,
-        entity_id,
+        port: EntityPort,
         min_cycle_duration: timedelta,
         environment: EnvironmentManager,
         openings: OpeningManager,
@@ -37,8 +31,7 @@ class GenericHvacController(HvacController):
         self._controller_type = self.__class__.__name__
 
         super().__init__(
-            hass,
-            entity_id,
+            port,
             min_cycle_duration,
             environment,
             openings,
@@ -47,12 +40,6 @@ class GenericHvacController(HvacController):
         )
 
         self._hvac_action_reason = HVACActionReason.NONE
-
-    @property
-    def _is_valve(self) -> bool:
-        state = self.hass.states.get(self.entity_id)
-        domain = state.domain if state else None
-        return domain == VALVE_DOMAIN
 
     @property
     def hvac_action_reason(self) -> HVACActionReason:
@@ -65,41 +52,25 @@ class GenericHvacController(HvacController):
     @property
     def is_active(self) -> bool:
         """If the toggleable hvac device is currently active."""
-        on_state = STATE_OPEN if self._is_valve else STATE_ON
+        return self.port.is_active
 
-        _LOGGER.debug(
-            "Checking if device is active: %s, on_state: %s",
-            self.entity_id,
-            on_state,
-        )
-        if self.entity_id is not None and self.hass.states.is_state(
-            self.entity_id, on_state
-        ):
-            return True
-        return False
+    def stop_held_by_min_cycle(self, safety: bool) -> bool:
+        """A goal-reached stop waits for the minimum cycle where the port holds it.
+
+        Openings and floor limits are safety and never wait.
+        """
+        return not safety and self.port.holds_stop(self.min_cycle_duration)
+
+    def start_held_by_min_cycle(self, safety: bool = False) -> bool:
+        """A start waits for the minimum cycle where the port holds it."""
+        return not safety and self.port.holds_start(self.min_cycle_duration)
 
     def ran_long_enough(self) -> bool:
-        if self.is_active:
-            current_state = STATE_ON
-        else:
-            current_state = HVACMode.OFF
-
         _LOGGER.debug("Checking if device ran long enough: %s", self.entity_id)
-        _LOGGER.debug("current_state: %s", current_state)
         _LOGGER.debug("min_cycle_duration: %s", self.min_cycle_duration)
         _LOGGER.debug("time: %s", dt_util.utcnow())
 
-        try:
-            long_enough = condition.state(
-                self.hass,
-                self.entity_id,
-                current_state,
-                self.min_cycle_duration,
-            )
-        except ConditionError:
-            long_enough = False
-
-        return long_enough
+        return self.port.ran_long_enough(self.min_cycle_duration)
 
     def needs_control(
         self, active: bool, hvac_mode: HVACMode, time=None, force=False
@@ -121,17 +92,15 @@ class GenericHvacController(HvacController):
             )
             return False
 
-        if not force and time is None:
-            # If the `force` argument is True, we
-            # ignore `min_cycle_duration`.
-            # If the `time` argument is not none, we were invoked for
-            # keep-alive purposes, and `min_cycle_duration` is irrelevant.
-            if self.min_cycle_duration:
-                _LOGGER.debug(
-                    "Checking if device ran long enough: %s", self.ran_long_enough()
-                )
-                return self.ran_long_enough()
         return True
+
+    def min_cycle_elapsed(self, force=False) -> bool:
+        """True if the device may change its on/off state now."""
+        if force or not self.min_cycle_duration:
+            return True
+        long_enough = self.ran_long_enough()
+        _LOGGER.debug("Checking if device ran long enough: %s", long_enough)
+        return long_enough
 
     async def async_control_device_when_on(
         self,
@@ -149,7 +118,9 @@ class GenericHvacController(HvacController):
         _LOGGER.debug("any_opening_open: %s", any_opening_open)
         _LOGGER.debug("hvac_goal_reached: %s", strategy.hvac_goal_reached)
 
-        if strategy.hvac_goal_reached or any_opening_open:
+        if self.stop_held_by_min_cycle(any_opening_open):
+            _LOGGER.debug("Not stopping %s: minimum cycle", self.entity_id)
+        elif strategy.hvac_goal_reached or any_opening_open:
             _LOGGER.info(
                 "Turning off entity due to hvac goal reached or opening is open %s",
                 self.entity_id,
@@ -193,7 +164,11 @@ class GenericHvacController(HvacController):
         _LOGGER.debug("is_active: %s", True)
         _LOGGER.debug("time: %s", time)
 
-        if strategy.hvac_goal_not_reached and not any_opening_open:
+        if (
+            strategy.hvac_goal_not_reached
+            and not any_opening_open
+            and not self.start_held_by_min_cycle()
+        ):
             _LOGGER.info(
                 "Turning on entity (from inactive) due to hvac goal is not reached %s",
                 self.entity_id,

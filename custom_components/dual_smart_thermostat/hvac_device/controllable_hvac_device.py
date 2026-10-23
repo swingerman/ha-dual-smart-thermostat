@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from contextlib import asynccontextmanager
 import logging
 
 from homeassistant.components.climate import HVACAction, HVACMode
@@ -45,6 +46,19 @@ class ControlableHVACDevice(ABC):
         _LOGGER.debug("%s: Setting hvac mode to %s", self.__class__.__name__, hvac_mode)
         self._hvac_mode = hvac_mode
 
+    async def async_keep_alive_off(self) -> None:
+        """A keep-alive tick while Off: resend turn_off whether or not it looks active."""
+        await self.async_turn_off()
+
+    def ports(self) -> list:
+        """The entity ports of this device and its sub-devices."""
+        return []
+
+    @asynccontextmanager
+    async def control_pass(self):
+        """Bracket one control run (set mode / control). Nothing to do by default."""
+        yield
+
     async def async_set_hvac_mode(self, hvac_mode: HVACMode):
         _LOGGER.info("Setting hvac mode to %s of %s", hvac_mode, self.hvac_modes)
         if hvac_mode in self.hvac_modes:
@@ -53,8 +67,7 @@ class ControlableHVACDevice(ABC):
             self.hvac_mode = HVACMode.OFF
 
         if self.hvac_mode == HVACMode.OFF:
-            if self.is_active:
-                await self.async_turn_off()
+            await self.async_stop()
             self._hvac_action_reason = HVACActionReason.NONE
         else:
             await self.async_control_hvac(force=True)
@@ -101,6 +114,14 @@ class ControlableHVACDevice(ABC):
     @abstractmethod
     async def async_turn_off(self):
         pass
+
+    @abstractmethod
+    def release(self) -> None:
+        """The thermostat is being removed: release shared resources."""
+
+    @abstractmethod
+    async def async_stop(self, *, keep_alive: bool = False):
+        """DST is Off: concrete implementations must leave the device off."""
 
     @abstractmethod
     def is_active(self) -> bool:

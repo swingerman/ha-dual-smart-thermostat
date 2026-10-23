@@ -64,8 +64,7 @@ class HeatPumpDevice(GenericHVACDevice):
         )
 
         self.heating_controller = HeaterHvacConroller(
-            hass,
-            entity_id,
+            self.port,
             min_cycle_duration,
             environment,
             openings,
@@ -74,8 +73,7 @@ class HeatPumpDevice(GenericHVACDevice):
         )
 
         self.cooling_controller = CoolerHvacController(
-            hass,
-            entity_id,
+            self.port,
             min_cycle_duration,
             environment,
             openings,
@@ -108,6 +106,21 @@ class HeatPumpDevice(GenericHVACDevice):
                 return "_target_temp_low"
         else:
             return self._target_env_attr
+
+    def role_modes(self) -> tuple[HVACMode, ...]:
+        # Running in either mode counts, so a flip of the cooling flag still finds
+        # the child active and stops it, as it does for a switch; the first entry
+        # is the mode to command now.
+        if self._heat_pump_is_cooling:
+            return (HVACMode.COOL, HVACMode.HEAT)
+        return (HVACMode.HEAT, HVACMode.COOL)
+
+    def setpoint_offset(self) -> float:
+        return (
+            self.features.cooler_setpoint_offset
+            if self._heat_pump_is_cooling
+            else self.features.heater_setpoint_offset
+        )
 
     @property
     def hvac_action(self) -> HVACAction:

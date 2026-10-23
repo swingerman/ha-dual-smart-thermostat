@@ -20,6 +20,8 @@ from homeassistant.components.climate import (
 )
 from homeassistant.components.climate.const import DOMAIN as CLIMATE
 from homeassistant.const import (
+    SERVICE_CLOSE_VALVE,
+    SERVICE_OPEN_VALVE,
     SERVICE_TURN_OFF,
     SERVICE_TURN_ON,
     STATE_CLOSED,
@@ -66,6 +68,7 @@ from . import (  # noqa: F401
     setup_humidity_sensor,
     setup_sensor,
     setup_switch,
+    setup_valve,
 )
 
 COLD_TOLERANCE = 0.5
@@ -1905,3 +1908,51 @@ async def test_ac_only_apparent_temp_off_does_not_cool_when_raw_below(
     assert (
         not cool_calls
     ), "ac_only must not cool when raw < target+tol and apparent off"
+
+
+@pytest.mark.parametrize("expected_lingering_timers", [True])
+async def test_cooler_valve_min_cycle_no_keep_alive(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory, setup_comp_1  # noqa: F811
+) -> None:
+    """Valve cooler with min_cycle_duration (no keep_alive) opens, then closes (#663)."""
+    hass.config.units = METRIC_SYSTEM
+    calls = setup_valve(hass, False)
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "heater": common.ENT_VALVE,
+                "ac_mode": "true",
+                "target_sensor": common.ENT_SENSOR,
+                "initial_hvac_mode": HVACMode.COOL,
+                "min_cycle_duration": timedelta(seconds=15),
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    freezer.tick(timedelta(seconds=20))
+    common.async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+
+    setup_sensor(hass, 28)
+    await hass.async_block_till_done()
+    await common.async_set_temperature(hass, 25)
+    await hass.async_block_till_done()
+    assert [c.service for c in calls] == [SERVICE_OPEN_VALVE]
+
+    # valve reports open; wait out min_cycle, then reach the opposite side
+    calls.clear()
+    hass.states.async_set(
+        common.ENT_VALVE, STATE_OPEN, dict(hass.states.get(common.ENT_VALVE).attributes)
+    )
+    freezer.tick(timedelta(seconds=20))
+    common.async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+
+    setup_sensor(hass, 22)
+    await hass.async_block_till_done()
+    assert SERVICE_CLOSE_VALVE in [c.service for c in calls]

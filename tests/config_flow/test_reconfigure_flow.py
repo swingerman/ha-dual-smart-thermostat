@@ -402,3 +402,120 @@ if __name__ == "__main__":
 
     success = asyncio.run(run_all_tests())
     sys.exit(0 if success else 1)
+
+
+async def test_reconfigure_revisits_climate_control():
+    """The shown-flag is cleared, so reconfigure passes through the step again."""
+    entry = Mock()
+    entry.entry_id = "climate_entry"
+    entry.data = {
+        CONF_NAME: "T",
+        CONF_SYSTEM_TYPE: SYSTEM_TYPE_HEATER_COOLER,
+        CONF_HEATER: "switch.h",
+        "cooler": "climate.ac",
+        CONF_SENSOR: "sensor.t",
+        "climate_control_shown": True,
+    }
+    flow = ConfigFlowHandler()
+    flow.hass = Mock()
+
+    with patch.object(
+        type(flow), "source", new_callable=PropertyMock, return_value=SOURCE_RECONFIGURE
+    ):
+        flow._get_reconfigure_entry = Mock(return_value=entry)
+        await flow.async_step_reconfigure()
+
+    assert "climate_control_shown" not in flow.collected_config
+
+
+# ------------------------------------------- a thermostat cannot be its own device
+
+
+async def _reconfiguring(hass, own_entity="climate.dst_living"):
+    """A reconfigure flow for an entry whose own climate entity is in the registry."""
+    from homeassistant.helpers import entity_registry as er
+    from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+    from custom_components.dual_smart_thermostat.const import DOMAIN
+
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={
+            CONF_NAME: "Living",
+            CONF_SYSTEM_TYPE: SYSTEM_TYPE_HEATER_COOLER,
+            CONF_HEATER: "switch.heater",
+            "cooler": "switch.cooler",
+            CONF_SENSOR: "sensor.temperature",
+        },
+    )
+    entry.add_to_hass(hass)
+    er.async_get(hass).async_get_or_create(
+        "climate",
+        DOMAIN,
+        "living",
+        config_entry=entry,
+        suggested_object_id=own_entity.split(".")[1],
+    )
+    flow = ConfigFlowHandler()
+    flow.hass = hass
+    flow.flow_id = "test"
+    return flow, entry
+
+
+def _excluded(result, field):
+    schema = result["data_schema"].schema
+    key = next(k for k in schema if str(k) == field)
+    return schema[key].config.get("exclude_entities", [])
+
+
+async def test_reconfigure_device_selectors_leave_out_the_thermostats_own_entity(
+    hass, real_entity_registry
+):
+    flow, entry = await _reconfiguring(hass)
+    with patch.object(
+        type(flow), "source", new_callable=PropertyMock, return_value=SOURCE_RECONFIGURE
+    ):
+        flow._get_reconfigure_entry = Mock(return_value=entry)
+        await flow.async_step_reconfigure()
+        result = await flow.async_step_reconfigure_confirm(
+            {CONF_SYSTEM_TYPE: SYSTEM_TYPE_HEATER_COOLER}
+        )
+        assert result["step_id"] == "heater_cooler"
+        assert _excluded(result, CONF_HEATER) == ["climate.dst_living"]
+        assert _excluded(result, "cooler") == ["climate.dst_living"]
+        # a sensor can never be a climate entity: untouched
+        assert "climate.dst_living" not in _excluded(result, CONF_SENSOR)
+
+
+async def test_reconfigure_refuses_the_thermostats_own_entity_as_a_device(
+    hass, real_entity_registry
+):
+    """The backstop for API submits that skip the selector."""
+    flow, entry = await _reconfiguring(hass)
+    with patch.object(
+        type(flow), "source", new_callable=PropertyMock, return_value=SOURCE_RECONFIGURE
+    ):
+        flow._get_reconfigure_entry = Mock(return_value=entry)
+        await flow.async_step_reconfigure()
+        await flow.async_step_reconfigure_confirm(
+            {CONF_SYSTEM_TYPE: SYSTEM_TYPE_HEATER_COOLER}
+        )
+        result = await flow.async_step_heater_cooler(
+            {
+                CONF_NAME: "Living",
+                CONF_HEATER: "climate.dst_living",
+                "cooler": "switch.cooler",
+                CONF_SENSOR: "sensor.temperature",
+            }
+        )
+        assert result["type"] == "form"
+        assert result["errors"] == {"base": "self_controlled"}
+
+
+async def test_a_new_config_flow_has_no_own_entity_to_leave_out(
+    hass, real_entity_registry
+):
+    flow = ConfigFlowHandler()
+    flow.hass = hass
+    flow.flow_id = "test"
+    assert flow._own_entity_ids() == []

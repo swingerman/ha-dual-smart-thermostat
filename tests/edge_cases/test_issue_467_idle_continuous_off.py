@@ -20,6 +20,7 @@ doesn't have a guard to prevent sending redundant off commands.
 
 import datetime
 
+from freezegun.api import FrozenDateTimeFactory
 from homeassistant.components.climate import HVACAction, HVACMode
 from homeassistant.const import STATE_OFF
 from homeassistant.core import HomeAssistant
@@ -34,7 +35,9 @@ from .. import common, setup_sensor, setup_switch
 
 
 @pytest.mark.parametrize("expected_lingering_timers", [True])
-async def test_idle_mode_no_continuous_turn_off(hass: HomeAssistant) -> None:
+async def test_idle_mode_no_continuous_turn_off(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory
+) -> None:
     """Test that IDLE mode doesn't continuously call turn_off during keep-alive.
 
     This is the main scenario from issue #467:
@@ -79,6 +82,9 @@ async def test_idle_mode_no_continuous_turn_off(hass: HomeAssistant) -> None:
 
     # Clear previous calls
     calls.clear()
+
+    # Let min_cycle_duration pass: it now also applies with keep_alive (#668)
+    freezer.tick(datetime.timedelta(seconds=11))
 
     # Temperature rises to target + hot_tolerance (should turn off)
     setup_sensor(hass, 22.5)

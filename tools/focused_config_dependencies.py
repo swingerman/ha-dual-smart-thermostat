@@ -9,6 +9,7 @@ where configuration parameters only make sense when other parameters are set.
 from dataclasses import dataclass, field
 from enum import Enum
 import json
+from pathlib import Path
 from typing import Dict, List, Optional
 
 
@@ -231,6 +232,40 @@ class FocusedConfigDependencies:
             ]
         )
 
+        # === CLIMATE ENTITY DEVICE DEPENDENCIES ===
+        self.dependencies.extend(
+            [
+                ConfigDependency(
+                    source="heater|cooler|fan|dryer as a climate.* entity",
+                    target="control_style",
+                    type=DependencyType.ENABLES,
+                    description="Control style only works when a device is a climate entity (setpoint needs the heater or cooler to be one)",
+                    example="heater: climate.ac → control_style: setpoint",
+                ),
+                ConfigDependency(
+                    source="heater|cooler|fan|dryer as a climate.* entity",
+                    target="follow_device_changes",
+                    type=DependencyType.ENABLES,
+                    description="Following changes made on the device only works when a device is a climate entity",
+                    example="heater: climate.ac → follow_device_changes: false",
+                ),
+                ConfigDependency(
+                    source="heater as a climate.* entity",
+                    target="heater_setpoint_offset",
+                    type=DependencyType.ENABLES,
+                    description="Heater setpoint offset only works when the heater is a climate entity",
+                    example="heater: climate.heater_ac → heater_setpoint_offset: 2",
+                ),
+                ConfigDependency(
+                    source="cooler as a climate.* entity",
+                    target="cooler_setpoint_offset",
+                    type=DependencyType.ENABLES,
+                    description="Cooler setpoint offset only works when the cooler (or an ac_mode/heat pump heater) is a climate entity",
+                    example="cooler: climate.ac → cooler_setpoint_offset: -2",
+                ),
+            ]
+        )
+
         # === ENTITY CONFLICTS ===
         self.dependencies.extend(
             [
@@ -278,6 +313,7 @@ class FocusedConfigDependencies:
         guide = {
             "conditional_parameters": {},
             "dependency_groups": {},
+            "template_dependencies": TEMPLATE_DEPENDENCIES,
             "configuration_examples": {},
         }
 
@@ -387,7 +423,105 @@ class FocusedConfigDependencies:
             },
         }
 
+        guide["configuration_examples"][
+            "template_based_presets"
+        ] = TEMPLATE_PRESETS_EXAMPLE
+
         return guide
+
+
+# Template-based preset temperatures (#96): not derived from the dependency list.
+TEMPLATE_DEPENDENCIES = {
+    "description": "Template-based preset temperatures depend on referenced "
+    "entities existing",
+    "applies_to": [
+        "away_temp",
+        "away_temp_high",
+        "eco_temp",
+        "eco_temp_high",
+        "comfort_temp",
+        "comfort_temp_high",
+        "home_temp",
+        "home_temp_high",
+        "sleep_temp",
+        "sleep_temp_high",
+        "activity_temp",
+        "activity_temp_high",
+        "boost_temp",
+        "boost_temp_high",
+        "anti_freeze_temp",
+        "anti_freeze_temp_high",
+    ],
+    "dependency_type": "entity_reference",
+    "examples": {
+        "input_number_reference": {
+            "template": "{{ " "states('input_number.away_temp') " "| float }}",
+            "requires": "input_number.away_temp " "must exist",
+            "description": "Template references " "input_number helper",
+        },
+        "sensor_reference": {
+            "template": "{{ " "states('sensor.outdoor_temp') " "| float + 5 }}",
+            "requires": "sensor.outdoor_temp must exist",
+            "description": "Template references sensor " "with calculation",
+        },
+        "conditional_logic": {
+            "template": "{{ 16 if " "is_state('sensor.season', " "'winter') else 26 }}",
+            "requires": "sensor.season must exist",
+            "description": "Template uses conditional "
+            "logic based on entity "
+            "state",
+        },
+        "multiple_entities": {
+            "template": "{{ "
+            "states('input_number.base_temp') "
+            "| float + "
+            "states('input_number.offset') "
+            "| float }}",
+            "requires": "Both input_number.base_temp "
+            "and input_number.offset must "
+            "exist",
+            "description": "Template references " "multiple entities",
+        },
+    },
+    "validation": {
+        "config_flow": "Templates validated for syntax before saving",
+        "runtime": "Referenced entities checked during template " "evaluation",
+        "fallback": "Uses last good value if template evaluation " "fails",
+    },
+    "notes": [
+        "All entities referenced in template must exist",
+        "Always use | float filter to convert states to numbers",
+        "Use | float(default) to provide fallback if entity unavailable",
+        "Templates automatically re-evaluate when referenced entities " "change",
+        "Both static values and templates can be used for preset " "temperatures",
+        "Template syntax errors are caught during config flow validation",
+    ],
+}
+
+TEMPLATE_PRESETS_EXAMPLE = {
+    "description": "Preset temperatures using templates for dynamic adjustment",
+    "required": ["Referenced entities (input_number, sensor, etc.) must exist"],
+    "optional": [
+        "Any preset temperature parameter can use templates",
+        "Templates can reference multiple entities",
+        "Conditional logic can be used",
+    ],
+    "example": {
+        "away_temp": "{{ states('input_number.away_target') | float }}",
+        "eco_temp": "{{ 16 if is_state('sensor.season', 'winter') else 26 " "}}",
+        "home_temp": "{{ states('sensor.outdoor_temp') | float + 5 }}",
+        "comfort_temp": "{{ states('input_number.base_temp') | float + "
+        "states('input_number.offset') | float }}",
+    },
+    "notes": [
+        "Preset parameters can use static values OR templates",
+        "Both single temp mode (away_temp) and range mode (away_temp, "
+        "away_temp_high) support templates",
+        "Template validation occurs in config flow before saving",
+        "Runtime evaluation includes fallback to last good value if " "template fails",
+        "See template_dependencies section for detailed requirements",
+    ],
+}
 
 
 def main():
@@ -398,10 +532,9 @@ def main():
     guide = config_deps.generate_conditional_guide()
 
     # Save to JSON
-    with open(
-        "/workspaces/dual_smart_thermostat/focused_config_dependencies.json", "w"
-    ) as f:
+    with open(Path(__file__).with_name("focused_config_dependencies.json"), "w") as f:
         json.dump(guide, f, indent=2)
+        f.write("\n")
 
     # Print analysis
     print("🎯 Focused Configuration Parameter Dependencies")

@@ -8,7 +8,7 @@ This document focuses **exclusively** on configuration parameters that have cond
 
 **Conditional Parameters**: These parameters are ignored or non-functional unless their required "enabling" parameter is configured first.
 
-## 📋 Critical Dependencies (22 Total) + System-Type Constraints (2 Parameters)
+## 📋 Critical Dependencies (26 Total) + System-Type Constraints (2 Parameters)
 
 ### 🔥 Secondary Heating Dependencies
 
@@ -167,6 +167,37 @@ fan_air_outside: true  # ← Only works with outside_sensor
 
 ---
 
+### 🌬️ Climate Entity Devices
+
+**Enabling Parameter**: any of `heater`, `cooler`, `fan` or `dryer` is a `climate.*` entity
+
+When a device is a climate entity, these parameters become available:
+
+| Parameter | Description | Example |
+|-----------|-------------|---------|
+| `control_style` | `on_off` (default) or `setpoint`; `setpoint` needs the heater or cooler to be a climate entity (a fan or dryer climate is always `on_off`) | `setpoint` |
+| `follow_device_changes` | Adopt changes made on the device itself (default `true`) | `false` |
+| `heater_setpoint_offset` | Added to the target sent to the heater device (needs the heater to be a climate entity) | `2` |
+| `cooler_setpoint_offset` | Added to the target sent to the cooler device (needs the cooler, or an `ac_mode`/heat pump heater, to be a climate entity) | `-2` |
+
+These options are set in the "Climate Entity Control" step (`climate_control`, or `climate_control_options` in the options flow). The step is shown only when a device is a climate entity, right after the basic entity step and before feature steps, openings and presets.
+
+`target_sensor` is then optional: the climate entity's own temperature is used.
+A thermostat cannot use its own entity as a device.
+`control_style: setpoint` needs a climate heater or cooler, is not supported for a climate heat pump, nor with one
+climate entity as both heater and cooler when heat/cool is enabled. A climate
+entity may fill several roles, and `secondary_heater` cannot be a climate entity.
+
+**Configuration Example**:
+```yaml
+heater: climate.office_ac
+cooler: climate.office_ac
+control_style: setpoint      # ← Only works with a climate device
+cooler_setpoint_offset: -2   # ← Only works when the cooler is a climate entity
+```
+
+---
+
 ### 💧 Humidity Control Dependencies
 
 **Enabling Parameter**: `humidity_sensor`
@@ -241,7 +272,7 @@ target_sensor: sensor.temperature
 
 ### 2. Heater/Cooler Conflicts
 ```yaml
-# ❌ WRONG - Same entity for heating and cooling
+# ❌ WRONG - Same switch for heating and cooling (a climate entity may fill both roles)
 heater: switch.main_device
 cooler: switch.main_device  # Cannot be the same!
 
@@ -532,7 +563,7 @@ This ensures the thermostat remains functional even if templates have temporary 
 
 ## 🎯 Summary
 
-**22 conditional dependencies** across **7 feature areas**:
+**26 conditional dependencies** across **8 feature areas**:
 
 - **Secondary Heating** (2 parameters): Need `secondary_heater`
 - **Floor Protection** (2 parameters): Need `floor_sensor`
@@ -540,6 +571,7 @@ This ensures the thermostat remains functional even if templates have temporary 
 - **Fan Control** (4 parameters): Need `fan` (+ 1 needs `outside_sensor`)
 - **Humidity Control** (5 parameters): Need `humidity_sensor` + `dryer`
 - **Power Management** (3 parameters): Need `hvac_power_levels`
+- **Climate Entity Devices** (4 parameters): Need a climate device (`control_style`, `follow_device_changes`); each offset needs its own role
 - **Template-Based Presets**: Referenced entities must exist (input_numbers, sensors, etc.)
 
 **2 system-type constraints**:
