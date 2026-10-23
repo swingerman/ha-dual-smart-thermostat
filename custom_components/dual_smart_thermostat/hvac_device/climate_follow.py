@@ -16,7 +16,8 @@ from homeassistant.const import ATTR_TEMPERATURE
 from homeassistant.core import Event, EventStateChangedData, HomeAssistant, State
 
 from ..climate_roles import is_climate_entity
-from .entity_port import ClimateChild, is_unavailable, peek_climate_child
+from .climate_child import ClimateChild, peek_climate_child
+from .entity_port import is_unavailable
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -93,7 +94,7 @@ class ClimateFollower:
             # is asserted once here; nothing is adopted from first sight.
             sink.hass.async_create_task(self._async_assert_off())
         # Always classify (it consumes this thermostat's echoes), adopt only if following.
-        report = child.external(sink.features, old, new)
+        report = child.echo.external(sink.features, old, new)
         if report.fan_dropped:
             sink.hass.async_create_task(self._async_resend_fan(child))
         if (
@@ -112,7 +113,7 @@ class ClimateFollower:
                     sink.hass.async_create_task(self._async_adopt(child))
 
             # Another thermostat mid-sequence on this child: adopt when it is done.
-            if not child.defer_while_sending(sink.features, adopt):
+            if not child.echo.defer_while_sending(sink.features, adopt):
                 adopt()
 
     def _sync_fan_display(self, entity_id: str, new_state: State | None) -> None:
@@ -163,9 +164,9 @@ class ClimateFollower:
                     "%s adopts %s (changed: %s)", sink.entity_id, state, sorted(changed)
                 )
                 # our commands to it are dropped, briefly
-                with child.adopting(sink.features):
+                with child.echo.adopting(sink.features):
                     await self._async_adopt_state(child, state, changed)
-                child.clear(sink.features)
+                child.echo.clear(sink.features)
                 await sink.async_adoption_run()
 
     async def _async_adopt_state(

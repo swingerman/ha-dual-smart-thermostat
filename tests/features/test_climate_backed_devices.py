@@ -13,14 +13,12 @@ import pytest
 import voluptuous as vol
 
 from custom_components.dual_smart_thermostat.const import DOMAIN, ControlStyle
-from custom_components.dual_smart_thermostat.hvac_device.entity_port import (
-    ClimatePort,
-    SwitchPort,
-    make_port,
-)
+from custom_components.dual_smart_thermostat.hvac_device.climate_port import ClimatePort
+from custom_components.dual_smart_thermostat.hvac_device.entity_port import make_port
 from custom_components.dual_smart_thermostat.hvac_device.generic_hvac_device import (
     GenericHVACDevice,
 )
+from custom_components.dual_smart_thermostat.hvac_device.switch_port import SwitchPort
 from tests import common, setup_switch
 
 
@@ -88,7 +86,7 @@ async def test_switch_port_skips_command_when_unavailable(
 
 
 class _RoleDevice:
-    """The few things a port asks its device for (see entity_port.py)."""
+    """The few things a port asks its device for (see climate_port.py)."""
 
     def __init__(
         self,

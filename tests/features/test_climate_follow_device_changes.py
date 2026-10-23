@@ -12,12 +12,12 @@ from homeassistant.util.unit_system import METRIC_SYSTEM
 import pytest
 
 from custom_components.dual_smart_thermostat.const import DOMAIN
-from custom_components.dual_smart_thermostat.hvac_device.climate_follow import (
-    ClimateFollower,
-)
-from custom_components.dual_smart_thermostat.hvac_device.entity_port import (
+from custom_components.dual_smart_thermostat.hvac_device.climate_child import (
     ClimateChild,
     peek_climate_child,
+)
+from custom_components.dual_smart_thermostat.hvac_device.climate_follow import (
+    ClimateFollower,
 )
 from tests import common, setup_switch
 
@@ -210,8 +210,8 @@ async def test_external_ignores_an_assumed_flag_on_either_side(hass):  # H3
     owner = object()
     off = State(AC, "off", {"assumed_state": True})
     cool = State(AC, "cool", {})
-    assert not child.external(owner, off, cool).changed
-    assert not child.external(
+    assert not child.echo.external(owner, off, cool).changed
+    assert not child.echo.external(
         owner, cool, State(AC, "off", {"assumed_state": True})
     ).changed
 
@@ -220,8 +220,8 @@ async def test_external_ignores_a_missing_or_unavailable_old_state(hass):
     child = ClimateChild(hass, AC)
     owner = object()
     cool = State(AC, "cool", {})
-    assert not child.external(owner, None, cool).changed  # first sight
-    assert not child.external(
+    assert not child.echo.external(owner, None, cool).changed  # first sight
+    assert not child.echo.external(
         owner, State(AC, "unavailable"), cool
     ).changed  # reconnect
 
@@ -732,7 +732,7 @@ async def test_open_window_keeps_the_adopted_intent_and_applies_it_after_closing
     assert [c[0] for c in child.calls] == ["turn_off"]
     # the adoption's flag is released before the control run: nothing is held back
     shared = hass.data["dual_smart_thermostat_climate_children"][AC]
-    assert not any(shared._adopting.values())
+    assert not any(shared.echo._adopting.values())
 
     child.calls.clear()
     hass.states.async_set(WINDOW, "off")
@@ -1162,11 +1162,11 @@ async def test_an_ignored_command_does_not_swallow_a_later_remote_press(hass):
     owner = object()
     child.ports.add(type("P", (), {"owner": owner})())
     off = State(AC, "off", {})
-    child._expect(owner, {"mode": "heat"})  # commanded, never reported
-    assert child.external(owner, off, State(AC, "cool", {})).changed == {
+    child.echo.expect(owner, {"mode": "heat"})  # commanded, never reported
+    assert child.echo.external(owner, off, State(AC, "cool", {})).changed == {
         "mode"
     }  # remote cool
-    assert child.external(
+    assert child.echo.external(
         owner, State(AC, "cool", {}), State(AC, "heat", {})
     ).changed == {
         "mode"
@@ -1593,7 +1593,7 @@ async def test_a_zero_keep_alive_does_not_switch_the_min_cycle_off(hass, freezer
 def _mentions(child, owner) -> list[str]:
     """Every place in the child's per-owner records that still names `owner`."""
     found = []
-    for name, value in vars(child).items():
+    for name, value in {**vars(child), **vars(child.echo)}.items():
         if isinstance(value, dict):
             if owner in value:
                 found.append(name)

@@ -13,7 +13,7 @@ from custom_components.dual_smart_thermostat.const import (
     FAN_MODE_TO_PERCENTAGE,
     PERCENTAGE_TO_FAN_MODE,
 )
-from custom_components.dual_smart_thermostat.hvac_device.entity_port import (
+from custom_components.dual_smart_thermostat.hvac_device.climate_child import (
     acquire_climate_child,
 )
 from custom_components.dual_smart_thermostat.hvac_device.fan_device import FanDevice

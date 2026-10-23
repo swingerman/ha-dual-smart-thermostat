@@ -24,7 +24,7 @@ from homeassistant.core import HomeAssistant, State, callback
 
 from ..climate_roles import is_climate_entity
 from ..const import FAN_MODE_TO_PERCENTAGE
-from .entity_port import peek_climate_child
+from .climate_child import peek_climate_child
 
 _LOGGER = logging.getLogger(__name__)
 
