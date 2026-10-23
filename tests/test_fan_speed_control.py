@@ -13,6 +13,9 @@ from custom_components.dual_smart_thermostat.const import (
     FAN_MODE_TO_PERCENTAGE,
     PERCENTAGE_TO_FAN_MODE,
 )
+from custom_components.dual_smart_thermostat.hvac_device.entity_port import (
+    acquire_climate_child,
+)
 from custom_components.dual_smart_thermostat.hvac_device.fan_device import FanDevice
 from custom_components.dual_smart_thermostat.hvac_device.fan_speed import (
     FanSpeedControl,
@@ -2048,6 +2051,7 @@ async def test_climate_speed_is_set_with_climate_set_fan_mode(hass: HomeAssistan
     """The speed goes out through climate.set_fan_mode."""
     child = await common.add_fake_climate(hass, "climate.test_ac", HVACMode.COOL)
     speed = FanSpeedControl(hass, "climate.test_ac")
+    acquire_climate_child(hass, "climate.test_ac")  # what a role port holds
 
     await speed.async_set_fan_mode("strong")
 
@@ -2062,6 +2066,7 @@ async def test_climate_speed_outside_the_childs_modes_is_refused(
     """A mode the child does not list is logged and not sent."""
     child = await common.add_fake_climate(hass, "climate.test_ac")
     speed = FanSpeedControl(hass, "climate.test_ac")
+    acquire_climate_child(hass, "climate.test_ac")  # what a role port holds
 
     await speed.async_set_fan_mode("turbo")
 
@@ -2074,6 +2079,7 @@ async def test_climate_speed_already_set_is_not_resent(hass: HomeAssistant):
     """A child that already reports the speed is not told again."""
     child = await common.add_fake_climate(hass, "climate.test_ac", fan_mode="strong")
     speed = FanSpeedControl(hass, "climate.test_ac")
+    acquire_climate_child(hass, "climate.test_ac")  # what a role port holds
 
     await speed.async_set_fan_mode("strong")
 
@@ -2090,6 +2096,7 @@ async def test_climate_fan_modes_keep_their_case(hass: HomeAssistant):
     )
 
     speed = FanSpeedControl(hass, "climate.cased")
+    acquire_climate_child(hass, "climate.cased")  # what a role port holds
 
     assert speed.fan_modes == ["Quiet", "Strong"]
     assert speed.current_fan_mode == "Quiet"
@@ -2102,6 +2109,7 @@ async def test_assumed_state_child_that_is_off_is_not_sent_a_fan_speed(
     """An IR frame can power an AC on: an off (assumed) child gets no speed now."""
     child = await common.add_fake_climate(hass, "climate.test_ir", assumed=True)
     speed = FanSpeedControl(hass, "climate.test_ir")
+    acquire_climate_child(hass, "climate.test_ir")  # what a role port holds
 
     await speed.async_set_fan_mode("strong")
 

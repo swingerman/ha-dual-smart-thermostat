@@ -24,7 +24,7 @@ from homeassistant.core import HomeAssistant, State, callback
 
 from ..climate_roles import is_climate_entity
 from ..const import FAN_MODE_TO_PERCENTAGE
-from .entity_port import ClimateChild, peek_climate_child
+from .entity_port import peek_climate_child
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -186,10 +186,8 @@ class FanSpeedControl:
         if self._is_climate:
             # The shared child decides whether the AC is running (and sends it);
             # otherwise the selection is only recorded below for the next turn on.
-            child = peek_climate_child(self.hass, self.entity_id) or ClimateChild(
-                self.hass, self.entity_id
-            )
-            await child.async_set_fan_mode(fan_mode, None, self.owner)
+            if child := peek_climate_child(self.hass, self.entity_id):
+                await child.async_set_fan_mode(fan_mode, None, self.owner)
         elif self.uses_preset_modes:
             # Use preset_mode service
             await self.hass.services.async_call(
