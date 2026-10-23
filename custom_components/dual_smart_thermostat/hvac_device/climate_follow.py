@@ -203,7 +203,7 @@ class ClimateFollower:
             "target" in changed
             and target is not None
             and port is not None
-            and port.device.pushes_setpoint
+            and port.pushes_setpoint
             and mode in sink.hvac_modes
         ):
             # like any user input: inside DST's own range

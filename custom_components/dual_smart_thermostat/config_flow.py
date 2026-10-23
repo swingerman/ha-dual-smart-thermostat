@@ -40,7 +40,7 @@ from .feature_steps import (
     OpeningsSteps,
     PresetsSteps,
 )
-from .flow_utils import EntityValidator, ExcludeOwnEntity
+from .flow_utils import ExcludeOwnEntity
 from .schemas import (
     get_additional_sensors_schema,
     get_base_schema,
@@ -714,7 +714,7 @@ class ConfigFlowHandler(ExcludeOwnEntity, ConfigFlow, domain=DOMAIN):
 
     async def _validate_basic_config(self, user_input: dict[str, Any]) -> bool:
         """Validate basic configuration."""
-        return EntityValidator.validate_basic_config(user_input, self._own_entity_ids())
+        return not self._entity_errors(user_input)
 
     async def _determine_next_step(self) -> FlowResult:
         """Determine the next step based on configuration dependencies.

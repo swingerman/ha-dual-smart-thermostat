@@ -122,8 +122,8 @@ class EntityPort(ABC):
     def holds_stop(self, min_cycle: timedelta) -> bool:
         """A goal-reached stop must wait for the minimum cycle, even in a forced run.
 
-        Only a climate holds it (its compressor); a switch follows master: a forced
-        run skips the minimum cycle.
+        Only a climate holds it (its compressor); a switch lets a forced run skip
+        the minimum cycle.
         """
         return False
 
@@ -178,46 +178,41 @@ class EntityPort(ABC):
 
 
 class SwitchPort(EntityPort):
-    """switch / input_boolean / valve style entities (the original behaviour)."""
+    """switch / input_boolean / valve style entities."""
 
     @property
     def _state(self) -> State | None:
         return self.hass.states.get(self.entity_id)
 
-    @property
-    def _is_valve(self) -> bool:
-        state = self._state
+    @staticmethod
+    def _is_valve(state: State | None) -> bool:
         return state is not None and state.domain == VALVE_DOMAIN
 
-    @property
-    def _features(self) -> int:
-        state = self._state
-        return state.attributes.get(ATTR_SUPPORTED_FEATURES) if state else 0
+    @classmethod
+    def _supports(cls, state: State | None, feature: ValveEntityFeature) -> bool:
+        return cls._is_valve(state) and bool(
+            state.attributes.get(ATTR_SUPPORTED_FEATURES, 0) & feature
+        )
 
-    @property
-    def _supports_open_valve(self) -> bool:
-        return self._is_valve and self._features & ValveEntityFeature.OPEN
+    @classmethod
+    def _on_state(cls, state: State | None) -> str:
+        return STATE_OPEN if cls._is_valve(state) else STATE_ON
 
-    @property
-    def _supports_close_valve(self) -> bool:
-        return self._is_valve and self._features & ValveEntityFeature.CLOSE
-
-    @property
-    def _on_state(self) -> str:
-        return STATE_OPEN if self._is_valve else STATE_ON
-
-    @property
-    def _off_state(self) -> str:
-        return STATE_CLOSED if self._is_valve else STATE_OFF
+    @classmethod
+    def _off_state(cls, state: State | None) -> str:
+        return STATE_CLOSED if cls._is_valve(state) else STATE_OFF
 
     @property
     def is_active(self) -> bool:
-        return self.hass.states.is_state(self.entity_id, self._on_state)
+        state = self._state
+        return state is not None and state.state == self._on_state(state)
 
     def ran_long_enough(self, min_cycle: timedelta) -> bool:
-        current_state = self._on_state if self.is_active else self._off_state
+        state = self._state
+        active = state is not None and state.state == self._on_state(state)
+        current = self._on_state(state) if active else self._off_state(state)
         try:
-            return condition.state(self.hass, self.entity_id, current_state, min_cycle)
+            return condition.state(self.hass, self.entity_id, current, min_cycle)
         except ConditionError:
             return False
 
@@ -226,28 +221,25 @@ class SwitchPort(EntityPort):
         await self._reapply_fan_speed()
 
     async def _turn_on(self, context: Context | None) -> None:
-        if self._supports_open_valve:
+        state = self._state
+        if self._supports(state, ValveEntityFeature.OPEN):
             await self._call(SERVICE_OPEN_VALVE, context)
             return
 
-        # Skip service call only if entity is unavailable
-        # This prevents blocking calls during startup when entities may be unavailable
-        # Fixes issue #499 where thermostats became unavailable after restart
-        # Note: We intentionally allow calls when entity is already ON because:
-        # 1. Keep-alive functionality needs to send periodic turn_on calls
-        # 2. Some integrations need the service call to maintain connection
-        if is_unavailable(self._state):
+        # An unavailable entity gets no call (startup, #499). An entity already on
+        # does: keep-alive resends turn_on, and some integrations need it.
+        if is_unavailable(state):
             _LOGGER.debug("Skipping turn_on for unavailable entity %s", self.entity_id)
             return
         await self._call(SERVICE_TURN_ON, context)
 
     async def async_turn_off(self, context: Context | None) -> None:
-        if self._supports_close_valve:
+        state = self._state
+        if self._supports(state, ValveEntityFeature.CLOSE):
             await self._call(SERVICE_CLOSE_VALVE, context)
             return
 
-        # Same unavailable rule as turn_on (issue #499)
-        if is_unavailable(self._state):
+        if is_unavailable(state):  # as for turn_on (#499)
             _LOGGER.debug("Skipping turn_off for unavailable entity %s", self.entity_id)
             return
         await self._call(SERVICE_TURN_OFF, context)
@@ -255,7 +247,6 @@ class SwitchPort(EntityPort):
     async def async_stop(
         self, context: Context | None, *, keep_alive: bool = False
     ) -> None:
-        # Today's Off behaviour for switches: stop it if it is running.
         if self.is_active:
             await self.async_turn_off(context)
 
@@ -417,13 +408,11 @@ class ClimateChild:
         because another mode was selected must never stop the child the new role
         just set, whatever order the stops and the new mode land in.
         """
-        return any(
-            port.device.hvac_mode not in (None, HVACMode.OFF) for port in self.ports
-        )
+        return any(port.selected for port in self.ports)
 
     def port_for(self, mode: str) -> ClimatePort | None:
         """The role (port) whose mode this is, if any role owns it."""
-        return next((p for p in self.ports if mode in p.device.role_modes()), None)
+        return next((p for p in self.ports if mode in p.role_modes()), None)
 
     @contextmanager
     def sending(self, owner: Any):
@@ -483,8 +472,6 @@ class ClimateChild:
         as a safety stop, as much as the user's) is never taken for the user acting
         on the device by another thermostat sharing the child.
         """
-        if self.assumed:
-            return  # an assumed child never reports back; nothing to match
         observers, now = self._observers(origin), dt_util.utcnow()
         for attr, value in expect.items():
             for observer in observers:
@@ -586,7 +573,7 @@ class ClimateChild:
         HA stamps a write with the entity's last service context while it is
         recent, so a device reacting to our command carries ours; an automation
         or the UI carries their own. (A remote press within seconds of our
-        command would carry ours too: it is overridden once. Documented.)
+        command would carry ours too: it is overridden once.)
         """
         sent = self._last_fan.get(owner)
         at = self._own_contexts.get(new.context.id)
@@ -635,8 +622,7 @@ class ClimateChild:
             if (
                 action.push
                 and not stopped
-                and (self.pending_mode(port.owner) or self.mode)
-                in port.device.role_modes()
+                and (self.pending_mode(port.owner) or self.mode) in port.role_modes()
             ):
                 with self.sending(port.owner):
                     await port.async_finish_turn_on(
@@ -698,7 +684,8 @@ class ClimateChild:
         if "fan_mode" in expect:
             self._fan_sent.add(owner)
             self._last_fan[owner] = expect["fan_mode"]
-        self._expect(owner, expect)
+        if not self.assumed:  # an assumed child never reports back: nothing to match
+            self._expect(owner, expect)
         _LOGGER.debug(
             "Sending %s.%s %s",
             CLIMATE_DOMAIN,
@@ -746,7 +733,7 @@ class ClimateChild:
             self._pass_set_mode = self.in_pass
             if self._held(state, "mode") == mode or (
                 # Commanded earlier in this run and not reported yet (a slow device)
-                not self.assumed
+                not state.attributes.get(ATTR_ASSUMED_STATE)
                 and self.in_pass
                 and self.pending_mode(owner) == mode
             ):
@@ -894,10 +881,6 @@ class ClimatePort(EntityPort):
     """One role's view of a (possibly shared) climate entity."""
 
     @property
-    def device(self) -> Any:
-        return self._device
-
-    @property
     def owner(self) -> Any:
         """The thermostat this role belongs to (its FeatureManager)."""
         return self._device.features
@@ -907,6 +890,19 @@ class ClimatePort(EntityPort):
         self._child = acquire_climate_child(hass, device.entity_id)
         self._child.ports.add(self)
         self.self_regulating = device.control_style() == ControlStyle.SETPOINT
+
+    def role_modes(self) -> list:
+        """The child modes this role runs in (the first is the one commanded)."""
+        return self._device.role_modes()
+
+    @property
+    def selected(self) -> bool:
+        """Whether the thermostat's mode selects this role (it is not Off)."""
+        return self._device.hvac_mode not in (None, HVACMode.OFF)
+
+    @property
+    def pushes_setpoint(self) -> bool:
+        return self._device.pushes_setpoint
 
     def release(self) -> None:
         child = self._child
@@ -922,7 +918,7 @@ class ClimatePort(EntityPort):
     def is_active(self) -> bool:
         # The first role mode is the one commanded; any of them counts as running
         # (a heat pump in either mode, so a flip of its flag still stops it).
-        return self._child.mode in self._device.role_modes()
+        return self._child.mode in self.role_modes()
 
     role_scoped = True
 
@@ -971,7 +967,7 @@ class ClimatePort(EntityPort):
         # setpoint) is its own side effect, not the user's.
         with self._child.sending(self.owner):
             if not await self._child.async_set_mode(
-                self._device.role_modes()[0], context, self.owner
+                self.role_modes()[0], context, self.owner
             ):
                 return
             if self._child.in_pass:
@@ -1011,15 +1007,15 @@ class ClimatePort(EntityPort):
     ) -> None:
         # Off means off, once, on the transition to Off: whatever mode the child is
         # in, even one no role owns, but only while no role on the child is selected
-        # (otherwise this role is just being switched out). While the thermostat
-        # stays Off, a keep-alive tick leaves a climate alone, so the AC's own
-        # remote keeps working.
+        # (otherwise this role is just being switched out). A keep-alive tick while
+        # Off leaves a climate alone, so the AC's own remote keeps working.
+        child = self._child
         if keep_alive:
             return
-        if self._child.wanted_on:
+        if not child.wanted_on and child.mode not in (None, HVACMode.OFF):
+            await child.async_stop_unscoped(context, self.owner)
+        else:
             await self.async_turn_off(context)
-        elif self._child.mode not in (None, HVACMode.OFF):
-            await self._child.async_stop_unscoped(context, self.owner)
 
 
 def make_port(hass: HomeAssistant, device: Any) -> EntityPort:

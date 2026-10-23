@@ -268,13 +268,12 @@ class MultiHvacDevice(HVACDevice, ControlableHVACDevice):
             await device.async_stop(keep_alive=keep_alive)
 
     async def async_turn_off_all(self, time):
-        keep_alive = time is not None
         for device in self.hvac_devices:
-            if keep_alive:
-                # Keep-alive: resend turn_off whether or not it looks active.
-                # If a switch still reads on afterwards, the stop below repeats it.
+            if time is not None:
+                # A keep-alive tick: one turn_off, whether or not it looks active.
                 await device.async_keep_alive_off()
-            await device.async_stop(keep_alive=keep_alive)
+            else:
+                await device.async_stop()
 
     async def _async_check_device_initial_state(self) -> None:
         """Child devices on_startup handles this."""

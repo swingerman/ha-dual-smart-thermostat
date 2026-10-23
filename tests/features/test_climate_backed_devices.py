@@ -621,6 +621,30 @@ async def test_keep_alive_in_off_sends_nothing_to_a_climate_and_once_per_tick_to
 
 
 @pytest.mark.parametrize("expected_lingering_timers", [True])
+async def test_off_keep_alive_sends_one_turn_off_per_switch_that_reads_on(
+    hass: HomeAssistant,
+) -> None:
+    """A tick while Off is one call per device (master): a switch that still reads
+    on is not stopped a second time."""
+    hass.states.async_set(SENSOR, 20.0)
+    heater_calls = setup_switch(hass, True, HEATER)  # the mock never turns it off
+    await _setup(
+        hass,
+        heater=HEATER,
+        cooler=AC,
+        keep_alive=timedelta(minutes=1),
+        initial_hvac_mode=HVACMode.OFF,
+    )
+    await common.add_fake_climate(hass, AC, assumed=True)
+    heater_calls.clear()
+
+    common.async_fire_time_changed(hass, dt_util.utcnow() + timedelta(minutes=2))
+    await hass.async_block_till_done()
+
+    assert len(heater_calls) == 1
+
+
+@pytest.mark.parametrize("expected_lingering_timers", [True])
 async def test_lone_assumed_climate_in_off_gets_nothing_on_a_keep_alive(
     hass: HomeAssistant,
 ) -> None:

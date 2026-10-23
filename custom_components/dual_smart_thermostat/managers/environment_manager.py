@@ -4,6 +4,7 @@ import logging
 import math
 
 from homeassistant.components.climate import (
+    ATTR_CURRENT_TEMPERATURE,
     ATTR_TARGET_TEMP_HIGH,
     ATTR_TARGET_TEMP_LOW,
     DEFAULT_MAX_TEMP,
@@ -106,7 +107,7 @@ def temperature_reading(state: State) -> float | None:
     Raises ValueError for a value that is not a finite number.
     """
     raw = (
-        state.attributes.get("current_temperature")
+        state.attributes.get(ATTR_CURRENT_TEMPERATURE)
         if state.domain == CLIMATE_DOMAIN
         else state.state
     )
