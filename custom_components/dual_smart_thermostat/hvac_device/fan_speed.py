@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from homeassistant.components.climate import (
     ATTR_FAN_MODE,
@@ -31,9 +32,10 @@ _LOGGER = logging.getLogger(__name__)
 class FanSpeedControl:
     """Detect, hold, restore and apply a fan speed on one entity."""
 
-    def __init__(self, hass: HomeAssistant, entity_id: str) -> None:
+    def __init__(self, hass: HomeAssistant, entity_id: str, owner: Any = None) -> None:
         self.hass = hass
         self.entity_id = entity_id
+        self.owner = owner  # the thermostat whose fan speed this is
         self._is_climate = is_climate_entity(entity_id)
         self.fan_modes: list[str] = []
         self.uses_preset_modes = False
@@ -187,7 +189,7 @@ class FanSpeedControl:
             child = peek_climate_child(self.hass, self.entity_id) or ClimateChild(
                 self.hass, self.entity_id
             )
-            await child.async_set_fan_mode(fan_mode, None)
+            await child.async_set_fan_mode(fan_mode, None, self.owner)
         elif self.uses_preset_modes:
             # Use preset_mode service
             await self.hass.services.async_call(

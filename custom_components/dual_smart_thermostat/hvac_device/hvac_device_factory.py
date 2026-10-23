@@ -83,7 +83,7 @@ class HVACDeviceFactory:
         if fan_device is not None:
             return fan_device.speed
         source = first_climate_role(self._config)
-        return FanSpeedControl(self.hass, source) if source else None
+        return FanSpeedControl(self.hass, source, self._features) if source else None
 
     def create_device(
         self,

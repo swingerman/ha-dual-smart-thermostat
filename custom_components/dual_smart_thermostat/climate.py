@@ -1878,6 +1878,9 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
         self._async_switch_changed(data["old_state"], data["new_state"])
 
+    async def _async_adopt_state(self, child, state: State) -> None:
+        """Make the child's current settings DST's own (filled in with the adoption)."""
+
     @callback
     def _async_switch_changed(
         self, old_state: State | None, new_state: State | None

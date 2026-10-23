@@ -101,6 +101,7 @@ class _RoleDevice:
         hvac_mode=HVACMode.HEAT,  # the role is selected; OFF = the thermostat is Off
     ):
         self.hvac_mode = hvac_mode
+        self.features = object()  # the owner: one thermostat per stub
         self.entity_id = entity_id
         self._modes = modes
         self._target = target

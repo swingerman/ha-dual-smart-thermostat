@@ -14,8 +14,10 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 import asyncio
 from collections.abc import Mapping
+from contextlib import contextmanager
 from datetime import datetime, timedelta
 import logging
+import math
 from typing import Any
 
 from homeassistant.components.climate import (
@@ -244,6 +246,19 @@ class SwitchPort(EntityPort):
 
 _CHILDREN_KEY = "dual_smart_thermostat_climate_children"
 
+_MAX_PENDING = 4
+_TRACKED = (
+    ("mode", lambda s: s.state),
+    ("target", lambda s: s.attributes.get(ATTR_TEMPERATURE)),
+    ("fan_mode", lambda s: s.attributes.get(ATTR_FAN_MODE)),
+)
+
+
+def _same(a: Any, b: Any) -> bool:
+    if isinstance(a, (int, float)) and isinstance(b, (int, float)):
+        return math.isclose(a, b, abs_tol=1e-6)
+    return a == b
+
 
 class ClimateChild:
     """One real climate entity. The only record of its mode, shared by every role.
@@ -267,6 +282,11 @@ class ClimateChild:
         self._pass_depth = 0
         self._pass_set_mode = False
         self._pass_stops: list[tuple[ClimatePort, Context | None]] = []
+        # Per owner (the thermostat): the values it commanded and has not yet seen
+        # reported, and the two short flags of section 3.6 of the spec.
+        self._pending: dict[Any, dict[str, list[Any]]] = {}
+        self._sending: dict[Any, int] = {}
+        self._adopting: dict[Any, int] = {}
 
     @property
     def state(self) -> State | None:
@@ -313,6 +333,70 @@ class ClimateChild:
             port.device.hvac_mode not in (None, HVACMode.OFF) for port in self.ports
         )
 
+    @contextmanager
+    def sending(self, owner: Any):
+        """DST sends a sequence: changes reported meanwhile are the device's side effects."""
+        self._sending[owner] = self._sending.get(owner, 0) + 1
+        try:
+            yield
+        finally:
+            self._sending[owner] -= 1
+
+    @contextmanager
+    def adopting(self, owner: Any):
+        """This owner adopts the child's state: its commands to the child are dropped."""
+        self._adopting[owner] = self._adopting.get(owner, 0) + 1
+        try:
+            yield
+        finally:
+            self._adopting[owner] -= 1
+
+    def _expect(self, owner: Any, attr: str, value: Any) -> None:
+        if self.assumed:
+            return  # an assumed child never reports back; nothing to match
+        pending = self._pending.setdefault(owner, {}).setdefault(attr, [])
+        pending.append(value)
+        del pending[:-_MAX_PENDING]
+
+    def _unexpect(self, owner: Any, attr: str, value: Any) -> None:
+        pending = self._pending.get(owner, {}).get(attr, [])
+        for index in range(len(pending) - 1, -1, -1):
+            if _same(pending[index], value):
+                del pending[index]
+                return
+
+    def clear(self, owner: Any) -> None:
+        """Forget what this owner expects (after an adoption, or when the child goes away)."""
+        self._pending.pop(owner, None)
+
+    def external(self, owner: Any, old: State | None, new: State | None) -> bool:
+        """Consume this owner's echoes; True when something changed from outside.
+
+        Judged by value against what this owner commanded and has not yet seen
+        reported. Contexts and time play no part: HA stamps a write within 5 s of
+        a service call with the caller's context, and a polled device reports
+        late.
+        """
+        if is_unavailable(old) or is_unavailable(new):
+            self.clear(owner)  # first sight and reconnect adopt nothing
+            return False
+        if old.attributes.get(ATTR_ASSUMED_STATE) or new.attributes.get(
+            ATTR_ASSUMED_STATE
+        ):
+            return False  # an assumed child reports DST's own record
+        external = False
+        for attr, read in _TRACKED:
+            before, after = read(old), read(new)
+            if after is None or _same(before, after):
+                continue
+            pending = self._pending.get(owner, {}).get(attr, [])
+            match = next((i for i, v in enumerate(pending) if _same(v, after)), None)
+            if match is not None:
+                del pending[match]  # an echo of ours; any order is fine
+            else:
+                external = True
+        return external and not self._sending.get(owner)
+
     def begin_pass(self) -> None:
         """A control run starts: role stops are held back until it ends."""
         self._pass_depth += 1
@@ -335,7 +419,7 @@ class ClimateChild:
             return  # the new mode replaced the old one: a stop would only race it
         for port, context in stops:
             if port.is_active:
-                await self.async_turn_off(context)
+                await self.async_turn_off(context, port.owner)
                 return
 
     def _record(self, mode: str) -> None:
@@ -353,12 +437,21 @@ class ClimateChild:
         context: Context | None,
         error: str,
         *args: Any,
+        owner: Any,
         mode: str | None = None,
     ) -> bool:
         """Call a climate service (lock held); on failure roll the record back."""
+        if self._adopting.get(owner):
+            _LOGGER.debug("Adopting %s: not sending %s", self.entity_id, service)
+            return False
+        # Always a fresh context (logbook attribution only); never the caller's.
+        context = Context(parent_id=context.id if context else None)
         before = (self._commanded, self._commanded_at, self._last_pushed)
         if mode is not None:
             self._record(mode)
+            self._expect(owner, "mode", mode)
+        if ATTR_TEMPERATURE in data:
+            self._expect(owner, "target", data[ATTR_TEMPERATURE])
         _LOGGER.debug(
             "Sending %s.%s %s",
             CLIMATE_DOMAIN,
@@ -376,9 +469,15 @@ class ClimateChild:
         )
         if not ok:
             self._commanded, self._commanded_at, self._last_pushed = before
+            if mode is not None:
+                self._unexpect(owner, "mode", mode)
+            if ATTR_TEMPERATURE in data:
+                self._unexpect(owner, "target", data[ATTR_TEMPERATURE])
         return ok
 
-    async def async_set_mode(self, mode: str, context: Context | None) -> bool:
+    async def async_set_mode(
+        self, mode: str, context: Context | None, owner: Any
+    ) -> bool:
         """Command a mode. False when nothing was sent or the call failed."""
         async with self._lock:
             state = self.state
@@ -409,10 +508,11 @@ class ClimateChild:
                 "Error setting %s on %s",
                 mode,
                 self.entity_id,
+                owner=owner,
                 mode=mode,
             )
 
-    async def async_turn_off(self, context: Context | None) -> None:
+    async def async_turn_off(self, context: Context | None, owner: Any) -> None:
         async with self._lock:
             if not self.available:
                 return
@@ -422,10 +522,13 @@ class ClimateChild:
                 context,
                 "Error turning off %s",
                 self.entity_id,
+                owner=owner,
                 mode=HVACMode.OFF,
             )
 
-    async def async_push_target(self, value: float, context: Context | None) -> None:
+    async def async_push_target(
+        self, value: float, context: Context | None, owner: Any
+    ) -> None:
         async with self._lock:
             state = self.state
             if is_unavailable(state):
@@ -451,10 +554,13 @@ class ClimateChild:
                 context,
                 "Error setting target on %s",
                 self.entity_id,
+                owner=owner,
             ):
                 self._last_pushed = value
 
-    async def async_set_fan_mode(self, fan_mode: str, context: Context | None) -> None:
+    async def async_set_fan_mode(
+        self, fan_mode: str, context: Context | None, owner: Any
+    ) -> None:
         """Send a fan speed, unless the child is not running or already has it.
 
         An off or unavailable child gets nothing now (the caller records the
@@ -471,19 +577,25 @@ class ClimateChild:
                 and state.attributes.get(ATTR_FAN_MODE) == fan_mode
             ):
                 return
+            if self._adopting.get(owner):
+                _LOGGER.debug("Adopting %s: not sending fan mode", self.entity_id)
+                return
+            data = {ATTR_ENTITY_ID: self.entity_id, ATTR_FAN_MODE: fan_mode}
             _LOGGER.debug(
-                "Sending %s.%s %s",
-                CLIMATE_DOMAIN,
-                SERVICE_SET_FAN_MODE,
-                {ATTR_ENTITY_ID: self.entity_id, ATTR_FAN_MODE: fan_mode},
+                "Sending %s.%s %s", CLIMATE_DOMAIN, SERVICE_SET_FAN_MODE, data
             )
-            await self.hass.services.async_call(
-                CLIMATE_DOMAIN,
-                SERVICE_SET_FAN_MODE,
-                {ATTR_ENTITY_ID: self.entity_id, ATTR_FAN_MODE: fan_mode},
-                context=context,
-                blocking=True,
-            )
+            self._expect(owner, "fan_mode", fan_mode)
+            try:
+                await self.hass.services.async_call(
+                    CLIMATE_DOMAIN,
+                    SERVICE_SET_FAN_MODE,
+                    data,
+                    context=Context(parent_id=context.id if context else None),
+                    blocking=True,
+                )
+            except Exception:
+                self._unexpect(owner, "fan_mode", fan_mode)
+                raise
 
     @staticmethod
     def _fit(value: float, attrs: Mapping[str, Any]) -> float:
@@ -535,6 +647,11 @@ class ClimatePort(EntityPort):
     def device(self) -> Any:
         return self._device
 
+    @property
+    def owner(self) -> Any:
+        """The thermostat this role belongs to (its FeatureManager)."""
+        return self._device.features
+
     def __init__(self, hass: HomeAssistant, device: Any) -> None:
         super().__init__(hass, device)
         self._child = acquire_climate_child(hass, device.entity_id)
@@ -546,6 +663,8 @@ class ClimatePort(EntityPort):
         if not self._released:  # idempotent: one reference per port, once
             self._released = True
             self._child.ports.discard(self)
+            if not any(p.owner is self.owner for p in self._child.ports):
+                self._child.clear(self.owner)
             release_climate_child(self._child)
 
     @property
@@ -564,15 +683,20 @@ class ClimatePort(EntityPort):
         target = self._device.climate_target()
         if target is not None:
             await self._child.async_push_target(
-                target + self._device.setpoint_offset(), context
+                target + self._device.setpoint_offset(), context, self.owner
             )
 
     async def async_turn_on(self, context: Context | None) -> None:
-        if not await self._child.async_set_mode(self._device.role_modes()[0], context):
-            return
-        await self._push(context)
-        # Last, so the speed lands after the mode change that may have reset it.
-        await self._reapply_fan_speed()
+        # One sequence: what the device reports meanwhile (a reset fan, a changed
+        # setpoint) is its own side effect, not the user's.
+        with self._child.sending(self.owner):
+            if not await self._child.async_set_mode(
+                self._device.role_modes()[0], context, self.owner
+            ):
+                return
+            await self._push(context)
+            # Last, so the speed lands after the mode change that may have reset it.
+            await self._reapply_fan_speed()
 
     async def async_sync(self, context: Context | None) -> None:
         # Only the role the child is serving may touch its setpoint.
@@ -588,7 +712,7 @@ class ClimatePort(EntityPort):
             if self._child.in_pass:
                 self._child.defer_stop(self, context)
             else:
-                await self._child.async_turn_off(context)
+                await self._child.async_turn_off(context, self.owner)
 
     async def async_stop(
         self, context: Context | None, *, keep_alive: bool = False
@@ -603,7 +727,7 @@ class ClimatePort(EntityPort):
         if self._child.wanted_on:
             await self.async_turn_off(context)
         elif self._child.mode not in (None, HVACMode.OFF):
-            await self._child.async_turn_off(context)
+            await self._child.async_turn_off(context, self.owner)
 
 
 def make_port(hass: HomeAssistant, device: Any) -> EntityPort:

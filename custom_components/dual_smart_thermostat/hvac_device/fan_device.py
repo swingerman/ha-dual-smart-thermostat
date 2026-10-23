@@ -49,7 +49,7 @@ class FanDevice(CoolerDevice):
             self.fan_air_surce_outside = True
 
         # Fan speed control capabilities (detected on construction)
-        self.speed = FanSpeedControl(hass, entity_id)
+        self.speed = FanSpeedControl(hass, entity_id, features)
 
     def fan_speed(self) -> FanSpeedControl:
         return self.speed
