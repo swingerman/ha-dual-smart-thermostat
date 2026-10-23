@@ -93,8 +93,8 @@ Any of `heater`, `cooler`, `fan`, `dryer` (and the `heater` of a [heat pump](#he
 
 ### Behaviour notes
 
-- **Off means off.** When the thermostat is set to Off it turns every climate device off, whatever mode the device was in (also one set from the device's own remote).
-- **Remote changes.** A change made on the AC's own remote is re-asserted by the thermostat within seconds. To hand control back to the remote, set the thermostat to Off. Infrared devices that report an assumed state are controlled from what the thermostat last sent: a change made on the remote is not corrected until the thermostat's next mode change.
+- **Off means off, once.** When the thermostat is set to Off it turns every climate device off, whatever mode the device was in (also one set from the device's own remote). While it stays Off it leaves the climate alone, keep-alive included, so you can still switch the AC on with its own remote.
+- **Remote changes.** A change made on the AC's own remote is re-asserted by the thermostat within seconds. To hand control back to the remote, set the thermostat to Off: while it stays Off nothing is sent to the AC (keep-alive included), so the remote works freely. Infrared devices that report an assumed state are controlled from what the thermostat last sent: a change made on the remote is not corrected until the thermostat's next mode change.
 - **Temperature source.** `target_sensor` is optional when a device is a climate entity: its own `current_temperature` is then used (also for the stale sensor protection).
 - **Fan speed.** A climate device's own fan modes become the thermostat's fan mode (see [Fan Speed Control](#fan-speed-control)).
 - **One climate in several roles.** One climate entity can be heater, cooler, fan and dryer at once; it runs one mode at a time. `fan_on_with_ac` and `fan_on_with_heater` are ignored for a fan on the same climate (its own cool mode already runs its fan).

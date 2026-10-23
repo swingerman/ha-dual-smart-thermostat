@@ -10,6 +10,7 @@ from homeassistant.setup import async_setup_component
 from homeassistant.util import dt as dt_util
 from homeassistant.util.unit_system import METRIC_SYSTEM
 import pytest
+import voluptuous as vol
 
 from custom_components.dual_smart_thermostat.const import DOMAIN, ControlStyle
 from custom_components.dual_smart_thermostat.hvac_device.entity_port import (
@@ -89,8 +90,6 @@ async def test_switch_port_skips_command_when_unavailable(
 class _RoleDevice:
     """The few things a port asks its device for (see entity_port.py)."""
 
-    hvac_mode = HVACMode.OFF  # no role is selected: the thermostat is Off
-
     def __init__(
         self,
         entity_id,
@@ -99,7 +98,9 @@ class _RoleDevice:
         target=lambda: 24.0,
         offset=0.0,
         style=ControlStyle.ON_OFF,
+        hvac_mode=HVACMode.HEAT,  # the role is selected; OFF = the thermostat is Off
     ):
+        self.hvac_mode = hvac_mode
         self.entity_id = entity_id
         self._modes = modes
         self._target = target
@@ -122,9 +123,16 @@ class _RoleDevice:
         return None
 
 
-def _port(hass, entity_id, mode, target=lambda: 24.0, *, offset=0.0):
+def _port(hass, entity_id, mode, target=lambda: 24.0, *, offset=0.0, selected=True):
     return make_port(
-        hass, _RoleDevice(entity_id, (mode,), target=target, offset=offset)
+        hass,
+        _RoleDevice(
+            entity_id,
+            (mode,),
+            target=target,
+            offset=offset,
+            hvac_mode=mode if selected else HVACMode.OFF,
+        ),
     )
 
 
@@ -181,9 +189,9 @@ async def test_turn_off_only_when_child_is_in_my_mode(hass: HomeAssistant) -> No
 async def test_stop_turns_the_child_off_in_any_mode(hass: HomeAssistant) -> None:
     """Off means off: stop ignores which role owns the current mode."""
     child = await common.add_fake_climate(hass, "climate.test_ac", HVACMode.FAN_ONLY)
-    heat = _port(hass, "climate.test_ac", HVACMode.HEAT)  # no role owns fan_only here
+    heat = _port(hass, "climate.test_ac", HVACMode.HEAT, selected=False)
 
-    await heat.async_turn_off(None)  # role stop: not its mode, nothing happens
+    await heat.async_turn_off(None)  # not selected, not its mode: nothing happens
     assert child.calls == []
 
     await heat.async_stop(None)  # Off means off
@@ -472,10 +480,16 @@ async def test_hvac_off_stops_a_child_running_a_mode_no_role_owns(
 
 
 @pytest.mark.parametrize("expected_lingering_timers", [True])
-async def test_keep_alive_in_off_stops_a_child_set_to_a_foreign_mode(
-    hass: HomeAssistant,
+@pytest.mark.parametrize("assumed", [False, True])
+async def test_keep_alive_in_off_leaves_an_externally_started_climate_alone(
+    hass: HomeAssistant, assumed
 ) -> None:
-    """Keep-alive while Off also enforces Off on a child in a foreign mode."""
+    """Off is hands-off: the AC switched on with its own remote is not turned off.
+
+    On real hardware a 2 minute keep-alive turned the AC off 101 s after the owner
+    started it from the remote. The one unscoped off is sent on the transition to
+    Off; while the thermostat stays Off its ticks send nothing to a climate.
+    """
     hass.states.async_set(SENSOR, 20.0)
     setup_switch(hass, False, HEATER)
     await _setup(
@@ -485,13 +499,35 @@ async def test_keep_alive_in_off_stops_a_child_set_to_a_foreign_mode(
         keep_alive=timedelta(minutes=1),
         initial_hvac_mode=HVACMode.OFF,
     )
+    child = await common.add_fake_climate(hass, AC, assumed=assumed)
+    child._attr_hvac_mode = HVACMode.HEAT  # started from the AC's own remote
+    child.async_write_ha_state()
+    await hass.async_block_till_done()
+
+    for minutes in (2, 4, 6):
+        common.async_fire_time_changed(
+            hass, dt_util.utcnow() + timedelta(minutes=minutes)
+        )
+        await hass.async_block_till_done()
+
+    assert all(c[0] != "turn_off" for c in child.calls)
+    assert hass.states.get(AC).state == HVACMode.HEAT
+
+
+async def test_the_transition_to_off_turns_the_climate_off_once(
+    hass: HomeAssistant,
+) -> None:
+    """Off means off, once, on the transition (foreign modes included)."""
+    hass.states.async_set(SENSOR, 20.0)
+    setup_switch(hass, False, HEATER)
+    await _setup(hass, heater=HEATER, cooler=AC, initial_hvac_mode=HVACMode.COOL)
     child = await common.add_fake_climate(hass, AC, HVACMode.FAN_ONLY)
 
-    common.async_fire_time_changed(hass, dt_util.utcnow() + timedelta(minutes=2))
+    await common.async_set_hvac_mode(hass, HVACMode.OFF, "climate.test")
     await hass.async_block_till_done()
 
     assert hass.states.get(AC).state == HVACMode.OFF
-    assert ("turn_off", {}) in child.calls
+    assert [c[0] for c in child.calls].count("turn_off") == 1
 
 
 async def test_hvac_off_sends_nothing_to_a_switch_that_is_already_off(
@@ -532,27 +568,17 @@ async def test_assumed_child_keep_alive_resend_does_not_reset_min_cycle(
 
     assert cool.ran_long_enough(timedelta(minutes=5)) is True
 
-    await cool.async_turn_off(None)
-    freezer.tick(timedelta(minutes=3))
-    await cool.async_stop(None, keep_alive=True)  # keep-alive resend of off
-    freezer.tick(timedelta(minutes=3))
 
-    assert cool.ran_long_enough(timedelta(minutes=5)) is True
-
-
-async def test_keep_alive_stop_resends_off_to_an_assumed_child(
+async def test_keep_alive_stop_sends_nothing_to_a_climate(
     hass: HomeAssistant,
 ) -> None:
-    """The IR device may have missed the first off, so keep-alive resends it."""
-    child = await common.add_fake_climate(hass, "climate.test_ir", assumed=True)
-    cool = _port(hass, "climate.test_ir", HVACMode.COOL)
+    """A tick never touches a climate, assumed or not, whatever mode it is in."""
+    child = await common.add_fake_climate(hass, "climate.test_ac", HVACMode.HEAT)
+    heat = _port(hass, "climate.test_ac", HVACMode.HEAT, selected=False)
 
-    await cool.async_stop(None)  # record already says off: nothing sent
+    await heat.async_stop(None, keep_alive=True)
+
     assert child.calls == []
-
-    await cool.async_stop(None, keep_alive=True)
-    await cool.async_stop(None, keep_alive=True)
-    assert child.calls == [("turn_off", {}), ("turn_off", {})]
 
 
 async def test_keep_alive_stop_on_a_switch_only_acts_when_it_is_running(
@@ -568,10 +594,10 @@ async def test_keep_alive_stop_on_a_switch_only_acts_when_it_is_running(
 
 
 @pytest.mark.parametrize("expected_lingering_timers", [True])
-async def test_keep_alive_in_off_resends_to_assumed_child_and_once_to_switch(
+async def test_keep_alive_in_off_sends_nothing_to_a_climate_and_once_per_tick_to_a_switch(
     hass: HomeAssistant,
 ) -> None:
-    """Each Off keep-alive: one turn_off per switch, one per assumed child."""
+    """Each Off keep-alive tick: master's turn_off for the switch, nothing for the AC."""
     hass.states.async_set(SENSOR, 20.0)
     heater_calls = setup_switch(hass, False, HEATER)
     await _setup(
@@ -590,14 +616,14 @@ async def test_keep_alive_in_off_resends_to_assumed_child_and_once_to_switch(
         await hass.async_block_till_done()
 
     assert len(heater_calls) == 2
-    assert [c[0] for c in child.calls].count("turn_off") == 2
+    assert [c[0] for c in child.calls].count("turn_off") == 0
 
 
 @pytest.mark.parametrize("expected_lingering_timers", [True])
-async def test_lone_assumed_climate_in_off_gets_turn_off_each_keep_alive(
+async def test_lone_assumed_climate_in_off_gets_nothing_on_a_keep_alive(
     hass: HomeAssistant,
 ) -> None:
-    """Single-device thermostat: the IR child is told off on every tick."""
+    """Single-device thermostat: Off is hands-off for the IR child too."""
     hass.states.async_set(SENSOR, 20.0)
     await _setup(
         hass,
@@ -613,7 +639,7 @@ async def test_lone_assumed_climate_in_off_gets_turn_off_each_keep_alive(
         )
         await hass.async_block_till_done()
 
-    assert [c[0] for c in child.calls].count("turn_off") == 2
+    assert [c[0] for c in child.calls].count("turn_off") == 0
 
 
 @pytest.mark.parametrize("expected_lingering_timers", [True])
@@ -1709,28 +1735,6 @@ async def test_fan_speed_chosen_while_the_ac_is_off_is_applied_on_turn_on(
     assert hass.states.get(AC).attributes["fan_mode"] == "strong"
 
 
-@pytest.mark.parametrize("expected_lingering_timers", [True])
-async def test_keep_alive_in_off_sends_one_off_frame_per_shared_climate(
-    hass: HomeAssistant,
-) -> None:
-    """One IR AC in three roles gets one turn_off per tick, not three."""
-    hass.states.async_set(SENSOR, 20.0)
-    await _setup(
-        hass,
-        heater=AC,
-        cooler=AC,
-        fan=AC,
-        keep_alive=timedelta(minutes=1),
-        initial_hvac_mode=HVACMode.OFF,
-    )
-    child = await common.add_fake_climate(hass, AC, assumed=True)
-
-    common.async_fire_time_changed(hass, dt_util.utcnow() + timedelta(minutes=2))
-    await hass.async_block_till_done()
-
-    assert [c[0] for c in child.calls].count("turn_off") == 1
-
-
 def _leaf_devices(device):
     """Every sub-device that owns a port, however deeply wrapped."""
     sub = getattr(device, "hvac_devices", None)
@@ -1811,3 +1815,251 @@ async def test_climate_child_logs_every_command_at_debug(
     assert "set_hvac_mode" in text and "climate.test_ac" in text and "cool" in text
     assert "set_temperature" in text
     assert "turn_off" in text
+
+
+async def test_switching_cool_to_fan_only_sends_no_stop_before_the_new_mode(
+    hass: HomeAssistant,
+) -> None:
+    """The new mode replaces the old one: a stop in between can land after it.
+
+    On real hardware cool -> fan_only left the AC off: the extra turn_off arrived
+    after set_hvac_mode(fan_only). The deactivated role is stopped after the new
+    role has run, and only if the child is still in its mode.
+    """
+    hass.states.async_set(SENSOR, 27.0)
+    await _setup(
+        hass,
+        heater=AC,
+        cooler=AC,
+        fan=AC,
+        fan_mode=True,
+        initial_hvac_mode=HVACMode.COOL,
+    )
+    child = await common.add_fake_climate(hass, AC)
+    await common.async_set_temperature(hass, 24, "climate.test")
+    await hass.async_block_till_done()
+    assert hass.states.get(AC).state == HVACMode.COOL
+    child.calls.clear()
+
+    await common.async_set_hvac_mode(hass, HVACMode.FAN_ONLY, "climate.test")
+    await hass.async_block_till_done()
+
+    assert child.calls == [("set_hvac_mode", {"hvac_mode": HVACMode.FAN_ONLY})]
+    assert hass.states.get(AC).state == HVACMode.FAN_ONLY
+
+
+async def test_a_switched_out_role_is_stopped_when_the_new_role_stays_idle(
+    hass: HomeAssistant,
+) -> None:
+    """Nothing to cool: the child leaves the old mode with exactly one stop."""
+    hass.states.async_set(SENSOR, 20.0)
+    await _setup(hass, heater=AC, cooler=AC, fan=AC, fan_mode=True)
+    child = await common.add_fake_climate(hass, AC, HVACMode.FAN_ONLY)
+    await common.async_set_temperature(hass, 24, "climate.test")
+    await hass.async_block_till_done()
+    child.calls.clear()
+
+    await common.async_set_hvac_mode(hass, HVACMode.COOL, "climate.test")
+    await hass.async_block_till_done()
+
+    assert hass.states.get(AC).state == HVACMode.OFF
+    assert [c[0] for c in child.calls] == ["turn_off"]
+
+
+async def test_shared_ac_walk_ends_in_each_mode_with_no_trailing_off(
+    hass: HomeAssistant,
+) -> None:
+    """The P5 mode walk on one AC as heater, cooler and fan (on_off), through the
+    real paths: mode changes, set_temperature with hvac_mode in one call (HA sets
+    the mode first with the old target), and the fan-speed set_fan_mode flow that
+    the logbook pointed at. After every step the AC is in exactly the expected
+    mode and the last thing sent to it is not an off."""
+    hass.config.units = METRIC_SYSTEM
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            CLIMATE: {
+                "platform": DOMAIN,
+                "name": "test",
+                "heater": AC,
+                "cooler": AC,
+                "fan": AC,
+                "fan_mode": True,
+                "cold_tolerance": 0.3,
+                "hot_tolerance": 0.3,
+                "initial_hvac_mode": HVACMode.OFF,
+            }
+        },
+    )
+    child = await common.add_fake_climate(hass, AC, current=27.0)
+    await common.async_set_temperature(hass, 24, "climate.test")
+    await hass.async_block_till_done()
+
+    async def mode(hvac_mode):
+        child.calls.clear()
+        await common.async_set_hvac_mode(hass, hvac_mode, "climate.test")
+        await hass.async_block_till_done()
+
+    async def temperature_with_mode(hvac_mode, temperature):
+        child.calls.clear()
+        await hass.services.async_call(
+            "climate",
+            "set_temperature",
+            {
+                "entity_id": "climate.test",
+                "hvac_mode": hvac_mode,
+                "temperature": temperature,
+            },
+            blocking=True,
+        )
+        await hass.async_block_till_done()
+
+    async def fan_speed(speed):
+        child.calls.clear()
+        await hass.services.async_call(
+            "climate",
+            "set_fan_mode",
+            {"entity_id": "climate.test", "fan_mode": speed},
+            blocking=True,
+        )
+        await hass.async_block_till_done()
+
+    def settled(expected):
+        assert hass.states.get(AC).state == expected
+        assert not child.calls or child.calls[-1][0] != "turn_off", child.calls
+
+    await mode(HVACMode.FAN_ONLY)  # hot room: the fan runs
+    settled(HVACMode.FAN_ONLY)
+
+    await fan_speed("strong")
+    settled(HVACMode.FAN_ONLY)
+    assert child.calls == [("set_fan_mode", {"fan_mode": "strong"})]
+
+    await temperature_with_mode(HVACMode.HEAT, 30)  # fan_only -> heat, new target
+    settled(HVACMode.HEAT)
+    assert child.calls[0][0] != "turn_off"  # the mode replaces fan_only
+
+    await fan_speed("quiet")
+    settled(HVACMode.HEAT)
+    assert child.calls == [("set_fan_mode", {"fan_mode": "quiet"})]
+
+    await temperature_with_mode(HVACMode.COOL, 24)  # heat -> cool
+    settled(HVACMode.COOL)
+    assert child.calls[0][0] != "turn_off"  # no stop between the two steps
+    assert hass.states.get(AC).attributes["fan_mode"] == "quiet"  # speed kept
+
+    await mode(HVACMode.FAN_ONLY)  # cool -> fan_only
+    settled(HVACMode.FAN_ONLY)
+    assert child.calls == [("set_hvac_mode", {"hvac_mode": HVACMode.FAN_ONLY})] or (
+        ("set_hvac_mode", {"hvac_mode": HVACMode.FAN_ONLY}) in child.calls
+        and "turn_off" not in [c[0] for c in child.calls]
+    )
+
+    await mode(HVACMode.OFF)  # fan_only -> off
+    assert hass.states.get(AC).state == HVACMode.OFF
+    assert [c[0] for c in child.calls] == ["turn_off"]
+
+
+@pytest.mark.parametrize("expected_lingering_timers", [True])
+async def test_manual_target_change_bypasses_min_cycle_like_master(
+    hass: HomeAssistant,
+) -> None:
+    """Intentional (force=True, as on master): a user's target change acts at once.
+
+    Only automatic ticks wait for min_cycle_duration; lowering the target below
+    the room temperature stops the running AC without waiting for it.
+    """
+    hass.states.async_set(SENSOR, 20.0)
+    await _setup(
+        hass,
+        heater=AC,
+        initial_hvac_mode=HVACMode.HEAT,
+        min_cycle_duration=timedelta(minutes=30),
+    )
+    await common.add_fake_climate(hass, AC)
+    await common.async_set_temperature(hass, 22, "climate.test")
+    await hass.async_block_till_done()
+    assert hass.states.get(AC).state == HVACMode.HEAT
+
+    hass.states.async_set(SENSOR, 23.0)  # goal reached, but min cycle not over
+    await hass.async_block_till_done()
+    assert hass.states.get(AC).state == HVACMode.HEAT  # the tick waits
+
+    await common.async_set_temperature(hass, 21, "climate.test")  # the user acts
+    await hass.async_block_till_done()
+
+    assert hass.states.get(AC).state == HVACMode.OFF  # at once
+
+
+async def test_fan_speed_reapply_overrides_an_external_fan_change_today(
+    hass: HomeAssistant,
+) -> None:
+    """Documents today's behaviour (phase 6 changes it to "follow"): a fan speed
+    changed on the AC's own remote is put back to the selected one on the next
+    turn on. Flip the final assertion when that changes."""
+    hass.states.async_set(SENSOR, 20.0)
+    setup_switch(hass, False, HEATER)
+    await _setup(hass, heater=HEATER, cooler=AC, initial_hvac_mode=HVACMode.COOL)
+    child = await common.add_fake_climate(hass, AC, HVACMode.COOL)
+    await common.async_set_temperature(hass, 24, "climate.test")
+    await hass.services.async_call(
+        "climate",
+        "set_fan_mode",
+        {"entity_id": "climate.test", "fan_mode": "strong"},
+        blocking=True,
+    )
+    await hass.async_block_till_done()
+
+    child._attr_fan_mode = "quiet"  # changed on the AC's own remote
+    child.async_write_ha_state()
+    await hass.async_block_till_done()
+    assert hass.states.get(AC).attributes["fan_mode"] == "quiet"
+
+    hass.states.async_set(SENSOR, 27.0)  # hot: the AC (re)starts
+    await hass.async_block_till_done()
+    hass.states.async_set(SENSOR, 20.0)
+    await hass.async_block_till_done()
+    hass.states.async_set(SENSOR, 27.0)
+    await hass.async_block_till_done()
+
+    # today: DST's selection wins; phase 6: this becomes "quiet" (follow)
+    assert hass.states.get(AC).attributes["fan_mode"] == "strong"
+
+
+async def test_fan_step_defaults_shared_climate_fan_flags_off_in_the_flow(
+    mock_hass_flow,
+) -> None:
+    """The config flow fan step offers fan_on_with_ac/heater off for a shared climate."""
+    from custom_components.dual_smart_thermostat.config_flow import ConfigFlowHandler
+
+    flow = ConfigFlowHandler()
+    flow.hass = mock_hass_flow
+    flow.collected_config = {
+        "system_type": "heater_cooler",
+        "heater": "climate.ac",
+        "cooler": "climate.ac",
+        "fan": "climate.ac",
+    }
+
+    form = await flow.async_step_fan()
+
+    defaults = {
+        str(k): k.default()
+        for k in form["data_schema"].schema
+        if getattr(k, "default", vol.UNDEFINED) is not vol.UNDEFINED
+    }
+    assert defaults["fan_on_with_ac"] is False
+    assert defaults["fan_on_with_heater"] is False
+
+
+@pytest.fixture
+def mock_hass_flow():
+    """A minimal hass for driving a config flow step directly."""
+    from unittest.mock import Mock
+
+    hass = Mock()
+    hass.config_entries = Mock()
+    hass.config_entries.async_entries = Mock(return_value=[])
+    hass.data = {DOMAIN: {}}
+    return hass

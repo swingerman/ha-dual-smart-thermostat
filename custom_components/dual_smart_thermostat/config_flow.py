@@ -620,7 +620,7 @@ class ConfigFlowHandler(ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(
             step_id="fan",
-            data_schema=get_fan_schema(hass=self.hass),
+            data_schema=get_fan_schema(hass=self.hass, defaults=self.collected_config),
         )
 
     async def async_step_humidity(

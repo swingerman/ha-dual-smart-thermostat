@@ -1359,7 +1359,8 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
         self._target_humidity = self.environment.target_humidity
 
-        await self.hvac_device.async_set_hvac_mode(hvac_mode)
+        async with self.hvac_device.control_pass():
+            await self.hvac_device.async_set_hvac_mode(hvac_mode)
 
         self._hvac_action_reason = self.hvac_device.HVACActionReason
         self._publish_hvac_action_reason(self._hvac_action_reason)
@@ -1384,23 +1385,27 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
         temperatures = TargetTemperatures(temperature, temp_high, temp_low)
 
-        if hvac_mode is not None:
-            _LOGGER.debug("Setting hvac mode with temperature: %s", hvac_mode)
-            await self.async_set_hvac_mode(hvac_mode)
+        # The mode is set first (with the old target), then the target: one pass, so
+        # the stop of a role switched out by the mode is not sent between the two.
+        async with self.hvac_device.control_pass():
 
-        if self.features.is_configured_for_heat_cool_mode:
-            self._set_temperatures_dual_mode(temperatures)
-        else:
-            if temperature is None:
-                return
-            self.environment.set_temperature_target(temperature)
-            self._target_temp = self.environment.target_temp
+            if hvac_mode is not None:
+                _LOGGER.debug("Setting hvac mode with temperature: %s", hvac_mode)
+                await self.async_set_hvac_mode(hvac_mode)
 
-        # Check for auto-preset selection after setting temperature
-        await self._check_auto_preset_selection()
+            if self.features.is_configured_for_heat_cool_mode:
+                self._set_temperatures_dual_mode(temperatures)
+            else:
+                if temperature is None:
+                    return
+                self.environment.set_temperature_target(temperature)
+                self._target_temp = self.environment.target_temp
 
-        await self._async_control_climate(force=True)
-        self.async_write_ha_state()
+            # Check for auto-preset selection after setting temperature
+            await self._check_auto_preset_selection()
+
+            await self._async_control_climate(force=True)
+            self.async_write_ha_state()
 
     async def async_set_humidity(self, humidity: float) -> None:
         """Set new target humidity."""
@@ -1777,7 +1782,8 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                 _LOGGER.debug("Climate is off, skipping control")
                 return
 
-            await self.hvac_device.async_control_hvac(time, force)
+            async with self.hvac_device.control_pass():
+                await self.hvac_device.async_control_hvac(time, force)
 
             _LOGGER.debug(
                 "updating HVACActionReason: %s", self.hvac_device.HVACActionReason

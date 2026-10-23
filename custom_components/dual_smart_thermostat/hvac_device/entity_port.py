@@ -126,9 +126,8 @@ class EntityPort(ABC):
     ) -> None:
         """DST is Off: make sure the entity is off. Off means off.
 
-        `keep_alive` marks a periodic tick: resend off to an entity whose
-        record cannot be trusted (an assumed_state climate). A switch reports
-        its state reliably, so for it a tick is no different from any stop.
+        `keep_alive` marks a periodic tick while Off: a switch is stopped if it is
+        running (it reports reliably); a climate is left alone.
         """
 
     async def _reapply_fan_speed(self) -> None:
@@ -265,6 +264,9 @@ class ClimateChild:
         self._warned: set[str] = set()
         self.refs = 0  # ports holding this child; it is dropped at zero
         self.ports: set[ClimatePort] = set()  # the roles that live on this child
+        self._pass_depth = 0
+        self._pass_set_mode = False
+        self._pass_stops: list[tuple[ClimatePort, Context | None]] = []
 
     @property
     def state(self) -> State | None:
@@ -311,14 +313,30 @@ class ClimateChild:
             port.device.hvac_mode not in (None, HVACMode.OFF) for port in self.ports
         )
 
-    def needs_off(self, resend: bool) -> bool:
-        """Off means off: any mode but off, or (on a tick) an assumed child again.
+    def begin_pass(self) -> None:
+        """A control run starts: role stops are held back until it ends."""
+        self._pass_depth += 1
 
-        An assumed child may have missed the last off, so a tick resends.
-        """
-        return self.mode not in (None, HVACMode.OFF) or (
-            resend and self.assumed and self.available
-        )
+    @property
+    def in_pass(self) -> bool:
+        return self._pass_depth > 0
+
+    def defer_stop(self, port: ClimatePort, context: Context | None) -> None:
+        self._pass_stops.append((port, context))
+
+    async def end_pass(self) -> None:
+        """The run is over: send the held-back stop, unless a mode replaced it."""
+        self._pass_depth -= 1
+        if self._pass_depth > 0:
+            return
+        stops, replaced = self._pass_stops, self._pass_set_mode
+        self._pass_stops, self._pass_set_mode = [], False
+        if replaced:
+            return  # the new mode replaced the old one: a stop would only race it
+        for port, context in stops:
+            if port.is_active:
+                await self.async_turn_off(context)
+                return
 
     def _record(self, mode: str) -> None:
         """Note a command. The mode age restarts only when the mode changes."""
@@ -381,6 +399,7 @@ class ClimateChild:
                 return False
             # A reported state already in this mode makes a resend pointless; an
             # assumed device cannot report, so keep-alive resends are the point.
+            self._pass_set_mode = self.in_pass
             if not state.attributes.get(ATTR_ASSUMED_STATE) and state.state == mode:
                 return True
             return await self._command(
@@ -562,19 +581,28 @@ class ClimatePort(EntityPort):
 
     async def async_turn_off(self, context: Context | None) -> None:
         # Only the role the child is currently serving may stop it, so an idle
-        # cooler's keep-alive can never switch off the heater on the same device.
-        if self.is_active:
-            await self._child.async_turn_off(context)
+        # cooler's stop can never switch off the heater on the same device. And only
+        # while a role is selected: when the thermostat is Off it leaves the device
+        # alone (a stop of the Off transition goes through async_stop).
+        if self.is_active and self._child.wanted_on:
+            if self._child.in_pass:
+                self._child.defer_stop(self, context)
+            else:
+                await self._child.async_turn_off(context)
 
     async def async_stop(
         self, context: Context | None, *, keep_alive: bool = False
     ) -> None:
-        # Off means off: whatever mode the child is in, even one no role owns, but
-        # only while no role on the child is selected. Otherwise this role is just
-        # being switched out and stops the child only if it is in this role's mode.
+        # Off means off, once, on the transition to Off: whatever mode the child is
+        # in, even one no role owns, but only while no role on the child is selected
+        # (otherwise this role is just being switched out). While the thermostat
+        # stays Off, a keep-alive tick leaves a climate alone, so the AC's own
+        # remote keeps working.
+        if keep_alive:
+            return
         if self._child.wanted_on:
             await self.async_turn_off(context)
-        elif self._child.needs_off(keep_alive):
+        elif self._child.mode not in (None, HVACMode.OFF):
             await self._child.async_turn_off(context)
 
 

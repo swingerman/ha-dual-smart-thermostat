@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from contextlib import asynccontextmanager
 import logging
 
 from homeassistant.components.climate import HVACAction, HVACMode
@@ -44,6 +45,11 @@ class ControlableHVACDevice(ABC):
     def hvac_mode(self, hvac_mode: HVACMode):
         _LOGGER.debug("%s: Setting hvac mode to %s", self.__class__.__name__, hvac_mode)
         self._hvac_mode = hvac_mode
+
+    @asynccontextmanager
+    async def control_pass(self):
+        """Bracket one control run (set mode / control). Nothing to do by default."""
+        yield
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode):
         _LOGGER.info("Setting hvac mode to %s of %s", hvac_mode, self.hvac_modes)

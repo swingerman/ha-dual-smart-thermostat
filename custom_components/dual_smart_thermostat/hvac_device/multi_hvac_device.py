@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 import logging
 from typing import Callable
 
@@ -7,6 +8,7 @@ from homeassistant.core import Context, HomeAssistant, State, callback
 from ..climate_roles import may_share_entity
 from ..hvac_action_reason.hvac_action_reason import HVACActionReason
 from ..hvac_device.controllable_hvac_device import ControlableHVACDevice
+from ..hvac_device.entity_port import peek_climate_child
 from ..hvac_device.hvac_device import HVACDevice
 from ..managers.environment_manager import EnvironmentManager
 from ..managers.feature_manager import FeatureManager
@@ -225,23 +227,40 @@ class MultiHvacDevice(HVACDevice, ControlableHVACDevice):
         for device in self.hvac_devices:
             device.release()
 
+    @asynccontextmanager
+    async def control_pass(self):
+        """Hold back the role stops on shared climates until the run is over.
+
+        A climate holds one mode, so setting a role's mode replaces the previous
+        one. Stopping the old role first only adds a turn_off that a real device
+        can apply after the new mode. Within a run the stops are collected; at the
+        end they are sent only if no mode was set meanwhile and the climate is
+        still in the stopped role's mode.
+        """
+        children = []
+        for entity_id in dict.fromkeys(self.get_device_ids()):
+            if may_share_entity(entity_id) and (
+                child := peek_climate_child(self.hass, entity_id)
+            ):
+                child.begin_pass()
+                children.append(child)
+        try:
+            yield
+        finally:
+            for child in children:
+                await child.end_pass()
+
     async def async_stop(self, *, keep_alive: bool = False):
         for device in self.hvac_devices:
             await device.async_stop(keep_alive=keep_alive)
 
     async def async_turn_off_all(self, time):
         keep_alive = time is not None
-        stopped: set[str] = set()  # climates already stopped on this tick
         for device in self.hvac_devices:
             if keep_alive:
                 # Keep-alive: resend turn_off whether or not it looks active.
                 # If a switch still reads on afterwards, the stop below repeats it.
                 await device.async_turn_off()
-                ids = set(device.get_device_ids())
-                if ids and all(may_share_entity(i) for i in ids):
-                    if ids <= stopped:
-                        continue  # one off frame per shared climate, not one per role
-                    stopped |= ids
             await device.async_stop(keep_alive=keep_alive)
 
     async def _async_check_device_initial_state(self) -> None:
