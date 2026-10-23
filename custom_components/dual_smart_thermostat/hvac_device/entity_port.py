@@ -108,9 +108,6 @@ class EntityPort(ABC):
     def ran_long_enough(self, min_cycle: timedelta) -> bool:
         """Whether the current on/off state has lasted at least min_cycle."""
 
-    # A forced control run (a target change) skips the minimum cycle, as it always
-    # did. A climate's compressor is protected from that too (see ClimatePort).
-    protects_min_cycle = False
     # A stop is scoped to the role's own mode on a device shared by several roles
     # (a climate); begin_pass/end_pass bracket a control run on such a device.
     role_scoped = False
@@ -121,10 +118,17 @@ class EntityPort(ABC):
     async def end_pass(self) -> None:
         return
 
-    @property
-    def is_cold(self) -> bool:
-        """Starting the role starts the device itself (not a switch of its mode)."""
-        return True
+    def holds_stop(self, min_cycle: timedelta) -> bool:
+        """A goal-reached stop must wait for the minimum cycle, even in a forced run.
+
+        Only a climate holds it (its compressor); a switch follows master: a forced
+        run skips the minimum cycle.
+        """
+        return False
+
+    def holds_start(self, min_cycle: timedelta) -> bool:
+        """A start must wait for the minimum cycle, even in a forced run."""
+        return False
 
     @abstractmethod
     async def async_turn_on(self, context: Context | None) -> None:
@@ -872,7 +876,6 @@ class ClimatePort(EntityPort):
         # (a heat pump in either mode, so a flip of its flag still stops it).
         return self._child.mode in self._device.role_modes()
 
-    protects_min_cycle = True
     role_scoped = True
 
     def begin_pass(self) -> None:
@@ -881,10 +884,12 @@ class ClimatePort(EntityPort):
     async def end_pass(self) -> None:
         await self._child.end_pass()
 
-    @property
-    def is_cold(self) -> bool:
+    def holds_stop(self, min_cycle: timedelta) -> bool:
+        return not self.ran_long_enough(min_cycle)
+
+    def holds_start(self, min_cycle: timedelta) -> bool:
         # Switching a running child from one role's mode to another's is not a start.
-        return self._child.mode == HVACMode.OFF
+        return self._child.mode == HVACMode.OFF and not self.ran_long_enough(min_cycle)
 
     def ran_long_enough(self, min_cycle: timedelta) -> bool:
         if not min_cycle:  # none configured: nothing to wait for

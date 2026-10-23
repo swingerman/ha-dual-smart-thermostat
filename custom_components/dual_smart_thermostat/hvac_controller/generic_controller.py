@@ -54,29 +54,16 @@ class GenericHvacController(HvacController):
         """If the toggleable hvac device is currently active."""
         return self.port.is_active
 
-    # Set for the control run that follows an adoption: that run is forced, but it
-    # must not short-cycle a device the user has just started.
-    hold_stop_for_min_cycle = False
-
     def stop_held_by_min_cycle(self, safety: bool) -> bool:
-        """A goal-reached stop waits for the minimum cycle while the hold is on.
+        """A goal-reached stop waits for the minimum cycle where the port holds it.
 
         Openings and floor limits are safety and never wait.
         """
-        return (
-            (self.hold_stop_for_min_cycle or self.port.protects_min_cycle)
-            and not safety
-            and not self.min_cycle_elapsed()
-        )
+        return not safety and self.port.holds_stop(self.min_cycle_duration)
 
     def start_held_by_min_cycle(self, safety: bool = False) -> bool:
-        """A start of a cold device waits for the minimum cycle where it is protected."""
-        return (
-            self.port.protects_min_cycle
-            and self.port.is_cold
-            and not safety
-            and not self.min_cycle_elapsed()
-        )
+        """A start waits for the minimum cycle where the port holds it."""
+        return not safety and self.port.holds_start(self.min_cycle_duration)
 
     def ran_long_enough(self) -> bool:
         _LOGGER.debug("Checking if device ran long enough: %s", self.entity_id)

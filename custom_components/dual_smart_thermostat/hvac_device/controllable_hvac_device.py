@@ -46,9 +46,6 @@ class ControlableHVACDevice(ABC):
         _LOGGER.debug("%s: Setting hvac mode to %s", self.__class__.__name__, hvac_mode)
         self._hvac_mode = hvac_mode
 
-    def set_hold_stops(self, hold: bool) -> None:
-        """Hold goal-reached stops for the minimum cycle (adoption runs). Default: n/a."""
-
     async def async_keep_alive_off(self) -> None:
         """A keep-alive tick while Off: resend turn_off whether or not it looks active."""
         await self.async_turn_off()
