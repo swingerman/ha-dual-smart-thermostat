@@ -1265,3 +1265,78 @@ async def test_adoption_run_does_not_short_cycle_a_child_that_just_started(
     freezer.tick(timedelta(minutes=6))
     await _tick(hass, 26.1)
     assert [c[0] for c in child.calls] == ["turn_off"]  # an ordinary tick stops it
+
+
+# ------------------------------------------------ a combined set_temperature(hvac_mode)
+
+
+async def test_set_temperature_with_a_mode_sends_the_mode_once_and_the_final_target(
+    hass,
+):
+    """HA sets the mode first (old target), then the temperature. On a device that
+    has not reported heat yet that used to send heat twice and the old target too."""
+    child = await _start(hass, HVACMode.OFF, heater_setpoint_offset=1)
+    await _tick(hass, 18.0)  # cold: heating is wanted
+    child.calls.clear()
+    child.hold_echoes()  # a slow device: nothing is reported meanwhile
+
+    await hass.services.async_call(
+        "climate",
+        "set_temperature",
+        {"entity_id": "climate.test", "hvac_mode": "heat", "temperature": 31},
+        blocking=True,
+    )
+    await _idle(hass)
+
+    assert child.calls == [
+        ("set_hvac_mode", {"hvac_mode": HVACMode.HEAT}),
+        (
+            "set_temperature",
+            {"temperature": 30.0},
+        ),  # 31 + 1, clamped to the child's max
+    ]
+
+
+async def test_a_turn_on_lands_the_selected_fan_on_a_device_slow_to_report(hass):
+    """DST Off, fan picked (recorded only), then heat: the child still reports off
+    when the fan is re-applied, but DST's own mode command counts as running."""
+    child = await _start(hass, HVACMode.OFF)
+    await _tick(hass, 18.0)
+    await hass.services.async_call(
+        "climate",
+        "set_fan_mode",
+        {"entity_id": "climate.test", "fan_mode": "strong"},
+        blocking=True,
+    )
+    assert child.calls == []  # Off: recorded, nothing sent
+    child.hold_echoes()
+
+    await common.async_set_hvac_mode(hass, HVACMode.HEAT, "climate.test")
+    await _idle(hass)
+
+    assert [c[0] for c in child.calls] == [
+        "set_hvac_mode",
+        "set_temperature",
+        "set_fan_mode",
+    ]
+    assert child.calls[-1][1] == {"fan_mode": "strong"}
+
+
+async def test_the_last_command_wins_over_an_automation_that_keeps_the_fan_quiet(
+    hass,
+):
+    child = await _start(hass, HVACMode.OFF, child_kwargs={"fan_mode": "quiet"})
+    await _tick(hass, 18.0)
+    _automation(hass, lambda old, new: True, fan_mode="quiet")
+    await hass.services.async_call(
+        "climate",
+        "set_fan_mode",
+        {"entity_id": "climate.test", "fan_mode": "strong"},
+        blocking=True,
+    )
+    await common.async_set_hvac_mode(hass, HVACMode.HEAT, "climate.test")
+    await _idle(hass)
+
+    assert ("set_fan_mode", {"fan_mode": "strong"}) in child.calls  # DST sent it
+    assert hass.states.get(AC).attributes["fan_mode"] == "quiet"  # automation flipped
+    assert _dst(hass).attributes["fan_mode"] == "quiet"  # adopted: last wins

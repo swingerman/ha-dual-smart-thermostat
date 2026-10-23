@@ -282,10 +282,12 @@ class ClimateChild:
         self._pass_depth = 0
         self._pass_set_mode = False
         self._pass_stops: list[tuple[ClimatePort, Context | None]] = []
+        self._pass_tail: dict[ClimatePort, Context | None] = {}
         # Per owner (the thermostat): the values it commanded and has not yet seen
         # reported, and the two short flags of section 3.6 of the spec.
         self._pending: dict[Any, dict[str, list[Any]]] = {}
         self._sending: dict[Any, int] = {}
+        self._fan_sent: set[Any] = set()  # owners whose sequence has sent its fan
         self._adopting: dict[Any, int] = {}
         self._deferred: dict[Any, Callable[[], None]] = {}
         self._off_sent_for: datetime | None = None
@@ -344,11 +346,15 @@ class ClimateChild:
     @contextmanager
     def sending(self, owner: Any):
         """DST sends a sequence: changes reported meanwhile are the device's side effects."""
+        if not self._sending.get(owner):
+            self._fan_sent.discard(owner)
         self._sending[owner] = self._sending.get(owner, 0) + 1
         try:
             yield
         finally:
             self._sending[owner] -= 1
+            if not self._sending[owner]:
+                self._fan_sent.discard(owner)
             if not any(self._sending.values()):
                 deferred, self._deferred = self._deferred, {}
                 for run in deferred.values():
@@ -444,7 +450,17 @@ class ClimateChild:
                 # expectations recorded before this report are stale and must not
                 # swallow a later press (a peer's command sent since is kept).
                 pending[:] = [e for e in pending if e[2] >= new.last_updated]
-        return set() if self._sending.get(owner) else external
+        if self._sending.get(owner):
+            # Side effects of the sequence (a mode that resets the fan) are not the
+            # user's; but the fan is the last thing sent, so a fan reported after
+            # it was sent is someone else's last word.
+            return external & {ATTR_FAN_MODE} if owner in self._fan_sent else set()
+        return external
+
+    def pending_mode(self, owner: Any) -> str | None:
+        """The last mode `owner` commanded that the device has not reported yet."""
+        pending = self._pending.get(owner, {}).get("mode", [])
+        return next((e[0] for e in reversed(pending) if e[1] is owner), None)
 
     def begin_pass(self) -> None:
         """A control run starts: role stops are held back until it ends."""
@@ -457,13 +473,24 @@ class ClimateChild:
     def defer_stop(self, port: ClimatePort, context: Context | None) -> None:
         self._pass_stops.append((port, context))
 
+    def defer_tail(self, port: ClimatePort, context: Context | None) -> None:
+        """A turn on inside a run: its setpoint and fan speed wait for the run's end."""
+        self._pass_tail[port] = context
+
     async def end_pass(self) -> None:
-        """The run is over: send the held-back stop, unless a mode replaced it."""
+        """The run is over: the held-back setpoints and fan speeds, then the stop
+        (unless a mode replaced it)."""
         self._pass_depth -= 1
         if self._pass_depth > 0:
             return
         stops, replaced = self._pass_stops, self._pass_set_mode
-        self._pass_stops, self._pass_set_mode = [], False
+        tail = self._pass_tail
+        self._pass_stops, self._pass_set_mode, self._pass_tail = [], False, {}
+        for port, context in tail.items():
+            # Once, with the run's final target, and only if its mode still stands.
+            if (self.pending_mode(port.owner) or self.mode) in port.device.role_modes():
+                with self.sending(port.owner):
+                    await port.async_finish_turn_on(context)
         if replaced:
             return  # the new mode replaced the old one: a stop would only race it
         for port, context in stops:
@@ -548,7 +575,11 @@ class ClimateChild:
             # A reported state already in this mode makes a resend pointless; an
             # assumed device cannot report, so keep-alive resends are the point.
             self._pass_set_mode = self.in_pass
-            if not state.attributes.get(ATTR_ASSUMED_STATE) and state.state == mode:
+            if not state.attributes.get(ATTR_ASSUMED_STATE) and (
+                state.state == mode
+                # Commanded earlier in this run and not reported yet (a slow device)
+                or (self.in_pass and self.pending_mode(owner) == mode)
+            ):
                 return True
             return await self._command(
                 SERVICE_SET_HVAC_MODE,
@@ -636,7 +667,11 @@ class ClimateChild:
         """
         async with self._lock:
             state = self.state
-            if self.mode in (None, HVACMode.OFF):
+            if is_unavailable(state):
+                return
+            # What DST just commanded counts as running even if the device has not
+            # reported it yet, so a turn on always lands its fan speed.
+            if (self.pending_mode(owner) or self.mode) in (None, HVACMode.OFF):
                 return
             if (
                 not state.attributes.get(ATTR_ASSUMED_STATE)
@@ -651,6 +686,7 @@ class ClimateChild:
                 "Sending %s.%s %s", CLIMATE_DOMAIN, SERVICE_SET_FAN_MODE, data
             )
             self._expect(owner, "fan_mode", fan_mode)
+            self._fan_sent.add(owner)
             try:
                 await self.hass.services.async_call(
                     CLIMATE_DOMAIN,
@@ -764,9 +800,15 @@ class ClimatePort(EntityPort):
                 self._device.role_modes()[0], context, self.owner
             ):
                 return
-            await self._push(context)
-            # Last, so the speed lands after the mode change that may have reset it.
-            await self._reapply_fan_speed()
+            if self._child.in_pass:
+                self._child.defer_tail(self, context)  # one push, at the run's end
+                return
+            await self.async_finish_turn_on(context)
+
+    async def async_finish_turn_on(self, context: Context | None) -> None:
+        await self._push(context)
+        # Last, so the speed lands after the mode change that may have reset it.
+        await self._reapply_fan_speed()
 
     async def async_sync(self, context: Context | None) -> None:
         # Only the role the child is serving may touch its setpoint.
