@@ -180,7 +180,10 @@ When a device is a climate entity, these parameters become available:
 | `heater_setpoint_offset` | Added to the target sent to the heater device (needs the heater to be a climate entity) | `2` |
 | `cooler_setpoint_offset` | Added to the target sent to the cooler device (needs the cooler, or an `ac_mode`/heat pump heater, to be a climate entity) | `-2` |
 
+These options are set in the "Climate Entity Control" step (`climate_control`, or `climate_control_options` in the options flow). The step is shown only when a device is a climate entity, right after the basic entity step and before feature steps, openings and presets.
+
 `target_sensor` is then optional: the climate entity's own temperature is used.
+A thermostat cannot use its own entity as a device.
 `control_style: setpoint` is not supported for a climate heat pump, nor with one
 climate entity as both heater and cooler when heat/cool is enabled. A climate
 entity may fill several roles, and `secondary_heater` cannot be a climate entity.

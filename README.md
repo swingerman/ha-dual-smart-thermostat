@@ -58,9 +58,9 @@ Home Assistant 2026.10 adds a [template climate](https://www.home-assistant.io/i
 
 When to use which:
 
-- **The device already regulates itself** (IR/RF air conditioner driven by scripts, a thermostat with an awkward interface, values spread across several helpers): a template climate is enough, and is simpler than wrapping the device with dummy switches here.
+- **The device already regulates itself** (IR/RF air conditioner driven by scripts, a thermostat with an awkward interface, values spread across several helpers): a template climate is enough on its own. If you also want windows, presets or a separate room sensor, add Dual Smart Thermostat and give it the climate entity as a device (no dummy switches needed).
 - **The device is a plain switch/valve/relay** that needs to be cycled from a temperature sensor: use Dual Smart Thermostat.
-- **Both**: any `climate` entity, a template climate included, can be a `heater`, `cooler`, `fan` or `dryer` of Dual Smart Thermostat (see [Climate entities as devices](#climate-entities-as-devices)), so you no longer need dummy template switches around a device that has its own climate entity. Template [switches](https://www.home-assistant.io/integrations/switch.template/) and [fans](#upgrading-switch-based-fans) remain the way to adapt odd switch-like hardware.
+- **Both**: any `climate` entity, a template climate included, can be a `heater`, `cooler`, `fan` or `dryer` of Dual Smart Thermostat (see [Climate entities as devices](#climate-entities-as-devices)). Use the template climate to describe the device (scripts, helpers), and Dual Smart Thermostat on top for tolerances, min cycle, openings, presets and mixing it with other devices (for example an IR AC as `cooler` and a smart-plug `heater`). You no longer need dummy template switches around a device that has its own climate entity. Template [switches](https://www.home-assistant.io/integrations/switch.template/) and [fans](#upgrading-switch-based-fans) remain the way to adapt odd switch-like hardware.
 
 The [Single-Mode Thermostat Wrapper](examples/single_mode_wrapper/) example covers one case where a template climate is an alternative.
 
@@ -97,13 +97,15 @@ Any of `heater`, `cooler`, `fan`, `dryer` (and the `heater` of a [heat pump](#he
 
 ### Behaviour notes
 
+- **A thermostat cannot be its own device.** Its own entity is hidden from the device pickers in the UI and rejected in YAML.
 - **Off means off, once.** When the thermostat is set to Off it turns every climate device off, whatever mode the device was in (also one set from the device's own remote). While it stays Off it leaves the climate alone, keep-alive included, so you can still switch the AC on with its own remote.
-- **Keep-alive.** Keep-alive re-sends the mode only to a climate entity that reports `assumed_state`. An infrared AC whose integration reports its own last command as its state (such as the Xiaomi IR mate) is not re-sent, because it would beep every interval; keep-alive therefore does not resync it after a press on its physical remote.
+- **Keep-alive.** `keep_alive` re-sends the mode only to a climate entity that reports `assumed_state`. It works together with `min_cycle_duration`: it never switches the device inside the minimum cycle. An infrared AC whose integration reports its own last command as its state (such as the Xiaomi IR mate) is not re-sent, because it would beep every interval; keep-alive therefore does not resync it after a press on its physical remote.
 - **Changes made on the device.** By default the thermostat follows changes made on the device itself (remote, vendor app, an automation): the new mode, target, fan speed or off becomes the thermostat's setting at once, and nothing is sent back. A mode the thermostat has no role for turns it off and leaves the device alone. Open windows, floor limits, a stale sensor and the minimum cycle still take precedence. After a Home Assistant restart or a reconnect the thermostat re-asserts its own setting (a remote change made while Home Assistant was down is overridden once). Turn `follow_device_changes` off to keep the thermostat in charge: it then puts the device back on its next control run. While the thermostat is Off nothing is sent to the device (keep-alive included), so the remote works freely. Devices that report an assumed state (infrared) are not followed.
+- **Fan reset after our command.** Some devices fall back to their power-on fan setting when they receive a command. If the device reports a fan reset within 5 s of the thermostat's own command, it is treated as the device dropping the command, not as your choice: the thermostat sends its fan setting once more and does not adopt the reset. A fan change after that window is followed as usual.
 - **Temperature source.** `target_sensor` is optional when a device is a climate entity: its own `current_temperature` is then used (also for the stale sensor protection).
 - **Fan speed.** A climate device's own fan modes become the thermostat's fan mode (see [Fan Speed Control](#fan-speed-control)).
 - **One climate in several roles.** One climate entity can be heater, cooler, fan and dryer at once; it runs one mode at a time. `fan_on_with_ac` and `fan_on_with_heater` are ignored for a fan on the same climate (its own cool mode already runs its fan).
-- **Safety.** `min_cycle_duration` is respected in `on_off` style, also when you change the target (a climate's compressor is protected: the stop or restart waits for the minimum cycle; turning the thermostat Off, openings and floor limits act at once), an unavailable device is not commanded, and openings and floor limits work as with switches.
+- **Safety.** `min_cycle_duration` is respected in `on_off` style, also when you change the target (a climate's compressor is protected: if a target change would start or stop the device, that start or stop waits until the minimum cycle has passed; turning the thermostat Off, openings and floor limits act at once), an unavailable device is not commanded, and openings and floor limits work as with switches.
 - **Limits.** Humidity is not read from the climate entity (a dryer still needs `humidity_sensor`), the climate's own `hvac_action` is not mirrored, and `secondary_heater` stays switch-only.
 
 In the UI, a "Climate Entity Control" step appears when a device is a climate entity (in the configuration, reconfigure and options flows).
@@ -798,7 +800,7 @@ The reason is grouped into three categories:
 
 ### fan
 
-  _(optional) (string)_ "`entity_id` for fan switch, must be a toggle device."
+  _(optional) (string)_ "`entity_id` for fan switch, must be a toggle device or a `climate` entity (see [Climate entities as devices](#climate-entities-as-devices)). A climate fan runs in its `fan_only` mode."
 
 ### fan_hot_tolerance
 
@@ -848,19 +850,33 @@ The reason is grouped into three categories:
 
 ### control_style
 
-  _(optional) (string)_ `on_off` (default) or `setpoint`; how climate devices are controlled. See [Climate entities as devices](#climate-entities-as-devices).
+  _(optional) (string)_ `on_off` (default) or `setpoint`; how climate devices are controlled. `on_off`: the thermostat decides when to run the device. `setpoint`: the device regulates itself and the thermostat mirrors target, mode, presets and openings.
+
+  _default: `on_off`_
+
+  _requires: at least one device that is a `climate` entity. `setpoint` is only for heater and cooler, and not for a climate heat pump or one climate as both heater and cooler with heat/cool mode on._ See [Climate entities as devices](#climate-entities-as-devices).
 
 ### follow_device_changes
 
-  _(optional) (boolean)_ adopt changes made on a `climate` device (remote, app, automation) as the thermostat's own setting. _default: true_. See [Climate entities as devices](#climate-entities-as-devices).
+  _(optional) (boolean)_ adopt changes made on a `climate` device (remote, app, automation) as the thermostat's own setting. _default: true_. With `false` the thermostat stays in charge and puts the device back on its next control run.
 
-### heater_setpoint_offset / cooler_setpoint_offset
+  _requires: at least one device that is a `climate` entity._ See [Climate entities as devices](#climate-entities-as-devices).
 
-  _(optional) (float)_ added to the target temperature sent to the heater / cooler device when it is a `climate` entity. _default: 0_
+### heater_setpoint_offset
+
+  _(optional) (float, signed)_ added to the target temperature sent to the heater device, then limited to the device's own range and step. Use it when the device's own sensor reads differently from your room sensor. _default: 0_
+
+  _requires: `heater` is a `climate` entity (a heat pump uses it while heating)._ See [Climate entities as devices](#climate-entities-as-devices).
+
+### cooler_setpoint_offset
+
+  _(optional) (float, signed)_ added to the target temperature sent to the cooler device, then limited to the device's own range and step. A negative value keeps an AC cooling. _default: 0_
+
+  _requires: `cooler` is a `climate` entity (a heat pump uses it while cooling)._ See [Climate entities as devices](#climate-entities-as-devices).
 
 ### dryer
 
-  _(optional) (string)_ "`entity_id` for dryer switch, must be a toggle device or a `climate` entity."
+  _(optional) (string)_ "`entity_id` for dryer switch, must be a toggle device or a `climate` entity (see [Climate entities as devices](#climate-entities-as-devices)). A climate dryer runs in its `dry` mode; `humidity_sensor` is still required."
 
 ### moist_tolerance
 
