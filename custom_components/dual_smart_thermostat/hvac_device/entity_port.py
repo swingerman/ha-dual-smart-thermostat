@@ -255,6 +255,9 @@ class SwitchPort(EntityPort):
 _CHILDREN_KEY = "dual_smart_thermostat_climate_children"
 
 _MAX_PENDING = 4
+# HA stamps a state write with the entity's last service context for this long
+# (CONTEXT_RECENT_TIME_SECONDS): a device reacting to our command reports under it.
+_OWN_CONTEXT_WINDOW = timedelta(seconds=5)
 _TRACKED = (
     ("mode", lambda s: s.state),
     ("target", lambda s: s.attributes.get(ATTR_TEMPERATURE)),
@@ -296,6 +299,10 @@ class ClimateChild:
         self._pending: dict[Any, dict[str, list[Any]]] = {}
         self._sending: dict[Any, int] = {}
         self._fan_sent: set[Any] = set()  # owners whose sequence has sent its fan
+        self._own_contexts: dict[str, datetime] = {}  # contexts of our recent commands
+        self._last_fan: dict[Any, str] = {}  # owner -> the fan it commanded last
+        self._fan_dropped: set[Any] = set()  # owners that must send their fan again
+        self._fan_resent: set[Any] = set()  # ... and have, in this sequence
         self._adopting: dict[Any, int] = {}
         self._deferred: dict[Any, Callable[[], None]] = {}
         self._off_sent_for: datetime | None = None
@@ -364,6 +371,7 @@ class ClimateChild:
         """DST sends a sequence: changes reported meanwhile are the device's side effects."""
         if not self._sending.get(owner):
             self._fan_sent.discard(owner)
+            self._fan_resent.discard(owner)
         self._sending[owner] = self._sending.get(owner, 0) + 1
         try:
             yield
@@ -400,6 +408,23 @@ class ClimateChild:
     def _observers(self, origin: Any) -> set[Any]:
         """Every thermostat on this child: a command of one is an echo for all."""
         return {port.owner for port in self.ports} | {origin}
+
+    def _own_context(self, parent: Context | None) -> Context:
+        """A fresh context for one of our commands (logbook attribution only)."""
+        context = Context(parent_id=parent.id if parent else None)
+        now = dt_util.utcnow()
+        self._own_contexts[context.id] = now
+        for stale in [
+            i for i, at in self._own_contexts.items() if now - at > _OWN_CONTEXT_WINDOW
+        ]:
+            del self._own_contexts[stale]
+        return context
+
+    def take_fan_dropped(self, owner: Any) -> bool:
+        """Whether `owner` has to send its fan again (asked once)."""
+        dropped = owner in self._fan_dropped
+        self._fan_dropped.discard(owner)
+        return dropped
 
     def _expect(self, origin: Any, attr: str, value: Any) -> None:
         """Record a value `origin` commanded and nobody has seen reported yet.
@@ -466,6 +491,13 @@ class ClimateChild:
                 # expectations recorded before this report are stale and must not
                 # swallow a later press (a peer's command sent since is kept).
                 pending[:] = [e for e in pending if e[2] >= new.last_updated]
+        if "fan_mode" in external and self._dropped_by_device(owner, new):
+            # The device answered our own command with its default (a power-on
+            # reset): not the user. Say it again once, adopt nothing.
+            external.discard("fan_mode")
+            if owner not in self._fan_resent:
+                self._fan_resent.add(owner)
+                self._fan_dropped.add(owner)
         if self._sending.get(owner):
             # Side effects of the sequence (a mode that resets the fan) are not the
             # user's; but the fan is the last thing sent, so a fan reported after
@@ -477,6 +509,23 @@ class ClimateChild:
         """The last mode `owner` commanded that the device has not reported yet."""
         pending = self._pending.get(owner, {}).get("mode", [])
         return next((e[0] for e in reversed(pending) if e[1] is owner), None)
+
+    def _dropped_by_device(self, owner: Any, new: State) -> bool:
+        """A fan reported under the context of our own command, not what we sent.
+
+        HA stamps a write with the entity's last service context while it is
+        recent, so a device reacting to our command carries ours; an automation
+        or the UI carries their own. (A remote press within seconds of our
+        command would carry ours too: it is overridden once. Documented.)
+        """
+        sent = self._last_fan.get(owner)
+        at = self._own_contexts.get(new.context.id)
+        return (
+            sent is not None
+            and at is not None
+            and dt_util.utcnow() - at <= _OWN_CONTEXT_WINDOW
+            and not _same(new.attributes.get(ATTR_FAN_MODE), sent)
+        )
 
     def begin_pass(self) -> None:
         """A control run starts: role stops are held back until it ends."""
@@ -537,7 +586,7 @@ class ClimateChild:
             _LOGGER.debug("Adopting %s: not sending %s", self.entity_id, service)
             return False
         # Always a fresh context (logbook attribution only); never the caller's.
-        context = Context(parent_id=context.id if context else None)
+        context = self._own_context(context)
         before = (self._commanded, self._commanded_at, self._last_pushed)
         if mode is not None:
             self._record(mode)
@@ -703,12 +752,13 @@ class ClimateChild:
             )
             self._expect(owner, "fan_mode", fan_mode)
             self._fan_sent.add(owner)
+            self._last_fan[owner] = fan_mode
             try:
                 await self.hass.services.async_call(
                     CLIMATE_DOMAIN,
                     SERVICE_SET_FAN_MODE,
                     data,
-                    context=Context(parent_id=context.id if context else None),
+                    context=self._own_context(context),
                     blocking=True,
                 )
             except Exception:

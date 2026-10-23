@@ -1500,3 +1500,54 @@ async def test_off_stops_a_climate_inside_its_min_cycle(hass, freezer):
     await common.async_set_hvac_mode(hass, HVACMode.OFF, "climate.test")
     await _idle(hass)
     assert [c[0] for c in child.calls].count("turn_off") == 1
+
+
+# ----------------------- a device answering our command with its power-on default
+
+
+async def _turned_on_with_fan_picked(hass):
+    child = await _start(hass, HVACMode.OFF, child_kwargs={"fan_mode": "quiet"})
+    await _tick(hass, 18.0)
+    await hass.services.async_call(
+        "climate",
+        "set_fan_mode",
+        {"entity_id": "climate.test", "fan_mode": "strong"},
+        blocking=True,
+    )
+    await common.async_set_hvac_mode(hass, HVACMode.HEAT, "climate.test")
+    await _idle(hass)
+    assert ("set_fan_mode", {"fan_mode": "strong"}) in child.calls
+    return child
+
+
+async def test_a_power_on_default_under_our_own_context_is_resent_not_adopted(
+    hass, adoptions
+):
+    child = await _turned_on_with_fan_picked(hass)
+    child.power_on_default("auto")  # reported under the context of our command
+    await _idle(hass)
+    assert adoptions == []
+    assert _dst(hass).attributes["fan_mode"] == "strong"
+    assert [c for c in child.calls if c[0] == "set_fan_mode"] == [
+        ("set_fan_mode", {"fan_mode": "strong"})
+    ] * 2
+    assert hass.states.get(AC).attributes["fan_mode"] == "strong"
+
+
+async def test_the_resend_is_bounded(hass, adoptions):
+    child = await _turned_on_with_fan_picked(hass)
+    child.power_on_default("auto")
+    await _idle(hass)
+    child.power_on_default("auto")  # the device keeps doing it
+    await _idle(hass)
+    assert len([c for c in child.calls if c[0] == "set_fan_mode"]) == 2
+    assert adoptions == []
+
+
+async def test_an_automation_fan_after_the_reset_is_adopted(hass, adoptions):
+    child = await _turned_on_with_fan_picked(hass)
+    child.power_on_default("auto")
+    await _idle(hass)
+    child.remote(fan_mode="quiet")  # an automation's or the UI's own context
+    await _idle(hass)
+    assert _dst(hass).attributes["fan_mode"] == "quiet"  # last command wins

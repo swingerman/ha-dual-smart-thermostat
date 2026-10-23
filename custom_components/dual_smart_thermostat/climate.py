@@ -1922,6 +1922,8 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         external = child.external(
             self.features, event.data["old_state"], event.data["new_state"]
         )
+        if child.take_fan_dropped(self.features):
+            self.hass.async_create_task(self._async_resend_fan(child))
         if (
             external
             and self.features.follow_device_changes
@@ -1961,6 +1963,12 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         ):
             speed.current_fan_mode = fan_mode
             self.async_write_ha_state()
+
+    async def _async_resend_fan(self, child) -> None:
+        """The device dropped our fan speed while powering on: send it again."""
+        speed = self.features.fan_speed
+        if speed is not None:
+            await speed.async_reapply(child.entity_id)
 
     async def _async_assert_off(self) -> None:
         # The task may run later than the event that scheduled it: ask again.

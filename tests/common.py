@@ -612,6 +612,11 @@ class FakeClimateChild(ClimateEntity):
         }
         self._write(attrs | extra, None if reuse_context else Context())
 
+    def power_on_default(self, fan="auto"):
+        """The device reports its power-on default fan under the context of the
+        last command it was sent (HA stamps a recent write with it)."""
+        self._write({"fan_mode": fan}, self._context)
+
     def hold_echoes(self):
         """Park command effects until flush_echoes (a slow or polled device)."""
         self._echo_queue = []
