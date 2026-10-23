@@ -19,7 +19,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 import logging
 import math
-from typing import Any
+from typing import Any, NamedTuple
 
 from homeassistant.components.climate import (
     ATTR_FAN_MODE,
@@ -289,6 +289,39 @@ class ExternalReport:
     fan_dropped: bool = False  # the device dropped our fan: send it again, once
 
 
+class _Expected(NamedTuple):
+    """A value `origin` commanded and nobody has seen reported yet."""
+
+    value: Any
+    origin: Any
+    at: datetime
+
+
+class _PassAction:
+    """What a control run holds back for one role until it ends."""
+
+    def __init__(self) -> None:
+        self.stop = False  # a stop was deferred ...
+        self.stop_context: Context | None = None  # ... with this context
+        self.push = False  # the setpoint (and, with turn_on, the fan speed)
+        self.turn_on = False
+        self.context: Context | None = None
+
+
+def _enter(counts: dict, key: Any) -> bool:
+    """Depth-counted bracket: True when this is the outermost entry."""
+    counts[key] = counts.get(key, 0) + 1
+    return counts[key] == 1
+
+
+def _leave(counts: dict, key: Any) -> bool:
+    """True when this closes the outermost entry."""
+    counts[key] -= 1
+    return counts[key] == 0
+
+
+_PASS = "pass"
+
 _TRACKED = (
     ("mode", lambda s: s.state),
     ("target", lambda s: s.attributes.get(ATTR_TEMPERATURE)),
@@ -319,16 +352,13 @@ class ClimateChild:
         self._commanded_at: datetime | None = None
         self._last_pushed: float | None = None
         self._warned: set[str] = set()
-        self.refs = 0  # ports holding this child; it is dropped at zero
-        self.ports: set[ClimatePort] = set()  # the roles that live on this child
-        self._pass_depth = 0
+        # the roles that live on this child; it is dropped when the last one goes
+        self.ports: set[ClimatePort] = set()
+        self._depth: dict[Any, int] = {}  # the control pass (_PASS)
         self._pass_set_mode = False
-        self._pass_stops: list[tuple[ClimatePort, Context | None]] = []
-        # role -> (context, whether a turn on, with its fan speed, is part of it)
-        self._pass_tail: dict[ClimatePort, tuple[Context | None, bool]] = {}
-        # Per owner (the thermostat): the values it commanded and has not yet seen
-        # reported, and the two short flags of section 3.6 of the spec.
-        self._pending: dict[Any, dict[str, list[Any]]] = {}
+        self._pass_actions: dict[ClimatePort, _PassAction] = {}
+        # Per owner (the thermostat): what it commanded and has not yet seen reported.
+        self._pending: dict[Any, dict[str, list[_Expected]]] = {}
         self._sending: dict[Any, int] = {}
         self._fan_sent: set[Any] = set()  # owners whose sequence has sent its fan
         self._own_contexts: dict[str, datetime] = {}  # contexts of our recent commands
@@ -398,16 +428,13 @@ class ClimateChild:
     @contextmanager
     def sending(self, owner: Any):
         """DST sends a sequence: changes reported meanwhile are the device's side effects."""
-        if not self._sending.get(owner):
+        if _enter(self._sending, owner):
             self._fan_sent.discard(owner)
             self._fan_resent.discard(owner)
-        self._sending[owner] = self._sending.get(owner, 0) + 1
         try:
             yield
         finally:
-            self._sending[owner] -= 1
-            if not self._sending[owner]:
-                self._fan_sent.discard(owner)
+            _leave(self._sending, owner)
             if not any(self._sending.values()):
                 deferred, self._deferred = self._deferred, {}
                 for run in deferred.values():
@@ -428,11 +455,11 @@ class ClimateChild:
     @contextmanager
     def adopting(self, owner: Any):
         """This owner adopts the child's state: its commands to the child are dropped."""
-        self._adopting[owner] = self._adopting.get(owner, 0) + 1
+        _enter(self._adopting, owner)
         try:
             yield
         finally:
-            self._adopting[owner] -= 1
+            _leave(self._adopting, owner)
 
     def _observers(self, origin: Any) -> set[Any]:
         """Every thermostat on this child: a command of one is an echo for all."""
@@ -449,26 +476,28 @@ class ClimateChild:
             del self._own_contexts[stale]
         return context
 
-    def _expect(self, origin: Any, attr: str, value: Any) -> None:
-        """Record a value `origin` commanded and nobody has seen reported yet.
+    def _expect(self, origin: Any, expect: dict[str, Any]) -> None:
+        """Record the values `origin` commanded and nobody has seen reported yet.
 
-        Peers record it too, so a command of a thermostat (its own control, such as
-        a safety stop, as much as the user's) is never taken for the user acting on
-        the device by another thermostat sharing the child.
+        Peers record them too, so a command of a thermostat (its own control, such
+        as a safety stop, as much as the user's) is never taken for the user acting
+        on the device by another thermostat sharing the child.
         """
         if self.assumed:
             return  # an assumed child never reports back; nothing to match
-        for observer in self._observers(origin):
-            pending = self._pending.setdefault(observer, {}).setdefault(attr, [])
-            pending.append((value, origin, dt_util.utcnow()))
-            del pending[:-_MAX_PENDING]
+        observers, now = self._observers(origin), dt_util.utcnow()
+        for attr, value in expect.items():
+            for observer in observers:
+                pending = self._pending.setdefault(observer, {}).setdefault(attr, [])
+                pending.append(_Expected(value, origin, now))
+                del pending[:-_MAX_PENDING]
 
     def _unexpect(self, origin: Any, attr: str, value: Any) -> None:
         for observer in self._observers(origin):
             pending = self._pending.get(observer, {}).get(attr, [])
             for index in range(len(pending) - 1, -1, -1):
                 entry = pending[index]
-                if entry[1] is origin and _same(entry[0], value):
+                if entry.origin is origin and _same(entry.value, value):
                     del pending[index]
                     break
 
@@ -476,7 +505,7 @@ class ClimateChild:
         """Forget what `origin` commanded (after its adoption, or when it goes away)."""
         for attrs in self._pending.values():
             for attr, pending in attrs.items():
-                attrs[attr] = [e for e in pending if e[1] is not origin]
+                attrs[attr] = [e for e in pending if e.origin is not origin]
 
     def forget(self, owner: Any) -> None:
         """The thermostat is going away: no record of it may outlive it."""
@@ -521,7 +550,8 @@ class ClimateChild:
                 continue
             pending = self._pending.get(owner, {}).get(attr, [])
             match = next(
-                (i for i, entry in enumerate(pending) if _same(entry[0], after)), None
+                (i for i, entry in enumerate(pending) if _same(entry.value, after)),
+                None,
             )
             if match is not None:
                 del pending[match]  # an echo of ours; any order is fine
@@ -530,7 +560,7 @@ class ClimateChild:
                 # The device moved on without reporting what was commanded: the
                 # expectations recorded before this report are stale and must not
                 # swallow a later press (a peer's command sent since is kept).
-                pending[:] = [e for e in pending if e[2] >= new.last_updated]
+                pending[:] = [e for e in pending if e.at >= new.last_updated]
         if "fan_mode" in external and self._dropped_by_device(owner, new):
             # The device answered our own command with its default (a power-on
             # reset): not the user. Say it again once, adopt nothing.
@@ -548,7 +578,7 @@ class ClimateChild:
     def pending_mode(self, owner: Any) -> str | None:
         """The last mode `owner` commanded that the device has not reported yet."""
         pending = self._pending.get(owner, {}).get("mode", [])
-        return next((e[0] for e in reversed(pending) if e[1] is owner), None)
+        return next((e.value for e in reversed(pending) if e.origin is owner), None)
 
     def _dropped_by_device(self, owner: Any, new: State) -> bool:
         """A fan reported under the context of our own command, not what we sent.
@@ -569,49 +599,70 @@ class ClimateChild:
 
     def begin_pass(self) -> None:
         """A control run starts: role stops are held back until it ends."""
-        self._pass_depth += 1
+        _enter(self._depth, _PASS)
 
     @property
     def in_pass(self) -> bool:
-        return self._pass_depth > 0
+        return self._depth.get(_PASS, 0) > 0
+
+    def _action(self, port: ClimatePort) -> _PassAction:
+        return self._pass_actions.setdefault(port, _PassAction())
 
     def defer_stop(self, port: ClimatePort, context: Context | None) -> None:
-        self._pass_stops.append((port, context))
+        action = self._action(port)
+        action.stop, action.stop_context = True, context
 
     def defer_tail(
         self, port: ClimatePort, context: Context | None, *, turn_on: bool
     ) -> None:
         """Inside a run the setpoint (and a turn on's fan speed) wait for its end:
         the run decides the child's final state first, then sends it."""
-        _, was_turn_on = self._pass_tail.get(port, (None, False))
-        self._pass_tail[port] = (context, turn_on or was_turn_on)
+        action = self._action(port)
+        action.push, action.context = True, context
+        action.turn_on = action.turn_on or turn_on
 
     async def end_pass(self) -> None:
         """The run is over: the held-back setpoints and fan speeds, then the stop
         (unless a mode replaced it)."""
-        self._pass_depth -= 1
-        if self._pass_depth > 0:
+        if not _leave(self._depth, _PASS):
             return
-        stops, replaced = self._pass_stops, self._pass_set_mode
-        tail = self._pass_tail
-        self._pass_stops, self._pass_set_mode, self._pass_tail = [], False, {}
-        for port, (context, turn_on) in tail.items():
+        actions, replaced = self._pass_actions, self._pass_set_mode
+        self._pass_actions, self._pass_set_mode = {}, False
+        for port, action in actions.items():
             # Once, with the run's final target, only if its mode still stands and
             # the run does not stop it.
-            stopped = not replaced and any(p is port for p, _ in stops)
+            stopped = not replaced and action.stop
             if (
-                not stopped
+                action.push
+                and not stopped
                 and (self.pending_mode(port.owner) or self.mode)
                 in port.device.role_modes()
             ):
                 with self.sending(port.owner):
-                    await port.async_finish_turn_on(context, turn_on=turn_on)
+                    await port.async_finish_turn_on(
+                        action.context, turn_on=action.turn_on
+                    )
         if replaced:
             return  # the new mode replaced the old one: a stop would only race it
-        for port, context in stops:
-            if port.is_active:
-                await self.async_turn_off(context, port.owner)
+        for port, action in actions.items():
+            if action.stop and port.is_active:
+                await self.async_turn_off(action.stop_context, port.owner)
                 return
+
+    def _held(self, state: State, attr: str) -> Any:
+        """What the child already has, as far as DST can know (else None).
+
+        A reported state is the truth; an assumed child never reports, so only the
+        target has a record (what DST last pushed) and a resend is never pointless.
+        """
+        assumed = state.attributes.get(ATTR_ASSUMED_STATE)
+        if attr == "target":
+            return (
+                self._last_pushed if assumed else state.attributes.get(ATTR_TEMPERATURE)
+            )
+        if assumed:
+            return None
+        return state.state if attr == "mode" else state.attributes.get(ATTR_FAN_MODE)
 
     def _record(self, mode: str) -> None:
         """Note a command. The mode age restarts only when the mode changes."""
@@ -629,20 +680,25 @@ class ClimateChild:
         error: str,
         *args: Any,
         owner: Any,
-        mode: str | None = None,
+        expect: dict[str, Any],
     ) -> bool:
-        """Call a climate service (lock held); on failure roll the record back."""
+        """Call a climate service (lock held); on failure roll the record back.
+
+        `expect` names what the call sets ("mode", "target", "fan_mode"): the values
+        are recorded as ours until the device reports them back.
+        """
         if self._adopting.get(owner):
             _LOGGER.debug("Adopting %s: not sending %s", self.entity_id, service)
             return False
         # Always a fresh context (logbook attribution only); never the caller's.
         context = self._own_context(context)
         before = (self._commanded, self._commanded_at, self._last_pushed)
-        if mode is not None:
-            self._record(mode)
-            self._expect(owner, "mode", mode)
-        if ATTR_TEMPERATURE in data:
-            self._expect(owner, "target", data[ATTR_TEMPERATURE])
+        if "mode" in expect:
+            self._record(expect["mode"])
+        if "fan_mode" in expect:
+            self._fan_sent.add(owner)
+            self._last_fan[owner] = expect["fan_mode"]
+        self._expect(owner, expect)
         _LOGGER.debug(
             "Sending %s.%s %s",
             CLIMATE_DOMAIN,
@@ -660,10 +716,8 @@ class ClimateChild:
         )
         if not ok:
             self._commanded, self._commanded_at, self._last_pushed = before
-            if mode is not None:
-                self._unexpect(owner, "mode", mode)
-            if ATTR_TEMPERATURE in data:
-                self._unexpect(owner, "target", data[ATTR_TEMPERATURE])
+            for attr, value in expect.items():
+                self._unexpect(owner, attr, value)
         return ok
 
     async def async_set_mode(
@@ -690,10 +744,11 @@ class ClimateChild:
             # A reported state already in this mode makes a resend pointless; an
             # assumed device cannot report, so keep-alive resends are the point.
             self._pass_set_mode = self.in_pass
-            if not state.attributes.get(ATTR_ASSUMED_STATE) and (
-                state.state == mode
+            if self._held(state, "mode") == mode or (
                 # Commanded earlier in this run and not reported yet (a slow device)
-                or (self.in_pass and self.pending_mode(owner) == mode)
+                not self.assumed
+                and self.in_pass
+                and self.pending_mode(owner) == mode
             ):
                 return True
             return await self._command(
@@ -704,7 +759,7 @@ class ClimateChild:
                 mode,
                 self.entity_id,
                 owner=owner,
-                mode=mode,
+                expect={"mode": mode},
             )
 
     async def async_turn_off(self, context: Context | None, owner: Any) -> None:
@@ -718,7 +773,7 @@ class ClimateChild:
                 "Error turning off %s",
                 self.entity_id,
                 owner=owner,
-                mode=HVACMode.OFF,
+                expect={"mode": HVACMode.OFF},
             )
 
     async def async_stop_unscoped(self, context: Context | None, owner: Any) -> None:
@@ -753,12 +808,7 @@ class ClimateChild:
             ):
                 return
             value = self._fit(value, attrs)
-            current = (
-                self._last_pushed
-                if attrs.get(ATTR_ASSUMED_STATE)
-                else attrs.get(ATTR_TEMPERATURE)
-            )
-            if current == value:
+            if self._held(state, "target") == value:
                 return
             if await self._command(
                 SERVICE_SET_TEMPERATURE,
@@ -767,6 +817,7 @@ class ClimateChild:
                 "Error setting target on %s",
                 self.entity_id,
                 owner=owner,
+                expect={"target": value},
             ):
                 self._last_pushed = value
 
@@ -788,32 +839,17 @@ class ClimateChild:
             # reported it yet, so a turn on always lands its fan speed.
             if (self.pending_mode(owner) or self.mode) in (None, HVACMode.OFF):
                 return
-            if (
-                not state.attributes.get(ATTR_ASSUMED_STATE)
-                and state.attributes.get(ATTR_FAN_MODE) == fan_mode
-            ):
+            if self._held(state, "fan_mode") == fan_mode:
                 return
-            if self._adopting.get(owner):
-                _LOGGER.debug("Adopting %s: not sending fan mode", self.entity_id)
-                return
-            data = {ATTR_ENTITY_ID: self.entity_id, ATTR_FAN_MODE: fan_mode}
-            _LOGGER.debug(
-                "Sending %s.%s %s", CLIMATE_DOMAIN, SERVICE_SET_FAN_MODE, data
+            await self._command(
+                SERVICE_SET_FAN_MODE,
+                {ATTR_FAN_MODE: fan_mode},
+                context,
+                "Error setting fan mode on %s",
+                self.entity_id,
+                owner=owner,
+                expect={"fan_mode": fan_mode},
             )
-            self._expect(owner, "fan_mode", fan_mode)
-            self._fan_sent.add(owner)
-            self._last_fan[owner] = fan_mode
-            try:
-                await self.hass.services.async_call(
-                    CLIMATE_DOMAIN,
-                    SERVICE_SET_FAN_MODE,
-                    data,
-                    context=self._own_context(context),
-                    blocking=True,
-                )
-            except Exception:
-                self._unexpect(owner, "fan_mode", fan_mode)
-                raise
 
     @staticmethod
     def _fit(value: float, attrs: Mapping[str, Any]) -> float:
@@ -844,22 +880,14 @@ def peek_climate_child(hass: HomeAssistant, entity_id: str) -> ClimateChild | No
 def acquire_climate_child(hass: HomeAssistant, entity_id: str) -> ClimateChild:
     """Get or create the single ClimateChild for a real climate entity.
 
-    Reference counted: every port holds one reference until it is released, so
-    a thermostat going away can neither strand a stale record of the device nor
-    pull the child from under another thermostat that shares it.
+    The child lives while a port holds it (`ClimatePort.release` removes the last
+    one), so a thermostat going away can neither strand a stale record of the
+    device nor pull the child from under another thermostat that shares it.
     """
     children = hass.data.setdefault(_CHILDREN_KEY, {})
     if entity_id not in children:
         children[entity_id] = ClimateChild(hass, entity_id)
-    children[entity_id].refs += 1
     return children[entity_id]
-
-
-def release_climate_child(child: ClimateChild) -> None:
-    """Drop one reference; the last one removes the child."""
-    child.refs -= 1
-    if child.refs <= 0:
-        child.hass.data.get(_CHILDREN_KEY, {}).pop(child.entity_id, None)
 
 
 class ClimatePort(EntityPort):
@@ -879,15 +907,16 @@ class ClimatePort(EntityPort):
         self._child = acquire_climate_child(hass, device.entity_id)
         self._child.ports.add(self)
         self.self_regulating = device.control_style() == ControlStyle.SETPOINT
-        self._released = False
 
     def release(self) -> None:
-        if not self._released:  # idempotent: one reference per port, once
-            self._released = True
-            self._child.ports.discard(self)
-            if not any(p.owner is self.owner for p in self._child.ports):
-                self._child.forget(self.owner)
-            release_climate_child(self._child)
+        child = self._child
+        if self not in child.ports:
+            return  # idempotent
+        child.ports.discard(self)
+        if not any(p.owner is self.owner for p in child.ports):
+            child.forget(self.owner)
+        if not child.ports:
+            child.hass.data.get(_CHILDREN_KEY, {}).pop(child.entity_id, None)
 
     @property
     def is_active(self) -> bool:

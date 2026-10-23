@@ -1162,7 +1162,7 @@ async def test_an_ignored_command_does_not_swallow_a_later_remote_press(hass):
     owner = object()
     child.ports.add(type("P", (), {"owner": owner})())
     off = State(AC, "off", {})
-    child._expect(owner, "mode", "heat")  # commanded, never reported
+    child._expect(owner, {"mode": "heat"})  # commanded, never reported
     assert child.external(owner, off, State(AC, "cool", {})).changed == {
         "mode"
     }  # remote cool

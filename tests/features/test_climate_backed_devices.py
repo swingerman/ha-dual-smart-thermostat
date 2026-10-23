@@ -1704,7 +1704,7 @@ async def test_failed_fan_speed_reapply_does_not_abort_the_control_cycle(
     assert hass.states.get(AC).state == HVACMode.COOL
     # handled where it happens (logged), not left to abort the control cycle
     assert any(
-        r.name.endswith("entity_port") and "Failed to apply fan mode" in r.getMessage()
+        r.name.endswith("entity_port") and "Error setting fan mode" in r.getMessage()
         for r in caplog.records
     )
 
