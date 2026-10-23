@@ -102,7 +102,7 @@ Any of `heater`, `cooler`, `fan`, `dryer` (and the `heater` of a [heat pump](#he
 - **Temperature source.** `target_sensor` is optional when a device is a climate entity: its own `current_temperature` is then used (also for the stale sensor protection).
 - **Fan speed.** A climate device's own fan modes become the thermostat's fan mode (see [Fan Speed Control](#fan-speed-control)).
 - **One climate in several roles.** One climate entity can be heater, cooler, fan and dryer at once; it runs one mode at a time. `fan_on_with_ac` and `fan_on_with_heater` are ignored for a fan on the same climate (its own cool mode already runs its fan).
-- **Safety.** `min_cycle_duration` is respected in `on_off` style, an unavailable device is not commanded, and openings and floor limits work as with switches.
+- **Safety.** `min_cycle_duration` is respected in `on_off` style, also when you change the target (a climate's compressor is protected: the stop or restart waits for the minimum cycle; turning the thermostat Off, openings and floor limits act at once), an unavailable device is not commanded, and openings and floor limits work as with switches.
 - **Limits.** Humidity is not read from the climate entity (a dryer still needs `humidity_sensor`), the climate's own `hvac_action` is not mirrored, and `secondary_heater` stays switch-only.
 
 In the UI, a "Climate Entity Control" step appears when a device is a climate entity (in the configuration, reconfigure and options flows).

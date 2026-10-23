@@ -106,6 +106,14 @@ class EntityPort(ABC):
     def ran_long_enough(self, min_cycle: timedelta) -> bool:
         """Whether the current on/off state has lasted at least min_cycle."""
 
+    # A forced control run (a target change) skips the minimum cycle, as it always
+    # did. A climate's compressor is protected from that too (see ClimatePort).
+    protects_min_cycle = False
+
+    def start_held(self, min_cycle: timedelta) -> bool:
+        """A start now would cycle the device too fast."""
+        return False
+
     @abstractmethod
     async def async_turn_on(self, context: Context | None) -> None:
         """Engage the role."""
@@ -316,6 +324,14 @@ class ClimateChild:
         if self._commanded is None:
             self._commanded, self._commanded_at = state.state, state.last_changed
         return self._commanded, self._commanded_at
+
+    @property
+    def commanded(self) -> str | None:
+        return self._commanded
+
+    @property
+    def commanded_at(self) -> datetime | None:
+        return self._commanded_at
 
     @property
     def mode(self) -> str | None:
@@ -779,11 +795,25 @@ class ClimatePort(EntityPort):
         # (a heat pump in either mode, so a flip of its flag still stops it).
         return self._child.mode in self._device.role_modes()
 
+    protects_min_cycle = True
+
     def ran_long_enough(self, min_cycle: timedelta) -> bool:
         if not min_cycle:  # none configured: nothing to wait for
             return True
         since = self._child.since
         return since is not None and dt_util.utcnow() - since >= min_cycle
+
+    def start_held(self, min_cycle: timedelta) -> bool:
+        # Only a child DST itself stopped counts: an off nobody saw running (a
+        # restart, a new entity) says nothing about the compressor. Switching a
+        # running child from one role's mode to another's is not a start.
+        child = self._child
+        return (
+            child.mode == HVACMode.OFF
+            and child.commanded == HVACMode.OFF
+            and child.commanded_at is not None
+            and dt_util.utcnow() - child.commanded_at < min_cycle
+        )
 
     async def _push(self, context: Context | None) -> None:
         target = self._device.climate_target()

@@ -1234,7 +1234,7 @@ async def test_adoption_run_is_forced_so_a_safety_stop_is_not_held_by_min_cycle(
 
 
 @pytest.mark.parametrize("expected_lingering_timers", [True])
-async def test_adoption_run_starts_inside_min_cycle(hass, freezer):  # M6
+async def test_adoption_run_does_not_restart_inside_min_cycle(hass, freezer):  # M6
     child = await _start(hass, HVACMode.HEAT, min_cycle_duration=timedelta(minutes=5))
     freezer.tick(timedelta(minutes=6))
     await _tick(hass, 26.0)  # the heater stops (it ran long enough)
@@ -1245,7 +1245,10 @@ async def test_adoption_run_starts_inside_min_cycle(hass, freezer):  # M6
 
     child.remote(fan_mode="quiet")  # the user touches the device: a forced run
     await _idle(hass)
+    assert "set_hvac_mode" not in [c[0] for c in child.calls]  # compressor protected
 
+    freezer.tick(timedelta(minutes=6))
+    await _tick(hass, 18.1)
     assert ("set_hvac_mode", {"hvac_mode": HVACMode.HEAT}) in child.calls
 
 
@@ -1429,3 +1432,71 @@ async def test_no_entry_point_stops_a_shared_child_before_the_new_role_starts(ha
     await _idle(hass)
     assert "turn_off" not in [c[0] for c in child.calls], child.calls
     assert ("set_hvac_mode", {"hvac_mode": HVACMode.HEAT}) in child.calls
+
+
+# ----------------------------------------- min cycle protects a climate's compressor
+
+
+async def _heating_with_min_cycle(hass, freezer):
+    """Heating on one climate with a 5 min minimum cycle, running for long enough."""
+    hass.states.async_set(SENSOR, 18.0)
+    hass.states.async_set("sensor.hum", 50.0)
+    await _setup(
+        hass,
+        **{
+            **ALL_ROLES,
+            "initial_hvac_mode": HVACMode.HEAT,
+            "min_cycle_duration": {"seconds": 300},
+        },
+    )
+    child = await common.add_fake_climate(hass, AC)
+    freezer.tick(timedelta(seconds=400))  # the climate has been off for long
+    await common.async_set_temperature(hass, 22, "climate.test")
+    await _idle(hass)
+    assert hass.states.get(AC).state == HVACMode.HEAT
+    child.calls.clear()
+    return child
+
+
+@pytest.mark.parametrize("expected_lingering_timers", [True])
+async def test_a_target_change_does_not_stop_a_climate_inside_its_min_cycle(
+    hass, freezer
+):
+    child = await _heating_with_min_cycle(hass, freezer)
+    await common.async_set_temperature(hass, 15, "climate.test")  # goal reached
+    await _idle(hass)
+    assert "turn_off" not in [c[0] for c in child.calls]
+    assert hass.states.get(AC).state == HVACMode.HEAT  # held
+
+    freezer.tick(timedelta(seconds=301))  # the next tick acts on it
+    await _tick(hass, 18.1)
+    assert "turn_off" in [c[0] for c in child.calls]
+
+
+@pytest.mark.parametrize("expected_lingering_timers", [True])
+async def test_a_target_change_does_not_restart_a_climate_inside_its_min_cycle(
+    hass, freezer
+):
+    child = await _heating_with_min_cycle(hass, freezer)
+    await common.async_set_temperature(hass, 15, "climate.test")
+    freezer.tick(timedelta(seconds=301))
+    await _tick(hass, 18.1)  # the held stop goes out
+    assert hass.states.get(AC).state == HVACMode.OFF
+    child.calls.clear()
+
+    await common.async_set_temperature(hass, 25, "climate.test")  # wants heat again
+    await _idle(hass)
+    assert "set_hvac_mode" not in [c[0] for c in child.calls]  # stopped just now
+    assert hass.states.get(AC).state == HVACMode.OFF
+
+    freezer.tick(timedelta(seconds=301))
+    await _tick(hass, 18.2)  # the next tick starts it
+    assert hass.states.get(AC).state == HVACMode.HEAT
+
+
+@pytest.mark.parametrize("expected_lingering_timers", [True])
+async def test_off_stops_a_climate_inside_its_min_cycle(hass, freezer):
+    child = await _heating_with_min_cycle(hass, freezer)
+    await common.async_set_hvac_mode(hass, HVACMode.OFF, "climate.test")
+    await _idle(hass)
+    assert [c[0] for c in child.calls].count("turn_off") == 1

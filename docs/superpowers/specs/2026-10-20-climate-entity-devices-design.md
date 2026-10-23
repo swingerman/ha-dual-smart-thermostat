@@ -198,6 +198,8 @@ Adoptions are serialised per thermostat and always read the snapshot when they r
 
 **Safety precedence.** Adoption records the intent and then runs one *forced* control run (like a manual change): an open window pauses the child (restored after closing) and a floor limit applies at once, whatever the minimum cycle, and a stale sensor stops the child once (the intent is kept). The forced run starts a device that wants to run, but it does not stop one for a reached goal before its minimum cycle is over (it must not short-cycle a device the user just started); automatic ticks afterwards wait for the minimum cycle as usual.
 
+**Minimum cycle on a climate (compressor protection).** For climate-backed roles a forced run (a target change) no longer skips `min_cycle_duration` (switches keep master's behaviour): a goal-reached stop waits (the `hold_stop_for_min_cycle` mechanism, always on for a `ClimatePort`) and a start waits while DST itself stopped the child less than the minimum cycle ago. Immediate: DST to Off, openings, floor limits, a role switched out by a mode change, and a start on a child that was not running because of DST (restart, new entity). A held stop or start is acted on by the next tick or keep-alive after the cycle.
+
 **Edge cases decided.**
 - Remote then DST, and DST then remote, in any interleaving: the later one wins, because each is judged by value against the thermostat's own pending list. A remote press within 5 s of a DST command is adopted even though HA stamps it with DST's context.
 - A remote toggling A to B to A (target or mode) is followed each time: an echo is consumed once, it is not remembered as "DST's value".

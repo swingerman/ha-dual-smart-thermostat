@@ -1970,14 +1970,11 @@ async def test_shared_ac_walk_ends_in_each_mode_with_no_trailing_off(
 
 
 @pytest.mark.parametrize("expected_lingering_timers", [True])
-async def test_manual_target_change_bypasses_min_cycle_like_master(
+async def test_manual_target_change_waits_for_min_cycle_on_a_climate(
     hass: HomeAssistant,
 ) -> None:
-    """Intentional (force=True, as on master): a user's target change acts at once.
-
-    Only automatic ticks wait for min_cycle_duration; lowering the target below
-    the room temperature stops the running AC without waiting for it.
-    """
+    """Unlike switches (master: force=True skips min_cycle), a climate's compressor
+    is protected from target changes too: the stop waits for the minimum cycle."""
     hass.states.async_set(SENSOR, 20.0)
     await _setup(
         hass,
@@ -1990,14 +1987,10 @@ async def test_manual_target_change_bypasses_min_cycle_like_master(
     await hass.async_block_till_done()
     assert hass.states.get(AC).state == HVACMode.HEAT
 
-    hass.states.async_set(SENSOR, 23.0)  # goal reached, but min cycle not over
-    await hass.async_block_till_done()
-    assert hass.states.get(AC).state == HVACMode.HEAT  # the tick waits
-
-    await common.async_set_temperature(hass, 21, "climate.test")  # the user acts
+    await common.async_set_temperature(hass, 19, "climate.test")  # the user acts
     await hass.async_block_till_done()
 
-    assert hass.states.get(AC).state == HVACMode.OFF  # at once
+    assert hass.states.get(AC).state == HVACMode.HEAT  # held
 
 
 async def test_fan_speed_reapply_follows_an_external_fan_change(

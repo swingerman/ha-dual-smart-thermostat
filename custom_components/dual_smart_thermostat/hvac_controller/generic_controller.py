@@ -64,10 +64,19 @@ class GenericHvacController(HvacController):
         Openings and floor limits are safety and never wait.
         """
         return (
-            self.hold_stop_for_min_cycle
+            (self.hold_stop_for_min_cycle or self.port.protects_min_cycle)
             and not safety
             and bool(self.min_cycle_duration)
             and not self.ran_long_enough()
+        )
+
+    def start_held_by_min_cycle(self, safety: bool = False) -> bool:
+        """A start waits for the minimum cycle on a device that protects it."""
+        return (
+            self.port.protects_min_cycle
+            and not safety
+            and bool(self.min_cycle_duration)
+            and self.port.start_held(self.min_cycle_duration)
         )
 
     def ran_long_enough(self) -> bool:
@@ -171,7 +180,11 @@ class GenericHvacController(HvacController):
         _LOGGER.debug("is_active: %s", True)
         _LOGGER.debug("time: %s", time)
 
-        if strategy.hvac_goal_not_reached and not any_opening_open:
+        if (
+            strategy.hvac_goal_not_reached
+            and not any_opening_open
+            and not self.start_held_by_min_cycle()
+        ):
             _LOGGER.info(
                 "Turning on entity (from inactive) due to hvac goal is not reached %s",
                 self.entity_id,

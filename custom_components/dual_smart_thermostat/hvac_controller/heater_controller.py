@@ -90,7 +90,12 @@ class HeaterHvacConroller(GenericHvacController):
         is_floor_hot = self._environment.is_floor_hot
         is_floor_cold = self._environment.is_floor_cold
 
-        if (too_cold and not any_opening_open and not is_floor_hot) or is_floor_cold:
+        if (
+            too_cold
+            and not any_opening_open
+            and not is_floor_hot
+            and not self.start_held_by_min_cycle()
+        ) or is_floor_cold:
             _LOGGER.info("Turning on heater (from inactive) %s", self.entity_id)
 
             await self.async_turn_on_callback()
