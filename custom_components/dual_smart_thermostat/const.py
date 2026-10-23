@@ -125,6 +125,7 @@ CONF_HEAT_COOL_MODE = "heat_cool_mode"
 CONF_HEAT_PUMP_COOLING = "heat_pump_cooling"
 CONF_CONTROL_STYLE = "control_style"
 CONF_HEATER_SETPOINT_OFFSET = "heater_setpoint_offset"
+CONF_FOLLOW_DEVICE_CHANGES = "follow_device_changes"
 CONF_COOLER_SETPOINT_OFFSET = "cooler_setpoint_offset"
 
 # HVAC power levels
@@ -198,4 +199,5 @@ class ControlStyle(enum.StrEnum):
 
 
 DEFAULT_CONTROL_STYLE = ControlStyle.ON_OFF
+DEFAULT_FOLLOW_DEVICE_CHANGES = True
 DEFAULT_SETPOINT_OFFSET = 0.0  # per role: heater_/cooler_setpoint_offset

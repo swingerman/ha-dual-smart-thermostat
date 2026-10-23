@@ -418,6 +418,12 @@ _PARITY_CONFIGS = [
     {"heater": "climate.ac", "cooler": "climate.ac"},
     {"heater": "switch.h", "control_style": "setpoint", "target_sensor": "sensor.t"},
     {"heater": "climate.ac", "control_style": "setpoint"},
+    {
+        "heater": "switch.h",
+        "follow_device_changes": False,
+        "target_sensor": "sensor.t",
+    },
+    {"heater": "climate.ac", "follow_device_changes": False},
     {"heater": "switch.h", "cooler": "climate.ac", "heater_setpoint_offset": 1},
     {"heater": "switch.h", "cooler": "climate.ac", "cooler_setpoint_offset": 1},
     {"heater": "climate.ac", "ac_mode": True, "cooler_setpoint_offset": 1},

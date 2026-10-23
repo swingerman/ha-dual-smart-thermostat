@@ -100,6 +100,11 @@
       "description": "Control style only works when a device is a climate entity",
       "example": "heater: climate.ac \u2192 control_style: setpoint"
     },
+    "follow_device_changes": {
+      "required_parameter": "heater|cooler|fan|dryer as a climate.* entity",
+      "description": "Following changes made on the device only works when a device is a climate entity",
+      "example": "heater: climate.ac \u2192 follow_device_changes: false"
+    },
     "heater_setpoint_offset": {
       "required_parameter": "heater|cooler|fan|dryer as a climate.* entity",
       "description": "Heater setpoint offset only works when the heater is a climate entity",
@@ -232,6 +237,12 @@
         "target": "control_style",
         "description": "Control style only works when a device is a climate entity",
         "example": "heater: climate.ac \u2192 control_style: setpoint"
+      },
+      {
+        "source": "climate_role",
+        "target": "follow_device_changes",
+        "description": "Following changes made on the device only works when a device is a climate entity",
+        "example": "heater: climate.ac \u2192 follow_device_changes: false"
       },
       {
         "source": "climate_role",

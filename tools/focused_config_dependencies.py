@@ -243,6 +243,13 @@ class FocusedConfigDependencies:
                 ),
                 ConfigDependency(
                     source="climate_role",
+                    target="follow_device_changes",
+                    type=DependencyType.ENABLES,
+                    description="Following changes made on the device only works when a device is a climate entity",
+                    example="heater: climate.ac → follow_device_changes: false",
+                ),
+                ConfigDependency(
+                    source="climate_role",
                     target="heater_setpoint_offset",
                     type=DependencyType.ENABLES,
                     description="Heater setpoint offset only works when the heater is a climate entity",

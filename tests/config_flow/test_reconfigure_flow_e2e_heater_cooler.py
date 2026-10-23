@@ -457,6 +457,7 @@ async def test_reconfigure_from_climate_to_switches_drops_climate_keys():
         CONF_HEATER: "switch.h",
         CONF_COOLER: "climate.ac",
         "control_style": "setpoint",
+        "follow_device_changes": False,
         "heater_setpoint_offset": 1.0,
         "cooler_setpoint_offset": 2.0,
     }
@@ -482,5 +483,6 @@ async def test_reconfigure_from_climate_to_switches_drops_climate_keys():
 
     assert result["step_id"] == "features"
     assert "control_style" not in flow.collected_config
+    assert "follow_device_changes" not in flow.collected_config
     assert "heater_setpoint_offset" not in flow.collected_config
     assert "cooler_setpoint_offset" not in flow.collected_config

@@ -33,6 +33,7 @@ from ..const import (
     CONF_FAN_MODE,
     CONF_FAN_ON_WITH_AC,
     CONF_FAN_ON_WITH_HEATER,
+    CONF_FOLLOW_DEVICE_CHANGES,
     CONF_HEAT_COOL_MODE,
     CONF_HEAT_PUMP_COOLING,
     CONF_HEATER,
@@ -41,6 +42,7 @@ from ..const import (
     CONF_HVAC_POWER_LEVELS,
     CONF_HVAC_POWER_TOLERANCE,
     DEFAULT_CONTROL_STYLE,
+    DEFAULT_FOLLOW_DEVICE_CHANGES,
     DEFAULT_SETPOINT_OFFSET,
     ControlStyle,
 )
@@ -75,6 +77,9 @@ class FeatureManager(StateManager):
         self._dryer_entity_id = config.get(CONF_DRYER)
         self._humidity_sensor_entity_id = config.get(CONF_HUMIDITY_SENSOR)
         self._heat_pump_cooling_entity_id = config.get(CONF_HEAT_PUMP_COOLING)
+        self._follow_device_changes = bool(
+            config.get(CONF_FOLLOW_DEVICE_CHANGES, DEFAULT_FOLLOW_DEVICE_CHANGES)
+        )
         self._control_style = ControlStyle(
             config.get(CONF_CONTROL_STYLE, DEFAULT_CONTROL_STYLE)
         )
@@ -101,6 +106,10 @@ class FeatureManager(StateManager):
 
         # Fan device reference for speed control
         self._fan_speed = None
+
+    @property
+    def follow_device_changes(self) -> bool:
+        return self._follow_device_changes
 
     @property
     def climate_control_style(self) -> ControlStyle:

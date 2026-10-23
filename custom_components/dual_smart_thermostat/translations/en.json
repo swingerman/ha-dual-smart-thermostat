@@ -668,12 +668,14 @@
                 "data": {
                     "control_style": "Control style",
                     "heater_setpoint_offset": "Heater setpoint offset",
-                    "cooler_setpoint_offset": "Cooler setpoint offset"
+                    "cooler_setpoint_offset": "Cooler setpoint offset",
+                    "follow_device_changes": "Follow changes made on the device"
                 },
                 "data_description": {
                     "control_style": "On/off: this thermostat decides when to run the device and switches it on and off. Setpoint: the device stays on and regulates itself; this thermostat mirrors target, mode, presets and openings to it.",
                     "heater_setpoint_offset": "Added to the target temperature sent to the heater device. Use it when the device's own sensor reads differently from your room sensor. Default 0.",
-                    "cooler_setpoint_offset": "Added to the target temperature sent to the cooler device (typically negative, so the device keeps cooling). Default 0."
+                    "cooler_setpoint_offset": "Added to the target temperature sent to the cooler device (typically negative, so the device keeps cooling). Default 0.",
+                    "follow_device_changes": "When you change the device with its remote or app, this thermostat adopts that as the new setting (mode, target, fan speed, off). A mode this thermostat has no role for turns it off and leaves the device alone. Turn off to keep the thermostat in charge: it then puts the device back on its next control run. Devices that report an assumed state are never followed."
                 }
             }
         }
@@ -1016,12 +1018,14 @@
                 "data": {
                     "control_style": "Control style",
                     "heater_setpoint_offset": "Heater setpoint offset",
-                    "cooler_setpoint_offset": "Cooler setpoint offset"
+                    "cooler_setpoint_offset": "Cooler setpoint offset",
+                    "follow_device_changes": "Follow changes made on the device"
                 },
                 "data_description": {
                     "control_style": "On/off: this thermostat switches the device on and off. Setpoint: the device regulates itself and mirrors this thermostat's target.",
                     "heater_setpoint_offset": "Added to the target temperature sent to the heater device. Default 0.",
-                    "cooler_setpoint_offset": "Added to the target temperature sent to the cooler device. Default 0."
+                    "cooler_setpoint_offset": "Added to the target temperature sent to the cooler device. Default 0.",
+                    "follow_device_changes": "When you change the device with its remote or app, this thermostat adopts that as the new setting (mode, target, fan speed, off). A mode this thermostat has no role for turns it off and leaves the device alone. Turn off to keep the thermostat in charge: it then puts the device back on its next control run. Devices that report an assumed state are never followed."
                 }
             }
         },

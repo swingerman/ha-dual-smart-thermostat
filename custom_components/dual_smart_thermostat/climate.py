@@ -98,6 +98,7 @@ from .const import (
     CONF_FAN_ON_WITH_AC,
     CONF_FAN_ON_WITH_HEATER,
     CONF_FLOOR_SENSOR,
+    CONF_FOLLOW_DEVICE_CHANGES,
     CONF_HEAT_COOL_MODE,
     CONF_HEAT_PUMP_COOLING,
     CONF_HEAT_TOLERANCE,
@@ -293,6 +294,7 @@ PLATFORM_SCHEMA = vol.All(
     ).extend(
         {
             vol.Optional(CONF_CONTROL_STYLE): vol.Coerce(ControlStyle),
+            vol.Optional(CONF_FOLLOW_DEVICE_CHANGES): cv.boolean,
             vol.Optional(CONF_HEATER_SETPOINT_OFFSET): vol.Coerce(float),
             vol.Optional(CONF_COOLER_SETPOINT_OFFSET): vol.Coerce(float),
         }

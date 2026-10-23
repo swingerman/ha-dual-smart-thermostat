@@ -17,6 +17,7 @@ from custom_components.dual_smart_thermostat.const import (
     CONF_CONTROL_STYLE,
     CONF_COOLER,
     CONF_COOLER_SETPOINT_OFFSET,
+    CONF_FOLLOW_DEVICE_CHANGES,
     CONF_HEAT_COOL_MODE,
     CONF_HEATER,
     CONF_HEATER_SETPOINT_OFFSET,
@@ -579,7 +580,11 @@ class TestClimateControlStep:
         assert result["step_id"] == "climate_control"
 
         schema_keys = {str(k) for k in result["data_schema"].schema}
-        assert schema_keys == {CONF_CONTROL_STYLE, CONF_COOLER_SETPOINT_OFFSET}
+        assert schema_keys == {
+            CONF_CONTROL_STYLE,
+            CONF_FOLLOW_DEVICE_CHANGES,
+            CONF_COOLER_SETPOINT_OFFSET,
+        }
 
         result = await flow.async_step_climate_control(
             {CONF_CONTROL_STYLE: "setpoint", CONF_COOLER_SETPOINT_OFFSET: -2.0}
@@ -600,6 +605,7 @@ class TestClimateControlStep:
         schema_keys = {str(k) for k in result["data_schema"].schema}
         assert schema_keys == {
             CONF_CONTROL_STYLE,
+            CONF_FOLLOW_DEVICE_CHANGES,
             CONF_HEATER_SETPOINT_OFFSET,
             CONF_COOLER_SETPOINT_OFFSET,
         }
@@ -740,10 +746,24 @@ class TestClimateControlStep:
         assert result["step_id"] == "floor_heating"
         assert result["errors"] == {"base": "sensor_required"}
 
-    async def test_climate_fan_alone_has_no_climate_control_step(self, mock_hass):
-        """A climate fan or dryer has nothing to choose: the step is skipped."""
+    async def test_climate_fan_alone_offers_only_the_follow_option(self, mock_hass):
+        """A climate fan or dryer has no style or offset to choose, only follow."""
         _, result = await self._heater_cooler(
             mock_hass, "switch.h", "switch.c", seed={"fan": "climate.f"}
         )
 
-        assert result["step_id"] == "features"
+        assert result["step_id"] == "climate_control"
+        assert {str(k) for k in result["data_schema"].schema} == {
+            CONF_FOLLOW_DEVICE_CHANGES
+        }
+
+    async def test_climate_control_step_offers_the_follow_option(self, mock_hass):
+        """follow_device_changes defaults on, and False is stored."""
+        flow, result = await self._heater_cooler(mock_hass, "switch.h", "climate.ac")
+        keys = {str(k): k for k in result["data_schema"].schema}
+        assert keys[CONF_FOLLOW_DEVICE_CHANGES].default() is True
+
+        await flow.async_step_climate_control(
+            {CONF_CONTROL_STYLE: "on_off", CONF_FOLLOW_DEVICE_CHANGES: False}
+        )
+        assert flow.collected_config[CONF_FOLLOW_DEVICE_CHANGES] is False

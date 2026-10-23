@@ -63,7 +63,7 @@ class ConfigValidator:
         # Climate-backed devices: options that need a climate role, and the roles
         # whose entity may be a climate (mirrors climate_roles.py).
         self.climate_role_keys = ["heater", "cooler", "fan", "dryer"]
-        self.climate_role_parameters = ["control_style"]
+        self.climate_role_parameters = ["control_style", "follow_device_changes"]
 
         self.overrides = [
             ("cooler", "ac_mode", "AC mode is ignored when cooler is defined"),

@@ -22,6 +22,7 @@ from .const import (
     CONF_FAN,
     CONF_FAN_ON_WITH_AC,
     CONF_FAN_ON_WITH_HEATER,
+    CONF_FOLLOW_DEVICE_CHANGES,
     CONF_HEAT_COOL_MODE,
     CONF_HEAT_PUMP_COOLING,
     CONF_HEATER,
@@ -38,6 +39,7 @@ CLIMATE_ROLE_KEYS = (CONF_HEATER, CONF_COOLER, CONF_FAN, CONF_DRYER)
 # Options that only exist for climate-backed devices.
 CLIMATE_OPTION_KEYS = (
     CONF_CONTROL_STYLE,
+    CONF_FOLLOW_DEVICE_CHANGES,
     CONF_HEATER_SETPOINT_OFFSET,
     CONF_COOLER_SETPOINT_OFFSET,
 )
@@ -110,7 +112,8 @@ def climate_control_keys(config: Mapping[str, Any]) -> list[str]:
         if any(is_climate_entity(config.get(key)) for key in (CONF_HEATER, CONF_COOLER))
         else []
     )
-    return style + applicable_offset_keys(config)
+    follow = [CONF_FOLLOW_DEVICE_CHANGES] if has_climate_role(config) else []
+    return style + follow + applicable_offset_keys(config)
 
 
 def drop_inapplicable(config: Mapping[str, Any]) -> dict[str, Any]:
@@ -200,6 +203,11 @@ def validate_climate_roles(config: dict[str, Any]) -> dict[str, Any]:
     if sensor_required(config):
         raise vol.Invalid(
             "target_sensor is required unless heater, cooler, fan or dryer is a "
+            "climate entity"
+        )
+    if CONF_FOLLOW_DEVICE_CHANGES in config and not has_role:
+        raise vol.Invalid(
+            "follow_device_changes needs heater, cooler, fan or dryer to be a "
             "climate entity"
         )
     if CONF_CONTROL_STYLE in config and not has_role:

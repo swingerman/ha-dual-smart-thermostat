@@ -30,6 +30,7 @@ from custom_components.dual_smart_thermostat.const import (
     CONF_FAN_HOT_TOLERANCE,
     CONF_FAN_HOT_TOLERANCE_TOGGLE,
     CONF_FLOOR_SENSOR,
+    CONF_FOLLOW_DEVICE_CHANGES,
     CONF_HEATER,
     CONF_HOT_TOLERANCE,
     CONF_HUMIDITY_SENSOR,
@@ -1370,7 +1371,11 @@ async def test_options_flow_offers_climate_control_for_climate_roles(
 
     assert result["step_id"] == "climate_control_options"
     schema_keys = {str(k) for k in result["data_schema"].schema}
-    assert schema_keys == {CONF_CONTROL_STYLE, CONF_COOLER_SETPOINT_OFFSET}
+    assert schema_keys == {
+        CONF_CONTROL_STYLE,
+        CONF_FOLLOW_DEVICE_CHANGES,
+        CONF_COOLER_SETPOINT_OFFSET,
+    }
 
 
 async def test_options_flow_saves_climate_control_values(
@@ -1423,3 +1428,23 @@ async def test_options_flow_skips_climate_control_for_switch_only_entries(
 async def test_climate_flag_is_not_saved_into_the_entry():
     """The navigation flag is transient."""
     assert "climate_control_options_shown" in OptionsFlowHandler._get_excluded_flags()
+
+
+async def test_follow_option_persists_to_the_options_flow(
+    mock_hass, climate_cooler_config_entry
+):
+    """An entry saved with follow off prefills off and keeps it."""
+    climate_cooler_config_entry.data = {
+        **climate_cooler_config_entry.data,
+        CONF_FOLLOW_DEVICE_CHANGES: False,
+    }
+    flow = OptionsFlowHandler(climate_cooler_config_entry)
+    flow.hass = mock_hass
+    result = await flow.async_step_init({})
+    defaults = {str(k): k.default() for k in result["data_schema"].schema}
+    assert defaults[CONF_FOLLOW_DEVICE_CHANGES] is False
+
+    await flow.async_step_climate_control_options(
+        {CONF_CONTROL_STYLE: "on_off", CONF_FOLLOW_DEVICE_CHANGES: False}
+    )
+    assert flow.collected_config[CONF_FOLLOW_DEVICE_CHANGES] is False

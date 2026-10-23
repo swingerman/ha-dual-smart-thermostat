@@ -39,6 +39,7 @@ from .const import (
     CONF_FAN_ON_WITH_AC,
     CONF_FAN_ON_WITH_HEATER,
     CONF_FLOOR_SENSOR,
+    CONF_FOLLOW_DEVICE_CHANGES,
     CONF_HEAT_COOL_MODE,
     CONF_HEAT_PUMP_COOLING,
     CONF_HEAT_TOLERANCE,
@@ -65,6 +66,7 @@ from .const import (
     CONF_TARGET_TEMP_LOW,
     CONF_TEMP_STEP,
     DEFAULT_CONTROL_STYLE,
+    DEFAULT_FOLLOW_DEVICE_CHANGES,
     DEFAULT_SETPOINT_OFFSET,
     DEFAULT_TOLERANCE,
     SYSTEM_TYPES,
@@ -686,6 +688,13 @@ def get_climate_control_schema(config: dict[str, Any] | None = None) -> vol.Sche
                 [style.value for style in ControlStyle],
                 translation_key="control_style",
             )
+        elif key == CONF_FOLLOW_DEVICE_CHANGES:
+            schema[
+                vol.Optional(
+                    key,
+                    default=config.get(key, DEFAULT_FOLLOW_DEVICE_CHANGES),
+                )
+            ] = get_boolean_selector()
         else:
             schema[
                 vol.Optional(key, default=config.get(key, DEFAULT_SETPOINT_OFFSET))
