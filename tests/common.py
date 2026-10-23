@@ -35,6 +35,7 @@ from homeassistant.const import (
     UnitOfTemperature,
 )
 from homeassistant.core import (
+    Context,
     HomeAssistant,
     ServiceCall,
     ServiceResponse,
@@ -525,6 +526,7 @@ class FakeClimateChild(ClimateEntity):
             HVACMode.COOL,
             HVACMode.FAN_ONLY,
             HVACMode.DRY,
+            HVACMode.AUTO,
         ]
         self._attr_assumed_state = assumed
         self._attr_target_temperature = 21.0
@@ -533,39 +535,93 @@ class FakeClimateChild(ClimateEntity):
         self._attr_fan_mode = fan_mode
         self._resets_fan = resets_fan_on_mode_change
         self.calls: list[tuple[str, dict]] = []
+        self.contexts: list[tuple[str, Context | None]] = []
+        self._echo_queue = None
 
-    def _follow(self, mode):
-        # An assumed-state device never reports back: the state stays put.
-        if not self._attr_assumed_state:
-            self._attr_hvac_mode = mode
-            self.async_write_ha_state()
+    def _apply(self, **attrs):
+        """A command takes effect now, or is parked when echoes are held.
+
+        An assumed-state device never reports back: the state stays put.
+        """
+        if self._attr_assumed_state:
+            return
+        if self._echo_queue is not None:
+            self._echo_queue.append((attrs, self._context))
+            return
+        self._write(attrs, self._context)
+
+    def _write(self, attrs, context):
+        for key, value in attrs.items():
+            setattr(self, f"_attr_{key}", value)
+        if context is not None:
+            self.async_set_context(context)
+        self.async_write_ha_state()
 
     async def async_set_hvac_mode(self, hvac_mode):
         """Record the call; follow it unless assumed."""
         self.calls.append(("set_hvac_mode", {"hvac_mode": hvac_mode}))
+        self.contexts.append(("set_hvac_mode", self._context))
+        attrs = {"hvac_mode": hvac_mode}
         if self._resets_fan:  # what many ACs do on a mode change
-            self._attr_fan_mode = "auto"
-        self._follow(hvac_mode)
+            attrs["fan_mode"] = "auto"
+        self._apply(**attrs)
 
     async def async_set_fan_mode(self, fan_mode):
         """Record the call; follow it unless assumed."""
         self.calls.append(("set_fan_mode", {"fan_mode": fan_mode}))
-        if not self._attr_assumed_state:
-            self._attr_fan_mode = fan_mode
-            self.async_write_ha_state()
+        self.contexts.append(("set_fan_mode", self._context))
+        self._apply(fan_mode=fan_mode)
 
     async def async_turn_off(self):
         """Record the call; follow it unless assumed."""
         self.calls.append(("turn_off", {}))
-        self._follow(HVACMode.OFF)
+        self.contexts.append(("turn_off", self._context))
+        self._apply(hvac_mode=HVACMode.OFF)
 
     async def async_set_temperature(self, **kwargs):
         """Record the call; follow it unless assumed."""
         kwargs.pop("entity_id", None)  # the service layer adds it
         self.calls.append(("set_temperature", dict(kwargs)))
-        if "temperature" in kwargs and not self._attr_assumed_state:
-            self._attr_target_temperature = kwargs["temperature"]
-            self.async_write_ha_state()
+        self.contexts.append(("set_temperature", self._context))
+        if "temperature" in kwargs:
+            self._apply(target_temperature=kwargs["temperature"])
+
+    def remote(
+        self,
+        *,
+        mode=None,
+        temperature=None,
+        fan_mode=None,
+        reuse_context=False,
+        **extra,
+    ):
+        """The user acts on the device: a state change from outside DST.
+
+        reuse_context=True keeps the entity's current context, like HA does for
+        any write within 5 s of a service call (a remote press then carries the
+        context of DST's last command).
+        """
+        attrs = {
+            key: value
+            for key, value in {
+                "hvac_mode": mode,
+                "target_temperature": temperature,
+                "fan_mode": fan_mode,
+            }.items()
+            if value is not None
+        }
+        self._write(attrs | extra, None if reuse_context else Context())
+
+    def hold_echoes(self):
+        """Park command effects until flush_echoes (a slow or polled device)."""
+        self._echo_queue = []
+
+    def flush_echoes(self, order=None, *, context="own"):
+        """Deliver parked effects, optionally reordered; "foreign" strips DST's context."""
+        queue, self._echo_queue = self._echo_queue, None
+        for index in order if order is not None else range(len(queue)):
+            attrs, ctx = queue[index]
+            self._write(attrs, Context() if context == "foreign" else ctx)
 
     def set_current_temperature(self, value):
         """Report a new measured temperature."""
