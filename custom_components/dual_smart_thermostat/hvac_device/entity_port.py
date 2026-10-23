@@ -375,23 +375,41 @@ class ClimateChild:
         finally:
             self._adopting[owner] -= 1
 
-    def _expect(self, owner: Any, attr: str, value: Any) -> None:
+    def _observers(self, origin: Any) -> set[Any]:
+        """Every thermostat on this child: a command of one is an echo for all."""
+        return {port.owner for port in self.ports} | {origin}
+
+    def _expect(self, origin: Any, attr: str, value: Any) -> None:
+        """Record a value `origin` commanded and nobody has seen reported yet.
+
+        Peers record it too, so a command of a thermostat (its own control, such as
+        a safety stop, as much as the user's) is never taken for the user acting on
+        the device by another thermostat sharing the child.
+        """
         if self.assumed:
             return  # an assumed child never reports back; nothing to match
-        pending = self._pending.setdefault(owner, {}).setdefault(attr, [])
-        pending.append(value)
-        del pending[:-_MAX_PENDING]
+        for observer in self._observers(origin):
+            pending = self._pending.setdefault(observer, {}).setdefault(attr, [])
+            pending.append((value, origin))
+            del pending[:-_MAX_PENDING]
 
-    def _unexpect(self, owner: Any, attr: str, value: Any) -> None:
-        pending = self._pending.get(owner, {}).get(attr, [])
-        for index in range(len(pending) - 1, -1, -1):
-            if _same(pending[index], value):
-                del pending[index]
-                return
+    def _unexpect(self, origin: Any, attr: str, value: Any) -> None:
+        for observer in self._observers(origin):
+            pending = self._pending.get(observer, {}).get(attr, [])
+            for index in range(len(pending) - 1, -1, -1):
+                if pending[index][1] is origin and _same(pending[index][0], value):
+                    del pending[index]
+                    break
 
-    def clear(self, owner: Any) -> None:
-        """Forget what this owner expects (after an adoption, or when the child goes away)."""
-        self._pending.pop(owner, None)
+    def clear(self, origin: Any) -> None:
+        """Forget what `origin` commanded (after its adoption, or when it goes away)."""
+        for attrs in self._pending.values():
+            for attr, pending in attrs.items():
+                attrs[attr] = [entry for entry in pending if entry[1] is not origin]
+
+    def reset(self, observer: Any) -> None:
+        """The child went away: nothing pending is meaningful any more."""
+        self._pending.pop(observer, None)
 
     def external(self, owner: Any, old: State | None, new: State | None) -> set[str]:
         """Consume this owner's echoes; the attributes that changed from outside.
@@ -402,7 +420,7 @@ class ClimateChild:
         late.
         """
         if is_unavailable(old) or is_unavailable(new):
-            self.clear(owner)  # first sight and reconnect adopt nothing
+            self.reset(owner)  # first sight and reconnect adopt nothing
             return set()
         if old.attributes.get(ATTR_ASSUMED_STATE) or new.attributes.get(
             ATTR_ASSUMED_STATE
@@ -414,7 +432,9 @@ class ClimateChild:
             if after is None or _same(before, after):
                 continue
             pending = self._pending.get(owner, {}).get(attr, [])
-            match = next((i for i, v in enumerate(pending) if _same(v, after)), None)
+            match = next(
+                (i for i, (v, _) in enumerate(pending) if _same(v, after)), None
+            )
             if match is not None:
                 del pending[match]  # an echo of ours; any order is fine
             else:

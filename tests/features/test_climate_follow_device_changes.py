@@ -652,7 +652,7 @@ async def _start_two(hass, second=None, **first):
     return child
 
 
-async def test_two_thermostats_on_one_child_follow_each_other_without_fighting(
+async def test_a_peer_thermostats_commands_are_not_adopted_but_the_remote_is(
     hass, adoptions
 ):  # M1
     child = await _start_two(hass)
@@ -661,17 +661,18 @@ async def test_two_thermostats_on_one_child_follow_each_other_without_fighting(
     await common.async_set_hvac_mode(hass, HVACMode.HEAT, "climate.test")  # A commands
     await _idle(hass)
     assert [c[0] for c in child.calls] == ["set_hvac_mode", "set_temperature"]
-    assert _dst(hass, "climate.test2").state == HVACMode.HEAT  # B adopted, no command
+    assert adoptions == []  # B takes A's commands for echoes, not for the user
+    assert _dst(hass, "climate.test2").state == HVACMode.OFF
     await _tick(hass, 22.0)
     child.calls.clear()
-    child.remote(mode=HVACMode.COOL)
+    child.remote(mode=HVACMode.COOL)  # a change from outside DST: both follow
     await _idle(hass)
     assert _dst(hass).state == HVACMode.COOL
     assert _dst(hass, "climate.test2").state == HVACMode.COOL
     assert _no_stale_push(child) == []  # no ping-pong
 
 
-async def test_one_thermostats_adoption_does_not_delay_the_others_safety_stop(
+async def test_one_thermostats_safety_stop_is_not_adopted_by_the_other_as_user_off(
     hass,
 ):  # M2
     hass.states.async_set(WINDOW, "on")  # B's window is open
@@ -680,8 +681,9 @@ async def test_one_thermostats_adoption_does_not_delay_the_others_safety_stop(
     await _idle(hass)
     assert hass.states.get(AC).state == HVACMode.OFF  # B stopped it at once
     assert _dst(hass, "climate.test2").state == HVACMode.HEAT  # B keeps the intent
-    assert _dst(hass).state == HVACMode.OFF  # A followed the stop
-    assert [c[0] for c in child.calls] == ["turn_off"]  # one stop in total
+    # A saw B's stop as DST's own command, not as the user switching the AC off
+    assert _dst(hass).state == HVACMode.HEAT
+    assert [c[0] for c in child.calls].count("turn_off") == 1  # one stop in total
 
 
 async def test_a_stale_value_reported_after_our_command_is_followed_as_the_devices_truth(

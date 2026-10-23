@@ -627,6 +627,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self._adopt_lock = asyncio.Lock()
         self._adopt_dirty = False
         self._adopt_changed: set[str] = set()
+        self._adopt_state: State | None = None  # the newest external report
         self._started = (
             False  # startup and state restore are done: changes can be adopted
         )
@@ -1922,6 +1923,9 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         ):
             self._adopt_dirty = True
             self._adopt_changed |= external  # what to take from the child
+            # The report that came from outside, not the child as it is by the time
+            # the adoption runs (a peer may have stopped it meanwhile).
+            self._adopt_state = event.data["new_state"]
 
             def adopt() -> None:
                 self.hass.async_create_task(self._async_adopt(child))
@@ -1942,9 +1946,12 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             while self._adopt_dirty:
                 self._adopt_dirty = False
                 changed, self._adopt_changed = self._adopt_changed, set()
-                state = child.state
+                state = self._adopt_state
                 if state is None or not child.available:
                     return
+                _LOGGER.debug(
+                    "%s adopts %s (changed: %s)", self.entity_id, state, sorted(changed)
+                )
                 with child.adopting(
                     self.features
                 ):  # our commands to it are dropped, briefly
