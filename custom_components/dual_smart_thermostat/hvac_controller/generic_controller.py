@@ -54,6 +54,22 @@ class GenericHvacController(HvacController):
         """If the toggleable hvac device is currently active."""
         return self.port.is_active
 
+    # Set for the control run that follows an adoption: that run is forced, but it
+    # must not short-cycle a device the user has just started.
+    hold_stop_for_min_cycle = False
+
+    def stop_held_by_min_cycle(self, safety: bool) -> bool:
+        """A goal-reached stop waits for the minimum cycle while the hold is on.
+
+        Openings and floor limits are safety and never wait.
+        """
+        return (
+            self.hold_stop_for_min_cycle
+            and not safety
+            and bool(self.min_cycle_duration)
+            and not self.ran_long_enough()
+        )
+
     def ran_long_enough(self) -> bool:
         _LOGGER.debug("Checking if device ran long enough: %s", self.entity_id)
         _LOGGER.debug("min_cycle_duration: %s", self.min_cycle_duration)
@@ -109,7 +125,9 @@ class GenericHvacController(HvacController):
         _LOGGER.debug("any_opening_open: %s", any_opening_open)
         _LOGGER.debug("hvac_goal_reached: %s", strategy.hvac_goal_reached)
 
-        if strategy.hvac_goal_reached or any_opening_open:
+        if self.stop_held_by_min_cycle(any_opening_open):
+            _LOGGER.debug("Not stopping %s: minimum cycle", self.entity_id)
+        elif strategy.hvac_goal_reached or any_opening_open:
             _LOGGER.info(
                 "Turning off entity due to hvac goal reached or opening is open %s",
                 self.entity_id,

@@ -1965,7 +1965,13 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                     # Safety first: the emergency stop stands; the intent is recorded.
                     await self.hvac_device.async_turn_off()
                 else:
-                    await self._async_control_climate(force=True)
+                    # forced (the user's new intent), but it must not stop a device
+                    # that just started before its minimum cycle is over
+                    self.hvac_device.set_hold_stops(True)
+                    try:
+                        await self._async_control_climate(force=True)
+                    finally:
+                        self.hvac_device.set_hold_stops(False)
                 self.async_write_ha_state()
 
     async def _async_adopt_state(self, child, state: State, changed: set[str]) -> None:

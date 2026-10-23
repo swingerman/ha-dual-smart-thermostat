@@ -1211,3 +1211,57 @@ async def test_a_child_event_before_the_restore_completes_adopts_nothing(
     await _idle(hass)
     assert adoptions == []
     assert _dst(hass).state == HVACMode.HEAT
+
+
+# ------------------------------------------- the adoption's forced run and min cycle (M6)
+
+
+@pytest.mark.parametrize("expected_lingering_timers", [True])
+async def test_adoption_run_is_forced_so_a_safety_stop_is_not_held_by_min_cycle(
+    hass,
+):  # M6
+    hass.states.async_set(WINDOW, "on")
+    child = await _start(
+        hass,
+        HVACMode.OFF,
+        openings=[WINDOW],
+        min_cycle_duration=timedelta(minutes=5),
+    )
+    child.calls.clear()
+    child.remote(mode=HVACMode.HEAT)  # inside the minimum cycle of the child
+    await _idle(hass)
+    assert [c[0] for c in child.calls] == ["turn_off"]  # the window wins at once
+
+
+@pytest.mark.parametrize("expected_lingering_timers", [True])
+async def test_adoption_run_starts_inside_min_cycle(hass, freezer):  # M6
+    child = await _start(hass, HVACMode.HEAT, min_cycle_duration=timedelta(minutes=5))
+    freezer.tick(timedelta(minutes=6))
+    await _tick(hass, 26.0)  # the heater stops (it ran long enough)
+    assert hass.states.get(AC).state == HVACMode.OFF
+    await _tick(hass, 18.0)  # cold, but the minimum cycle holds the restart
+    assert child.calls == [("turn_off", {})]
+    child.calls.clear()
+
+    child.remote(fan_mode="quiet")  # the user touches the device: a forced run
+    await _idle(hass)
+
+    assert ("set_hvac_mode", {"hvac_mode": HVACMode.HEAT}) in child.calls
+
+
+@pytest.mark.parametrize("expected_lingering_timers", [True])
+async def test_adoption_run_does_not_short_cycle_a_child_that_just_started(
+    hass, freezer
+):  # M6
+    child = await _start(hass, HVACMode.OFF, min_cycle_duration=timedelta(minutes=5))
+    await _tick(hass, 26.0)  # hot room
+    child.calls.clear()
+
+    child.remote(mode=HVACMode.HEAT, temperature=22.0)  # goal already reached
+    await _idle(hass)
+    assert _dst(hass).state == HVACMode.HEAT
+    assert child.calls == []  # it started a moment ago: no stop inside the cycle
+
+    freezer.tick(timedelta(minutes=6))
+    await _tick(hass, 26.1)
+    assert [c[0] for c in child.calls] == ["turn_off"]  # an ordinary tick stops it

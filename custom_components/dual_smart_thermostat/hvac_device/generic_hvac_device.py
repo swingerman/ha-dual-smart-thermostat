@@ -98,6 +98,17 @@ class GenericHVACDevice(
     def get_device_ids(self) -> list[str]:
         return [self.entity_id]
 
+    def set_hold_stops(self, hold: bool) -> None:
+        # a heat pump keeps one controller per direction
+        controllers = (
+            self.hvac_controller,
+            getattr(self, "heating_controller", None),
+            getattr(self, "cooling_controller", None),
+        )
+        for controller in controllers:
+            if controller is not None:
+                controller.hold_stop_for_min_cycle = hold
+
     @abstractmethod
     def role_modes(self) -> tuple[HVACMode, ...]:
         """Climate modes that count as this role running; the first is commanded."""

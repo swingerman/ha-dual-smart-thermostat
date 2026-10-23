@@ -223,6 +223,10 @@ class MultiHvacDevice(HVACDevice, ControlableHVACDevice):
     async def async_turn_off(self):
         await self.async_turn_off_all(time=None)
 
+    def set_hold_stops(self, hold: bool) -> None:
+        for device in self.hvac_devices:
+            device.set_hold_stops(hold)
+
     async def async_keep_alive_off(self) -> None:
         # A wrapper is not stopped by a tick: each sub-device decides for itself
         # (a switch resends turn_off, a climate is left alone).

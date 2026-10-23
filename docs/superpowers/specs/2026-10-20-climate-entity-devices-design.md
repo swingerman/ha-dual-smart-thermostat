@@ -196,7 +196,7 @@ Adoptions are serialised per thermostat and always read the snapshot when they r
 
 **One change, one effect; two thermostats.** One external change causes one adoption per thermostat that follows the child, and the adopted state is already on the child, so nothing is commanded and nothing comes back. Two thermostats on one child do **not** follow each other: A's command (user-driven or its own control, such as an opening's stop) is an echo for B, only changes from outside DST are adopted, by both. B re-engages on its own next run, as on master, and neither's safety stop is delayed by the other. An adoption forgets only the expectations its own thermostat sent.
 
-**Safety precedence.** Adoption records the intent and then runs normal control: an open window pauses the child (restored after closing), floor limits and min cycle apply, and a stale sensor stops the child once (the intent is kept).
+**Safety precedence.** Adoption records the intent and then runs one *forced* control run (like a manual change): an open window pauses the child (restored after closing) and a floor limit applies at once, whatever the minimum cycle, and a stale sensor stops the child once (the intent is kept). The forced run starts a device that wants to run, but it does not stop one for a reached goal before its minimum cycle is over (it must not short-cycle a device the user just started); automatic ticks afterwards wait for the minimum cycle as usual.
 
 **Edge cases decided.**
 - Remote then DST, and DST then remote, in any interleaving: the later one wins, because each is judged by value against the thermostat's own pending list. A remote press within 5 s of a DST command is adopted even though HA stamps it with DST's context.

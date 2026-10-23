@@ -51,7 +51,9 @@ class HeaterHvacConroller(GenericHvacController):
         _LOGGER.debug("_async_control_device_when_on, floor hot: %s", is_floor_hot)
         _LOGGER.debug("_async_control_device_when_on, too_hot: %s", too_hot)
 
-        if ((too_hot or is_floor_hot) or any_opening_open) and not is_floor_cold:
+        if self.stop_held_by_min_cycle(any_opening_open or is_floor_hot):
+            _LOGGER.debug("Not stopping %s: minimum cycle", self.entity_id)
+        elif ((too_hot or is_floor_hot) or any_opening_open) and not is_floor_cold:
             _LOGGER.debug("Turning off heater %s", self.entity_id)
 
             await self.async_turn_off_callback()
