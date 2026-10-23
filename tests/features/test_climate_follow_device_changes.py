@@ -1111,3 +1111,33 @@ async def test_a_remote_target_change_is_ignored_while_the_child_is_off(hass):
     child.remote(temperature=28.0)
     await _idle(hass)
     assert _dst(hass).attributes["temperature"] == 22.0
+
+
+# ----------------------------------------------------- first sight while Off (review 3)
+
+
+async def test_no_off_is_asserted_before_the_restore_has_finished(hass):
+    await _setup(hass, **ALL_ROLES, initial_hvac_mode=HVACMode.OFF)
+    thermostat = hass.data["climate"].get_entity("climate.test")
+    thermostat._restored = False  # the restore is still running
+
+    child = await common.add_fake_climate(hass, AC, HVACMode.HEAT)  # first sight
+    await _idle(hass)
+
+    assert child.calls == []
+    assert hass.states.get(AC).state == HVACMode.HEAT
+
+
+async def test_the_off_assertion_rechecks_the_mode_when_it_runs(hass):
+    await _setup(hass, **ALL_ROLES, initial_hvac_mode=HVACMode.OFF)
+    thermostat = hass.data["climate"].get_entity("climate.test")
+    child = await common.add_fake_climate(hass, AC, HVACMode.HEAT)
+    await _idle(hass)
+    assert hass.states.get(AC).state == HVACMode.OFF  # first sight while Off: one off
+    child.remote(mode=HVACMode.HEAT)  # then the user starts it (not followed here)
+    thermostat.hvac_device.hvac_mode = HVACMode.HEAT  # and DST is no longer Off
+    child.calls.clear()
+
+    await thermostat._async_assert_off()  # a task that was scheduled earlier
+
+    assert child.calls == []

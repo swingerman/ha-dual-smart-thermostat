@@ -1906,6 +1906,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         if (
             event.data["old_state"] is None
             and event.data["new_state"] is not None
+            and self._restored
             and self.hvac_device.hvac_mode == HVACMode.OFF
         ):
             # First sight of a child while we are Off (restored or configured): Off
@@ -1935,6 +1936,9 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                 adopt()
 
     async def _async_assert_off(self) -> None:
+        # The task may run later than the event that scheduled it: ask again.
+        if not self._restored or self.hvac_device.hvac_mode != HVACMode.OFF:
+            return
         async with self.hvac_device.control_pass():
             await self.hvac_device.async_stop()
 
