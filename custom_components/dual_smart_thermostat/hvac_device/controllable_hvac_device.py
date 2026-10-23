@@ -53,6 +53,10 @@ class ControlableHVACDevice(ABC):
         """A keep-alive tick while Off: resend turn_off whether or not it looks active."""
         await self.async_turn_off()
 
+    def ports(self) -> list:
+        """The entity ports of this device and its sub-devices."""
+        return []
+
     @asynccontextmanager
     async def control_pass(self):
         """Bracket one control run (set mode / control). Nothing to do by default."""

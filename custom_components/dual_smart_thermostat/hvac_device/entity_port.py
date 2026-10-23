@@ -111,6 +111,15 @@ class EntityPort(ABC):
     # A forced control run (a target change) skips the minimum cycle, as it always
     # did. A climate's compressor is protected from that too (see ClimatePort).
     protects_min_cycle = False
+    # A stop is scoped to the role's own mode on a device shared by several roles
+    # (a climate); begin_pass/end_pass bracket a control run on such a device.
+    role_scoped = False
+
+    def begin_pass(self) -> None:
+        return
+
+    async def end_pass(self) -> None:
+        return
 
     @property
     def is_cold(self) -> bool:
@@ -864,6 +873,13 @@ class ClimatePort(EntityPort):
         return self._child.mode in self._device.role_modes()
 
     protects_min_cycle = True
+    role_scoped = True
+
+    def begin_pass(self) -> None:
+        self._child.begin_pass()
+
+    async def end_pass(self) -> None:
+        await self._child.end_pass()
 
     @property
     def is_cold(self) -> bool:

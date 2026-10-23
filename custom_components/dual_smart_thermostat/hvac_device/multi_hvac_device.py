@@ -5,10 +5,8 @@ from typing import Callable
 from homeassistant.components.climate import HVACAction, HVACMode
 from homeassistant.core import Context, HomeAssistant, State, callback
 
-from ..climate_roles import may_share_entity
 from ..hvac_action_reason.hvac_action_reason import HVACActionReason
 from ..hvac_device.controllable_hvac_device import ControlableHVACDevice
-from ..hvac_device.entity_port import peek_climate_child
 from ..hvac_device.hvac_device import HVACDevice
 from ..managers.environment_manager import EnvironmentManager
 from ..managers.feature_manager import FeatureManager
@@ -204,13 +202,13 @@ class MultiHvacDevice(HVACDevice, ControlableHVACDevice):
         # heater wrapper and a cooler wrapper may hold the same fan, and
         # stopping one would switch that fan off (#637).
         in_use = {
-            entity_id
+            port.entity_id
             for device in self.hvac_devices
             if self.hvac_mode in device.hvac_modes
-            for entity_id in device.get_device_ids()
+            for port in device.ports()
             # A climate's stop is scoped to the role's own mode, so sharing one
             # needs no protection (and would leave it in the old mode).
-            if not may_share_entity(entity_id)
+            if not port.role_scoped
         }
 
         for device in self.hvac_devices:
@@ -247,6 +245,9 @@ class MultiHvacDevice(HVACDevice, ControlableHVACDevice):
         for device in self.hvac_devices:
             device.release()
 
+    def ports(self) -> list:
+        return [port for device in self.hvac_devices for port in device.ports()]
+
     @asynccontextmanager
     async def control_pass(self):
         """Hold back the role stops on shared climates until the run is over.
@@ -255,20 +256,16 @@ class MultiHvacDevice(HVACDevice, ControlableHVACDevice):
         one. Stopping the old role first only adds a turn_off that a real device
         can apply after the new mode. Within a run the stops are collected; at the
         end they are sent only if no mode was set meanwhile and the climate is
-        still in the stopped role's mode.
+        still in the stopped role's mode. Passes nest.
         """
-        children = []
-        for entity_id in dict.fromkeys(self.get_device_ids()):
-            if may_share_entity(entity_id) and (
-                child := peek_climate_child(self.hass, entity_id)
-            ):
-                child.begin_pass()
-                children.append(child)
+        ports = [port for port in self.ports() if port.role_scoped]
+        for port in ports:
+            port.begin_pass()
         try:
             yield
         finally:
-            for child in children:
-                await child.end_pass()
+            for port in ports:
+                await port.end_pass()
 
     async def async_stop(self, *, keep_alive: bool = False):
         for device in self.hvac_devices:

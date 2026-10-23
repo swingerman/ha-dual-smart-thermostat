@@ -98,6 +98,9 @@ class GenericHVACDevice(
     def get_device_ids(self) -> list[str]:
         return [self.entity_id]
 
+    def ports(self) -> list:
+        return [self.port]
+
     def set_hold_stops(self, hold: bool) -> None:
         # a heat pump keeps one controller per direction
         controllers = (
