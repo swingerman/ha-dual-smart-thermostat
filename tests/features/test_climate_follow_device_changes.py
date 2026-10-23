@@ -1371,3 +1371,61 @@ async def test_first_sight_leaves_the_display_alone_when_not_following(hass):
     child = await _stale_fan_display(hass, follow_device_changes=False)
     assert _dst(hass).attributes["fan_mode"] == "strong"
     assert child.calls == []
+
+
+@pytest.mark.parametrize(
+    ("start", "to", "room"),
+    [
+        (HVACMode.FAN_ONLY, HVACMode.COOL, 26.0),
+        (HVACMode.COOL, HVACMode.FAN_ONLY, 26.0),
+    ],
+)
+async def test_switching_between_roles_of_one_child_sends_no_off_in_between(
+    hass, start, to, room
+):
+    child = await _start(hass, HVACMode.OFF)
+    await _tick(hass, room)
+    await common.async_set_hvac_mode(hass, start, "climate.test")
+    await _idle(hass)
+    assert hass.states.get(AC).state == start
+    child.calls.clear()
+    await common.async_set_hvac_mode(hass, to, "climate.test")
+    await _idle(hass)
+    assert "turn_off" not in [c[0] for c in child.calls], child.calls
+    assert hass.states.get(AC).state == to
+
+
+async def test_off_sends_exactly_one_off_to_a_shared_child(hass):
+    child = await _start(hass, HVACMode.COOL)
+    assert hass.states.get(AC).state == HVACMode.COOL
+    await common.async_set_hvac_mode(hass, HVACMode.OFF, "climate.test")
+    await _idle(hass)
+    assert [c[0] for c in child.calls].count("turn_off") == 1
+
+
+async def test_a_combined_mode_and_target_call_that_switches_roles_sends_no_off(hass):
+    child = await _start(hass, HVACMode.COOL)  # cooling, room above target
+    assert hass.states.get(AC).state == HVACMode.COOL
+    child.calls.clear()
+    await hass.services.async_call(
+        "climate",
+        "set_temperature",
+        {"entity_id": "climate.test", "hvac_mode": "heat", "temperature": 30},
+        blocking=True,
+    )
+    await _idle(hass)
+    assert "turn_off" not in [c[0] for c in child.calls], child.calls
+    assert hass.states.get(AC).state == HVACMode.HEAT
+
+
+async def test_no_entry_point_stops_a_shared_child_before_the_new_role_starts(hass):
+    """The pass belongs to the device, not to each caller: a bare control call too."""
+    child = await _start(hass, HVACMode.HEAT, follow_device_changes=False)
+    child.remote(mode=HVACMode.FAN_ONLY)  # the device runs a role DST is not in
+    entity = hass.data["climate"].get_entity("climate.test")
+    entity.environment.set_temperature_target(30)  # the heater has demand
+    child.calls.clear()
+    await entity.hvac_device.async_control_hvac(force=True)
+    await _idle(hass)
+    assert "turn_off" not in [c[0] for c in child.calls], child.calls
+    assert ("set_hvac_mode", {"hvac_mode": HVACMode.HEAT}) in child.calls

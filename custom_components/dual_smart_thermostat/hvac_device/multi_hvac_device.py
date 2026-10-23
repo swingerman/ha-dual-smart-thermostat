@@ -148,6 +148,12 @@ class MultiHvacDevice(HVACDevice, ControlableHVACDevice):
                 device.hvac_mode = hvac_mode
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode):
+        # The pass belongs to the device: whoever calls, a role stop on a shared
+        # climate waits for the end of the run (passes nest).
+        async with self.control_pass():
+            await self._async_set_hvac_mode(hvac_mode)
+
+    async def _async_set_hvac_mode(self, hvac_mode: HVACMode):
         _LOGGER.info(
             "Attempting to set hvac mode to %s of %s", hvac_mode, self.hvac_modes
         )
@@ -178,6 +184,10 @@ class MultiHvacDevice(HVACDevice, ControlableHVACDevice):
         _LOGGER.info("Hvac mode set to %s", self._hvac_mode)
 
     async def async_control_hvac(self, time=None, force: bool = False):
+        async with self.control_pass():
+            await self._async_control_hvac(time, force)
+
+    async def _async_control_hvac(self, time=None, force: bool = False):
         _LOGGER.debug(
             "Controlling hvac %s, time: %s, force: %s", self._hvac_mode, time, force
         )
