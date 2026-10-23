@@ -1141,3 +1141,73 @@ async def test_the_off_assertion_rechecks_the_mode_when_it_runs(hass):
     await thermostat._async_assert_off()  # a task that was scheduled earlier
 
     assert child.calls == []
+
+
+# --------------------------------------------- stale expectations (review 4) and mutants
+
+
+async def test_an_ignored_command_does_not_swallow_a_later_remote_press(hass):
+    """The device never obeyed heat; once it reports something else the older
+    expectation is stale, so pressing heat later is the user's, not an echo."""
+    child = ClimateChild(hass, AC)
+    owner = object()
+    child.ports.add(type("P", (), {"owner": owner})())
+    off = State(AC, "off", {})
+    child._expect(owner, "mode", "heat")  # commanded, never reported
+    assert child.external(owner, off, State(AC, "cool", {})) == {"mode"}  # remote cool
+    assert child.external(owner, State(AC, "cool", {}), State(AC, "heat", {})) == {
+        "mode"
+    }  # remote heat: not swallowed by the stale entry
+
+
+async def test_a_failing_service_call_removes_its_expectation(hass, adoptions):  # M4
+    child = await _start(hass, HVACMode.HEAT)
+    await _tick(hass, 26.0)  # stopped
+    child.calls.clear()
+
+    async def fail(hvac_mode):
+        raise RuntimeError("the device is offline")
+
+    real = child.async_set_hvac_mode
+    child.async_set_hvac_mode = fail
+    await _tick(hass, 18.0)  # DST commands heat; the call fails
+    child.async_set_hvac_mode = real
+    child.remote(mode=HVACMode.HEAT)  # the user presses heat
+    await _idle(hass)
+
+    assert adoptions == ["heat"]  # not taken for the echo of the command that failed
+
+
+async def test_several_commands_in_flight_are_all_matched_as_echoes(
+    hass, adoptions
+):  # M10
+    child = await _start(hass, HVACMode.HEAT)  # running
+    child.hold_echoes()
+    await common.async_set_temperature(hass, 24, "climate.test")
+    await hass.services.async_call(
+        "climate",
+        "set_fan_mode",
+        {"entity_id": "climate.test", "fan_mode": "strong"},
+        blocking=True,
+    )
+    await common.async_set_temperature(hass, 25, "climate.test")
+    assert [c[0] for c in child.calls] == [
+        "set_temperature",
+        "set_fan_mode",
+        "set_temperature",
+    ]  # three commands in flight, none reported yet
+    child.flush_echoes([2, 0, 1], context="foreign")  # all arrive later, reordered
+    await _idle(hass)
+    assert adoptions == []
+
+
+async def test_a_child_event_before_the_restore_completes_adopts_nothing(
+    hass, adoptions
+):  # M9
+    child = await _start(hass, HVACMode.HEAT)
+    thermostat = hass.data["climate"].get_entity("climate.test")
+    thermostat._restored = False
+    child.remote(mode=HVACMode.COOL)
+    await _idle(hass)
+    assert adoptions == []
+    assert _dst(hass).state == HVACMode.HEAT

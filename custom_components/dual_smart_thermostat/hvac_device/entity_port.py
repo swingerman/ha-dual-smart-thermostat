@@ -390,14 +390,15 @@ class ClimateChild:
             return  # an assumed child never reports back; nothing to match
         for observer in self._observers(origin):
             pending = self._pending.setdefault(observer, {}).setdefault(attr, [])
-            pending.append((value, origin))
+            pending.append((value, origin, dt_util.utcnow()))
             del pending[:-_MAX_PENDING]
 
     def _unexpect(self, origin: Any, attr: str, value: Any) -> None:
         for observer in self._observers(origin):
             pending = self._pending.get(observer, {}).get(attr, [])
             for index in range(len(pending) - 1, -1, -1):
-                if pending[index][1] is origin and _same(pending[index][0], value):
+                entry = pending[index]
+                if entry[1] is origin and _same(entry[0], value):
                     del pending[index]
                     break
 
@@ -405,7 +406,7 @@ class ClimateChild:
         """Forget what `origin` commanded (after its adoption, or when it goes away)."""
         for attrs in self._pending.values():
             for attr, pending in attrs.items():
-                attrs[attr] = [entry for entry in pending if entry[1] is not origin]
+                attrs[attr] = [e for e in pending if e[1] is not origin]
 
     def reset(self, observer: Any) -> None:
         """The child went away: nothing pending is meaningful any more."""
@@ -433,12 +434,16 @@ class ClimateChild:
                 continue
             pending = self._pending.get(owner, {}).get(attr, [])
             match = next(
-                (i for i, (v, _) in enumerate(pending) if _same(v, after)), None
+                (i for i, entry in enumerate(pending) if _same(entry[0], after)), None
             )
             if match is not None:
                 del pending[match]  # an echo of ours; any order is fine
             else:
                 external.add(attr)
+                # The device moved on without reporting what was commanded: the
+                # expectations recorded before this report are stale and must not
+                # swallow a later press (a peer's command sent since is kept).
+                pending[:] = [e for e in pending if e[2] >= new.last_updated]
         return set() if self._sending.get(owner) else external
 
     def begin_pass(self) -> None:
