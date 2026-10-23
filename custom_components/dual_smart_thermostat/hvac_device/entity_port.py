@@ -393,8 +393,8 @@ class ClimateChild:
         """Forget what this owner expects (after an adoption, or when the child goes away)."""
         self._pending.pop(owner, None)
 
-    def external(self, owner: Any, old: State | None, new: State | None) -> bool:
-        """Consume this owner's echoes; True when something changed from outside.
+    def external(self, owner: Any, old: State | None, new: State | None) -> set[str]:
+        """Consume this owner's echoes; the attributes that changed from outside.
 
         Judged by value against what this owner commanded and has not yet seen
         reported. Contexts and time play no part: HA stamps a write within 5 s of
@@ -403,12 +403,12 @@ class ClimateChild:
         """
         if is_unavailable(old) or is_unavailable(new):
             self.clear(owner)  # first sight and reconnect adopt nothing
-            return False
+            return set()
         if old.attributes.get(ATTR_ASSUMED_STATE) or new.attributes.get(
             ATTR_ASSUMED_STATE
         ):
-            return False  # an assumed child reports DST's own record
-        external = False
+            return set()  # an assumed child reports DST's own record
+        external: set[str] = set()
         for attr, read in _TRACKED:
             before, after = read(old), read(new)
             if after is None or _same(before, after):
@@ -418,8 +418,8 @@ class ClimateChild:
             if match is not None:
                 del pending[match]  # an echo of ours; any order is fine
             else:
-                external = True
-        return external and not self._sending.get(owner)
+                external.add(attr)
+        return set() if self._sending.get(owner) else external
 
     def begin_pass(self) -> None:
         """A control run starts: role stops are held back until it ends."""

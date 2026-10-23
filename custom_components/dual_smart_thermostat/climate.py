@@ -626,6 +626,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self._sensor_stalled = False
         self._adopt_lock = asyncio.Lock()
         self._adopt_dirty = False
+        self._adopt_changed: set[str] = set()
         self._started = (
             False  # startup and state restore are done: changes can be adopted
         )
@@ -1920,6 +1921,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             and self._restored
         ):
             self._adopt_dirty = True
+            self._adopt_changed |= external  # what to take from the child
 
             def adopt() -> None:
                 self.hass.async_create_task(self._async_adopt(child))
@@ -1939,13 +1941,14 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         async with self._adopt_lock:
             while self._adopt_dirty:
                 self._adopt_dirty = False
+                changed, self._adopt_changed = self._adopt_changed, set()
                 state = child.state
                 if state is None or not child.available:
                     return
                 with child.adopting(
                     self.features
                 ):  # our commands to it are dropped, briefly
-                    await self._async_adopt_state(child, state)
+                    await self._async_adopt_state(child, state, changed)
                 child.clear(self.features)
                 if self._sensor_stalled:
                     # Safety first: the emergency stop stands; the intent is recorded.
@@ -1954,12 +1957,17 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                     await self._async_control_climate(force=True)
                 self.async_write_ha_state()
 
-    async def _async_adopt_state(self, child, state: State) -> None:
-        """Apply the child's snapshot through DST's own setters (commands are dropped)."""
+    async def _async_adopt_state(self, child, state: State, changed: set[str]) -> None:
+        """Apply what changed on the child through DST's own setters (commands dropped).
+
+        Only the attributes that changed are taken: the rest of the child's state is
+        whatever it last held, not something the user did.
+        """
         speed = self.features.fan_speed
         fan_mode = state.attributes.get(ATTR_FAN_MODE)
         if (
-            speed is not None
+            "fan_mode" in changed
+            and speed is not None
             and speed.entity_id == child.entity_id
             and fan_mode in speed.fan_modes
         ):
@@ -1967,13 +1975,23 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
         mode = state.state
         role = child.device_for(mode)
-        if mode == HVACMode.OFF or role is None or mode not in self.hvac_modes:
+        if "mode" in changed and (
+            mode == HVACMode.OFF or role is None or mode not in self.hvac_modes
+        ):
             # off, or a mode no role owns: Off, and hands-off
             await self.async_set_hvac_mode(HVACMode.OFF)
             return
-        await self.async_set_hvac_mode(HVACMode(mode))
+        if "mode" in changed:
+            await self.async_set_hvac_mode(HVACMode(mode))
         target = state.attributes.get(ATTR_TEMPERATURE)
-        if target is not None:  # after the mode: a mode change reloads presets' targets
+        # a target is the user's only if it changed and the role in this mode has one
+        if (
+            "target" in changed
+            and target is not None
+            and role is not None
+            and role.pushes_setpoint
+            and mode in self.hvac_modes
+        ):
             # like any user input: inside DST's own range
             wanted = round(target - role.setpoint_offset(), 4)
             await self.async_set_temperature(

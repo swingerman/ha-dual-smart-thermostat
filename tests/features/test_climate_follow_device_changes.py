@@ -50,9 +50,9 @@ def adoptions():
     adopted = []
     original = DualSmartThermostat._async_adopt_state
 
-    async def spy(self, child, state):
+    async def spy(self, child, state, changed):
         adopted.append(state.state)
-        return await original(self, child, state)
+        return await original(self, child, state, changed)
 
     with patch.object(DualSmartThermostat, "_async_adopt_state", spy):
         yield adopted
@@ -397,7 +397,8 @@ async def test_mixed_rig_adopting_cool_stops_the_switch_heater_once(hass):  # B7
     child.remote(mode=HVACMode.COOL)
     await _idle(hass)
     assert _dst(hass).state == HVACMode.COOL
-    assert child.calls == []
+    # only the mode changed on the remote: DST's own target goes to the cooler
+    assert child.calls == [("set_temperature", {"temperature": 22.0})]
     assert [c.service for c in heater_calls] == ["turn_off"]
 
 
@@ -1074,3 +1075,37 @@ async def test_not_following_an_automation_forced_fan_does_not_storm(hass):  # I
     for room in (22.0, 22.1, 21.9, 22.0, 22.1):
         await _tick(hass, room)
     assert [c for c in child.calls if c[0] == "set_fan_mode"] == []
+
+
+# ----------------------------------------------- adoption is per changed attribute
+
+
+async def test_a_remote_fan_change_does_not_import_a_target_dst_never_pushed(
+    hass,
+):  # review 1
+    child = await _start(hass, HVACMode.HEAT, target=22)
+    await _tick(hass, 26.0)  # the heater stops; the child keeps its 22
+    await common.async_set_hvac_mode(hass, HVACMode.FAN_ONLY, "climate.test")
+    await common.async_set_temperature(hass, 20, "climate.test")  # fan pushes no target
+    await _idle(hass)
+    assert _dst(hass).attributes["temperature"] == 20.0
+    assert hass.states.get(AC).attributes["temperature"] == 22.0  # stale, never pushed
+    child.calls.clear()
+
+    child.remote(fan_mode="quiet")  # only the fan changes
+    await _idle(hass)
+
+    assert _dst(hass).attributes["fan_mode"] == "quiet"
+    assert _dst(hass).attributes["temperature"] == 20.0  # not the child's stale 22
+    assert _dst(hass).state == HVACMode.FAN_ONLY
+
+
+async def test_a_remote_target_change_is_ignored_while_the_child_is_off(hass):
+    """No role owns an off child: its target is not DST's to take."""
+    child = await _start(hass, HVACMode.HEAT, target=22)
+    await _tick(hass, 26.0)  # stopped
+    assert hass.states.get(AC).state == HVACMode.OFF
+    child.calls.clear()
+    child.remote(temperature=28.0)
+    await _idle(hass)
+    assert _dst(hass).attributes["temperature"] == 22.0
