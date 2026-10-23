@@ -83,7 +83,7 @@ Any of `heater`, `cooler`, `fan`, `dryer` (and the `heater` of a [heat pump](#he
 | Value | Who decides |
 |---|---|
 | `on_off` (default) | The thermostat decides when to run the device, with tolerances and `min_cycle_duration`: it sets the climate to the role's mode and target, and turns it off with `climate.turn_off`. |
-| `setpoint` | The device stays on and regulates itself. The thermostat mirrors target, mode, presets and openings to it and adds no cycling of its own. Only heater, cooler (and not a fan or dryer) can be `setpoint`. |
+| `setpoint` | The device stays on and regulates itself. The thermostat mirrors target, mode, presets and openings to it and adds no cycling of its own. Only a climate heater or cooler can be `setpoint`; a fan or dryer climate is always `on_off` (`setpoint` with only a fan or dryer climate is rejected). |
 
 `setpoint` is not supported for a climate heat pump, nor with one climate entity as both heater and cooler while heat/cool mode is enabled; both are rejected with a clear error.
 
@@ -93,12 +93,12 @@ Any of `heater`, `cooler`, `fan`, `dryer` (and the `heater` of a [heat pump](#he
 
 ### Setpoint offsets
 
-`heater_setpoint_offset` and `cooler_setpoint_offset` (per role, signed, default `0`) are added to the target temperature sent to that role's device, which is then limited to the device's own range and step. Use them when the device's own sensor reads differently from your room sensor, or a negative cooler offset to keep an AC cooling. An offset is only valid when its own role is a climate entity (a heat pump uses the heater offset while heating and the cooler offset while cooling). Fan and dryer push no temperature, so they have none.
+`heater_setpoint_offset` and `cooler_setpoint_offset` (per role, signed, default `0`) are added to the target temperature sent to that role's device, which is then limited to the device's own range and step. Use them when the device's own sensor reads differently from your room sensor, or a negative cooler offset to keep an AC cooling. An offset is only valid when its own role is a climate entity (a heat pump uses the heater offset while heating and the cooler offset while cooling). Fan and dryer push no temperature, so they have none. An offset is a temperature difference: in a Fahrenheit setup enter it in °F.
 
 ### Behaviour notes
 
 - **A thermostat cannot be its own device.** Its own entity is hidden from the device pickers in the UI and rejected in YAML.
-- **Off means off, once.** When the thermostat is set to Off it turns every climate device off, whatever mode the device was in (also one set from the device's own remote). While it stays Off it leaves the climate alone, keep-alive included, so you can still switch the AC on with its own remote.
+- **Off means off, once.** When the thermostat is set to Off it turns every climate device off, whatever mode the device was in (also one set from the device's own remote). While it stays Off it leaves the climate alone, keep-alive included, so you can still switch the AC on with its own remote. A switch or valve device gets one turn_off per keep-alive tick while Off.
 - **Keep-alive.** `keep_alive` re-sends the mode only to a climate entity that reports `assumed_state`. It works together with `min_cycle_duration`: it never switches the device inside the minimum cycle. An infrared AC whose integration reports its own last command as its state (such as the Xiaomi IR mate) is not re-sent, because it would beep every interval; keep-alive therefore does not resync it after a press on its physical remote.
 - **Changes made on the device.** By default the thermostat follows changes made on the device itself (remote, vendor app, an automation): the new mode, target, fan speed or off becomes the thermostat's setting at once, and nothing is sent back. A mode the thermostat has no role for turns it off and leaves the device alone. Open windows, floor limits, a stale sensor and the minimum cycle still take precedence. After a Home Assistant restart or a reconnect the thermostat re-asserts its own setting (a remote change made while Home Assistant was down is overridden once). Turn `follow_device_changes` off to keep the thermostat in charge: it then puts the device back on its next control run. While the thermostat is Off nothing is sent to the device (keep-alive included), so the remote works freely. Devices that report an assumed state (infrared) are not followed.
 - **Fan reset after our command.** Some devices fall back to their power-on fan setting when they receive a command. If the device reports a fan reset within 5 s of the thermostat's own command, it is treated as the device dropping the command, not as your choice: the thermostat sends its fan setting once more and does not adopt the reset. A fan change after that window is followed as usual.
@@ -854,7 +854,7 @@ The reason is grouped into three categories:
 
   _default: `on_off`_
 
-  _requires: at least one device that is a `climate` entity. `setpoint` is only for heater and cooler, and not for a climate heat pump or one climate as both heater and cooler with heat/cool mode on._ See [Climate entities as devices](#climate-entities-as-devices).
+  _requires: at least one device that is a `climate` entity. `setpoint` is only for a climate heater or cooler (a fan or dryer climate is always `on_off`), and not for a climate heat pump or one climate as both heater and cooler with heat/cool mode on._ See [Climate entities as devices](#climate-entities-as-devices).
 
 ### follow_device_changes
 

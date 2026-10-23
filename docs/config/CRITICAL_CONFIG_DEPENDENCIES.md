@@ -175,7 +175,7 @@ When a device is a climate entity, these parameters become available:
 
 | Parameter | Description | Example |
 |-----------|-------------|---------|
-| `control_style` | `on_off` (default) or `setpoint` | `setpoint` |
+| `control_style` | `on_off` (default) or `setpoint`; `setpoint` needs the heater or cooler to be a climate entity (a fan or dryer climate is always `on_off`) | `setpoint` |
 | `follow_device_changes` | Adopt changes made on the device itself (default `true`) | `false` |
 | `heater_setpoint_offset` | Added to the target sent to the heater device (needs the heater to be a climate entity) | `2` |
 | `cooler_setpoint_offset` | Added to the target sent to the cooler device (needs the cooler, or an `ac_mode`/heat pump heater, to be a climate entity) | `-2` |
@@ -184,7 +184,7 @@ These options are set in the "Climate Entity Control" step (`climate_control`, o
 
 `target_sensor` is then optional: the climate entity's own temperature is used.
 A thermostat cannot use its own entity as a device.
-`control_style: setpoint` is not supported for a climate heat pump, nor with one
+`control_style: setpoint` needs a climate heater or cooler, is not supported for a climate heat pump, nor with one
 climate entity as both heater and cooler when heat/cool is enabled. A climate
 entity may fill several roles, and `secondary_heater` cannot be a climate entity.
 
