@@ -11,8 +11,10 @@ from homeassistant.util import dt as dt_util
 from homeassistant.util.unit_system import METRIC_SYSTEM
 import pytest
 
-from custom_components.dual_smart_thermostat.climate import DualSmartThermostat
 from custom_components.dual_smart_thermostat.const import DOMAIN
+from custom_components.dual_smart_thermostat.hvac_device.climate_follow import (
+    ClimateFollower,
+)
 from custom_components.dual_smart_thermostat.hvac_device.entity_port import ClimateChild
 from tests import common, setup_switch
 
@@ -48,13 +50,13 @@ async def _setup(hass, **config):
 def adoptions():
     """The modes DST adopted from the child, in order (a spy on the adoption)."""
     adopted = []
-    original = DualSmartThermostat._async_adopt_state
+    original = ClimateFollower._async_adopt_state
 
     async def spy(self, child, state, changed):
         adopted.append(state.state)
         return await original(self, child, state, changed)
 
-    with patch.object(DualSmartThermostat, "_async_adopt_state", spy):
+    with patch.object(ClimateFollower, "_async_adopt_state", spy):
         yield adopted
 
 
@@ -205,16 +207,20 @@ async def test_external_ignores_an_assumed_flag_on_either_side(hass):  # H3
     owner = object()
     off = State(AC, "off", {"assumed_state": True})
     cool = State(AC, "cool", {})
-    assert not child.external(owner, off, cool)
-    assert not child.external(owner, cool, State(AC, "off", {"assumed_state": True}))
+    assert not child.external(owner, off, cool).changed
+    assert not child.external(
+        owner, cool, State(AC, "off", {"assumed_state": True})
+    ).changed
 
 
 async def test_external_ignores_a_missing_or_unavailable_old_state(hass):
     child = ClimateChild(hass, AC)
     owner = object()
     cool = State(AC, "cool", {})
-    assert not child.external(owner, None, cool)  # first sight
-    assert not child.external(owner, State(AC, "unavailable"), cool)  # reconnect
+    assert not child.external(owner, None, cool).changed  # first sight
+    assert not child.external(
+        owner, State(AC, "unavailable"), cool
+    ).changed  # reconnect
 
 
 async def test_every_dst_command_uses_a_fresh_context(hass):
@@ -1119,7 +1125,7 @@ async def test_a_remote_target_change_is_ignored_while_the_child_is_off(hass):
 async def test_no_off_is_asserted_before_the_restore_has_finished(hass):
     await _setup(hass, **ALL_ROLES, initial_hvac_mode=HVACMode.OFF)
     thermostat = hass.data["climate"].get_entity("climate.test")
-    thermostat._restored = False  # the restore is still running
+    thermostat._follower.restored = False  # the restore is still running
 
     child = await common.add_fake_climate(hass, AC, HVACMode.HEAT)  # first sight
     await _idle(hass)
@@ -1138,7 +1144,7 @@ async def test_the_off_assertion_rechecks_the_mode_when_it_runs(hass):
     thermostat.hvac_device.hvac_mode = HVACMode.HEAT  # and DST is no longer Off
     child.calls.clear()
 
-    await thermostat._async_assert_off()  # a task that was scheduled earlier
+    await thermostat._follower._async_assert_off()  # a task that was scheduled earlier
 
     assert child.calls == []
 
@@ -1154,8 +1160,12 @@ async def test_an_ignored_command_does_not_swallow_a_later_remote_press(hass):
     child.ports.add(type("P", (), {"owner": owner})())
     off = State(AC, "off", {})
     child._expect(owner, "mode", "heat")  # commanded, never reported
-    assert child.external(owner, off, State(AC, "cool", {})) == {"mode"}  # remote cool
-    assert child.external(owner, State(AC, "cool", {}), State(AC, "heat", {})) == {
+    assert child.external(owner, off, State(AC, "cool", {})).changed == {
+        "mode"
+    }  # remote cool
+    assert child.external(
+        owner, State(AC, "cool", {}), State(AC, "heat", {})
+    ).changed == {
         "mode"
     }  # remote heat: not swallowed by the stale entry
 
@@ -1206,7 +1216,7 @@ async def test_a_child_event_before_the_restore_completes_adopts_nothing(
 ):  # M9
     child = await _start(hass, HVACMode.HEAT)
     thermostat = hass.data["climate"].get_entity("climate.test")
-    thermostat._restored = False
+    thermostat._follower.restored = False
     child.remote(mode=HVACMode.COOL)
     await _idle(hass)
     assert adoptions == []

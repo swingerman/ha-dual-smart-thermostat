@@ -15,6 +15,7 @@ from abc import ABC, abstractmethod
 import asyncio
 from collections.abc import Callable, Mapping
 from contextlib import contextmanager
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 import logging
 import math
@@ -278,6 +279,16 @@ _MAX_PENDING = 4
 # HA stamps a state write with the entity's last service context for this long
 # (CONTEXT_RECENT_TIME_SECONDS): a device reacting to our command reports under it.
 _OWN_CONTEXT_WINDOW = timedelta(seconds=5)
+
+
+@dataclass
+class ExternalReport:
+    """What a state report of a child means for one thermostat."""
+
+    changed: set[str] = field(default_factory=set)  # attributes changed from outside
+    fan_dropped: bool = False  # the device dropped our fan: send it again, once
+
+
 _TRACKED = (
     ("mode", lambda s: s.state),
     ("target", lambda s: s.attributes.get(ATTR_TEMPERATURE)),
@@ -322,7 +333,6 @@ class ClimateChild:
         self._fan_sent: set[Any] = set()  # owners whose sequence has sent its fan
         self._own_contexts: dict[str, datetime] = {}  # contexts of our recent commands
         self._last_fan: dict[Any, str] = {}  # owner -> the fan it commanded last
-        self._fan_dropped: set[Any] = set()  # owners that must send their fan again
         self._fan_resent: set[Any] = set()  # ... and have, in this sequence
         self._adopting: dict[Any, int] = {}
         self._deferred: dict[Any, Callable[[], None]] = {}
@@ -381,11 +391,9 @@ class ClimateChild:
             port.device.hvac_mode not in (None, HVACMode.OFF) for port in self.ports
         )
 
-    def device_for(self, mode: str) -> Any | None:
-        """The role whose mode this is, if any role owns it."""
-        return next(
-            (p.device for p in self.ports if mode in p.device.role_modes()), None
-        )
+    def port_for(self, mode: str) -> ClimatePort | None:
+        """The role (port) whose mode this is, if any role owns it."""
+        return next((p for p in self.ports if mode in p.device.role_modes()), None)
 
     @contextmanager
     def sending(self, owner: Any):
@@ -441,12 +449,6 @@ class ClimateChild:
             del self._own_contexts[stale]
         return context
 
-    def take_fan_dropped(self, owner: Any) -> bool:
-        """Whether `owner` has to send its fan again (asked once)."""
-        dropped = owner in self._fan_dropped
-        self._fan_dropped.discard(owner)
-        return dropped
-
     def _expect(self, origin: Any, attr: str, value: Any) -> None:
         """Record a value `origin` commanded and nobody has seen reported yet.
 
@@ -480,7 +482,9 @@ class ClimateChild:
         """The child went away: nothing pending is meaningful any more."""
         self._pending.pop(observer, None)
 
-    def external(self, owner: Any, old: State | None, new: State | None) -> set[str]:
+    def external(
+        self, owner: Any, old: State | None, new: State | None
+    ) -> ExternalReport:
         """Consume this owner's echoes; the attributes that changed from outside.
 
         Judged by value against what this owner commanded and has not yet seen
@@ -490,12 +494,13 @@ class ClimateChild:
         """
         if is_unavailable(old) or is_unavailable(new):
             self.reset(owner)  # first sight and reconnect adopt nothing
-            return set()
+            return ExternalReport()
         if old.attributes.get(ATTR_ASSUMED_STATE) or new.attributes.get(
             ATTR_ASSUMED_STATE
         ):
-            return set()  # an assumed child reports DST's own record
+            return ExternalReport()  # an assumed child reports DST's own record
         external: set[str] = set()
+        fan_dropped = False
         for attr, read in _TRACKED:
             before, after = read(old), read(new)
             if after is None or _same(before, after):
@@ -518,13 +523,13 @@ class ClimateChild:
             external.discard("fan_mode")
             if owner not in self._fan_resent:
                 self._fan_resent.add(owner)
-                self._fan_dropped.add(owner)
+                fan_dropped = True
         if self._sending.get(owner):
             # Side effects of the sequence (a mode that resets the fan) are not the
             # user's; but the fan is the last thing sent, so a fan reported after
             # it was sent is someone else's last word.
-            return external & {ATTR_FAN_MODE} if owner in self._fan_sent else set()
-        return external
+            external = external & {ATTR_FAN_MODE} if owner in self._fan_sent else set()
+        return ExternalReport(external, fan_dropped)
 
     def pending_mode(self, owner: Any) -> str | None:
         """The last mode `owner` commanded that the device has not reported yet."""
@@ -907,8 +912,16 @@ class ClimatePort(EntityPort):
         target = self._device.climate_target()
         if target is not None:
             await self._child.async_push_target(
-                target + self._device.setpoint_offset(), context, self.owner
+                self.dst_target_to_device(target), context, self.owner
             )
+
+    def dst_target_to_device(self, target: float) -> float:
+        """DST's target as this role pushes it (plus the role's setpoint offset)."""
+        return target + self._device.setpoint_offset()
+
+    def device_target_to_dst(self, value: float) -> float:
+        """The inverse: a target reported by the device, in DST's own terms."""
+        return round(value - self._device.setpoint_offset(), 4)
 
     async def async_turn_on(self, context: Context | None) -> None:
         # One sequence: what the device reports meanwhile (a reset fan, a changed
