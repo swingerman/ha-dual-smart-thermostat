@@ -73,7 +73,6 @@ class HeaterAUXHeaterDevice(MultiHvacDevice):
         """Check if we need to turn heating on or off when the heater is off."""
         _LOGGER.info("%s Controlling hvac while off", self.__class__.__name__)
 
-        # Heater device's goal includes comfort floor demand.
         too_cold = self.heater_device.is_below_target_env_attr()
         is_floor_hot = self.environment.is_floor_hot
         is_floor_cold = self.environment.is_floor_cold

@@ -110,6 +110,14 @@ CONF_MIN_FLOOR_TEMP = "min_floor_temp"
 CONF_FLOOR_TOLERANCE = "floor_tolerance"
 CONF_COMFORT_FLOOR_TEMP = "comfort_floor_temp"
 CONF_COMFORT_FLOOR_MAX_AIR_OVERSHOOT = "comfort_floor_max_air_overshoot"
+# Every floor setting besides the sensor; cleared/prefilled together.
+FLOOR_SETTING_KEYS = (
+    CONF_MAX_FLOOR_TEMP,
+    CONF_MIN_FLOOR_TEMP,
+    CONF_FLOOR_TOLERANCE,
+    CONF_COMFORT_FLOOR_TEMP,
+    CONF_COMFORT_FLOOR_MAX_AIR_OVERSHOOT,
+)
 CONF_TARGET_TEMP = "target_temp"
 CONF_TARGET_TEMP_HIGH = "target_temp_high"
 CONF_TARGET_TEMP_LOW = "target_temp_low"

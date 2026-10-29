@@ -8,15 +8,18 @@ from homeassistant.data_entry_flow import FlowResult
 import voluptuous as vol
 
 from ..const import (
-    CONF_COMFORT_FLOOR_MAX_AIR_OVERSHOOT,
     CONF_COMFORT_FLOOR_TEMP,
     CONF_FLOOR_SENSOR,
-    CONF_FLOOR_TOLERANCE,
-    CONF_MAX_FLOOR_TEMP,
-    CONF_MIN_FLOOR_TEMP,
+    FLOOR_SETTING_KEYS,
     SYSTEM_TYPE_SIMPLE_HEATER,
 )
 from ..schemas import get_base_schema, get_floor_heating_schema, get_grouped_schema
+
+
+def _collect(collected_config: dict, user_input: dict[str, Any]) -> None:
+    # An emptied comfort_floor_temp is absent from user_input; store None so a
+    # stale persisted value can't survive the entry merge.
+    collected_config.update({CONF_COMFORT_FLOOR_TEMP: None, **user_input})
 
 
 class FloorSteps:
@@ -82,12 +85,7 @@ class FloorSteps:
     ) -> FlowResult:
         """Handle the detailed floor configuration step used by config flow."""
         if user_input is not None:
-            collected_config.update(user_input)
-            # An emptied optional field is absent from user_input; store None
-            # so the stale persisted value can't survive the entry merge.
-            collected_config[CONF_COMFORT_FLOOR_TEMP] = user_input.get(
-                CONF_COMFORT_FLOOR_TEMP
-            )
+            _collect(collected_config, user_input)
             return await next_step_handler()
 
         return flow_instance.async_show_form(
@@ -105,12 +103,7 @@ class FloorSteps:
     ) -> FlowResult:
         """Handle the floor heating options step used by options flow."""
         if user_input is not None:
-            collected_config.update(user_input)
-            # An emptied optional field is absent from user_input; store None
-            # so the stale persisted value can't survive the entry merge.
-            collected_config[CONF_COMFORT_FLOOR_TEMP] = user_input.get(
-                CONF_COMFORT_FLOOR_TEMP
-            )
+            _collect(collected_config, user_input)
             return await next_step_handler()
 
         # Use the real schema factory for consistent selectors and include
@@ -120,20 +113,8 @@ class FloorSteps:
         # current_config parameter is passed from the options flow call
         entry_data = current_config or {}
 
-        # Prefer collected overrides, otherwise fallback to persisted entry data
-        if collected_config.get(CONF_FLOOR_SENSOR):
-            defaults[CONF_FLOOR_SENSOR] = collected_config.get(CONF_FLOOR_SENSOR)
-        elif entry_data and entry_data.get(CONF_FLOOR_SENSOR):
-            defaults[CONF_FLOOR_SENSOR] = entry_data.get(CONF_FLOOR_SENSOR)
-
-        # Numeric settings: collected overrides win over persisted entry data
-        for key in (
-            CONF_MAX_FLOOR_TEMP,
-            CONF_MIN_FLOOR_TEMP,
-            CONF_FLOOR_TOLERANCE,
-            CONF_COMFORT_FLOOR_TEMP,
-            CONF_COMFORT_FLOOR_MAX_AIR_OVERSHOOT,
-        ):
+        # Prefer collected overrides, otherwise fall back to persisted entry data
+        for key in (CONF_FLOOR_SENSOR, *FLOOR_SETTING_KEYS):
             if collected_config.get(key) is not None:
                 defaults[key] = collected_config.get(key)
             elif entry_data.get(key) is not None:
