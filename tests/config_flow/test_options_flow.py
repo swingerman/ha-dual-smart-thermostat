@@ -23,6 +23,8 @@ from custom_components.dual_smart_thermostat.const import (
     ATTR_OPENING_TIMEOUT,
     CONF_AUTO_OUTSIDE_DELTA_BOOST,
     CONF_COLD_TOLERANCE,
+    CONF_COMFORT_FLOOR_MAX_AIR_OVERSHOOT,
+    CONF_COMFORT_FLOOR_TEMP,
     CONF_CONTROL_STYLE,
     CONF_COOLER,
     CONF_COOLER_SETPOINT_OFFSET,
@@ -30,6 +32,7 @@ from custom_components.dual_smart_thermostat.const import (
     CONF_FAN_HOT_TOLERANCE,
     CONF_FAN_HOT_TOLERANCE_TOGGLE,
     CONF_FLOOR_SENSOR,
+    CONF_FLOOR_TOLERANCE,
     CONF_FOLLOW_DEVICE_CHANGES,
     CONF_HEATER,
     CONF_HOT_TOLERANCE,
@@ -632,6 +635,61 @@ async def test_floor_options_preselects_configured_sensor(
     default_value = getattr(sensor_key, "default", None)
     assert default_value is not None, "floor_sensor Optional missing default()"
     assert default_value() == "sensor.floor_temp"
+
+
+def _schema_default(schema_dict, name):
+    key = next(k for k in schema_dict if str(k) == name)
+    if callable(getattr(key, "default", None)) and key.default() is not None:
+        return key.default()
+    return (key.description or {}).get("suggested_value")
+
+
+async def test_floor_options_prefills_comfort_floor_and_tolerance(
+    mock_hass, simple_heater_config_entry
+):
+    """Floor options form shows the stored tolerance and comfort floor values."""
+    simple_heater_config_entry.data.update(
+        {
+            CONF_FLOOR_SENSOR: "sensor.floor_temp",
+            CONF_FLOOR_TOLERANCE: 0.5,
+            CONF_COMFORT_FLOOR_TEMP: 24,
+            CONF_COMFORT_FLOOR_MAX_AIR_OVERSHOOT: 1.5,
+        }
+    )
+    handler = OptionsFlowHandler(simple_heater_config_entry)
+    handler.hass = mock_hass
+    handler.collected_config = {}
+
+    result = await handler.async_step_floor_options()
+    schema_dict = result["data_schema"].schema
+
+    assert _schema_default(schema_dict, CONF_FLOOR_TOLERANCE) == 0.5
+    assert _schema_default(schema_dict, CONF_COMFORT_FLOOR_TEMP) == 24
+    assert _schema_default(schema_dict, CONF_COMFORT_FLOOR_MAX_AIR_OVERSHOOT) == 1.5
+
+
+async def test_floor_options_clearing_comfort_floor_disables_it(
+    mock_hass, simple_heater_config_entry
+):
+    """Emptying comfort_floor_temp must not let the stored value survive the merge."""
+    simple_heater_config_entry.data.update(
+        {
+            CONF_FLOOR_SENSOR: "sensor.floor_temp",
+            CONF_COMFORT_FLOOR_TEMP: 24,
+        }
+    )
+    handler = OptionsFlowHandler(simple_heater_config_entry)
+    handler.hass = mock_hass
+
+    result = await handler.async_step_init({"cold_tolerance": 0.3})
+    assert result["step_id"] == "floor_options"
+    # Cleared optional field is simply absent from the submitted form
+    result = await handler.async_step_floor_options(
+        {CONF_FLOOR_SENSOR: "sensor.floor_temp"}
+    )
+
+    assert result["type"] == FlowResultType.CREATE_ENTRY
+    assert result["data"][CONF_COMFORT_FLOOR_TEMP] is None
 
 
 # ============================================================================

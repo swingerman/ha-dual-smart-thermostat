@@ -18,6 +18,7 @@ import voluptuous as vol
 DEFAULT_TOLERANCE = 0.3
 DEFAULT_NAME = "Dual Smart Thermostat"
 DEFAULT_MAX_FLOOR_TEMP = 28.0
+DEFAULT_COMFORT_FLOOR_MAX_AIR_OVERSHOOT = 1.0
 
 MIN_CYCLE_KEEP_ALIVE = 60.0
 
@@ -106,6 +107,17 @@ CONF_MIN_TEMP = "min_temp"
 CONF_MAX_TEMP = "max_temp"
 CONF_MAX_FLOOR_TEMP = "max_floor_temp"
 CONF_MIN_FLOOR_TEMP = "min_floor_temp"
+CONF_FLOOR_TOLERANCE = "floor_tolerance"
+CONF_COMFORT_FLOOR_TEMP = "comfort_floor_temp"
+CONF_COMFORT_FLOOR_MAX_AIR_OVERSHOOT = "comfort_floor_max_air_overshoot"
+# Every floor setting besides the sensor; cleared/prefilled together.
+FLOOR_SETTING_KEYS = (
+    CONF_MAX_FLOOR_TEMP,
+    CONF_MIN_FLOOR_TEMP,
+    CONF_FLOOR_TOLERANCE,
+    CONF_COMFORT_FLOOR_TEMP,
+    CONF_COMFORT_FLOOR_MAX_AIR_OVERSHOOT,
+)
 CONF_TARGET_TEMP = "target_temp"
 CONF_TARGET_TEMP_HIGH = "target_temp_high"
 CONF_TARGET_TEMP_LOW = "target_temp_low"

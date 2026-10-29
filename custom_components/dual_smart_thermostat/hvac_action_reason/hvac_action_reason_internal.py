@@ -24,6 +24,8 @@ class HVACActionReasonInternal(enum.StrEnum):
 
     OVERHEAT = "overheat"
 
+    COMFORT_FLOOR = "comfort_floor"
+
     TEMPERATURE_SENSOR_STALLED = "temperature_sensor_stalled"
 
     HUMIDITY_SENSOR_STALLED = "humidity_sensor_stalled"

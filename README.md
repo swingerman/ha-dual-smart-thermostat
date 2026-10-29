@@ -620,6 +620,26 @@ preset_name:
   min_floor_temp: 8
 ```
 
+### Comfort floor temperature
+
+Keeps the floor warm even when the room has already reached its target: while the floor is below `comfort_floor_temp` the heater keeps running, as long as the room stays within `comfort_floor_max_air_overshoot` (default `1.0`) of its target. `max_floor_temp` and open windows always win. When comfort floor is why the heater runs, `hvac_action_reason` is `comfort_floor`. Applies to heater and heater + secondary heater setups in `heat` mode, including a climate entity as the heater with `control_style: on_off`. With `control_style: setpoint` the climate device regulates the room to the pushed target itself, so comfort floor does not apply there (floor limits and `floor_tolerance` still do).
+
+```yaml
+floor_sensor: sensor.floor_temp
+comfort_floor_temp: 24
+comfort_floor_max_air_overshoot: 1.0
+```
+
+### Floor tolerance
+
+`floor_tolerance` adds hysteresis to every floor threshold (`min_floor_temp`, `max_floor_temp`, `comfort_floor_temp`): a limit engages at its threshold and only releases once the floor has moved `floor_tolerance` back past it, so the heater doesn't cycle on and off at the threshold. Default `0` keeps the previous behaviour.
+
+```yaml
+floor_sensor: sensor.floor_temp
+max_floor_temp: 28
+floor_tolerance: 0.5  # off at 28, back on below 27.5
+```
+
 ### Floor Temperature Control Configuration
 
 ```yaml
@@ -722,6 +742,7 @@ The reason is grouped into three categories:
 | `opening` | The thermostat is idle because an opening is open |
 | `limit` | The thermostat is idle because the floor temperature is at the limit |
 | `overheat` | The thermostat is idle because the floor temperature is too high |
+| `comfort_floor` | The room target is reached but the thermostat keeps heating because the floor is below `comfort_floor_temp` |
 | `temperature_sensor_stalled` | The thermostat is idle because the temperature sensor is not provided data for the defined time that could indicate a malfunctioning sensor |
 | `humidity_sensor_sstalled` | The thermostat is idle because the temperature sensor is not provided data for the defined time that could indicate a malfunctioning sensor |
 
@@ -961,6 +982,22 @@ The reason is grouped into three categories:
 ### min_floor_temp
 
   _(optional) (float)_
+
+### floor_tolerance
+
+  _(optional) (float)_ Hysteresis applied to every floor threshold. Requires `floor_sensor`.
+
+  _default: 0_
+
+### comfort_floor_temp
+
+  _(optional) (float)_ Keep heating while the floor is below this, even after the room target is reached. Requires `floor_sensor`.
+
+### comfort_floor_max_air_overshoot
+
+  _(optional) (float)_ How far above its target the room may go while heating for comfort floor. Requires `comfort_floor_temp`.
+
+  _default: 1.0_
 
 ### target_temp
 

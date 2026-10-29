@@ -24,10 +24,13 @@ from ..const import (
     ATTR_PREV_TARGET_HIGH,
     ATTR_PREV_TARGET_LOW,
     CONF_COLD_TOLERANCE,
+    CONF_COMFORT_FLOOR_MAX_AIR_OVERSHOOT,
+    CONF_COMFORT_FLOOR_TEMP,
     CONF_COOL_TOLERANCE,
     CONF_DRY_TOLERANCE,
     CONF_FAN_HOT_TOLERANCE,
     CONF_FLOOR_SENSOR,
+    CONF_FLOOR_TOLERANCE,
     CONF_HEAT_COOL_MODE,
     CONF_HEAT_TOLERANCE,
     CONF_HOT_TOLERANCE,
@@ -48,6 +51,7 @@ from ..const import (
     CONF_TARGET_TEMP_LOW,
     CONF_TEMP_STEP,
     CONF_USE_APPARENT_TEMP,
+    DEFAULT_COMFORT_FLOOR_MAX_AIR_OVERSHOOT,
     DEFAULT_MAX_FLOOR_TEMP,
     DEFAULT_TOLERANCE,
 )
@@ -140,6 +144,16 @@ class EnvironmentManager(StateManager):
 
         self._max_floor_temp = config.get(CONF_MAX_FLOOR_TEMP)
         self._min_floor_temp = config.get(CONF_MIN_FLOOR_TEMP)
+        self._comfort_floor_temp = config.get(CONF_COMFORT_FLOOR_TEMP)
+        self._comfort_floor_max_air_overshoot = config.get(
+            CONF_COMFORT_FLOOR_MAX_AIR_OVERSHOOT,
+            DEFAULT_COMFORT_FLOOR_MAX_AIR_OVERSHOOT,
+        )
+        # One tolerance for every floor threshold; 0 = legacy hard comparisons.
+        self._floor_tolerance = config.get(CONF_FLOOR_TOLERANCE) or 0
+        # Engaged threshold key -> the threshold it engaged at; see
+        # _threshold_engaged.
+        self._engaged_thresholds: dict[str, float] = {}
 
         self._target_temp = config.get(CONF_TARGET_TEMP)
         self._target_temp_high = config.get(CONF_TARGET_TEMP_HIGH)
@@ -612,29 +626,71 @@ class EnvironmentManager(StateManager):
         )
         return self._cur_humidity <= self._target_humidity - self._dry_tolerance
 
+    def _threshold_engaged(
+        self,
+        key: str,
+        value: float | None,
+        threshold: float | None,
+        tolerance: float,
+        upper: bool,
+    ) -> bool:
+        """Latched check: engage at ``threshold``, release ``tolerance`` past it.
+
+        The single place floor limits are compared. Tolerance 0 is a plain
+        comparison; a changed threshold (preset, new target) starts unlatched.
+        """
+        if value is None or threshold is None:
+            self._engaged_thresholds.pop(key, None)
+            return False
+        edge = threshold
+        if self._engaged_thresholds.get(key) == threshold:
+            edge = threshold - tolerance if upper else threshold + tolerance
+        engaged = value >= edge if upper else value <= edge
+        if engaged:
+            self._engaged_thresholds[key] = threshold
+        else:
+            self._engaged_thresholds.pop(key, None)
+        return engaged
+
+    def _floor_threshold_engaged(
+        self, key: str, threshold: float | None, upper: bool
+    ) -> bool:
+        floor = self._cur_floor_temp if self._sensor_floor is not None else None
+        return self._threshold_engaged(
+            key, floor, threshold, self._floor_tolerance, upper
+        )
+
     @property
     def is_floor_hot(self) -> bool:
         """If the floor temp is above limit."""
-        if (
-            (self._sensor_floor is not None)
-            and (self._max_floor_temp is not None)
-            and (self._cur_floor_temp is not None)
-            and (self.cur_floor_temp >= self.max_floor_temp)
-        ):
-            return True
-        return False
+        return self._floor_threshold_engaged("max", self._max_floor_temp, upper=True)
 
     @property
     def is_floor_cold(self) -> bool:
         """If the floor temp is below limit."""
-        if (
-            (self._sensor_floor is not None)
-            and (self._min_floor_temp is not None)
-            and (self._cur_floor_temp is not None)
-            and (self.cur_floor_temp <= self.min_floor_temp)
+        return self._floor_threshold_engaged("min", self._min_floor_temp, upper=False)
+
+    def is_comfort_floor_demand(self, target_attr="_target_temp") -> bool:
+        """Floor below comfort_floor_temp and air still under its overshoot cap.
+
+        Safety limits are left to callers (is_floor_hot / openings win).
+        """
+        if not self._floor_threshold_engaged(
+            "comfort", self._comfort_floor_temp, upper=False
         ):
-            return True
-        return False
+            return False
+        target_temp = getattr(self, target_attr)
+        if target_temp is None:
+            return False
+        cold_tolerance, _ = self._get_active_tolerance_for_mode(target_attr)
+        # Air cap latched with the air cold tolerance, like normal heating.
+        return not self._threshold_engaged(
+            "comfort_air_cap",
+            self._cur_temp,
+            target_temp + self._comfort_floor_max_air_overshoot,
+            cold_tolerance,
+            upper=True,
+        )
 
     def is_new_reading(self, state: State | None) -> bool:
         """Whether a sensor state is a new temperature reading.
