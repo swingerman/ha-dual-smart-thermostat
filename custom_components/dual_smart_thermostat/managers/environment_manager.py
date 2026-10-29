@@ -634,22 +634,18 @@ class EnvironmentManager(StateManager):
         tolerance: float,
         upper: bool,
     ) -> bool:
-        """Latched threshold check - the single place floor limits are compared.
+        """Latched check: engage at ``threshold``, release ``tolerance`` past it.
 
-        Engages when ``value`` reaches ``threshold`` (>= for an upper bound,
-        <= for a lower one) and only releases once it has moved ``tolerance``
-        back past it. With tolerance 0 this equals a plain comparison.
-        A changed threshold (preset, new target) starts unlatched.
+        The single place floor limits are compared. Tolerance 0 is a plain
+        comparison; a changed threshold (preset, new target) starts unlatched.
         """
         if value is None or threshold is None:
             self._engaged_thresholds.pop(key, None)
             return False
-        sign = 1 if upper else -1
+        edge = threshold
         if self._engaged_thresholds.get(key) == threshold:
-            edge = threshold - sign * tolerance
-        else:
-            edge = threshold
-        engaged = sign * (value - edge) >= 0
+            edge = threshold - tolerance if upper else threshold + tolerance
+        engaged = value >= edge if upper else value <= edge
         if engaged:
             self._engaged_thresholds[key] = threshold
         else:
@@ -675,10 +671,9 @@ class EnvironmentManager(StateManager):
         return self._floor_threshold_engaged("min", self._min_floor_temp, upper=False)
 
     def is_comfort_floor_demand(self, target_attr="_target_temp") -> bool:
-        """Floor is below comfort_floor_temp and the air may still overshoot.
+        """Floor below comfort_floor_temp and air still under its overshoot cap.
 
-        Safety limits are not checked here: callers already let
-        ``is_floor_hot`` / openings win over any heating demand.
+        Safety limits are left to callers (is_floor_hot / openings win).
         """
         if not self._floor_threshold_engaged(
             "comfort", self._comfort_floor_temp, upper=False

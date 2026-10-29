@@ -255,6 +255,11 @@ async def async_set_hvac_action_reason(
     )
 
 
+def get_hvac_action_reason(hass, entity_id: str = ENTITY) -> str | None:
+    """Return the climate's hvac_action_reason attribute."""
+    return hass.states.get(entity_id).attributes.get(ATTR_HVAC_ACTION_REASON)
+
+
 def get_action_reason_sensor_entity_id(climate_entity_id: str) -> str:
     """Return the expected hvac_action_reason sensor entity id for a climate.
 

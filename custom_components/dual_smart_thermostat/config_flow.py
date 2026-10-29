@@ -29,6 +29,7 @@ from .const import (
     CONF_SYSTEM_TYPE,
     CONF_TEMP_STEP,
     DOMAIN,
+    FLOOR_SETTING_KEYS,
     SYSTEM_TYPE_SIMPLE_HEATER,
     SystemType,
 )
@@ -930,12 +931,8 @@ class ConfigFlowHandler(ExcludeOwnEntity, ConfigFlow, domain=DOMAIN):
         """
         # Floor heating unchecked - clear floor sensor and limits
         if not user_input.get("configure_floor_heating", False):
-            self.collected_config.pop(CONF_FLOOR_SENSOR, None)
-            self.collected_config.pop("max_floor_temp", None)
-            self.collected_config.pop("min_floor_temp", None)
-            self.collected_config.pop("floor_tolerance", None)
-            self.collected_config.pop("comfort_floor_temp", None)
-            self.collected_config.pop("comfort_floor_max_air_overshoot", None)
+            for key in (CONF_FLOOR_SENSOR, *FLOOR_SETTING_KEYS):
+                self.collected_config.pop(key, None)
             _LOGGER.debug("Floor heating unchecked - clearing floor sensor config")
 
         # Fan unchecked - clear fan entity and related settings

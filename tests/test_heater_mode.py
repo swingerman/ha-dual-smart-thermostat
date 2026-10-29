@@ -2341,10 +2341,6 @@ async def _setup_floor_heater(hass: HomeAssistant, **extra) -> str:
     return heater_switch
 
 
-def _reason(hass: HomeAssistant) -> str:
-    return hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_ACTION_REASON)
-
-
 COMFORT_FLOOR = {"comfort_floor_temp": 24, "comfort_floor_max_air_overshoot": 1.0}
 
 
@@ -2360,18 +2356,18 @@ async def test_heater_mode_comfort_floor_heats_past_air_target(
 
     # room above target + hot tolerance, floor below comfort: heat from off
     assert hass.states.get(heater_switch).state == STATE_ON
-    assert _reason(hass) == HVACActionReason.COMFORT_FLOOR
+    assert common.get_hvac_action_reason(hass) == HVACActionReason.COMFORT_FLOOR
 
     setup_sensor(hass, 20.9)
     await hass.async_block_till_done()
     assert hass.states.get(heater_switch).state == STATE_ON
-    assert _reason(hass) == HVACActionReason.COMFORT_FLOOR
+    assert common.get_hvac_action_reason(hass) == HVACActionReason.COMFORT_FLOOR
 
     # room reaches target + overshoot: stop
     setup_sensor(hass, 21)
     await hass.async_block_till_done()
     assert hass.states.get(heater_switch).state == STATE_OFF
-    assert _reason(hass) == HVACActionReason.TARGET_TEMP_REACHED
+    assert common.get_hvac_action_reason(hass) == HVACActionReason.TARGET_TEMP_REACHED
 
 
 async def test_heater_mode_comfort_floor_stops_when_floor_comfortable(
@@ -2387,7 +2383,7 @@ async def test_heater_mode_comfort_floor_stops_when_floor_comfortable(
     setup_floor_sensor(hass, 24.5)
     await hass.async_block_till_done()
     assert hass.states.get(heater_switch).state == STATE_OFF
-    assert _reason(hass) == HVACActionReason.TARGET_TEMP_REACHED
+    assert common.get_hvac_action_reason(hass) == HVACActionReason.TARGET_TEMP_REACHED
 
 
 async def test_heater_mode_max_floor_temp_wins_over_comfort_floor(
@@ -2406,7 +2402,7 @@ async def test_heater_mode_max_floor_temp_wins_over_comfort_floor(
     setup_floor_sensor(hass, 28)
     await hass.async_block_till_done()
     assert hass.states.get(heater_switch).state == STATE_OFF
-    assert _reason(hass) == HVACActionReason.OVERHEAT
+    assert common.get_hvac_action_reason(hass) == HVACActionReason.OVERHEAT
 
     # still hot: comfort must not turn it back on
     setup_sensor(hass, 20.4)
@@ -2427,7 +2423,7 @@ async def test_heater_mode_opening_wins_over_comfort_floor(
     setup_boolean(hass, "input_boolean.window", "open")
     await hass.async_block_till_done()
     assert hass.states.get(heater_switch).state == STATE_OFF
-    assert _reason(hass) == HVACActionReason.OPENING
+    assert common.get_hvac_action_reason(hass) == HVACActionReason.OPENING
 
 
 async def test_heater_mode_floor_tolerance_prevents_cycling_at_max(
@@ -2443,7 +2439,7 @@ async def test_heater_mode_floor_tolerance_prevents_cycling_at_max(
     setup_floor_sensor(hass, 28)
     await hass.async_block_till_done()
     assert hass.states.get(heater_switch).state == STATE_OFF
-    assert _reason(hass) == HVACActionReason.OVERHEAT
+    assert common.get_hvac_action_reason(hass) == HVACActionReason.OVERHEAT
 
     # within tolerance of the limit: stays off (no cycling)
     setup_floor_sensor(hass, 27.8)
@@ -2496,7 +2492,7 @@ async def test_heater_mode_aux_heater_comfort_floor(
 
     assert hass.states.get(heater_switch).state == STATE_ON
     assert hass.states.get(secondary_heater_switch).state == STATE_OFF
-    assert _reason(hass) == HVACActionReason.COMFORT_FLOOR
+    assert common.get_hvac_action_reason(hass) == HVACActionReason.COMFORT_FLOOR
 
     setup_sensor(hass, 21)
     await hass.async_block_till_done()

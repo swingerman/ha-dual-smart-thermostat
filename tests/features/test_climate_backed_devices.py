@@ -2107,11 +2107,7 @@ async def test_a_half_rounds_away_from_zero_toward_the_users_intent(
     assert ("set_temperature", {"temperature": pushed}) in child.calls
 
 
-FLOOR = "sensor.floor_temperature"
-
-
-def _reason(hass) -> str:
-    return hass.states.get("climate.test").attributes["hvac_action_reason"]
+FLOOR = common.ENT_FLOOR_SENSOR
 
 
 async def _floor_climate_heater(hass, **config):
@@ -2139,7 +2135,7 @@ async def test_climate_heater_comfort_floor_keeps_heating(hass: HomeAssistant) -
     hass.states.async_set(SENSOR, 22.5)  # air target reached, floor still cold
     await hass.async_block_till_done()
     assert hass.states.get(AC).state == HVACMode.HEAT
-    assert _reason(hass) == "comfort_floor"
+    assert common.get_hvac_action_reason(hass) == "comfort_floor"
 
     hass.states.async_set(FLOOR, 24.5)  # floor comfortable: air goal decides
     await hass.async_block_till_done()
@@ -2156,7 +2152,7 @@ async def test_climate_heater_floor_tolerance_stops_cycling_at_max(
     hass.states.async_set(FLOOR, 28.0)
     await hass.async_block_till_done()
     assert hass.states.get(AC).state == HVACMode.OFF
-    assert _reason(hass) == "overheat"
+    assert common.get_hvac_action_reason(hass) == "overheat"
 
     hass.states.async_set(FLOOR, 27.8)  # inside the band: stays off
     await hass.async_block_till_done()
@@ -2182,12 +2178,12 @@ async def test_setpoint_climate_heater_floor_tolerance_applies_comfort_does_not(
     hass.states.async_set(SENSOR, 22.5)
     await hass.async_block_till_done()
     assert hass.states.get(AC).state == HVACMode.HEAT
-    assert _reason(hass) != "comfort_floor"
+    assert common.get_hvac_action_reason(hass) != "comfort_floor"
 
     hass.states.async_set(FLOOR, 28.0)
     await hass.async_block_till_done()
     assert hass.states.get(AC).state == HVACMode.OFF
-    assert _reason(hass) == "overheat"
+    assert common.get_hvac_action_reason(hass) == "overheat"
 
     hass.states.async_set(FLOOR, 27.8)
     await hass.async_block_till_done()

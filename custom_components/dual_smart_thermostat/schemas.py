@@ -172,7 +172,7 @@ def validate_template_or_number(value: Any) -> Any:
         except vol.Invalid as e:
             raise vol.Invalid(
                 f"Value must be a number or valid template. "
-                f"Template syntax error: {e!s}"
+                f"Template syntax error: {str(e)}"
             ) from e
 
     raise vol.Invalid(

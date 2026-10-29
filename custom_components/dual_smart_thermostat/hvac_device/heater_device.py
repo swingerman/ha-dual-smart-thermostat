@@ -65,9 +65,8 @@ class HeaterDevice(GenericHVACDevice):
         )
 
     def _is_comfort_floor_demand(self) -> bool:
-        # ponytail: a setpoint-style climate child regulates the air to the
-        # pushed target itself, so DST can't keep it heating past the target.
-        # Raising the pushed setpoint while the floor is cold would add it.
+        # ponytail: a setpoint-style child regulates the air itself; raising
+        # the pushed setpoint while the floor is cold would add comfort there.
         if self.port.self_regulating:
             return False
         return self.environment.is_comfort_floor_demand(self.target_env_attr)
