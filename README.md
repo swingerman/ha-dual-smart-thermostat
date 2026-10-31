@@ -722,7 +722,7 @@ The reason is grouped into three categories:
 | `opening` | The thermostat is idle because an opening is open |
 | `limit` | The thermostat is idle because the floor temperature is at the limit |
 | `overheat` | The thermostat is idle because the floor temperature is too high |
-| `temperature_sensor_stalled` | The thermostat is idle because the temperature sensor is not provided data for the defined time that could indicate a malfunctioning sensor |
+| `temperature_sensor_stalled` | The thermostat is idle because the temperature sensor is `unavailable` or `unknown`, or has not provided data for the defined time, which could indicate a malfunctioning sensor |
 | `humidity_sensor_sstalled` | The thermostat is idle because the temperature sensor is not provided data for the defined time that could indicate a malfunctioning sensor |
 
 #### HVAC Action Reason External values
@@ -900,7 +900,7 @@ The reason is grouped into three categories:
 
 ### sensor_stale_duration
 
-  _(optional) (timedelta)_  Set a delay for the target sensor to be considered not stalled. If the sensor is not available for the specified time or doesn't get updated the thermostat will be turned off.
+  _(optional) (timedelta)_  Set a delay for the target sensor to be considered not stalled. If the sensor doesn't get updated for the specified time the thermostat will be turned off. A sensor that becomes `unavailable` or `unknown` turns the thermostat off at once, with or without this option.
 
   _requires: `target_sensor` and/or `huidity_sensor`_
 

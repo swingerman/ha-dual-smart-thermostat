@@ -1495,27 +1495,32 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             "Sensor change: %s, trigger_control: %s", new_state, trigger_control
         )
         if new_state is None or new_state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
+            if new_state is not None:
+                # The integration has decided the sensor is gone: stop rather
+                # than keep controlling on its last reading.
+                await self._async_sensor_not_responding()
             return
 
+        _LOGGER.debug("_sensor_stalled: %s", self._sensor_stalled)
+        if self._sensor_stalled:
+            self._sensor_stalled = False
+            _LOGGER.warning(
+                "Climate (%s) - sensor (%s) recovered with state: %s",
+                self.unique_id,
+                self.sensor_entity_id,
+                new_state,
+            )
+            # The reason still held everywhere is the pre-stall one: the
+            # emergency stop turned the device off without a controller
+            # deciding anything. Clear it down the whole device tree so the
+            # control run below starts from a clean slate - if the fresh
+            # reading calls for no action, no stale reason resurfaces.
+            self.hvac_device.reset_hvac_action_reason()
+            self._hvac_action_reason = self.hvac_device.HVACActionReason
+            self._publish_hvac_action_reason(self._hvac_action_reason)
+            self.async_write_ha_state()
+
         if self._sensor_stale_duration:
-            _LOGGER.debug("_sensor_stalled: %s", self._sensor_stalled)
-            if self._sensor_stalled:
-                self._sensor_stalled = False
-                _LOGGER.warning(
-                    "Climate (%s) - sensor (%s) recovered with state: %s",
-                    self.unique_id,
-                    self.sensor_entity_id,
-                    new_state,
-                )
-                # The reason still held everywhere is the pre-stall one: the
-                # emergency stop turned the device off without a controller
-                # deciding anything. Clear it down the whole device tree so the
-                # control run below starts from a clean slate - if the fresh
-                # reading calls for no action, no stale reason resurfaces.
-                self.hvac_device.reset_hvac_action_reason()
-                self._hvac_action_reason = self.hvac_device.HVACActionReason
-                self._publish_hvac_action_reason(self._hvac_action_reason)
-                self.async_write_ha_state()
             if self._remove_stale_tracking:
                 self._remove_stale_tracking()
             self._remove_stale_tracking = async_track_time_interval(
