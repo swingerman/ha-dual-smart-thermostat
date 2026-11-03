@@ -611,6 +611,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         self._remove_humidity_stale_tracking: Callable[[], None] | None = None
         self._remove_outside_stale_tracking: Callable[[], None] | None = None
         self._sensor_stalled = False
+        self._remove_deferred_stop: Callable[[], None] | None = None
         self._follower = ClimateFollower(self)
         self._humidity_sensor_stalled = False
         self._outside_sensor_stalled = False
@@ -1059,6 +1060,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
 
         if self._remove_signal_hvac_action_reason:
             self._remove_signal_hvac_action_reason()
+        self._cancel_deferred_stop()
         if self._remove_stale_tracking:
             self._remove_stale_tracking()
         if self._remove_humidity_stale_tracking:
@@ -1483,6 +1485,13 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         if not self.environment.is_new_reading(new_state):
             return
 
+        # A sensor that first shows up as unavailable/unknown (startup, restart)
+        # has not gone anywhere: nothing to stop.
+        if data["old_state"] is None and (
+            new_state is None or new_state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN)
+        ):
+            return
+
         trigger_control = self.hvac_device.hvac_mode != HVACMode.OFF
 
         await self._async_sensor_changed(new_state, trigger_control)
@@ -1501,6 +1510,8 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                 await self._async_sensor_not_responding()
             return
 
+        # A reading before the minimum cycle ran out: the stop is not needed.
+        self._cancel_deferred_stop()
         _LOGGER.debug("_sensor_stalled: %s", self._sensor_stalled)
         if self._sensor_stalled:
             self._sensor_stalled = False
@@ -1543,6 +1554,19 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             now - state.last_updated if now and state else "---",
         )
         if self._is_device_active:
+            # The stop waits for the minimum cycle like any other stop (an
+            # unavailable blip must not short-cycle a compressor). A new reading
+            # cancels the wait; if none comes, the stop is retried.
+            if (hold := self.hvac_device.min_cycle_hold()) is not None:
+                if not self._remove_deferred_stop:
+                    _LOGGER.debug(
+                        "Sensor stalled, emergency stop waits for min cycle %s", hold
+                    )
+                    self._remove_deferred_stop = async_call_later(
+                        self.hass, hold, self._async_deferred_stop
+                    )
+                return
+            self._cancel_deferred_stop()
             _LOGGER.warning(
                 "Climate (%s) - sensor (%s) is stalled, call the emergency stop",
                 self.unique_id,
@@ -1553,6 +1577,15 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             self._publish_hvac_action_reason(self._hvac_action_reason)
             self._sensor_stalled = True
             self.async_write_ha_state()
+
+    def _cancel_deferred_stop(self) -> None:
+        if self._remove_deferred_stop:
+            self._remove_deferred_stop()
+            self._remove_deferred_stop = None
+
+    async def _async_deferred_stop(self, now: datetime) -> None:
+        self._remove_deferred_stop = None
+        await self._async_sensor_not_responding(now)
 
     async def _async_humidity_sensor_not_responding(
         self, now: datetime | None = None

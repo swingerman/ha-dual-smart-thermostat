@@ -900,7 +900,7 @@ The reason is grouped into three categories:
 
 ### sensor_stale_duration
 
-  _(optional) (timedelta)_  Set a delay for the target sensor to be considered not stalled. If the sensor doesn't get updated for the specified time the thermostat will be turned off. A sensor that becomes `unavailable` or `unknown` turns the thermostat off at once, with or without this option.
+  _(optional) (timedelta)_  Set a delay for the target sensor to be considered not stalled. If the sensor doesn't get updated for the specified time the thermostat will be turned off. A sensor that becomes `unavailable` or `unknown` turns the thermostat off, with or without this option. With `min_cycle_duration` set, this emergency stop waits for the minimum cycle to pass and is skipped if the sensor is back by then.
 
   _requires: `target_sensor` and/or `huidity_sensor`_
 

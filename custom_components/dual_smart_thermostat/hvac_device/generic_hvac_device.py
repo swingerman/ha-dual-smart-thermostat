@@ -135,6 +135,12 @@ class GenericHVACDevice(
         return self.hvac_controller.is_active
 
     # override
+    def min_cycle_hold(self) -> timedelta | None:
+        if self.is_active and not self.hvac_controller.min_cycle_elapsed():
+            return self.min_cycle_duration
+        return None
+
+    # override
     def reset_hvac_action_reason(self) -> None:
         """Clear the controller's copy too - it is the one control re-reads."""
         super().reset_hvac_action_reason()
