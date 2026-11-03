@@ -342,7 +342,7 @@ async def test_reconfigure_heater_cooler_all_features(heater_cooler_entry):
         # Configure fan
         result = await flow.async_step_fan(
             {
-                CONF_FAN: "switch.fan",
+                CONF_FAN: "fan.hvac_fan",
                 "fan_mode": False,
             }
         )

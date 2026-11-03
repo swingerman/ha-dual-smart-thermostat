@@ -383,7 +383,7 @@
         "title": "Konfiguration av fläkt",
         "description": "Konfigurera fläktstyrning och inställningar.",
         "data": {
-          "fan": "Fläktbrytare",
+          "fan": "Fläkt",
           "fan_mode": "Fläktläge",
           "fan_on_with_ac": "Fläkt med AC",
           "fan_on_with_heater": "Fläkt med värme",
@@ -392,7 +392,7 @@
           "fan_hot_tolerance_toggle": "Växling av fläkttolerans"
         },
         "data_description": {
-          "fan": "Entitets-ID för fläktbrytare. Används för att styra luftcirkulation och förbättra temperaturfördelningen i utrymmet.",
+          "fan": "Fläktentitet. Välj en fläktentitet med hastigheter (procent eller förinställda lägen) för att aktivera fläkthastighetsstyrning, eller en brytare för enkel på/av-luftcirkulation.",
           "fan_mode": "Aktivera fläkt som ett separat HVAC-läge. När aktiverat blir FLÄKT-läge tillgängligt utöver värme-, kyl- och autolägen, vilket möjliggör drift med endast fläkt.",
           "fan_on_with_ac": "Slå automatiskt på fläkten när kylning (AC) är aktiv. Förbättrar kyleffektiviteten och luftcirkulationen under kylcykler.",
           "fan_on_with_heater": "Kör fläkten automatiskt medan värmaren eller värmepumpen är aktiv (t.ex. när fläkten är enhetens luftbehandlare). När av körs fläkten endast i fläktläge.",
@@ -836,7 +836,7 @@
         "title": "Fläktalternativ",
         "description": "Ändra inställningar för fläktstyrning.",
         "data": {
-          "fan": "Fläktbrytare",
+          "fan": "Fläkt",
           "fan_mode": "Fläktläge",
           "fan_on_with_ac": "Fläkt med AC",
           "fan_on_with_heater": "Fläkt med värme",
@@ -845,7 +845,7 @@
           "fan_hot_tolerance_toggle": "Växling av fläkttolerans"
         },
         "data_description": {
-          "fan": "Entitets-ID för fläktbrytare. Används för att styra luftcirkulation och förbättra temperaturfördelningen.",
+          "fan": "Fläktentitet. Välj en fläktentitet med hastigheter (procent eller förinställda lägen) för att aktivera fläkthastighetsstyrning, eller en brytare för enkel på/av-luftcirkulation.",
           "fan_mode": "Aktivera fläkt som ett separat HVAC-läge. Möjliggör drift med endast fläkt.",
           "fan_on_with_ac": "Slå automatiskt på fläkten när kylning (AC) är aktiv. Förbättrar kyleffektiviteten.",
           "fan_on_with_heater": "Kör fläkten automatiskt medan värmaren eller värmepumpen är aktiv (t.ex. när fläkten är enhetens luftbehandlare). När av körs fläkten endast i fläktläge.",
