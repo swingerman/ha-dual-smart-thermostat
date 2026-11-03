@@ -231,7 +231,7 @@ class MultiHvacDevice(HVACDevice, ControlableHVACDevice):
 
     def min_cycle_hold(self) -> timedelta | None:
         holds = [h for d in self.hvac_devices if (h := d.min_cycle_hold())]
-        return max(holds) if holds else None
+        return min(holds) if holds else None
 
     async def async_turn_off(self):
         await self.async_turn_off_all(time=None)

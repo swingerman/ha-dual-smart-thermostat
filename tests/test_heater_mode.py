@@ -1152,7 +1152,9 @@ async def test_sensor_unavailable_stop_waits_for_min_cycle(
     hass.states.async_set(common.ENT_SENSOR, sensor_state)
     await hass.async_block_till_done()
     assert hass.states.get(heater).state == STATE_ON
-    await _tick(hass, freezer, 61)
+    await _tick(hass, freezer, 30)
+    assert hass.states.get(heater).state == STATE_ON
+    await _tick(hass, freezer, 31)
     assert hass.states.get(heater).state == STATE_OFF
     assert (
         hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_ACTION_REASON)

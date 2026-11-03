@@ -1482,7 +1482,12 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
         data = event.data
         new_state = data["new_state"]
 
-        if not self.environment.is_new_reading(new_state):
+        # A climate used as sensor has no reading when unavailable: still an event.
+        lost = new_state is not None and new_state.state in (
+            STATE_UNAVAILABLE,
+            STATE_UNKNOWN,
+        )
+        if not lost and not self.environment.is_new_reading(new_state):
             return
 
         # A sensor that first shows up as unavailable/unknown (startup, restart)

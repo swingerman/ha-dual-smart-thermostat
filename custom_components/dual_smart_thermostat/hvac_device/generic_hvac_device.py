@@ -137,7 +137,8 @@ class GenericHVACDevice(
     # override
     def min_cycle_hold(self) -> timedelta | None:
         if self.is_active and not self.hvac_controller.min_cycle_elapsed():
-            return self.min_cycle_duration
+            # ponytail: poll, not exact remaining time; overshoot is at most 30 s
+            return min(self.min_cycle_duration, timedelta(seconds=30))
         return None
 
     # override
