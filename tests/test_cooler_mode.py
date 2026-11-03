@@ -833,11 +833,13 @@ async def test_sensor_unknown_secure_ac_off_outside_stale_duration(
     )
     await hass.async_block_till_done()
 
-    assert len(calls) == 1
-    call = calls[0]
-    assert call.domain == HASS_DOMAIN
-    assert call.service == SERVICE_TURN_OFF
-    assert call.data["entity_id"] == common.ENT_SWITCH
+    # Unavailable stops at once and the timer repeats it: the mock switch never
+    # turns off. What matters is that it was only ever turned off.
+    assert calls
+    for call in calls:
+        assert call.domain == HASS_DOMAIN
+        assert call.service == SERVICE_TURN_OFF
+        assert call.data["entity_id"] == common.ENT_SWITCH
 
 
 @pytest.mark.parametrize(

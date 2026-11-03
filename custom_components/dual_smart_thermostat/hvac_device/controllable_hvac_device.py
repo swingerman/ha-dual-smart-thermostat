@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from contextlib import asynccontextmanager
+from datetime import timedelta
 import logging
 
 from homeassistant.components.climate import HVACAction, HVACMode
@@ -134,6 +135,10 @@ class ControlableHVACDevice(ABC):
     @HVACActionReason.setter
     def HVACActionReason(self, hvac_action_reason: HVACActionReason):
         self._hvac_action_reason = hvac_action_reason
+
+    def min_cycle_hold(self) -> timedelta | None:
+        """How long to wait before an emergency stop is allowed; None = stop now."""
+        return None
 
     async def async_turn_off_unless_used(self, in_use: set[str]) -> None:
         """Turn off, unless an entity we own is in use by the active device.

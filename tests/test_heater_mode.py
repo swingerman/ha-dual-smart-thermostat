@@ -962,11 +962,13 @@ async def test_sensor_unknown_secure_heater_off_outside_stale_duration(
     )
     await hass.async_block_till_done()
 
-    assert len(calls) == 1
-    call = calls[0]
-    assert call.domain == HASS_DOMAIN
-    assert call.service == SERVICE_TURN_OFF
-    assert call.data["entity_id"] == common.ENT_SWITCH
+    # Unavailable stops at once and the timer repeats it: the mock switch never
+    # turns off. What matters is that it was only ever turned off.
+    assert calls
+    for call in calls:
+        assert call.domain == HASS_DOMAIN
+        assert call.service == SERVICE_TURN_OFF
+        assert call.data["entity_id"] == common.ENT_SWITCH
 
     # Turns back on if sensor is restored
     calls = setup_switch(hass, False)
@@ -1056,6 +1058,147 @@ async def test_sensor_restores_after_state_changes(
         hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_ACTION_REASON)
         == HVACActionReason.NONE
     )
+
+
+@pytest.mark.parametrize("sensor_state", [STATE_UNAVAILABLE, STATE_UNKNOWN])
+async def test_sensor_unavailable_secure_heater_off_at_once(
+    hass: HomeAssistant, sensor_state, setup_comp_heat  # noqa: F811
+) -> None:
+    """Test a sensor going unavailable turns the heater off, with no stale delay."""
+    # Given
+    setup_sensor(hass, 28)
+    await common.async_set_temperature(hass, 30)
+    calls = setup_switch(hass, True)
+    await hass.async_block_till_done()
+
+    # When
+    hass.states.async_set(common.ENT_SENSOR, sensor_state)
+    await hass.async_block_till_done()
+
+    # Then
+    assert len(calls) == 1
+    call = calls[0]
+    assert call.domain == HASS_DOMAIN
+    assert call.service == SERVICE_TURN_OFF
+    assert call.data["entity_id"] == common.ENT_SWITCH
+    assert (
+        hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_ACTION_REASON)
+        == HVACActionReasonInternal.TEMPERATURE_SENSOR_STALLED
+    )
+
+    # Turns back on if sensor is restored
+    calls = setup_switch(hass, False)
+    setup_sensor(hass, 19)
+    await hass.async_block_till_done()
+
+    assert len(calls) == 1
+    call = calls[0]
+    assert call.domain == HASS_DOMAIN
+    assert call.service == SERVICE_TURN_ON
+    assert call.data["entity_id"] == common.ENT_SWITCH
+
+
+async def _setup_min_cycle_heater(hass: HomeAssistant, sensor: int | None) -> str:
+    """A real input_boolean heater, min cycle 60 s, no sensor_stale_duration."""
+    heater = "input_boolean.test"
+    assert await async_setup_component(
+        hass, input_boolean.DOMAIN, {"input_boolean": {"test": None}}
+    )
+    if sensor is not None:
+        setup_sensor(hass, sensor)
+    else:
+        hass.states.async_set(common.ENT_SENSOR, STATE_UNKNOWN)
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "heater": heater,
+                "target_sensor": common.ENT_SENSOR,
+                "initial_hvac_mode": HVACMode.HEAT,
+                "min_cycle_duration": timedelta(seconds=60),
+            }
+        },
+    )
+    await hass.async_block_till_done()
+    return heater
+
+
+async def _tick(hass: HomeAssistant, freezer: FrozenDateTimeFactory, seconds: int):
+    freezer.tick(timedelta(seconds=seconds))
+    common.async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+
+
+@pytest.mark.parametrize("expected_lingering_timers", [True])
+@pytest.mark.parametrize("sensor_state", [STATE_UNAVAILABLE, STATE_UNKNOWN])
+async def test_sensor_unavailable_stop_waits_for_min_cycle(
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+    setup_comp_1,  # noqa: F811
+    sensor_state,
+) -> None:
+    """Unavailable sensor: a blip inside min cycle stops nothing, a long one does."""
+    hass.config.units = METRIC_SYSTEM
+    heater = await _setup_min_cycle_heater(hass, 18)
+    await common.async_set_temperature(hass, 23)
+    await hass.async_block_till_done()
+    assert hass.states.get(heater).state == STATE_ON
+
+    # gone for good: stopped once the min cycle has elapsed, with the reason
+    await _tick(hass, freezer, 5)
+    hass.states.async_set(common.ENT_SENSOR, sensor_state)
+    await hass.async_block_till_done()
+    assert hass.states.get(heater).state == STATE_ON
+    await _tick(hass, freezer, 30)
+    assert hass.states.get(heater).state == STATE_ON
+    await _tick(hass, freezer, 31)
+    assert hass.states.get(heater).state == STATE_OFF
+    assert (
+        hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_ACTION_REASON)
+        == HVACActionReasonInternal.TEMPERATURE_SENSOR_STALLED
+    )
+
+    # recovery resumes control
+    await _tick(hass, freezer, 61)
+    setup_sensor(hass, 18)
+    await hass.async_block_till_done()
+    assert hass.states.get(heater).state == STATE_ON
+
+    # blip: unavailable, then back inside the min cycle -> never stopped
+    hass.states.async_set(common.ENT_SENSOR, sensor_state)
+    await hass.async_block_till_done()
+    assert hass.states.get(heater).state == STATE_ON
+    await _tick(hass, freezer, 5)
+    setup_sensor(hass, 18)
+    await hass.async_block_till_done()
+    await _tick(hass, freezer, 120)  # the cancelled wait must not fire
+    assert hass.states.get(heater).state == STATE_ON
+    assert (
+        hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_ACTION_REASON)
+        != HVACActionReasonInternal.TEMPERATURE_SENSOR_STALLED
+    )
+
+
+@pytest.mark.parametrize("expected_lingering_timers", [True])
+async def test_sensor_unknown_at_startup_does_nothing(
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+    setup_comp_1,  # noqa: F811
+) -> None:
+    """Sensor unknown at startup: no turn-off, no turn-on; first reading controls."""
+    hass.config.units = METRIC_SYSTEM
+    heater = await _setup_min_cycle_heater(hass, None)
+    assert hass.states.get(heater).state == STATE_OFF
+    await common.async_set_temperature(hass, 23)
+    await _tick(hass, freezer, 120)
+    assert hass.states.get(heater).state == STATE_OFF
+
+    setup_sensor(hass, 18)
+    await hass.async_block_till_done()
+    assert hass.states.get(heater).state == STATE_ON
 
 
 async def test_running_when_hvac_mode_is_off(

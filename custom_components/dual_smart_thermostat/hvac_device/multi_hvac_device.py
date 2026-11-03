@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+from datetime import timedelta
 import logging
 from typing import Callable
 
@@ -227,6 +228,10 @@ class MultiHvacDevice(HVACDevice, ControlableHVACDevice):
 
     async def async_turn_on(self):
         await self.async_control_hvac(force=True)
+
+    def min_cycle_hold(self) -> timedelta | None:
+        holds = [h for d in self.hvac_devices if (h := d.min_cycle_hold())]
+        return min(holds) if holds else None
 
     async def async_turn_off(self):
         await self.async_turn_off_all(time=None)
