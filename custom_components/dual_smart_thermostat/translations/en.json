@@ -318,7 +318,7 @@
                     "max_floor_temp": "Maximum allowed floor temperature for protection. Floor heating will turn off when this temperature is reached, regardless of room temperature, to prevent damage to flooring materials. (Default: 28°C)",
                     "min_floor_temp": "Minimum floor temperature to maintain. Floor heating will activate when floor temperature drops below this value, providing freeze protection for the floor heating system. (Default: 5°C)",
                     "floor_tolerance": "Hysteresis for every floor threshold (min, max, comfort). A limit engages at its threshold and releases only after the floor moves this far back, preventing rapid on/off cycling. 0 keeps the legacy behaviour. (Default: 0)",
-                    "comfort_floor_temp": "Keep heating while the floor is below this temperature, even after the room target is reached. Leave empty to disable. The max floor temperature always wins.",
+                    "comfort_floor_temp": "Keep heating while the floor is below this temperature, even after the room target is reached. Leave empty to disable. The max floor temperature always wins. Heat mode only (not heat/cool or heat pump).",
                     "comfort_floor_max_air_overshoot": "How far the room may rise above its target while heating for floor comfort. (Default: 1.0)"
                 }
             },
@@ -829,7 +829,7 @@
                     "max_floor_temp": "Maximum allowed floor temperature for protection. Prevents damage to flooring materials. (Default: 28°C)",
                     "min_floor_temp": "Minimum floor temperature to maintain. Provides freeze protection for the floor heating system. (Default: 5°C)",
                     "floor_tolerance": "Hysteresis for every floor threshold (min, max, comfort). A limit engages at its threshold and releases only after the floor moves this far back, preventing rapid on/off cycling. 0 keeps the legacy behaviour. (Default: 0)",
-                    "comfort_floor_temp": "Keep heating while the floor is below this temperature, even after the room target is reached. Leave empty to disable. The max floor temperature always wins.",
+                    "comfort_floor_temp": "Keep heating while the floor is below this temperature, even after the room target is reached. Leave empty to disable. The max floor temperature always wins. Heat mode only (not heat/cool or heat pump).",
                     "comfort_floor_max_air_overshoot": "How far the room may rise above its target while heating for floor comfort. (Default: 1.0)"
                 }
             },

@@ -622,7 +622,7 @@ preset_name:
 
 ### Comfort floor temperature
 
-Keeps the floor warm even when the room has already reached its target: while the floor is below `comfort_floor_temp` the heater keeps running, as long as the room stays within `comfort_floor_max_air_overshoot` (default `1.0`) of its target. `max_floor_temp` and open windows always win. When comfort floor is why the heater runs, `hvac_action_reason` is `comfort_floor`. Applies to heater and heater + secondary heater setups in `heat` mode, including a climate entity as the heater with `control_style: on_off`. With `control_style: setpoint` the climate device regulates the room to the pushed target itself, so comfort floor does not apply there (floor limits and `floor_tolerance` still do).
+Keeps the floor warm even when the room has already reached its target: while the floor is below `comfort_floor_temp` the heater keeps running, as long as the room stays within `comfort_floor_max_air_overshoot` (default `1.0`) of its target. `max_floor_temp` and open windows always win. When comfort floor is why the heater runs, `hvac_action_reason` is `comfort_floor`. Applies in `heat` mode only, to heater and heater + secondary heater setups (comfort floor uses the first stage only, never the secondary heater) and a climate entity as the heater with `control_style: on_off`. It is ignored in `heat_cool` mode and for heat pumps. With `control_style: setpoint` the climate device regulates the room to the pushed target itself, so comfort floor does not apply there (floor limits and `floor_tolerance` still do).
 
 ```yaml
 floor_sensor: sensor.floor_temp

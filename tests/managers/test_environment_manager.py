@@ -896,6 +896,21 @@ class TestFloorTolerance:
             False,
         ]
 
+    def test_preset_limit_change_starts_unlatched(self, hass):
+        env = _floor_env(hass, **{CONF_MAX_FLOOR_TEMP: 28, CONF_FLOOR_TOLERANCE: 0.5})
+        env.cur_floor_temp = 28
+        assert env.is_floor_hot is True
+        env.cur_floor_temp = 27.8
+        assert env.is_floor_hot is True  # latched inside the band
+
+        _apply(env, "a", **{CONF_MAX_FLOOR_TEMP: 30})
+        assert env.is_floor_hot is False
+
+        # back to 28: fresh, 27.8 is below the limit
+        _apply(env)
+        assert env.max_floor_temp == 28
+        assert env.is_floor_hot is False
+
 
 class TestComfortFloorDemand:
     """comfort_floor_temp demand, bounded by the air overshoot."""
@@ -911,6 +926,24 @@ class TestComfortFloorDemand:
         )
         env.target_temp = 20
         return env
+
+    def test_air_cap_starts_fresh_after_floor_was_comfortable(self, hass):
+        env = self._env(hass)
+        env.cur_floor_temp = 22
+        env.cur_temp = 21.0  # cap (21) reached: latched
+        assert env.is_comfort_floor_demand() is False
+        env.cur_floor_temp = 25  # floor comfortable: comfort off
+        assert env.is_comfort_floor_demand() is False
+        # air now inside the old cap band; a fresh cap does not block
+        env.cur_temp = 20.7
+        env.cur_floor_temp = 22
+        assert env.is_comfort_floor_demand() is True
+
+    def test_explicit_none_overshoot_uses_default(self, hass):
+        env = self._env(hass, **{CONF_COMFORT_FLOOR_MAX_AIR_OVERSHOOT: None})
+        env.cur_floor_temp = 22
+        env.cur_temp = 20.9  # below default cap 21
+        assert env.is_comfort_floor_demand() is True
 
     def test_disabled_when_unset(self, hass):
         env = _floor_env(hass)

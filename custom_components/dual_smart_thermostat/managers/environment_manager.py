@@ -145,9 +145,9 @@ class EnvironmentManager(StateManager):
         self._max_floor_temp = config.get(CONF_MAX_FLOOR_TEMP)
         self._min_floor_temp = config.get(CONF_MIN_FLOOR_TEMP)
         self._comfort_floor_temp = config.get(CONF_COMFORT_FLOOR_TEMP)
-        self._comfort_floor_max_air_overshoot = config.get(
-            CONF_COMFORT_FLOOR_MAX_AIR_OVERSHOOT,
-            DEFAULT_COMFORT_FLOOR_MAX_AIR_OVERSHOOT,
+        overshoot = config.get(CONF_COMFORT_FLOOR_MAX_AIR_OVERSHOOT)
+        self._comfort_floor_max_air_overshoot = (
+            DEFAULT_COMFORT_FLOOR_MAX_AIR_OVERSHOOT if overshoot is None else overshoot
         )
         # One tolerance for every floor threshold; 0 = legacy hard comparisons.
         self._floor_tolerance = config.get(CONF_FLOOR_TOLERANCE) or 0
@@ -675,12 +675,12 @@ class EnvironmentManager(StateManager):
 
         Safety limits are left to callers (is_floor_hot / openings win).
         """
-        if not self._floor_threshold_engaged(
+        target_temp = getattr(self, target_attr)
+        if target_temp is None or not self._floor_threshold_engaged(
             "comfort", self._comfort_floor_temp, upper=False
         ):
-            return False
-        target_temp = getattr(self, target_attr)
-        if target_temp is None:
+            # Not comfort heating: the air cap starts fresh next time.
+            self._engaged_thresholds.pop("comfort_air_cap", None)
             return False
         cold_tolerance, _ = self._get_active_tolerance_for_mode(target_attr)
         # Air cap latched with the air cold tolerance, like normal heating.

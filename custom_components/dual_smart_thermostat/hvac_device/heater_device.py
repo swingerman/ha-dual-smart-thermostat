@@ -65,9 +65,10 @@ class HeaterDevice(GenericHVACDevice):
         )
 
     def _is_comfort_floor_demand(self) -> bool:
-        # ponytail: a setpoint-style child regulates the air itself; raising
-        # the pushed setpoint while the floor is cold would add comfort there.
-        if self.port.self_regulating:
+        # ponytail: heat mode only. A setpoint-style child regulates the air
+        # itself (raising the pushed setpoint would add comfort there), and
+        # heat_cool starts the heater from its own range check, not this one.
+        if self.port.self_regulating or self.features.is_range_mode:
             return False
         return self.environment.is_comfort_floor_demand(self.target_env_attr)
 
