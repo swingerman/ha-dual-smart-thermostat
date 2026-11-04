@@ -33,7 +33,12 @@
       "same_heater_sensor": "Ohrievač a senzor teploty nemôžu byť rovnaká entita",
       "same_heater_cooler": "Ohrievač a chladič nemôžu byť rovnaká entita",
       "aux_heater_timeout_required": "Časový limit pomocného ohrievača je vyžadovaný, keď je pomocný ohrievač nakonfigurovaný",
-      "aux_heater_entity_required": "Entita pomocného ohrievača je vyžadovaná, keď je nakonfigurovaný časový limit"
+      "aux_heater_entity_required": "Entita pomocného ohrievača je vyžadovaná, keď je nakonfigurovaný časový limit",
+      "sensor_required": "Vyberte senzor teploty alebo použite entitu climate ako zariadenie (potom sa použije jeho vlastná teplota)",
+      "setpoint_heat_pump_unsupported": "Riadenie podľa nastavenej hodnoty nie je podporované pre tepelné čerpadlo typu climate",
+      "setpoint_heat_cool_shared_climate": "Riadenie podľa nastavenej hodnoty nedokáže vykurovať/chladiť, ak je jedna entita climate zároveň ohrievačom aj chladičom",
+      "setpoint_needs_heater_or_cooler": "Riadenie podľa nastavenej hodnoty vyžaduje, aby ohrievač alebo chladič bol entitou climate",
+      "self_controlled": "Termostat nemôže použiť vlastnú entitu ako jedno zo svojich zariadení"
     },
     "step": {
       "user": {
@@ -658,6 +663,22 @@
           "max_temp": "Maximálny teplotný limit pre termostat. Používatelia nebudú môcť nastaviť cieľovú teplotu nad túto hodnotu.",
           "target_temp": "Počiatočná cieľová teplota pri prvej konfigurácii termostatu. Toto bude predvolené nastavenie teploty."
         }
+      },
+      "climate_control": {
+        "title": "Riadenie entity climate",
+        "description": "Jedno alebo viac zariadení sú entity climate. Vyberte, ako ich termostat riadi.",
+        "data": {
+          "control_style": "Štýl riadenia",
+          "heater_setpoint_offset": "Posun nastavenej hodnoty ohrievača",
+          "cooler_setpoint_offset": "Posun nastavenej hodnoty chladiča",
+          "follow_device_changes": "Sledovať zmeny vykonané na zariadení"
+        },
+        "data_description": {
+          "control_style": "Zap./vyp.: tento termostat rozhoduje, kedy zariadenie beží, a zapína ho a vypína. Nastavená hodnota: zariadenie ostáva zapnuté a reguluje sa samo; tento termostat mu zrkadlí cieľ, režim, predvoľby a otvory.",
+          "heater_setpoint_offset": "Pripočíta sa k cieľovej teplote odoslanej do ohrievača. Použite, ak vlastný senzor zariadenia meria inak ako senzor v miestnosti. Predvolene 0.",
+          "cooler_setpoint_offset": "Pripočíta sa k cieľovej teplote odoslanej do chladiča (zvyčajne záporná, aby zariadenie ďalej chladilo). Predvolene 0.",
+          "follow_device_changes": "Keď zmeníte zariadenie diaľkovým ovládačom alebo aplikáciou, tento termostat to prevezme ako nové nastavenie (režim, cieľ, rýchlosť ventilátora, vypnutie). Režim, pre ktorý termostat nemá rolu, ho vypne a zariadenie nechá na pokoji. Vypnite, aby termostat zostal pod kontrolou: pri ďalšom riadiacom cykle zariadenie vráti späť. Zariadenia hlásiace predpokladaný stav sa nikdy nesledujú."
+        }
       }
     }
   },
@@ -992,7 +1013,29 @@
           "activity_temp": "Cieľová teplota pre predvoľbu Aktivita. Akceptuje statickú hodnotu (napr. 23), odkaz na entitu alebo šablónu.",
           "boost_temp": "Cieľová teplota pre predvoľbu Boost. Akceptuje statickú hodnotu (napr. 25), odkaz na entitu alebo šablónu."
         }
+      },
+      "climate_control_options": {
+        "title": "Riadenie entity climate",
+        "description": "Upravte, ako sa riadia zariadenia typu entita climate.",
+        "data": {
+          "control_style": "Štýl riadenia",
+          "heater_setpoint_offset": "Posun nastavenej hodnoty ohrievača",
+          "cooler_setpoint_offset": "Posun nastavenej hodnoty chladiča",
+          "follow_device_changes": "Sledovať zmeny vykonané na zariadení"
+        },
+        "data_description": {
+          "control_style": "Zap./vyp.: tento termostat zariadenie zapína a vypína. Nastavená hodnota: zariadenie sa reguluje samo a zrkadlí cieľ tohto termostatu.",
+          "heater_setpoint_offset": "Pripočíta sa k cieľovej teplote odoslanej do ohrievača. Predvolene 0.",
+          "cooler_setpoint_offset": "Pripočíta sa k cieľovej teplote odoslanej do chladiča. Predvolene 0.",
+          "follow_device_changes": "Keď zmeníte zariadenie diaľkovým ovládačom alebo aplikáciou, tento termostat to prevezme ako nové nastavenie (režim, cieľ, rýchlosť ventilátora, vypnutie). Režim, pre ktorý termostat nemá rolu, ho vypne a zariadenie nechá na pokoji. Vypnite, aby termostat zostal pod kontrolou: pri ďalšom riadiacom cykle zariadenie vráti späť. Zariadenia hlásiace predpokladaný stav sa nikdy nesledujú."
+        }
       }
+    },
+    "error": {
+      "setpoint_heat_pump_unsupported": "Riadenie podľa nastavenej hodnoty nie je podporované pre tepelné čerpadlo typu climate",
+      "setpoint_heat_cool_shared_climate": "Riadenie podľa nastavenej hodnoty nedokáže vykurovať/chladiť, ak je jedna entita climate zároveň ohrievačom aj chladičom",
+      "setpoint_needs_heater_or_cooler": "Riadenie podľa nastavenej hodnoty vyžaduje, aby ohrievač alebo chladič bol entitou climate",
+      "self_controlled": "Termostat nemôže použiť vlastnú entitu ako jedno zo svojich zariadení"
     }
   },
   "selector": {
@@ -1013,6 +1056,12 @@
         "fan_only": "Iba ventilátor",
         "heat_cool": "Režim vykurovanie/chladenie",
         "dry": "Režim sušenia"
+      }
+    },
+    "control_style": {
+      "options": {
+        "on_off": "Zap./vyp. (rozhoduje tento termostat)",
+        "setpoint": "Nastavená hodnota (zariadenie sa reguluje samo)"
       }
     }
   },

@@ -47,6 +47,12 @@
         "heat_cool": "Modo aquecimento/arrefecimento",
         "dry": "Modo de desumidificação"
       }
+    },
+    "control_style": {
+      "options": {
+        "on_off": "Ligar/desligar (este termóstato decide)",
+        "setpoint": "Ponto de ajuste (o dispositivo regula-se sozinho)"
+      }
     }
   },
   "services": {
@@ -66,7 +72,12 @@
       "same_heater_sensor": "O aquecedor e o sensor de temperatura não podem ser a mesma entidade",
       "same_heater_cooler": "O aquecedor e o arrefecedor não podem ser a mesma entidade",
       "aux_heater_timeout_required": "O tempo limite do aquecedor auxiliar é obrigatório quando o aquecedor auxiliar está configurado",
-      "aux_heater_entity_required": "A entidade do aquecedor auxiliar é obrigatória quando o tempo limite está configurado"
+      "aux_heater_entity_required": "A entidade do aquecedor auxiliar é obrigatória quando o tempo limite está configurado",
+      "sensor_required": "Escolha um sensor de temperatura ou utilize uma entidade climate como dispositivo (a sua própria temperatura é então utilizada)",
+      "setpoint_heat_pump_unsupported": "O controlo por ponto de ajuste não é suportado para uma bomba de calor climate",
+      "setpoint_heat_cool_shared_climate": "O controlo por ponto de ajuste não consegue aquecer/arrefecer quando uma entidade climate é simultaneamente aquecedor e arrefecedor",
+      "setpoint_needs_heater_or_cooler": "O controlo por ponto de ajuste requer que o aquecedor ou o arrefecedor seja uma entidade climate",
+      "self_controlled": "Um termóstato não pode utilizar a sua própria entidade como um dos seus dispositivos"
     },
     "step": {
       "user": {
@@ -691,6 +702,22 @@
           "max_temp": "Limite de temperatura máxima para o termóstato. Os utilizadores não poderão definir a temperatura alvo acima deste valor.",
           "target_temp": "Temperatura alvo inicial quando o termóstato é configurado pela primeira vez. Esta será a definição de temperatura predefinida."
         }
+      },
+      "climate_control": {
+        "title": "Controlo de entidade climate",
+        "description": "Um ou mais dispositivos são entidades climate. Escolha como o termóstato os controla.",
+        "data": {
+          "control_style": "Estilo de controlo",
+          "heater_setpoint_offset": "Desvio do ponto de ajuste do aquecedor",
+          "cooler_setpoint_offset": "Desvio do ponto de ajuste do arrefecedor",
+          "follow_device_changes": "Seguir alterações feitas no dispositivo"
+        },
+        "data_description": {
+          "control_style": "Ligar/desligar: este termóstato decide quando o dispositivo funciona e liga-o e desliga-o. Ponto de ajuste: o dispositivo fica ligado e regula-se sozinho; este termóstato replica o alvo, o modo, as predefinições e as aberturas para o dispositivo.",
+          "heater_setpoint_offset": "Somado à temperatura alvo enviada ao dispositivo aquecedor. Use quando o sensor do dispositivo lê de forma diferente do sensor da divisão. Predefinição 0.",
+          "cooler_setpoint_offset": "Somado à temperatura alvo enviada ao dispositivo arrefecedor (normalmente negativo, para o dispositivo continuar a arrefecer). Predefinição 0.",
+          "follow_device_changes": "Quando altera o dispositivo com o comando ou a app, este termóstato adota isso como a nova definição (modo, alvo, velocidade da ventoinha, desligado). Um modo para o qual este termóstato não tem função desliga-o e deixa o dispositivo em paz. Desative para manter o termóstato no comando: este volta a repor o dispositivo na execução de controlo seguinte. Dispositivos que reportam um estado assumido nunca são seguidos."
+        }
       }
     }
   },
@@ -1025,7 +1052,29 @@
           "activity_temp": "Temperatura alvo para a predefinição Atividade. Aceita um valor estático (por exemplo, 23), uma referência a entidade ou um template.",
           "boost_temp": "Temperatura alvo para a predefinição Reforço. Aceita um valor estático (por exemplo, 25), uma referência a entidade ou um template."
         }
+      },
+      "climate_control_options": {
+        "title": "Controlo de entidade climate",
+        "description": "Modifique como os dispositivos de entidade climate são controlados.",
+        "data": {
+          "control_style": "Estilo de controlo",
+          "heater_setpoint_offset": "Desvio do ponto de ajuste do aquecedor",
+          "cooler_setpoint_offset": "Desvio do ponto de ajuste do arrefecedor",
+          "follow_device_changes": "Seguir alterações feitas no dispositivo"
+        },
+        "data_description": {
+          "control_style": "Ligar/desligar: este termóstato liga e desliga o dispositivo. Ponto de ajuste: o dispositivo regula-se sozinho e replica o alvo deste termóstato.",
+          "heater_setpoint_offset": "Somado à temperatura alvo enviada ao dispositivo aquecedor. Predefinição 0.",
+          "cooler_setpoint_offset": "Somado à temperatura alvo enviada ao dispositivo arrefecedor. Predefinição 0.",
+          "follow_device_changes": "Quando altera o dispositivo com o comando ou a app, este termóstato adota isso como a nova definição (modo, alvo, velocidade da ventoinha, desligado). Um modo para o qual este termóstato não tem função desliga-o e deixa o dispositivo em paz. Desative para manter o termóstato no comando: este volta a repor o dispositivo na execução de controlo seguinte. Dispositivos que reportam um estado assumido nunca são seguidos."
+        }
       }
+    },
+    "error": {
+      "setpoint_heat_pump_unsupported": "O controlo por ponto de ajuste não é suportado para uma bomba de calor climate",
+      "setpoint_heat_cool_shared_climate": "O controlo por ponto de ajuste não consegue aquecer/arrefecer quando uma entidade climate é simultaneamente aquecedor e arrefecedor",
+      "setpoint_needs_heater_or_cooler": "O controlo por ponto de ajuste requer que o aquecedor ou o arrefecedor seja uma entidade climate",
+      "self_controlled": "Um termóstato não pode utilizar a sua própria entidade como um dos seus dispositivos"
     }
   }
 }

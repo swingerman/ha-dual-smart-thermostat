@@ -47,6 +47,12 @@
         "heat_cool": "Fűtés/hűtés üzemmód",
         "dry": "Párátlanító üzemmód"
       }
+    },
+    "control_style": {
+      "options": {
+        "on_off": "Be/ki (a termosztát dönt)",
+        "setpoint": "Beállított érték (az eszköz maga szabályoz)"
+      }
     }
   },
   "services": {
@@ -66,7 +72,12 @@
       "same_heater_sensor": "A fűtés és a hőmérséklet-érzékelő nem lehet ugyanaz az entitás",
       "same_heater_cooler": "A fűtés és a hűtés nem lehet ugyanaz az entitás",
       "aux_heater_timeout_required": "Kiegészítő fűtés konfigurálásakor meg kell adni a kiegészítő fűtés időtúllépését",
-      "aux_heater_entity_required": "Az időtúllépés konfigurálásakor meg kell adni a kiegészítő fűtés entitását"
+      "aux_heater_entity_required": "Az időtúllépés konfigurálásakor meg kell adni a kiegészítő fűtés entitását",
+      "sensor_required": "Válasszon hőmérséklet-érzékelőt, vagy használjon klímaentitást eszközként (ekkor annak saját hőmérséklete kerül felhasználásra)",
+      "setpoint_heat_pump_unsupported": "A beállított érték szerinti vezérlés nem támogatott klíma hőszivattyúnál",
+      "setpoint_heat_cool_shared_climate": "A beállított érték szerinti vezérlés nem tud fűteni/hűteni, ha egy klímaentitás egyszerre fűtés és hűtés",
+      "setpoint_needs_heater_or_cooler": "A beállított érték szerinti vezérléshez a fűtésnek vagy a hűtésnek klímaentitásnak kell lennie",
+      "self_controlled": "A termosztát nem használhatja saját entitását eszközeként"
     },
     "step": {
       "user": {
@@ -691,6 +702,22 @@
           "max_temp": "A termosztát maximális hőmérséklet-határa. A felhasználók nem állíthatják a célhőmérsékletet ez fölé az érték fölé.",
           "target_temp": "A kezdeti célhőmérséklet a termosztát első konfigurálásakor. Ez lesz az alapértelmezett hőmérséklet-beállítás."
         }
+      },
+      "climate_control": {
+        "title": "Klímaentitás vezérlése",
+        "description": "Egy vagy több eszköz klímaentitás. Válassza ki, hogyan vezérelje azokat a termosztát.",
+        "data": {
+          "control_style": "Vezérlési mód",
+          "heater_setpoint_offset": "Fűtés beállított értékének eltolása",
+          "cooler_setpoint_offset": "Hűtés beállított értékének eltolása",
+          "follow_device_changes": "Az eszközön végzett változtatások követése"
+        },
+        "data_description": {
+          "control_style": "Be/ki: a termosztát dönti el, mikor működjön az eszköz, és ki-be kapcsolja. Beállított érték: az eszköz bekapcsolva marad és maga szabályoz; a termosztát átadja neki a célhőmérsékletet, az üzemmódot, az előbeállításokat és a nyitásokat.",
+          "heater_setpoint_offset": "A fűtőeszköznek küldött célhőmérséklethez hozzáadódik. Akkor használja, ha az eszköz saját érzékelője mást mutat, mint a szobai érzékelő. Alapértelmezés: 0.",
+          "cooler_setpoint_offset": "A hűtőeszköznek küldött célhőmérséklethez hozzáadódik (általában negatív, hogy az eszköz tovább hűtsön). Alapértelmezés: 0.",
+          "follow_device_changes": "Ha az eszközt távirányítóval vagy appal módosítja, a termosztát ezt veszi át új beállításként (üzemmód, célérték, ventilátorsebesség, kikapcsolás). Az az üzemmód, amelyhez a termosztátnak nincs szerepe, kikapcsolja a termosztátot, az eszközt pedig érintetlenül hagyja. Kikapcsolva a termosztát marad az irányító: a következő vezérlési ciklusban visszaállítja az eszközt. A feltételezett állapotot jelentő eszközöket soha nem követi."
+        }
       }
     }
   },
@@ -1025,7 +1052,29 @@
           "activity_temp": "Célhőmérséklet az Aktivitás előbeállításhoz. Statikus értéket (pl. 23), entitáshivatkozást vagy sablont fogad el.",
           "boost_temp": "Célhőmérséklet a Boost előbeállításhoz. Statikus értéket (pl. 25), entitáshivatkozást vagy sablont fogad el."
         }
+      },
+      "climate_control_options": {
+        "title": "Klímaentitás vezérlése",
+        "description": "Módosítsa, hogyan vezérlik a klímaentitás-eszközöket.",
+        "data": {
+          "control_style": "Vezérlési mód",
+          "heater_setpoint_offset": "Fűtés beállított értékének eltolása",
+          "cooler_setpoint_offset": "Hűtés beállított értékének eltolása",
+          "follow_device_changes": "Az eszközön végzett változtatások követése"
+        },
+        "data_description": {
+          "control_style": "Be/ki: a termosztát ki-be kapcsolja az eszközt. Beállított érték: az eszköz maga szabályoz, és követi a termosztát célértékét.",
+          "heater_setpoint_offset": "A fűtőeszköznek küldött célhőmérséklethez hozzáadódik. Alapértelmezés: 0.",
+          "cooler_setpoint_offset": "A hűtőeszköznek küldött célhőmérséklethez hozzáadódik. Alapértelmezés: 0.",
+          "follow_device_changes": "Ha az eszközt távirányítóval vagy appal módosítja, a termosztát ezt veszi át új beállításként (üzemmód, célérték, ventilátorsebesség, kikapcsolás). Az az üzemmód, amelyhez a termosztátnak nincs szerepe, kikapcsolja a termosztátot, az eszközt pedig érintetlenül hagyja. Kikapcsolva a termosztát marad az irányító: a következő vezérlési ciklusban visszaállítja az eszközt. A feltételezett állapotot jelentő eszközöket soha nem követi."
+        }
       }
+    },
+    "error": {
+      "setpoint_heat_pump_unsupported": "A beállított érték szerinti vezérlés nem támogatott klíma hőszivattyúnál",
+      "setpoint_heat_cool_shared_climate": "A beállított érték szerinti vezérlés nem tud fűteni/hűteni, ha egy klímaentitás egyszerre fűtés és hűtés",
+      "setpoint_needs_heater_or_cooler": "A beállított érték szerinti vezérléshez a fűtésnek vagy a hűtésnek klímaentitásnak kell lennie",
+      "self_controlled": "A termosztát nem használhatja saját entitását eszközeként"
     }
   }
 }

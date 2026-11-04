@@ -6,6 +6,32 @@ Test script to verify config flow translations are complete.
 import json
 from pathlib import Path
 
+import pytest
+
+TRANSLATIONS_DIR = (
+    Path(__file__).parents[2] / "custom_components/dual_smart_thermostat/translations"
+)
+# Derived from disk so new languages and new keys are covered automatically.
+OTHER_LANGUAGES = sorted(
+    p.name for p in TRANSLATIONS_DIR.glob("*.json") if p.name != "en.json"
+)
+
+
+def _leaf_keys(node, prefix=""):
+    if not isinstance(node, dict):
+        return {prefix}
+    return {k for key, v in node.items() for k in _leaf_keys(v, f"{prefix}{key}.")}
+
+
+@pytest.mark.parametrize("filename", OTHER_LANGUAGES)
+def test_translation_keys_match_english(filename):
+    """Every language file has exactly the keys of en.json."""
+    en = _leaf_keys(json.loads((TRANSLATIONS_DIR / "en.json").read_text()))
+    tr = _leaf_keys(json.loads((TRANSLATIONS_DIR / filename).read_text()))
+    assert not (
+        en - tr or tr - en
+    ), f"{filename}: missing {sorted(en - tr)}; extra {sorted(tr - en)}"
+
 
 def test_config_flow_translations():
     """Test that all config flow steps have proper translations."""

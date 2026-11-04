@@ -47,6 +47,12 @@
         "heat_cool": "Varme/kjøle-modus",
         "dry": "Tørkemodus"
       }
+    },
+    "control_style": {
+      "options": {
+        "on_off": "Av/på (termostaten bestemmer)",
+        "setpoint": "Settpunkt (enheten regulerer seg selv)"
+      }
     }
   },
   "services": {
@@ -66,7 +72,12 @@
       "same_heater_sensor": "Varmeapparat og temperatursensor kan ikke være samme enhet",
       "same_heater_cooler": "Varmeapparat og kjøler kan ikke være samme enhet",
       "aux_heater_timeout_required": "Tidsavbrudd for tilleggsvarmeapparat er påkrevd når tilleggsvarmeapparat er konfigurert",
-      "aux_heater_entity_required": "Enhet for tilleggsvarmeapparat er påkrevd når tidsavbrudd er konfigurert"
+      "aux_heater_entity_required": "Enhet for tilleggsvarmeapparat er påkrevd når tidsavbrudd er konfigurert",
+      "sensor_required": "Velg en temperatursensor, eller bruk en klimaentitet som enhet (dens egen temperatur brukes da)",
+      "setpoint_heat_pump_unsupported": "Settpunktstyring støttes ikke for en klima-varmepumpe",
+      "setpoint_heat_cool_shared_climate": "Settpunktstyring kan ikke gjøre varme/kjøling når én klimaentitet er både varmeapparat og kjøler",
+      "setpoint_needs_heater_or_cooler": "Settpunktstyring krever at varmeapparatet eller kjøleren er en klimaentitet",
+      "self_controlled": "En termostat kan ikke bruke sin egen entitet som en av enhetene sine"
     },
     "step": {
       "user": {
@@ -691,6 +702,22 @@
           "max_temp": "Maksimal temperaturgrense for termostaten. Brukere kan ikke sette måltemperaturen over denne verdien.",
           "target_temp": "Innledende måltemperatur når termostaten konfigureres for første gang. Dette blir standardtemperaturinnstillingen."
         }
+      },
+      "climate_control": {
+        "title": "Styring av klimaentitet",
+        "description": "Én eller flere enheter er klimaentiteter. Velg hvordan termostaten styrer dem.",
+        "data": {
+          "control_style": "Styringsmåte",
+          "heater_setpoint_offset": "Settpunktforskyvning for varme",
+          "cooler_setpoint_offset": "Settpunktforskyvning for kjøling",
+          "follow_device_changes": "Følg endringer gjort på enheten"
+        },
+        "data_description": {
+          "control_style": "Av/på: termostaten bestemmer når enheten skal gå og slår den av og på. Settpunkt: enheten står på og regulerer seg selv; termostaten speiler måltemperatur, modus, forhåndsinnstillinger og åpninger til den.",
+          "heater_setpoint_offset": "Legges til måltemperaturen som sendes til varmeenheten. Bruk det når enhetens egen sensor viser noe annet enn romsensoren. Standard 0.",
+          "cooler_setpoint_offset": "Legges til måltemperaturen som sendes til kjøleenheten (vanligvis negativ, slik at enheten fortsetter å kjøle). Standard 0.",
+          "follow_device_changes": "Når du endrer enheten med fjernkontroll eller app, tar termostaten det som ny innstilling (modus, mål, viftehastighet, av). En modus termostaten ikke har noen rolle for, slår den av og lar enheten være. Slå av for å la termostaten styre: den setter da enheten tilbake ved neste styringskjøring. Enheter som rapporterer antatt tilstand følges aldri."
+        }
       }
     }
   },
@@ -1025,7 +1052,29 @@
           "activity_temp": "Måltemperatur for Aktivitet-forhåndsinnstilling. Godtar statisk verdi (f.eks. 23), enhetsreferanse eller mal.",
           "boost_temp": "Måltemperatur for Boost-forhåndsinnstilling. Godtar statisk verdi (f.eks. 25), enhetsreferanse eller mal."
         }
+      },
+      "climate_control_options": {
+        "title": "Styring av klimaentitet",
+        "description": "Endre hvordan klimaentitetsenheter styres.",
+        "data": {
+          "control_style": "Styringsmåte",
+          "heater_setpoint_offset": "Settpunktforskyvning for varme",
+          "cooler_setpoint_offset": "Settpunktforskyvning for kjøling",
+          "follow_device_changes": "Følg endringer gjort på enheten"
+        },
+        "data_description": {
+          "control_style": "Av/på: termostaten slår enheten av og på. Settpunkt: enheten regulerer seg selv og speiler termostatens mål.",
+          "heater_setpoint_offset": "Legges til måltemperaturen som sendes til varmeenheten. Standard 0.",
+          "cooler_setpoint_offset": "Legges til måltemperaturen som sendes til kjøleenheten. Standard 0.",
+          "follow_device_changes": "Når du endrer enheten med fjernkontroll eller app, tar termostaten det som ny innstilling (modus, mål, viftehastighet, av). En modus termostaten ikke har noen rolle for, slår den av og lar enheten være. Slå av for å la termostaten styre: den setter da enheten tilbake ved neste styringskjøring. Enheter som rapporterer antatt tilstand følges aldri."
+        }
       }
+    },
+    "error": {
+      "setpoint_heat_pump_unsupported": "Settpunktstyring støttes ikke for en klima-varmepumpe",
+      "setpoint_heat_cool_shared_climate": "Settpunktstyring kan ikke gjøre varme/kjøling når én klimaentitet er både varmeapparat og kjøler",
+      "setpoint_needs_heater_or_cooler": "Settpunktstyring krever at varmeapparatet eller kjøleren er en klimaentitet",
+      "self_controlled": "En termostat kan ikke bruke sin egen entitet som en av enhetene sine"
     }
   }
 }
