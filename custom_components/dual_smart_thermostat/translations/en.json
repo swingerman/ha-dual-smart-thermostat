@@ -405,7 +405,7 @@
                 "title": "Fan Configuration",
                 "description": "Configure fan control and settings.",
                 "data": {
-                    "fan": "Fan switch",
+                    "fan": "Fan",
                     "fan_mode": "Fan mode",
                     "fan_on_with_ac": "Fan with AC",
                     "fan_on_with_heater": "Fan with heater",
@@ -414,7 +414,7 @@
                     "fan_hot_tolerance_toggle": "Fan tolerance toggle"
                 },
                 "data_description": {
-                    "fan": "Entity ID for fan switch. Used to control air circulation and improve temperature distribution throughout the space.",
+                    "fan": "Fan entity. Pick a fan entity with speeds (percentage or preset modes) to enable fan speed control, or a switch for simple on/off air circulation.",
                     "fan_mode": "Enable fan as a separate HVAC mode. When enabled, FAN mode becomes available in addition to heat, cool, and auto modes, allowing fan-only operation.",
                     "fan_on_with_ac": "Automatically turn on fan when cooling (AC) is active. Improves cooling efficiency and air circulation during cooling cycles.",
                     "fan_on_with_heater": "Automatically run the fan while the heater or heat pump is active (e.g. when the fan is the unit's air handler). When off, the fan only runs in fan mode.",
@@ -824,7 +824,7 @@
                 "title": "Fan Options",
                 "description": "Modify fan control settings.",
                 "data": {
-                    "fan": "Fan switch",
+                    "fan": "Fan",
                     "fan_mode": "Fan mode",
                     "fan_on_with_ac": "Fan with AC",
                     "fan_on_with_heater": "Fan with heater",
@@ -833,7 +833,7 @@
                     "fan_hot_tolerance_toggle": "Fan tolerance toggle"
                 },
                 "data_description": {
-                    "fan": "Entity ID for fan switch. Used to control air circulation and improve temperature distribution.",
+                    "fan": "Fan entity. Pick a fan entity with speeds (percentage or preset modes) to enable fan speed control, or a switch for simple on/off air circulation.",
                     "fan_mode": "Enable fan as a separate HVAC mode. Allows fan-only operation.",
                     "fan_on_with_ac": "Automatically turn on fan when cooling (AC) is active. Improves cooling efficiency.",
                     "fan_on_with_heater": "Automatically run the fan while the heater or heat pump is active. When off, the fan only runs in fan mode.",

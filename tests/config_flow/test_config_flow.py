@@ -356,6 +356,8 @@ async def test_preset_skip_logic():
         ("switch.f", True),
         ("input_boolean.f", True),
         ("fan.f", True),
+        ("fan.template_fan_percentage", True),
+        ("fan.template_fan_preset", True),
         ("input_select.f", False),
     ],
 )
