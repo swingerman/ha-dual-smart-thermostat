@@ -47,6 +47,12 @@
         "heat_cool": "Modo Aquecer/Resfriar",
         "dry": "Modo secagem"
       }
+    },
+    "control_style": {
+      "options": {
+        "on_off": "Liga/desliga (este termostato decide)",
+        "setpoint": "Setpoint (o dispositivo se regula sozinho)"
+      }
     }
   },
   "services": {
@@ -66,7 +72,12 @@
       "same_heater_sensor": "O aquecedor e o sensor de temperatura não podem ser a mesma entidade",
       "same_heater_cooler": "O aquecedor e o resfriador não podem ser a mesma entidade",
       "aux_heater_timeout_required": "O tempo limite do aquecedor auxiliar é obrigatório quando um aquecedor auxiliar está configurado",
-      "aux_heater_entity_required": "A entidade do aquecedor auxiliar é obrigatória quando o tempo limite está configurado"
+      "aux_heater_entity_required": "A entidade do aquecedor auxiliar é obrigatória quando o tempo limite está configurado",
+      "sensor_required": "Escolha um sensor de temperatura ou use uma entidade climate como dispositivo (a temperatura dela é então usada)",
+      "setpoint_heat_pump_unsupported": "O controle por setpoint não é compatível com uma bomba de calor climate",
+      "setpoint_heat_cool_shared_climate": "O controle por setpoint não consegue aquecer/resfriar quando uma entidade climate é aquecedor e resfriador ao mesmo tempo",
+      "setpoint_needs_heater_or_cooler": "O controle por setpoint exige que o aquecedor ou o resfriador seja uma entidade climate",
+      "self_controlled": "Um termostato não pode usar a própria entidade como um de seus dispositivos"
     },
     "step": {
       "user": {
@@ -691,6 +702,22 @@
           "max_temp": "Limite máximo de temperatura para o termostato. Os usuários não poderão definir a temperatura alvo acima deste valor.",
           "target_temp": "Temperatura alvo inicial quando o termostato é configurado pela primeira vez. Esta será a configuração de temperatura padrão."
         }
+      },
+      "climate_control": {
+        "title": "Controle de entidade climate",
+        "description": "Um ou mais dispositivos são entidades climate. Escolha como o termostato os controla.",
+        "data": {
+          "control_style": "Estilo de controle",
+          "heater_setpoint_offset": "Deslocamento do setpoint do aquecedor",
+          "cooler_setpoint_offset": "Deslocamento do setpoint do resfriador",
+          "follow_device_changes": "Seguir alterações feitas no dispositivo"
+        },
+        "data_description": {
+          "control_style": "Liga/desliga: este termostato decide quando o dispositivo funciona e o liga e desliga. Setpoint: o dispositivo permanece ligado e se regula sozinho; este termostato espelha alvo, modo, predefinições e aberturas para ele.",
+          "heater_setpoint_offset": "Somado à temperatura alvo enviada ao dispositivo aquecedor. Use quando o sensor do dispositivo lê diferente do sensor do ambiente. Padrão 0.",
+          "cooler_setpoint_offset": "Somado à temperatura alvo enviada ao dispositivo resfriador (normalmente negativo, para o dispositivo continuar resfriando). Padrão 0.",
+          "follow_device_changes": "Quando você altera o dispositivo com o controle remoto ou o app, este termostato adota isso como a nova configuração (modo, alvo, velocidade do ventilador, desligado). Um modo para o qual este termostato não tem função o desliga e deixa o dispositivo em paz. Desative para manter o termostato no comando: ele então recoloca o dispositivo na próxima execução de controle. Dispositivos que informam um estado presumido nunca são seguidos."
+        }
       }
     }
   },
@@ -1025,7 +1052,29 @@
           "activity_temp": "Temperatura alvo para a predefinição Atividade. Aceita valor estático (por exemplo, 23), referência de entidade ou modelo.",
           "boost_temp": "Temperatura alvo para a predefinição Reforço. Aceita valor estático (por exemplo, 25), referência de entidade ou modelo."
         }
+      },
+      "climate_control_options": {
+        "title": "Controle de entidade climate",
+        "description": "Modifique como os dispositivos de entidade climate são controlados.",
+        "data": {
+          "control_style": "Estilo de controle",
+          "heater_setpoint_offset": "Deslocamento do setpoint do aquecedor",
+          "cooler_setpoint_offset": "Deslocamento do setpoint do resfriador",
+          "follow_device_changes": "Seguir alterações feitas no dispositivo"
+        },
+        "data_description": {
+          "control_style": "Liga/desliga: este termostato liga e desliga o dispositivo. Setpoint: o dispositivo se regula sozinho e espelha o alvo deste termostato.",
+          "heater_setpoint_offset": "Somado à temperatura alvo enviada ao dispositivo aquecedor. Padrão 0.",
+          "cooler_setpoint_offset": "Somado à temperatura alvo enviada ao dispositivo resfriador. Padrão 0.",
+          "follow_device_changes": "Quando você altera o dispositivo com o controle remoto ou o app, este termostato adota isso como a nova configuração (modo, alvo, velocidade do ventilador, desligado). Um modo para o qual este termostato não tem função o desliga e deixa o dispositivo em paz. Desative para manter o termostato no comando: ele então recoloca o dispositivo na próxima execução de controle. Dispositivos que informam um estado presumido nunca são seguidos."
+        }
       }
+    },
+    "error": {
+      "setpoint_heat_pump_unsupported": "O controle por setpoint não é compatível com uma bomba de calor climate",
+      "setpoint_heat_cool_shared_climate": "O controle por setpoint não consegue aquecer/resfriar quando uma entidade climate é aquecedor e resfriador ao mesmo tempo",
+      "setpoint_needs_heater_or_cooler": "O controle por setpoint exige que o aquecedor ou o resfriador seja uma entidade climate",
+      "self_controlled": "Um termostato não pode usar a própria entidade como um de seus dispositivos"
     }
   }
 }

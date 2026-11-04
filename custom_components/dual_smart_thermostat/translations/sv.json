@@ -47,6 +47,12 @@
         "heat_cool": "Värme/Kyla-läge",
         "dry": "Avfuktningsläge"
       }
+    },
+    "control_style": {
+      "options": {
+        "on_off": "Av/på (termostaten avgör)",
+        "setpoint": "Börvärde (enheten reglerar sig själv)"
+      }
     }
   },
   "services": {
@@ -66,7 +72,12 @@
       "same_heater_sensor": "Värmare och temperatursensor kan inte vara samma enhet",
       "same_heater_cooler": "Värmare och kylare kan inte vara samma enhet",
       "aux_heater_timeout_required": "Tidsgräns för extra värmare krävs när extra värmare är konfigurerad",
-      "aux_heater_entity_required": "Enhet för extra värmare krävs när tidsgräns är konfigurerad"
+      "aux_heater_entity_required": "Enhet för extra värmare krävs när tidsgräns är konfigurerad",
+      "sensor_required": "Välj en temperatursensor, eller använd en climate-entitet som enhet (dess egen temperatur används då)",
+      "setpoint_heat_pump_unsupported": "Börvärdesstyrning stöds inte för en climate-värmepump",
+      "setpoint_heat_cool_shared_climate": "Börvärdesstyrning kan inte göra värme/kyla när en climate-entitet är både värmare och kylare",
+      "setpoint_needs_heater_or_cooler": "Börvärdesstyrning kräver att värmaren eller kylaren är en climate-entitet",
+      "self_controlled": "En termostat kan inte använda sin egen entitet som en av sina enheter"
     },
     "step": {
       "user": {
@@ -691,6 +702,22 @@
           "max_temp": "Maximalt tillåtna temperaturinställning. Ställer in den övre gränsen för måltemperatur för att förhindra osäker eller ineffektiv drift.",
           "target_temp": "Initial måltemperatur när termostaten konfigureras första gången. Detta blir standardtemperaturen när ingen förinställning är aktiv."
         }
+      },
+      "climate_control": {
+        "title": "Styrning av climate-entitet",
+        "description": "En eller flera enheter är climate-entiteter. Välj hur termostaten styr dem.",
+        "data": {
+          "control_style": "Styrsätt",
+          "heater_setpoint_offset": "Börvärdesförskjutning för värmare",
+          "cooler_setpoint_offset": "Börvärdesförskjutning för kylare",
+          "follow_device_changes": "Följ ändringar som görs på enheten"
+        },
+        "data_description": {
+          "control_style": "Av/på: termostaten avgör när enheten ska gå och slår av och på den. Börvärde: enheten är på och reglerar sig själv; termostaten speglar måltemperatur, läge, förinställningar och öppningar till den.",
+          "heater_setpoint_offset": "Läggs till måltemperaturen som skickas till värmaren. Använd när enhetens egen sensor visar något annat än rumssensorn. Standard 0.",
+          "cooler_setpoint_offset": "Läggs till måltemperaturen som skickas till kylaren (oftast negativ, så att enheten fortsätter kyla). Standard 0.",
+          "follow_device_changes": "När du ändrar enheten med fjärrkontroll eller app tar termostaten det som ny inställning (läge, mål, fläkthastighet, av). Ett läge som termostaten saknar roll för stänger av den och lämnar enheten ifred. Stäng av för att behålla termostaten som styrande: den sätter då tillbaka enheten vid nästa styrning. Enheter som rapporterar antaget tillstånd följs aldrig."
+        }
       }
     }
   },
@@ -1025,7 +1052,29 @@
           "activity_temp": "Måltemperatur för förinställningen Aktivitet. Accepterar statiskt värde (t.ex. 23), entitetsreferens eller mall.",
           "boost_temp": "Måltemperatur för förinställningen Boost. Accepterar statiskt värde (t.ex. 25), entitetsreferens eller mall."
         }
+      },
+      "climate_control_options": {
+        "title": "Styrning av climate-entitet",
+        "description": "Ändra hur climate-entitetsenheter styrs.",
+        "data": {
+          "control_style": "Styrsätt",
+          "heater_setpoint_offset": "Börvärdesförskjutning för värmare",
+          "cooler_setpoint_offset": "Börvärdesförskjutning för kylare",
+          "follow_device_changes": "Följ ändringar som görs på enheten"
+        },
+        "data_description": {
+          "control_style": "Av/på: termostaten slår av och på enheten. Börvärde: enheten reglerar sig själv och speglar termostatens mål.",
+          "heater_setpoint_offset": "Läggs till måltemperaturen som skickas till värmaren. Standard 0.",
+          "cooler_setpoint_offset": "Läggs till måltemperaturen som skickas till kylaren. Standard 0.",
+          "follow_device_changes": "När du ändrar enheten med fjärrkontroll eller app tar termostaten det som ny inställning (läge, mål, fläkthastighet, av). Ett läge som termostaten saknar roll för stänger av den och lämnar enheten ifred. Stäng av för att behålla termostaten som styrande: den sätter då tillbaka enheten vid nästa styrning. Enheter som rapporterar antaget tillstånd följs aldrig."
+        }
       }
+    },
+    "error": {
+      "setpoint_heat_pump_unsupported": "Börvärdesstyrning stöds inte för en climate-värmepump",
+      "setpoint_heat_cool_shared_climate": "Börvärdesstyrning kan inte göra värme/kyla när en climate-entitet är både värmare och kylare",
+      "setpoint_needs_heater_or_cooler": "Börvärdesstyrning kräver att värmaren eller kylaren är en climate-entitet",
+      "self_controlled": "En termostat kan inte använda sin egen entitet som en av sina enheter"
     }
   }
 }
