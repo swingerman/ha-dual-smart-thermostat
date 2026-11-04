@@ -236,6 +236,45 @@ class TestSimpleHeaterFloorHeatingOnly:
         assert flow.collected_config[CONF_COMFORT_FLOOR_TEMP] == 24
         assert flow.collected_config[CONF_COMFORT_FLOOR_MAX_AIR_OVERSHOOT] == 1.5
 
+    async def test_floor_config_rejects_comfort_floor_at_or_above_max(self, mock_hass):
+        """The floor step shows an error instead of saving comfort >= max."""
+        flow = ConfigFlowHandler()
+        flow.hass = mock_hass
+        flow.collected_config = {}
+
+        await flow.async_step_user({CONF_SYSTEM_TYPE: SYSTEM_TYPE_SIMPLE_HEATER})
+        await flow.async_step_basic(
+            {
+                CONF_NAME: "Test Heater",
+                CONF_SENSOR: "sensor.temperature",
+                CONF_HEATER: "switch.heater",
+            }
+        )
+        await flow.async_step_features(
+            {
+                "configure_floor_heating": True,
+                "configure_openings": False,
+                "configure_presets": False,
+            }
+        )
+        floor_input = {
+            CONF_FLOOR_SENSOR: "sensor.floor_temperature",
+            CONF_MAX_FLOOR_TEMP: 28,
+            CONF_COMFORT_FLOOR_TEMP: 28,
+        }
+        result = await flow.async_step_floor_config(floor_input)
+
+        assert result["type"] == FlowResultType.FORM
+        assert result["step_id"] == "floor_config"
+        assert result["errors"] == {CONF_COMFORT_FLOOR_TEMP: "comfort_floor_above_max"}
+        assert CONF_COMFORT_FLOOR_TEMP not in flow.collected_config
+
+        result = await flow.async_step_floor_config(
+            {**floor_input, CONF_COMFORT_FLOOR_TEMP: 24}
+        )
+        assert result["type"] == FlowResultType.CREATE_ENTRY
+        assert flow.collected_config[CONF_COMFORT_FLOOR_TEMP] == 24
+
     async def test_unchecking_floor_heating_clears_floor_settings(self, mock_hass):
         """Disabling floor heating drops tolerance and comfort floor settings too."""
         flow = ConfigFlowHandler()

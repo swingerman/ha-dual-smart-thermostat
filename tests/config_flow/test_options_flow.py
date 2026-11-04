@@ -38,6 +38,7 @@ from custom_components.dual_smart_thermostat.const import (
     CONF_HOT_TOLERANCE,
     CONF_HUMIDITY_SENSOR,
     CONF_KEEP_ALIVE,
+    CONF_MAX_FLOOR_TEMP,
     CONF_MIN_DUR,
     CONF_OPENINGS,
     CONF_OPENINGS_SCOPE,
@@ -690,6 +691,31 @@ async def test_floor_options_clearing_comfort_floor_disables_it(
 
     assert result["type"] == FlowResultType.CREATE_ENTRY
     assert result["data"][CONF_COMFORT_FLOOR_TEMP] is None
+
+
+async def test_floor_options_rejects_comfort_floor_at_or_above_max(
+    mock_hass, simple_heater_config_entry
+):
+    """Options floor step keeps the form open with an error for comfort >= max."""
+    simple_heater_config_entry.data.update({CONF_FLOOR_SENSOR: "sensor.floor_temp"})
+    handler = OptionsFlowHandler(simple_heater_config_entry)
+    handler.hass = mock_hass
+
+    result = await handler.async_step_init({"cold_tolerance": 0.3})
+    assert result["step_id"] == "floor_options"
+    result = await handler.async_step_floor_options(
+        {
+            CONF_FLOOR_SENSOR: "sensor.floor_temp",
+            CONF_MAX_FLOOR_TEMP: 26,
+            CONF_COMFORT_FLOOR_TEMP: 27,
+        }
+    )
+
+    assert result["type"] == FlowResultType.FORM
+    assert result["step_id"] == "floor_options"
+    assert result["errors"] == {CONF_COMFORT_FLOOR_TEMP: "comfort_floor_above_max"}
+    # The form keeps what the user typed
+    assert _schema_default(result["data_schema"].schema, CONF_COMFORT_FLOOR_TEMP) == 27
 
 
 # ============================================================================

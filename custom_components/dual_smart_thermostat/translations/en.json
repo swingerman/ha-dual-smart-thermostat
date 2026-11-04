@@ -39,7 +39,8 @@
             "setpoint_heat_pump_unsupported": "Setpoint control is not supported for a climate heat pump",
             "setpoint_heat_cool_shared_climate": "Setpoint control cannot do heat/cool when one climate entity is both heater and cooler",
             "setpoint_needs_heater_or_cooler": "Setpoint control needs the heater or the cooler to be a climate entity",
-            "self_controlled": "A thermostat cannot use its own entity as one of its devices"
+            "self_controlled": "A thermostat cannot use its own entity as one of its devices",
+            "comfort_floor_above_max": "The comfort floor temperature must be below the maximum floor temperature."
         },
         "step": {
             "user": {
@@ -319,7 +320,7 @@
                     "min_floor_temp": "Minimum floor temperature to maintain. Floor heating will activate when floor temperature drops below this value, providing freeze protection for the floor heating system. (Default: 5°C)",
                     "floor_tolerance": "Hysteresis for every floor threshold (min, max, comfort). A limit engages at its threshold and releases only after the floor moves this far back, preventing rapid on/off cycling. 0 keeps the legacy behaviour. (Default: 0)",
                     "comfort_floor_temp": "Keep heating while the floor is below this temperature, even after the room target is reached. Leave empty to disable. The max floor temperature always wins. Heat mode only (not heat/cool or heat pump).",
-                    "comfort_floor_max_air_overshoot": "How far the room may rise above its target while heating for floor comfort. (Default: 1.0)"
+                    "comfort_floor_max_air_overshoot": "How far the room may rise above its target while heating for floor comfort. Heating for the floor resumes once the room has dropped below that limit by the cold tolerance. (Default: 1.0)"
                 }
             },
             "openings_toggle": {
@@ -830,7 +831,7 @@
                     "min_floor_temp": "Minimum floor temperature to maintain. Provides freeze protection for the floor heating system. (Default: 5°C)",
                     "floor_tolerance": "Hysteresis for every floor threshold (min, max, comfort). A limit engages at its threshold and releases only after the floor moves this far back, preventing rapid on/off cycling. 0 keeps the legacy behaviour. (Default: 0)",
                     "comfort_floor_temp": "Keep heating while the floor is below this temperature, even after the room target is reached. Leave empty to disable. The max floor temperature always wins. Heat mode only (not heat/cool or heat pump).",
-                    "comfort_floor_max_air_overshoot": "How far the room may rise above its target while heating for floor comfort. (Default: 1.0)"
+                    "comfort_floor_max_air_overshoot": "How far the room may rise above its target while heating for floor comfort. Heating for the floor resumes once the room has dropped below that limit by the cold tolerance. (Default: 1.0)"
                 }
             },
             "fan_options": {
@@ -1048,7 +1049,8 @@
             "setpoint_heat_pump_unsupported": "Setpoint control is not supported for a climate heat pump",
             "setpoint_heat_cool_shared_climate": "Setpoint control cannot do heat/cool when one climate entity is both heater and cooler",
             "setpoint_needs_heater_or_cooler": "Setpoint control needs the heater or the cooler to be a climate entity",
-            "self_controlled": "A thermostat cannot use its own entity as one of its devices"
+            "self_controlled": "A thermostat cannot use its own entity as one of its devices",
+            "comfort_floor_above_max": "The comfort floor temperature must be below the maximum floor temperature."
         }
     },
     "selector": {

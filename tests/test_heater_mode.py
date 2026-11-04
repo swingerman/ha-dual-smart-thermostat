@@ -2532,17 +2532,19 @@ async def test_heater_mode_comfort_floor_stops_when_floor_comfortable(
 async def test_heater_mode_max_floor_temp_wins_over_comfort_floor(
     hass: HomeAssistant, setup_comp_1  # noqa: F811
 ) -> None:
-    # comfort above max: misconfigured, but the safety limit must still win
+    # A preset can lower max_floor_temp below comfort_floor_temp (only the
+    # global max is validated); the safety limit must still win.
     heater_switch = await _setup_floor_heater(
-        hass, comfort_floor_temp=30, comfort_floor_max_air_overshoot=1.0
+        hass, **COMFORT_FLOOR, away={"temperature": 20, "max_floor_temp": 22}
     )
     setup_sensor(hass, 20.6)
     setup_floor_sensor(hass, 20)
     await common.async_set_temperature(hass, 20)
+    await common.async_set_preset_mode(hass, "away")
     await hass.async_block_till_done()
     assert hass.states.get(heater_switch).state == STATE_ON
 
-    setup_floor_sensor(hass, 28)
+    setup_floor_sensor(hass, 22)
     await hass.async_block_till_done()
     assert hass.states.get(heater_switch).state == STATE_OFF
     assert common.get_hvac_action_reason(hass) == HVACActionReason.OVERHEAT

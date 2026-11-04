@@ -78,7 +78,8 @@
       "setpoint_heat_pump_unsupported": "A beállított érték szerinti vezérlés nem támogatott klíma hőszivattyúnál",
       "setpoint_heat_cool_shared_climate": "A beállított érték szerinti vezérlés nem tud fűteni/hűteni, ha egy klímaentitás egyszerre fűtés és hűtés",
       "setpoint_needs_heater_or_cooler": "A beállított érték szerinti vezérléshez a fűtésnek vagy a hűtésnek klímaentitásnak kell lennie",
-      "self_controlled": "A termosztát nem használhatja saját entitását eszközeként"
+      "self_controlled": "A termosztát nem használhatja saját entitását eszközeként",
+      "comfort_floor_above_max": "A komfort padlóhőmérsékletnek alacsonyabbnak kell lennie a maximális padlóhőmérsékletnél."
     },
     "step": {
       "user": {
@@ -358,7 +359,7 @@
           "min_floor_temp": "A fenntartandó legalacsonyabb padlóhőmérséklet. A padlófűtés akkor aktiválódik, amikor a padló hőmérséklete ez alá az érték alá esik, fagyvédelmet biztosítva a padlófűtési rendszer számára. (Alapértelmezett: 5°C)",
           "floor_tolerance": "Hiszterézis minden padlóhőmérséklet-határértékhez (minimum, maximum, komfort). Egy határérték a küszöbértéken lép életbe, és csak akkor szűnik meg, ha a padló hőmérséklete ennyivel visszatért, így megelőzi a gyakori be- és kikapcsolást. A 0 megtartja a korábbi működést. (Alapértelmezett: 0)",
           "comfort_floor_temp": "A fűtés addig működik, amíg a padló ennél hidegebb, akkor is, ha a szoba már elérte a célhőmérsékletet. Hagyd üresen a kikapcsoláshoz. A maximális padlóhőmérséklet mindig elsőbbséget élvez. Csak fűtés módban működik (hűtés/fűtés és hőszivattyú módban nem).",
-          "comfort_floor_max_air_overshoot": "Mennyivel emelkedhet a szobahőmérséklet a célhőmérséklet fölé a komfort padlófűtés közben. (Alapértelmezett: 1.0)"
+          "comfort_floor_max_air_overshoot": "Mennyivel emelkedhet a szobahőmérséklet a célhőmérséklet fölé a komfort padlófűtés közben. A padló fűtése akkor folytatódik, amikor a szobahőmérséklet a hideg tűréshatárral e határ alá csökken. (Alapértelmezett: 1.0)"
         }
       },
       "openings_toggle": {
@@ -869,7 +870,7 @@
           "min_floor_temp": "A fenntartandó legalacsonyabb padlóhőmérséklet. Fagyvédelmet biztosít a padlófűtési rendszer számára. (Alapértelmezett: 5°C)",
           "floor_tolerance": "Hiszterézis minden padlóhőmérséklet-határértékhez (minimum, maximum, komfort). Egy határérték a küszöbértéken lép életbe, és csak akkor szűnik meg, ha a padló hőmérséklete ennyivel visszatért, így megelőzi a gyakori be- és kikapcsolást. A 0 megtartja a korábbi működést. (Alapértelmezett: 0)",
           "comfort_floor_temp": "A fűtés addig működik, amíg a padló ennél hidegebb, akkor is, ha a szoba már elérte a célhőmérsékletet. Hagyd üresen a kikapcsoláshoz. A maximális padlóhőmérséklet mindig elsőbbséget élvez. Csak fűtés módban működik (hűtés/fűtés és hőszivattyú módban nem).",
-          "comfort_floor_max_air_overshoot": "Mennyivel emelkedhet a szobahőmérséklet a célhőmérséklet fölé a komfort padlófűtés közben. (Alapértelmezett: 1.0)"
+          "comfort_floor_max_air_overshoot": "Mennyivel emelkedhet a szobahőmérséklet a célhőmérséklet fölé a komfort padlófűtés közben. A padló fűtése akkor folytatódik, amikor a szobahőmérséklet a hideg tűréshatárral e határ alá csökken. (Alapértelmezett: 1.0)"
         }
       },
       "fan_options": {
@@ -1087,7 +1088,8 @@
       "setpoint_heat_pump_unsupported": "A beállított érték szerinti vezérlés nem támogatott klíma hőszivattyúnál",
       "setpoint_heat_cool_shared_climate": "A beállított érték szerinti vezérlés nem tud fűteni/hűteni, ha egy klímaentitás egyszerre fűtés és hűtés",
       "setpoint_needs_heater_or_cooler": "A beállított érték szerinti vezérléshez a fűtésnek vagy a hűtésnek klímaentitásnak kell lennie",
-      "self_controlled": "A termosztát nem használhatja saját entitását eszközeként"
+      "self_controlled": "A termosztát nem használhatja saját entitását eszközeként",
+      "comfort_floor_above_max": "A komfort padlóhőmérsékletnek alacsonyabbnak kell lennie a maximális padlóhőmérsékletnél."
     }
   }
 }

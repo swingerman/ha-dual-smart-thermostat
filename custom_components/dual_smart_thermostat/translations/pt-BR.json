@@ -78,7 +78,8 @@
       "setpoint_heat_pump_unsupported": "O controle por setpoint não é compatível com uma bomba de calor climate",
       "setpoint_heat_cool_shared_climate": "O controle por setpoint não consegue aquecer/resfriar quando uma entidade climate é aquecedor e resfriador ao mesmo tempo",
       "setpoint_needs_heater_or_cooler": "O controle por setpoint exige que o aquecedor ou o resfriador seja uma entidade climate",
-      "self_controlled": "Um termostato não pode usar a própria entidade como um de seus dispositivos"
+      "self_controlled": "Um termostato não pode usar a própria entidade como um de seus dispositivos",
+      "comfort_floor_above_max": "A temperatura de conforto do piso deve ser menor que a temperatura máxima do piso."
     },
     "step": {
       "user": {
@@ -358,7 +359,7 @@
           "min_floor_temp": "Temperatura mínima do piso a manter. O aquecimento de piso será ativado quando a temperatura do piso cair abaixo deste valor, fornecendo proteção contra congelamento para o sistema de aquecimento de piso. (Padrão: 5°C)",
           "floor_tolerance": "Histerese aplicada a todos os limites de temperatura do piso (mínimo, máximo, conforto). Um limite é acionado no seu valor e só é liberado depois que a temperatura do piso volta essa quantidade, evitando liga e desliga frequente. 0 mantém o comportamento anterior. (Padrão: 0)",
           "comfort_floor_temp": "Continua aquecendo enquanto o piso estiver abaixo desta temperatura, mesmo depois que o ambiente atingir a temperatura alvo. Deixe vazio para desativar. A temperatura máxima do piso sempre tem prioridade. Apenas no modo de aquecimento (não em aquecimento/resfriamento nem bomba de calor).",
-          "comfort_floor_max_air_overshoot": "Quanto a temperatura ambiente pode subir acima da temperatura alvo durante o aquecimento para conforto do piso. (Padrão: 1.0)"
+          "comfort_floor_max_air_overshoot": "Quanto a temperatura ambiente pode subir acima da temperatura alvo durante o aquecimento para conforto do piso. O aquecimento para o piso é retomado quando a temperatura ambiente cai abaixo desse limite pela tolerância de frio. (Padrão: 1.0)"
         }
       },
       "openings_toggle": {
@@ -869,7 +870,7 @@
           "min_floor_temp": "Temperatura mínima do piso a manter. Fornece proteção contra congelamento para o sistema de aquecimento de piso. (Padrão: 5°C)",
           "floor_tolerance": "Histerese aplicada a todos os limites de temperatura do piso (mínimo, máximo, conforto). Um limite é acionado no seu valor e só é liberado depois que a temperatura do piso volta essa quantidade, evitando liga e desliga frequente. 0 mantém o comportamento anterior. (Padrão: 0)",
           "comfort_floor_temp": "Continua aquecendo enquanto o piso estiver abaixo desta temperatura, mesmo depois que o ambiente atingir a temperatura alvo. Deixe vazio para desativar. A temperatura máxima do piso sempre tem prioridade. Apenas no modo de aquecimento (não em aquecimento/resfriamento nem bomba de calor).",
-          "comfort_floor_max_air_overshoot": "Quanto a temperatura ambiente pode subir acima da temperatura alvo durante o aquecimento para conforto do piso. (Padrão: 1.0)"
+          "comfort_floor_max_air_overshoot": "Quanto a temperatura ambiente pode subir acima da temperatura alvo durante o aquecimento para conforto do piso. O aquecimento para o piso é retomado quando a temperatura ambiente cai abaixo desse limite pela tolerância de frio. (Padrão: 1.0)"
         }
       },
       "fan_options": {
@@ -1087,7 +1088,8 @@
       "setpoint_heat_pump_unsupported": "O controle por setpoint não é compatível com uma bomba de calor climate",
       "setpoint_heat_cool_shared_climate": "O controle por setpoint não consegue aquecer/resfriar quando uma entidade climate é aquecedor e resfriador ao mesmo tempo",
       "setpoint_needs_heater_or_cooler": "O controle por setpoint exige que o aquecedor ou o resfriador seja uma entidade climate",
-      "self_controlled": "Um termostato não pode usar a própria entidade como um de seus dispositivos"
+      "self_controlled": "Um termostato não pode usar a própria entidade como um de seus dispositivos",
+      "comfort_floor_above_max": "A temperatura de conforto do piso deve ser menor que a temperatura máxima do piso."
     }
   }
 }

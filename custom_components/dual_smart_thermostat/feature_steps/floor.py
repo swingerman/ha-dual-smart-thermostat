@@ -7,6 +7,7 @@ from typing import Any
 from homeassistant.data_entry_flow import FlowResult
 import voluptuous as vol
 
+from ..config_validation import comfort_floor_error
 from ..const import (
     CONF_COMFORT_FLOOR_TEMP,
     CONF_FLOOR_SENSOR,
@@ -20,6 +21,17 @@ def _collect(collected_config: dict, user_input: dict[str, Any]) -> None:
     # An emptied comfort_floor_temp is absent from user_input; store None so a
     # stale persisted value can't survive the entry merge.
     collected_config.update({CONF_COMFORT_FLOOR_TEMP: None, **user_input})
+
+
+def _floor_errors(
+    collected_config: dict, user_input: dict[str, Any] | None
+) -> dict[str, str]:
+    # Same rule YAML validation uses (config_validation.py).
+    if user_input is None:
+        return {}
+    candidate = {**collected_config, CONF_COMFORT_FLOOR_TEMP: None, **user_input}
+    code = comfort_floor_error(candidate)
+    return {CONF_COMFORT_FLOOR_TEMP: code} if code else {}
 
 
 class FloorSteps:
@@ -84,13 +96,17 @@ class FloorSteps:
         next_step_handler,
     ) -> FlowResult:
         """Handle the detailed floor configuration step used by config flow."""
-        if user_input is not None:
+        errors = _floor_errors(collected_config, user_input)
+        if user_input is not None and not errors:
             _collect(collected_config, user_input)
             return await next_step_handler()
 
         return flow_instance.async_show_form(
             step_id="floor_config",
-            data_schema=get_floor_heating_schema(hass=flow_instance.hass),
+            data_schema=get_floor_heating_schema(
+                hass=flow_instance.hass, defaults=user_input
+            ),
+            errors=errors,
         )
 
     async def async_step_options(
@@ -102,7 +118,8 @@ class FloorSteps:
         current_config: dict,
     ) -> FlowResult:
         """Handle the floor heating options step used by options flow."""
-        if user_input is not None:
+        errors = _floor_errors(collected_config, user_input)
+        if user_input is not None and not errors:
             _collect(collected_config, user_input)
             return await next_step_handler()
 
@@ -123,6 +140,7 @@ class FloorSteps:
         return flow_instance.async_show_form(
             step_id="floor_options",
             data_schema=get_floor_heating_schema(
-                hass=flow_instance.hass, defaults=defaults
+                hass=flow_instance.hass, defaults={**defaults, **(user_input or {})}
             ),
+            errors=errors,
         )

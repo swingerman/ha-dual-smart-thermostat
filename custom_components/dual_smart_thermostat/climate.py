@@ -65,7 +65,7 @@ import voluptuous as vol
 
 from . import DOMAIN, PLATFORMS
 from .climate_roles import normalize_climate_roles, validate_climate_roles
-from .config_validation import validate_config_with_models
+from .config_validation import validate_comfort_floor, validate_config_with_models
 from .const import (
     ATTR_CLOSING_TIMEOUT,
     ATTR_FAN_MODE,
@@ -309,6 +309,7 @@ PLATFORM_SCHEMA = vol.All(
         }
     ),
     validate_climate_roles,
+    validate_comfort_floor,
 )
 
 

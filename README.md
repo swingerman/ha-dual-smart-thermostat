@@ -622,7 +622,7 @@ preset_name:
 
 ### Comfort floor temperature
 
-Keeps the floor warm even when the room has already reached its target: while the floor is below `comfort_floor_temp` the heater keeps running, as long as the room stays within `comfort_floor_max_air_overshoot` (default `1.0`) of its target. `max_floor_temp` and open windows always win. When comfort floor is why the heater runs, `hvac_action_reason` is `comfort_floor`. Applies in `heat` mode only, to heater and heater + secondary heater setups (comfort floor uses the first stage only, never the secondary heater) and a climate entity as the heater with `control_style: on_off`. It is ignored in `heat_cool` mode and for heat pumps. With `control_style: setpoint` the climate device regulates the room to the pushed target itself, so comfort floor does not apply there (floor limits and `floor_tolerance` still do).
+Keeps the floor warm even when the room has already reached its target: while the floor is below `comfort_floor_temp` the heater keeps running, as long as the room stays within `comfort_floor_max_air_overshoot` (default `1.0`) of its target. Once the room hits that limit, heating for the floor resumes only after the room has dropped below it by the cold tolerance, so the heater doesn't cycle at the limit. `comfort_floor_temp` must be below `max_floor_temp`. `max_floor_temp` and open windows always win. When comfort floor is why the heater runs, `hvac_action_reason` is `comfort_floor`. Applies in `heat` mode only, to heater and heater + secondary heater setups (comfort floor uses the first stage only, never the secondary heater) and a climate entity as the heater with `control_style: on_off`. It is ignored in `heat_cool` mode and for heat pumps. With `control_style: setpoint` the climate device regulates the room to the pushed target itself, so comfort floor does not apply there (floor limits and `floor_tolerance` still do).
 
 ```yaml
 floor_sensor: sensor.floor_temp
@@ -991,11 +991,11 @@ The reason is grouped into three categories:
 
 ### comfort_floor_temp
 
-  _(optional) (float)_ Keep heating while the floor is below this, even after the room target is reached. Requires `floor_sensor`.
+  _(optional) (float)_ Keep heating while the floor is below this, even after the room target is reached. Must be below `max_floor_temp`. Requires `floor_sensor`.
 
 ### comfort_floor_max_air_overshoot
 
-  _(optional) (float)_ How far above its target the room may go while heating for comfort floor. Requires `comfort_floor_temp`.
+  _(optional) (float)_ How far above its target the room may go while heating for comfort floor; heating resumes once the room is the cold tolerance below that limit. Requires `comfort_floor_temp`.
 
   _default: 1.0_
 
