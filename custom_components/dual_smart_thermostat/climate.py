@@ -65,7 +65,7 @@ import voluptuous as vol
 
 from . import DOMAIN, PLATFORMS
 from .climate_roles import normalize_climate_roles, validate_climate_roles
-from .config_validation import validate_config_with_models
+from .config_validation import validate_comfort_floor, validate_config_with_models
 from .const import (
     ATTR_CLOSING_TIMEOUT,
     ATTR_FAN_MODE,
@@ -84,6 +84,8 @@ from .const import (
     CONF_AUX_HEATING_DUAL_MODE,
     CONF_AUX_HEATING_TIMEOUT,
     CONF_COLD_TOLERANCE,
+    CONF_COMFORT_FLOOR_MAX_AIR_OVERSHOOT,
+    CONF_COMFORT_FLOOR_TEMP,
     CONF_CONTROL_STYLE,
     CONF_COOL_TOLERANCE,
     CONF_COOLER,
@@ -98,6 +100,7 @@ from .const import (
     CONF_FAN_ON_WITH_AC,
     CONF_FAN_ON_WITH_HEATER,
     CONF_FLOOR_SENSOR,
+    CONF_FLOOR_TOLERANCE,
     CONF_FOLLOW_DEVICE_CHANGES,
     CONF_HEAT_COOL_MODE,
     CONF_HEAT_PUMP_COOLING,
@@ -183,6 +186,11 @@ FLOOR_TEMPERATURE_SCHEMA = {
     vol.Optional(CONF_FLOOR_SENSOR): cv.entity_id,
     vol.Optional(CONF_MAX_FLOOR_TEMP): vol.Coerce(float),
     vol.Optional(CONF_MIN_FLOOR_TEMP): vol.Coerce(float),
+    vol.Optional(CONF_FLOOR_TOLERANCE): vol.All(vol.Coerce(float), vol.Range(min=0)),
+    vol.Optional(CONF_COMFORT_FLOOR_TEMP): vol.Coerce(float),
+    vol.Optional(CONF_COMFORT_FLOOR_MAX_AIR_OVERSHOOT): vol.All(
+        vol.Coerce(float), vol.Range(min=0)
+    ),
 }
 
 FAN_MODE_SCHEMA = {
@@ -301,6 +309,7 @@ PLATFORM_SCHEMA = vol.All(
         }
     ),
     validate_climate_roles,
+    validate_comfort_floor,
 )
 
 

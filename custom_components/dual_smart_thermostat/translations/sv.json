@@ -15,6 +15,7 @@
           "opening": "Öppning upptäckt",
           "limit": "Gräns uppnådd",
           "overheat": "Överhettningsskydd",
+          "comfort_floor": "Komfortgolvtemperatur",
           "temperature_sensor_stalled": "Temperatursensorn svarar inte",
           "humidity_sensor_stalled": "Luftfuktighetssensorn svarar inte",
           "presence": "Närvaro",
@@ -77,7 +78,8 @@
       "setpoint_heat_pump_unsupported": "Börvärdesstyrning stöds inte för en climate-värmepump",
       "setpoint_heat_cool_shared_climate": "Börvärdesstyrning kan inte göra värme/kyla när en climate-entitet är både värmare och kylare",
       "setpoint_needs_heater_or_cooler": "Börvärdesstyrning kräver att värmaren eller kylaren är en climate-entitet",
-      "self_controlled": "En termostat kan inte använda sin egen entitet som en av sina enheter"
+      "self_controlled": "En termostat kan inte använda sin egen entitet som en av sina enheter",
+      "comfort_floor_above_max": "Komfortgolvtemperaturen måste vara lägre än maximal golvtemperatur."
     },
     "step": {
       "user": {
@@ -346,12 +348,18 @@
         "data": {
           "floor_sensor": "Golvtemperatursensor",
           "max_floor_temp": "Maximal golvtemperatur",
-          "min_floor_temp": "Minimal golvtemperatur"
+          "min_floor_temp": "Minimal golvtemperatur",
+          "floor_tolerance": "Golvtolerans",
+          "comfort_floor_temp": "Komfortgolvtemperatur",
+          "comfort_floor_max_air_overshoot": "Max rumsöverskridande för komfortgolv"
         },
         "data_description": {
           "floor_sensor": "Entitets-ID för golvtemperatursensor. Övervakar golvtemperaturen för att säkerställa säker drift och skydda golvmaterial från överhettning eller extrem kyla.",
           "max_floor_temp": "Maximalt tillåten golvtemperatur för skydd. Golvvärmen stängs av när denna temperatur uppnås, oavsett rumstemperatur, för att förhindra skador på golvmaterial. (Standard: 28°C)",
-          "min_floor_temp": "Minsta golvtemperatur att upprätthålla. Golvvärmen aktiveras när golvtemperaturen sjunker under detta värde, vilket ger frysskydd för golvvärmesystemet. (Standard: 5°C)"
+          "min_floor_temp": "Minsta golvtemperatur att upprätthålla. Golvvärmen aktiveras när golvtemperaturen sjunker under detta värde, vilket ger frysskydd för golvvärmesystemet. (Standard: 5°C)",
+          "floor_tolerance": "Hysteres för alla golvgränser (minimum, maximum, komfort). En gräns aktiveras vid sitt tröskelvärde och släpps först när golvtemperaturen har gått tillbaka så mycket, vilket förhindrar täta till- och frånslag. 0 behåller tidigare beteende. (Standard: 0)",
+          "comfort_floor_temp": "Fortsätter värma så länge golvet är under denna temperatur, även efter att rummet har nått måltemperaturen. Lämna tomt för att inaktivera. Maximal golvtemperatur har alltid företräde. Gäller endast i värmeläge (inte värme/kyla eller värmepump).",
+          "comfort_floor_max_air_overshoot": "Hur mycket rumstemperaturen får stiga över måltemperaturen vid uppvärmning för golvkomfort. Uppvärmningen för golvet återupptas när rumstemperaturen har sjunkit under gränsen med kyltoleransen. (Standard: 1.0)"
         }
       },
       "openings_toggle": {
@@ -851,12 +859,18 @@
         "data": {
           "floor_sensor": "Golvtemperatursensor",
           "max_floor_temp": "Maximal golvtemperatur",
-          "min_floor_temp": "Minimal golvtemperatur"
+          "min_floor_temp": "Minimal golvtemperatur",
+          "floor_tolerance": "Golvtolerans",
+          "comfort_floor_temp": "Komfortgolvtemperatur",
+          "comfort_floor_max_air_overshoot": "Max rumsöverskridande för komfortgolv"
         },
         "data_description": {
           "floor_sensor": "Entitets-ID för golvtemperatursensor. Övervakar golvtemperaturen för säkerhet och styrning.",
           "max_floor_temp": "Maximalt tillåten golvtemperatur för skydd. Förhindrar skador på golvmaterial. (Standard: 28°C)",
-          "min_floor_temp": "Minsta golvtemperatur att upprätthålla. Ger frysskydd för golvvärmesystemet. (Standard: 5°C)"
+          "min_floor_temp": "Minsta golvtemperatur att upprätthålla. Ger frysskydd för golvvärmesystemet. (Standard: 5°C)",
+          "floor_tolerance": "Hysteres för alla golvgränser (minimum, maximum, komfort). En gräns aktiveras vid sitt tröskelvärde och släpps först när golvtemperaturen har gått tillbaka så mycket, vilket förhindrar täta till- och frånslag. 0 behåller tidigare beteende. (Standard: 0)",
+          "comfort_floor_temp": "Fortsätter värma så länge golvet är under denna temperatur, även efter att rummet har nått måltemperaturen. Lämna tomt för att inaktivera. Maximal golvtemperatur har alltid företräde. Gäller endast i värmeläge (inte värme/kyla eller värmepump).",
+          "comfort_floor_max_air_overshoot": "Hur mycket rumstemperaturen får stiga över måltemperaturen vid uppvärmning för golvkomfort. Uppvärmningen för golvet återupptas när rumstemperaturen har sjunkit under gränsen med kyltoleransen. (Standard: 1.0)"
         }
       },
       "fan_options": {
@@ -1074,7 +1088,8 @@
       "setpoint_heat_pump_unsupported": "Börvärdesstyrning stöds inte för en climate-värmepump",
       "setpoint_heat_cool_shared_climate": "Börvärdesstyrning kan inte göra värme/kyla när en climate-entitet är både värmare och kylare",
       "setpoint_needs_heater_or_cooler": "Börvärdesstyrning kräver att värmaren eller kylaren är en climate-entitet",
-      "self_controlled": "En termostat kan inte använda sin egen entitet som en av sina enheter"
+      "self_controlled": "En termostat kan inte använda sin egen entitet som en av sina enheter",
+      "comfort_floor_above_max": "Komfortgolvtemperaturen måste vara lägre än maximal golvtemperatur."
     }
   }
 }

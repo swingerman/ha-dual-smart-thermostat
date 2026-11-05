@@ -21,9 +21,12 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.dual_smart_thermostat.const import (
     CONF_COLD_TOLERANCE,
+    CONF_COMFORT_FLOOR_MAX_AIR_OVERSHOOT,
+    CONF_COMFORT_FLOOR_TEMP,
     CONF_FAN,
     CONF_FAN_MODE,
     CONF_FLOOR_SENSOR,
+    CONF_FLOOR_TOLERANCE,
     CONF_HEATER,
     CONF_HOT_TOLERANCE,
     CONF_MAX_FLOOR_TEMP,
@@ -473,6 +476,52 @@ async def test_simple_heater_floor_heating_only_persistence(hass):
         "selected_openings"
     )
     assert "presets" not in created_data or not created_data.get("presets")
+
+
+@pytest.mark.asyncio
+async def test_simple_heater_floor_options_save_new_tolerance_and_comfort(hass):
+    """Options flow floor step persists changed tolerance and comfort floor."""
+    from custom_components.dual_smart_thermostat.options_flow import OptionsFlowHandler
+
+    config_entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={
+            CONF_NAME: "Floor Options Test",
+            CONF_SYSTEM_TYPE: SYSTEM_TYPE_SIMPLE_HEATER,
+            CONF_SENSOR: "sensor.temp",
+            CONF_HEATER: "switch.heater",
+            CONF_FLOOR_SENSOR: "sensor.floor_temp",
+            CONF_MIN_FLOOR_TEMP: 5,
+            CONF_MAX_FLOOR_TEMP: 28,
+            CONF_FLOOR_TOLERANCE: 0,
+            CONF_COMFORT_FLOOR_TEMP: 22,
+            CONF_COMFORT_FLOOR_MAX_AIR_OVERSHOOT: 1.0,
+        },
+        options={},
+        title="Floor Options Test",
+    )
+    config_entry.add_to_hass(hass)
+
+    options_flow = OptionsFlowHandler(config_entry)
+    options_flow.hass = hass
+
+    result = await options_flow.async_step_init({})
+    assert result["step_id"] == "floor_options"
+    result = await options_flow.async_step_floor_options(
+        {
+            CONF_FLOOR_SENSOR: "sensor.floor_temp",
+            CONF_MIN_FLOOR_TEMP: 5,
+            CONF_MAX_FLOOR_TEMP: 28,
+            CONF_FLOOR_TOLERANCE: 0.7,
+            CONF_COMFORT_FLOOR_TEMP: 25,
+            CONF_COMFORT_FLOOR_MAX_AIR_OVERSHOOT: 2.5,
+        }
+    )
+
+    assert result["type"] == "create_entry"
+    assert result["data"][CONF_FLOOR_TOLERANCE] == 0.7
+    assert result["data"][CONF_COMFORT_FLOOR_TEMP] == 25
+    assert result["data"][CONF_COMFORT_FLOOR_MAX_AIR_OVERSHOOT] == 2.5
 
 
 # =============================================================================

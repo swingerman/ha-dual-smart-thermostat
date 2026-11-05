@@ -13,7 +13,10 @@ import pytest
 
 from custom_components.dual_smart_thermostat.config_flow import ConfigFlowHandler
 from custom_components.dual_smart_thermostat.const import (
+    CONF_COMFORT_FLOOR_MAX_AIR_OVERSHOOT,
+    CONF_COMFORT_FLOOR_TEMP,
     CONF_FLOOR_SENSOR,
+    CONF_FLOOR_TOLERANCE,
     CONF_HEATER,
     CONF_MAX_FLOOR_TEMP,
     CONF_MIN_FLOOR_TEMP,
@@ -412,3 +415,60 @@ async def test_reconfigure_simple_heater_preserves_data(simple_heater_entry):
         assert "binary_sensor.window" in flow.collected_config["openings"]
         assert flow.collected_config[CONF_NAME] == "Simple Heater"
         assert flow.collected_config[CONF_HEATER] == "switch.heater"
+
+
+async def test_reconfigure_simple_heater_keeps_comfort_floor_and_tolerance(
+    simple_heater_entry,
+):
+    """Floor tolerance/comfort values survive reconfigure into the saved data."""
+    floor_values = {
+        CONF_FLOOR_SENSOR: "sensor.floor_temp",
+        CONF_FLOOR_TOLERANCE: 0.5,
+        CONF_COMFORT_FLOOR_TEMP: 24,
+        CONF_COMFORT_FLOOR_MAX_AIR_OVERSHOOT: 1.5,
+    }
+    simple_heater_entry.data.update(floor_values)
+
+    flow = ConfigFlowHandler()
+    flow.hass = Mock()
+
+    with patch.object(
+        type(flow), "source", new_callable=PropertyMock, return_value=SOURCE_RECONFIGURE
+    ):
+        flow._get_reconfigure_entry = Mock(return_value=simple_heater_entry)
+
+        await flow.async_step_reconfigure()
+        # Existing values are loaded into the flow state
+        for key, value in floor_values.items():
+            assert flow.collected_config[key] == value
+
+        await flow.async_step_reconfigure_confirm(
+            {CONF_SYSTEM_TYPE: SYSTEM_TYPE_SIMPLE_HEATER}
+        )
+        await flow.async_step_basic(
+            {
+                CONF_NAME: "Simple Heater",
+                CONF_HEATER: "switch.heater",
+                CONF_SENSOR: "sensor.temperature",
+            }
+        )
+        # floor_config is skipped when a floor sensor is already configured
+        # (floor values are edited via the options flow), so the stored values
+        # must flow through untouched into the saved data.
+        with patch.object(
+            flow,
+            "async_update_reload_and_abort",
+            return_value={"type": "abort", "reason": "reconfigure_successful"},
+        ) as mock_update:
+            result = await flow.async_step_features(
+                {
+                    "configure_floor_heating": True,
+                    "configure_openings": False,
+                    "configure_presets": False,
+                }
+            )
+
+    assert result["type"] == "abort"
+    saved = mock_update.call_args[1]["data"]
+    for key, value in floor_values.items():
+        assert saved[key] == value

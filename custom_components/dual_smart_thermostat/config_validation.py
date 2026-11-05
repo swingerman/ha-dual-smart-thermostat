@@ -5,10 +5,13 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+import voluptuous as vol
+
 from .climate_roles import normalize_climate_roles
 from .const import (
     CONF_AC_MODE,
     CONF_COLD_TOLERANCE,
+    CONF_COMFORT_FLOOR_TEMP,
     CONF_COOLER,
     CONF_FLOOR_SENSOR,
     CONF_HEAT_COOL_MODE,
@@ -16,8 +19,10 @@ from .const import (
     CONF_HEATER,
     CONF_HOT_TOLERANCE,
     CONF_HUMIDITY_SENSOR,
+    CONF_MAX_FLOOR_TEMP,
     CONF_MIN_DUR,
     CONF_SENSOR,
+    DEFAULT_MAX_FLOOR_TEMP,
     SYSTEM_TYPE_AC_ONLY,
     SYSTEM_TYPE_HEAT_PUMP,
     SYSTEM_TYPE_HEATER_COOLER,
@@ -32,6 +37,30 @@ from .models import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def comfort_floor_error(config: dict[str, Any]) -> str | None:
+    """Comfort floor at or above the max floor limit could never be held.
+
+    One rule for YAML and the flows; an unset max means the runtime default.
+    """
+    comfort = config.get(CONF_COMFORT_FLOOR_TEMP)
+    if comfort is None:
+        return None
+    max_floor = config.get(CONF_MAX_FLOOR_TEMP)
+    if max_floor is None:
+        max_floor = DEFAULT_MAX_FLOOR_TEMP
+    return "comfort_floor_above_max" if comfort >= max_floor else None
+
+
+def validate_comfort_floor(config: dict[str, Any]) -> dict[str, Any]:
+    """Voluptuous validator for comfort_floor_error."""
+    if comfort_floor_error(config):
+        raise vol.Invalid(
+            "comfort_floor_temp must be below max_floor_temp",
+            path=[CONF_COMFORT_FLOOR_TEMP],
+        )
+    return config
 
 
 def _duration_to_seconds(value: Any) -> int:

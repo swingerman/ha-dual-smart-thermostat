@@ -506,3 +506,23 @@ def test_a_climate_only_option_error_is_one_clean_line(hass) -> None:
         "Invalid config for 'climate': needs heater, cooler, fan or dryer to be a "
         "climate entity 'control_style', got 'setpoint'"
     )
+
+
+@pytest.mark.parametrize(
+    ("floor", "valid"),
+    [
+        ({"comfort_floor_temp": 24, "max_floor_temp": 28}, True),
+        ({"comfort_floor_temp": 28, "max_floor_temp": 28}, False),
+        ({"comfort_floor_temp": 29}, False),  # unset max means the default 28
+        ({"comfort_floor_temp": 27}, True),
+        ({"max_floor_temp": 20}, True),  # no comfort floor: nothing to check
+    ],
+)
+def test_platform_schema_comfort_floor_below_max(floor, valid) -> None:
+    """comfort_floor_temp must stay below max_floor_temp in YAML (#647)."""
+    cfg = _yaml(floor_sensor="sensor.floor", **floor)
+    if valid:
+        PLATFORM_SCHEMA(cfg)
+    else:
+        with pytest.raises(vol.Invalid, match="comfort_floor_temp"):
+            PLATFORM_SCHEMA(cfg)

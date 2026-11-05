@@ -71,8 +71,12 @@ class HeaterHvacConroller(GenericHvacController):
                 "Keep-alive - Turning on heater (from active) %s",
                 self.entity_id,
             )
-            self._hvac_action_reason = HVACActionReason.TARGET_TEMP_NOT_REACHED
+            self._hvac_action_reason = strategy.goal_not_reached_reason()
             await self.async_turn_on_callback()
+
+        elif not is_floor_cold and strategy.hvac_goal_not_reached:
+            # Still heating: refresh why (air target vs comfort floor).
+            self._hvac_action_reason = strategy.goal_not_reached_reason()
 
     # override
     async def async_control_device_when_off(
@@ -103,7 +107,7 @@ class HeaterHvacConroller(GenericHvacController):
             if is_floor_cold:
                 self._hvac_action_reason = HVACActionReason.LIMIT
             else:
-                self._hvac_action_reason = HVACActionReason.TARGET_TEMP_NOT_REACHED
+                self._hvac_action_reason = strategy.goal_not_reached_reason()
 
         elif time is not None or any_opening_open or is_floor_hot:
             # The time argument is passed only in keep-alive case

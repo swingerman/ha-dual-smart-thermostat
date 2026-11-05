@@ -3619,6 +3619,50 @@ async def test_hvac_mode_heat_cool_tolerances(
 ######################
 
 
+async def test_hvac_mode_heat_cool_comfort_floor_not_applied(
+    hass: HomeAssistant, setup_comp_1  # noqa: F811
+):
+    """Comfort floor is heat-mode only: heat_cool ignores it (#647)."""
+    heater_switch = "input_boolean.heater"
+    cooler_switch = "input_boolean.cooler"
+    assert await async_setup_component(
+        hass,
+        input_boolean.DOMAIN,
+        {"input_boolean": {"heater": None, "cooler": None}},
+    )
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "cooler": cooler_switch,
+                "heater": heater_switch,
+                "heat_cool_mode": True,
+                "target_sensor": common.ENT_SENSOR,
+                "floor_sensor": common.ENT_FLOOR_SENSOR,
+                "comfort_floor_temp": 24,
+                "comfort_floor_max_air_overshoot": 2,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    setup_sensor(hass, 18)
+    setup_floor_sensor(hass, 10)
+    await common.async_set_hvac_mode(hass, HVACMode.HEAT_COOL)
+    await common.async_set_temperature_range(hass, ENTITY_MATCH_ALL, 25, 22)
+    await hass.async_block_till_done()
+    assert hass.states.get(heater_switch).state == STATE_ON
+
+    # air past the low target; floor still below comfort: heater stops anyway
+    setup_sensor(hass, 22.5)
+    await hass.async_block_till_done()
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert common.get_hvac_action_reason(hass) != HVACActionReason.COMFORT_FLOOR
+
+
 async def test_hvac_mode_heat_cool_floor_temp_hvac_action_reason(
     hass: HomeAssistant, setup_comp_1  # noqa: F811
 ):

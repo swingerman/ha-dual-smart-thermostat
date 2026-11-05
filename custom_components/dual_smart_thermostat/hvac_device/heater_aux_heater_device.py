@@ -73,7 +73,7 @@ class HeaterAUXHeaterDevice(MultiHvacDevice):
         """Check if we need to turn heating on or off when the heater is off."""
         _LOGGER.info("%s Controlling hvac while off", self.__class__.__name__)
 
-        too_cold = self.environment.is_too_cold(self._target_env_attr)
+        too_cold = self.heater_device.is_below_target_env_attr()
         is_floor_hot = self.environment.is_floor_hot
         is_floor_cold = self.environment.is_floor_cold
         any_opening_open = self.openings.any_opening_open(self.hvac_mode)
@@ -92,7 +92,9 @@ class HeaterAUXHeaterDevice(MultiHvacDevice):
 
         if (too_cold and not any_opening_open and not is_floor_hot) or is_floor_cold:
 
-            if self._has_aux_heating_ran_today:
+            if not is_floor_cold and self._comfort_floor_only():
+                await self.heater_device.async_turn_on()
+            elif self._has_aux_heating_ran_today:
                 await self._async_handle_aux_heater_ran_today()
             else:
                 await self._async_handle_aux_heater_havent_run_today()
@@ -100,7 +102,9 @@ class HeaterAUXHeaterDevice(MultiHvacDevice):
             if is_floor_cold:
                 self._hvac_action_reason = HVACActionReason.LIMIT
             else:
-                self._hvac_action_reason = HVACActionReason.TARGET_TEMP_NOT_REACHED
+                self._hvac_action_reason = (
+                    self.heater_device.target_env_attr_not_reached_reason()
+                )
 
         elif time is not None or any_opening_open or is_floor_hot:
             # The time argument is passed only in keep-alive case
@@ -116,6 +120,13 @@ class HeaterAUXHeaterDevice(MultiHvacDevice):
 
         else:
             _LOGGER.debug("No case matched when - keep device off")
+
+    def _comfort_floor_only(self) -> bool:
+        """Room at target, heating only for comfort floor: primary stage only."""
+        return (
+            self.heater_device.target_env_attr_not_reached_reason()
+            == HVACActionReason.COMFORT_FLOOR
+        )
 
     async def _async_handle_aux_heater_ran_today(self) -> None:
         _LOGGER.info("Aux heater has already ran today")
@@ -143,11 +154,12 @@ class HeaterAUXHeaterDevice(MultiHvacDevice):
         """Check if we need to turn heating on or off when the heater is off."""
         _LOGGER.info("%s Controlling hvac while on", self.__class__.__name__)
 
-        too_hot = self.environment.is_too_hot(self._target_env_attr)
+        too_hot = self.heater_device.is_above_target_env_attr()
         is_floor_hot = self.environment.is_floor_hot
         is_floor_cold = self.environment.is_floor_cold
         any_opening_open = self.openings.any_opening_open(self.hvac_mode)
         first_stage_timed_out = self._first_stage_heating_timed_out()
+        comfort_only = self._comfort_floor_only()
 
         _LOGGER.debug(
             "too_hot: %s, is_floor_hot: %s, is_floor_cold: %s, any_opening_open: %s, time: %s",
@@ -181,9 +193,16 @@ class HeaterAUXHeaterDevice(MultiHvacDevice):
             if any_opening_open:
                 self._hvac_action_reason = HVACActionReason.OPENING
 
+        elif comfort_only and self.aux_heater_device.is_active:
+            # Room target reached; comfort floor only needs the first stage.
+            await self.aux_heater_device.async_turn_off()
+            await self.heater_device.async_turn_on()
+            self._hvac_action_reason = HVACActionReason.COMFORT_FLOOR
+
         elif (
             self._first_stage_heating_timed_out()
             and not self.aux_heater_device.is_active
+            and not comfort_only
         ):
             _LOGGER.debug("Turning on aux heater %s", self.aux_heater_device.entity_id)
             if not self._aux_heater_dual_mode:

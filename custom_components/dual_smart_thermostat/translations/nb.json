@@ -15,6 +15,7 @@
           "opening": "Åpning oppdaget",
           "limit": "Grense nådd",
           "overheat": "Overopphetingsbeskyttelse",
+          "comfort_floor": "Komfortgulvtemperatur",
           "temperature_sensor_stalled": "Temperatursensor stanset",
           "humidity_sensor_stalled": "Fuktighetssensor stanset",
           "presence": "Tilstedeværelse",
@@ -77,7 +78,8 @@
       "setpoint_heat_pump_unsupported": "Settpunktstyring støttes ikke for en klima-varmepumpe",
       "setpoint_heat_cool_shared_climate": "Settpunktstyring kan ikke gjøre varme/kjøling når én klimaentitet er både varmeapparat og kjøler",
       "setpoint_needs_heater_or_cooler": "Settpunktstyring krever at varmeapparatet eller kjøleren er en klimaentitet",
-      "self_controlled": "En termostat kan ikke bruke sin egen entitet som en av enhetene sine"
+      "self_controlled": "En termostat kan ikke bruke sin egen entitet som en av enhetene sine",
+      "comfort_floor_above_max": "Komfortgulvtemperaturen må være lavere enn maksimal gulvtemperatur."
     },
     "step": {
       "user": {
@@ -346,12 +348,18 @@
         "data": {
           "floor_sensor": "Gulvtemperatursensor",
           "max_floor_temp": "Maksimal gulvtemperatur",
-          "min_floor_temp": "Minimum gulvtemperatur"
+          "min_floor_temp": "Minimum gulvtemperatur",
+          "floor_tolerance": "Gulvtoleranse",
+          "comfort_floor_temp": "Komfortgulvtemperatur",
+          "comfort_floor_max_air_overshoot": "Maks. romoverskridelse for komfortgulv"
         },
         "data_description": {
           "floor_sensor": "Enhets-ID for gulvtemperatursensor. Overvåker gulvtemperaturen for å sikre trygg drift og beskytte gulvmaterialer mot overoppheting eller ekstrem kulde.",
           "max_floor_temp": "Maksimal tillatt gulvtemperatur for beskyttelse. Gulvvarmen slås av når denne temperaturen nås, uavhengig av romtemperaturen, for å hindre skade på gulvmaterialer. (Standard: 28°C)",
-          "min_floor_temp": "Minimum gulvtemperatur som skal opprettholdes. Gulvvarmen aktiveres når gulvtemperaturen faller under denne verdien, og gir frostbeskyttelse for gulvvarmesystemet. (Standard: 5°C)"
+          "min_floor_temp": "Minimum gulvtemperatur som skal opprettholdes. Gulvvarmen aktiveres når gulvtemperaturen faller under denne verdien, og gir frostbeskyttelse for gulvvarmesystemet. (Standard: 5°C)",
+          "floor_tolerance": "Hysterese for alle gulvgrenser (minimum, maksimum, komfort). En grense slår inn ved terskelverdien og slippes først når gulvtemperaturen har gått så mye tilbake, noe som hindrer hyppig av/på-kobling. 0 beholder tidligere oppførsel. (Standard: 0)",
+          "comfort_floor_temp": "Fortsetter oppvarmingen så lenge gulvet er under denne temperaturen, også etter at rommet har nådd måltemperaturen. La stå tomt for å deaktivere. Maksimal gulvtemperatur har alltid forrang. Gjelder kun i varmemodus (ikke varme/kjøling eller varmepumpe).",
+          "comfort_floor_max_air_overshoot": "Hvor mye romtemperaturen kan stige over måltemperaturen mens det varmes for gulvkomfort. Oppvarmingen for gulvet fortsetter når romtemperaturen har falt under denne grensen med kuldetoleransen. (Standard: 1.0)"
         }
       },
       "openings_toggle": {
@@ -851,12 +859,18 @@
         "data": {
           "floor_sensor": "Gulvtemperatursensor",
           "max_floor_temp": "Maksimal gulvtemperatur",
-          "min_floor_temp": "Minimum gulvtemperatur"
+          "min_floor_temp": "Minimum gulvtemperatur",
+          "floor_tolerance": "Gulvtoleranse",
+          "comfort_floor_temp": "Komfortgulvtemperatur",
+          "comfort_floor_max_air_overshoot": "Maks. romoverskridelse for komfortgulv"
         },
         "data_description": {
           "floor_sensor": "Enhets-ID for gulvtemperatursensor. Overvåker gulvtemperaturen for sikkerhet og kontroll.",
           "max_floor_temp": "Maksimal tillatt gulvtemperatur for beskyttelse. Hindrer skade på gulvmaterialer. (Standard: 28°C)",
-          "min_floor_temp": "Minimum gulvtemperatur som skal opprettholdes. Gir frostbeskyttelse for gulvvarmesystemet. (Standard: 5°C)"
+          "min_floor_temp": "Minimum gulvtemperatur som skal opprettholdes. Gir frostbeskyttelse for gulvvarmesystemet. (Standard: 5°C)",
+          "floor_tolerance": "Hysterese for alle gulvgrenser (minimum, maksimum, komfort). En grense slår inn ved terskelverdien og slippes først når gulvtemperaturen har gått så mye tilbake, noe som hindrer hyppig av/på-kobling. 0 beholder tidligere oppførsel. (Standard: 0)",
+          "comfort_floor_temp": "Fortsetter oppvarmingen så lenge gulvet er under denne temperaturen, også etter at rommet har nådd måltemperaturen. La stå tomt for å deaktivere. Maksimal gulvtemperatur har alltid forrang. Gjelder kun i varmemodus (ikke varme/kjøling eller varmepumpe).",
+          "comfort_floor_max_air_overshoot": "Hvor mye romtemperaturen kan stige over måltemperaturen mens det varmes for gulvkomfort. Oppvarmingen for gulvet fortsetter når romtemperaturen har falt under denne grensen med kuldetoleransen. (Standard: 1.0)"
         }
       },
       "fan_options": {
@@ -1074,7 +1088,8 @@
       "setpoint_heat_pump_unsupported": "Settpunktstyring støttes ikke for en klima-varmepumpe",
       "setpoint_heat_cool_shared_climate": "Settpunktstyring kan ikke gjøre varme/kjøling når én klimaentitet er både varmeapparat og kjøler",
       "setpoint_needs_heater_or_cooler": "Settpunktstyring krever at varmeapparatet eller kjøleren er en klimaentitet",
-      "self_controlled": "En termostat kan ikke bruke sin egen entitet som en av enhetene sine"
+      "self_controlled": "En termostat kan ikke bruke sin egen entitet som en av enhetene sine",
+      "comfort_floor_above_max": "Komfortgulvtemperaturen må være lavere enn maksimal gulvtemperatur."
     }
   }
 }

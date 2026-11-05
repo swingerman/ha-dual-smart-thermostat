@@ -30,6 +30,8 @@ from .const import (
     CONF_AUX_HEATING_DUAL_MODE,
     CONF_AUX_HEATING_TIMEOUT,
     CONF_COLD_TOLERANCE,
+    CONF_COMFORT_FLOOR_MAX_AIR_OVERSHOOT,
+    CONF_COMFORT_FLOOR_TEMP,
     CONF_CONTROL_STYLE,
     CONF_COOL_TOLERANCE,
     CONF_COOLER,
@@ -43,6 +45,7 @@ from .const import (
     CONF_FAN_ON_WITH_AC,
     CONF_FAN_ON_WITH_HEATER,
     CONF_FLOOR_SENSOR,
+    CONF_FLOOR_TOLERANCE,
     CONF_FOLLOW_DEVICE_CHANGES,
     CONF_HEAT_COOL_MODE,
     CONF_HEAT_PUMP_COOLING,
@@ -69,6 +72,7 @@ from .const import (
     CONF_TARGET_TEMP_HIGH,
     CONF_TARGET_TEMP_LOW,
     CONF_TEMP_STEP,
+    DEFAULT_COMFORT_FLOOR_MAX_AIR_OVERSHOOT,
     DEFAULT_CONTROL_STYLE,
     DEFAULT_FOLLOW_DEVICE_CHANGES,
     DEFAULT_SETPOINT_OFFSET,
@@ -663,6 +667,21 @@ def get_floor_heating_schema(hass=None, defaults: dict[str, Any] | None = None):
             vol.Optional(
                 CONF_MIN_FLOOR_TEMP, default=defaults.get(CONF_MIN_FLOOR_TEMP, 5)
             ): get_temperature_selector(hass=hass, min_value=5, max_value=35),
+            vol.Optional(
+                CONF_FLOOR_TOLERANCE, default=defaults.get(CONF_FLOOR_TOLERANCE, 0)
+            ): get_tolerance_selector(hass=hass, min_value=0, max_value=5, step=0.1),
+            # No default: leaving it empty keeps comfort floor disabled.
+            vol.Optional(
+                CONF_COMFORT_FLOOR_TEMP,
+                description={"suggested_value": defaults.get(CONF_COMFORT_FLOOR_TEMP)},
+            ): get_temperature_selector(hass=hass, min_value=5, max_value=35),
+            vol.Optional(
+                CONF_COMFORT_FLOOR_MAX_AIR_OVERSHOOT,
+                default=defaults.get(
+                    CONF_COMFORT_FLOOR_MAX_AIR_OVERSHOOT,
+                    DEFAULT_COMFORT_FLOOR_MAX_AIR_OVERSHOOT,
+                ),
+            ): get_tolerance_selector(hass=hass, min_value=0, max_value=5, step=0.1),
         }
     )
 

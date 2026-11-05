@@ -15,6 +15,7 @@
           "opening": "Zistený otvor",
           "limit": "Dosiahnutý limit",
           "overheat": "Ochrana proti prehriatiu",
+          "comfort_floor": "Komfortná teplota podlahy",
           "temperature_sensor_stalled": "Senzor teploty nereaguje",
           "humidity_sensor_stalled": "Senzor vlhkosti nereaguje",
           "presence": "Prítomnosť",
@@ -38,7 +39,8 @@
       "setpoint_heat_pump_unsupported": "Riadenie podľa nastavenej hodnoty nie je podporované pre tepelné čerpadlo typu climate",
       "setpoint_heat_cool_shared_climate": "Riadenie podľa nastavenej hodnoty nedokáže vykurovať/chladiť, ak je jedna entita climate zároveň ohrievačom aj chladičom",
       "setpoint_needs_heater_or_cooler": "Riadenie podľa nastavenej hodnoty vyžaduje, aby ohrievač alebo chladič bol entitou climate",
-      "self_controlled": "Termostat nemôže použiť vlastnú entitu ako jedno zo svojich zariadení"
+      "self_controlled": "Termostat nemôže použiť vlastnú entitu ako jedno zo svojich zariadení",
+      "comfort_floor_above_max": "Komfortná teplota podlahy musí byť nižšia ako maximálna teplota podlahy."
     },
     "step": {
       "user": {
@@ -307,12 +309,18 @@
         "data": {
           "floor_sensor": "Senzor teploty podlahy",
           "max_floor_temp": "Maximálna teplota podlahy",
-          "min_floor_temp": "Minimálna teplota podlahy"
+          "min_floor_temp": "Minimálna teplota podlahy",
+          "floor_tolerance": "Tolerancia podlahy",
+          "comfort_floor_temp": "Komfortná teplota podlahy",
+          "comfort_floor_max_air_overshoot": "Max. prekročenie teploty miestnosti (komfortná podlaha)"
         },
         "data_description": {
           "floor_sensor": "ID entity senzora teploty podlahy. Monitoruje teplotu podlahy pre zabezpečenie bezpečnej prevádzky a ochranu podlahových materiálov pred prehriatím alebo extrémnym chladom.",
           "max_floor_temp": "Maximálna povolená teplota podlahy pre ochranu. Podlahové kúrenie sa vypne, keď sa dosiahne táto teplota, bez ohľadu na teplotu miestnosti, aby sa zabránilo poškodeniu podlahových materiálov. (Predvolené: 28°C)",
-          "min_floor_temp": "Minimálna teplota podlahy, ktorá sa má udržiavať. Podlahové kúrenie sa aktivuje, keď teplota podlahy klesne pod túto hodnotu, čím poskytuje ochranu proti zamrznutiu pre systém podlahového kúrenia. (Predvolené: 5°C)"
+          "min_floor_temp": "Minimálna teplota podlahy, ktorá sa má udržiavať. Podlahové kúrenie sa aktivuje, keď teplota podlahy klesne pod túto hodnotu, čím poskytuje ochranu proti zamrznutiu pre systém podlahového kúrenia. (Predvolené: 5°C)",
+          "floor_tolerance": "Hysterézia pre všetky limity teploty podlahy (minimálny, maximálny, komfortný). Limit sa aktivuje pri svojej hodnote a uvoľní sa až vtedy, keď sa teplota podlahy vráti o túto hodnotu späť, čím sa zabráni častému zapínaniu a vypínaniu. Hodnota 0 zachová doterajšie správanie. (Predvolené: 0)",
+          "comfort_floor_temp": "Kúrenie pokračuje, kým je podlaha pod touto teplotou, aj keď miestnosť už dosiahla cieľovú teplotu. Nechajte prázdne pre vypnutie. Maximálna teplota podlahy má vždy prednosť. Platí len v režime kúrenia (nie v režime kúrenie/chladenie ani pri tepelnom čerpadle).",
+          "comfort_floor_max_air_overshoot": "O koľko môže teplota miestnosti stúpnuť nad cieľovú teplotu počas kúrenia pre komfort podlahy. Kúrenie pre podlahu pokračuje, keď teplota miestnosti klesne pod tento limit o toleranciu chladu. (Predvolené: 1.0)"
         }
       },
       "openings_toggle": {
@@ -812,12 +820,18 @@
         "data": {
           "floor_sensor": "Senzor teploty podlahy",
           "max_floor_temp": "Maximálna teplota podlahy",
-          "min_floor_temp": "Minimálna teplota podlahy"
+          "min_floor_temp": "Minimálna teplota podlahy",
+          "floor_tolerance": "Tolerancia podlahy",
+          "comfort_floor_temp": "Komfortná teplota podlahy",
+          "comfort_floor_max_air_overshoot": "Max. prekročenie teploty miestnosti (komfortná podlaha)"
         },
         "data_description": {
           "floor_sensor": "ID entity senzora teploty podlahy. Monitoruje teplotu podlahy pre bezpečnosť a ovládanie.",
           "max_floor_temp": "Maximálna povolená teplota podlahy pre ochranu. Zabraňuje poškodeniu podlahových materiálov. (Predvolené: 28°C)",
-          "min_floor_temp": "Minimálna teplota podlahy, ktorá sa má udržiavať. Poskytuje ochranu proti zamrznutiu pre systém podlahového kúrenia. (Predvolené: 5°C)"
+          "min_floor_temp": "Minimálna teplota podlahy, ktorá sa má udržiavať. Poskytuje ochranu proti zamrznutiu pre systém podlahového kúrenia. (Predvolené: 5°C)",
+          "floor_tolerance": "Hysterézia pre všetky limity teploty podlahy (minimálny, maximálny, komfortný). Limit sa aktivuje pri svojej hodnote a uvoľní sa až vtedy, keď sa teplota podlahy vráti o túto hodnotu späť, čím sa zabráni častému zapínaniu a vypínaniu. Hodnota 0 zachová doterajšie správanie. (Predvolené: 0)",
+          "comfort_floor_temp": "Kúrenie pokračuje, kým je podlaha pod touto teplotou, aj keď miestnosť už dosiahla cieľovú teplotu. Nechajte prázdne pre vypnutie. Maximálna teplota podlahy má vždy prednosť. Platí len v režime kúrenia (nie v režime kúrenie/chladenie ani pri tepelnom čerpadle).",
+          "comfort_floor_max_air_overshoot": "O koľko môže teplota miestnosti stúpnuť nad cieľovú teplotu počas kúrenia pre komfort podlahy. Kúrenie pre podlahu pokračuje, keď teplota miestnosti klesne pod tento limit o toleranciu chladu. (Predvolené: 1.0)"
         }
       },
       "fan_options": {
@@ -1035,7 +1049,8 @@
       "setpoint_heat_pump_unsupported": "Riadenie podľa nastavenej hodnoty nie je podporované pre tepelné čerpadlo typu climate",
       "setpoint_heat_cool_shared_climate": "Riadenie podľa nastavenej hodnoty nedokáže vykurovať/chladiť, ak je jedna entita climate zároveň ohrievačom aj chladičom",
       "setpoint_needs_heater_or_cooler": "Riadenie podľa nastavenej hodnoty vyžaduje, aby ohrievač alebo chladič bol entitou climate",
-      "self_controlled": "Termostat nemôže použiť vlastnú entitu ako jedno zo svojich zariadení"
+      "self_controlled": "Termostat nemôže použiť vlastnú entitu ako jedno zo svojich zariadení",
+      "comfort_floor_above_max": "Komfortná teplota podlahy musí byť nižšia ako maximálna teplota podlahy."
     }
   },
   "selector": {
