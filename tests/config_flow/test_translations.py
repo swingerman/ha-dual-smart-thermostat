@@ -17,10 +17,10 @@ OTHER_LANGUAGES = sorted(
 )
 
 
-def _leaf_keys(node, prefix=""):
+def _leaf_keys(node, path=()):
     if not isinstance(node, dict):
-        return {prefix}
-    return {k for key, v in node.items() for k in _leaf_keys(v, f"{prefix}{key}.")}
+        return {".".join(path)}
+    return {k for key, v in node.items() for k in _leaf_keys(v, (*path, key))}
 
 
 @pytest.mark.parametrize("filename", OTHER_LANGUAGES)
