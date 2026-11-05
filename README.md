@@ -198,7 +198,7 @@ The thermostat automatically detects whether your fan entity supports speed cont
 - **Switch entities** (`switch` domain) → Traditional on/off control (backward compatible)
 - **Climate entities** (`climate` domain) with `fan_modes` → the device's own fan modes are used as they are (`quiet`, `strong`, ...). This works for a climate in any role (a cooler-only AC included) unless a separate `fan` entity is configured, which then owns the fan mode and leaves the AC's own fan speed untouched. With two different climate entities, the fan speed goes to the first climate role (`heater` before `cooler`, then `fan`, `dryer`); to use the other one, make it the `fan` role. The selected speed is sent again after every turn on of the climate, because many ACs reset it when their mode changes.
 
-**No configuration changes required** - the thermostat detects capabilities at runtime. In the UI, pick the `fan` entity in the **Fan** field of the configuration, reconfigure or options flow (fan step); a fan entity with speeds enables fan speed control.
+**No configuration changes required** - the thermostat detects capabilities at runtime. In the UI, pick it in the **Fan** field (fan step).
 
 ### Fan Speed Control Example
 
@@ -800,7 +800,7 @@ The reason is grouped into three categories:
 
 ### fan
 
-  _(optional) (string)_ "`entity_id` for fan switch, must be a toggle device or a `climate` entity (see [Climate entities as devices](#climate-entities-as-devices)). A climate fan runs in its `fan_only` mode."
+  _(optional) (string)_ "`entity_id` for the fan: a toggle device, a `fan` entity (speeds enable [Fan Speed Control](#fan-speed-control)) or a `climate` entity (see [Climate entities as devices](#climate-entities-as-devices)). A climate fan runs in its `fan_only` mode."
 
 ### fan_hot_tolerance
 
