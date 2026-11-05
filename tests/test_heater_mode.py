@@ -2455,33 +2455,49 @@ async def test_heater_mode_floor_temp_hvac_action_reason(
     )
 
 
+FLOOR_HEATER = "input_boolean.test"
+SECONDARY_HEATER = "input_boolean.secondary"
+
+
+def _floor_heater_config(**extra) -> dict:
+    """Heater with floor sensor and max_floor_temp 28."""
+    return {
+        "platform": DOMAIN,
+        "name": "test",
+        "heater": FLOOR_HEATER,
+        "target_sensor": common.ENT_SENSOR,
+        "floor_sensor": common.ENT_FLOOR_SENSOR,
+        "max_floor_temp": 28,
+        "cold_tolerance": COLD_TOLERANCE,
+        "hot_tolerance": HOT_TOLERANCE,
+        **extra,
+    }
+
+
 async def _setup_floor_heater(hass: HomeAssistant, **extra) -> str:
-    """Heater with floor sensor, max_floor_temp 28 and a window opening."""
-    heater_switch = "input_boolean.test"
-    assert await async_setup_component(
-        hass, input_boolean.DOMAIN, {"input_boolean": {"test": None, "window": None}}
-    )
+    """Floor heater in HEAT mode with a window opening (and a spare secondary)."""
     assert await async_setup_component(
         hass,
-        CLIMATE,
-        {
-            "climate": {
-                "platform": DOMAIN,
-                "name": "test",
-                "heater": heater_switch,
-                "target_sensor": common.ENT_SENSOR,
-                "initial_hvac_mode": HVACMode.HEAT,
-                "floor_sensor": common.ENT_FLOOR_SENSOR,
-                "max_floor_temp": 28,
-                "cold_tolerance": COLD_TOLERANCE,
-                "hot_tolerance": HOT_TOLERANCE,
-                "openings": ["input_boolean.window"],
-                **extra,
-            }
-        },
+        input_boolean.DOMAIN,
+        {"input_boolean": {"test": None, "window": None, "secondary": None}},
     )
+    config = _floor_heater_config(
+        initial_hvac_mode=HVACMode.HEAT, openings=["input_boolean.window"], **extra
+    )
+    assert await async_setup_component(hass, CLIMATE, {"climate": config})
     await hass.async_block_till_done()
-    return heater_switch
+    return FLOOR_HEATER
+
+
+async def _setup_aux_floor_heater(hass: HomeAssistant, timeout: int = 10):
+    """Floor heater + secondary heater with comfort floor configured."""
+    heater = await _setup_floor_heater(
+        hass,
+        secondary_heater=SECONDARY_HEATER,
+        secondary_heater_timeout={"seconds": timeout},
+        **COMFORT_FLOOR,
+    )
+    return heater, SECONDARY_HEATER
 
 
 COMFORT_FLOOR = {"comfort_floor_temp": 24, "comfort_floor_max_air_overshoot": 1.0}
@@ -2602,33 +2618,7 @@ async def test_heater_mode_aux_heater_comfort_floor(
     hass: HomeAssistant, setup_comp_1  # noqa: F811
 ) -> None:
     """Heater + secondary heater: comfort floor turns the heater on from off."""
-    heater_switch = "input_boolean.heater_switch"
-    secondary_heater_switch = "input_boolean.secondary_heater_switch"
-    assert await async_setup_component(
-        hass,
-        input_boolean.DOMAIN,
-        {"input_boolean": {"heater_switch": None, "secondary_heater_switch": None}},
-    )
-    assert await async_setup_component(
-        hass,
-        CLIMATE,
-        {
-            "climate": {
-                "platform": DOMAIN,
-                "name": "test",
-                "heater": heater_switch,
-                "secondary_heater": secondary_heater_switch,
-                "secondary_heater_timeout": {"seconds": 10},
-                "target_sensor": common.ENT_SENSOR,
-                "initial_hvac_mode": HVACMode.HEAT,
-                "floor_sensor": common.ENT_FLOOR_SENSOR,
-                "cold_tolerance": COLD_TOLERANCE,
-                "hot_tolerance": HOT_TOLERANCE,
-                **COMFORT_FLOOR,
-            }
-        },
-    )
-    await hass.async_block_till_done()
+    heater_switch, secondary_heater_switch = await _setup_aux_floor_heater(hass)
 
     setup_sensor(hass, 20.6)
     setup_floor_sensor(hass, 20)
@@ -2650,33 +2640,9 @@ async def test_heater_mode_aux_heater_not_used_for_comfort_floor(
 ) -> None:
     """Comfort floor alone never starts or keeps the secondary heater (#647)."""
     timeout = 10
-    heater_switch = "input_boolean.heater_switch"
-    secondary_heater_switch = "input_boolean.secondary_heater_switch"
-    assert await async_setup_component(
-        hass,
-        input_boolean.DOMAIN,
-        {"input_boolean": {"heater_switch": None, "secondary_heater_switch": None}},
+    heater_switch, secondary_heater_switch = await _setup_aux_floor_heater(
+        hass, timeout
     )
-    assert await async_setup_component(
-        hass,
-        CLIMATE,
-        {
-            "climate": {
-                "platform": DOMAIN,
-                "name": "test",
-                "heater": heater_switch,
-                "secondary_heater": secondary_heater_switch,
-                "secondary_heater_timeout": {"seconds": timeout},
-                "target_sensor": common.ENT_SENSOR,
-                "initial_hvac_mode": HVACMode.HEAT,
-                "floor_sensor": common.ENT_FLOOR_SENSOR,
-                "cold_tolerance": COLD_TOLERANCE,
-                "hot_tolerance": HOT_TOLERANCE,
-                **COMFORT_FLOOR,
-            }
-        },
-    )
-    await hass.async_block_till_done()
 
     def heater_states():
         return (
@@ -2887,7 +2853,6 @@ async def test_heater_mode_preset_floor_limit_change_starts_unlatched(
 
 
 async def _restart_with_restored_state(hass, attributes, **extra) -> str:
-    heater_switch = "input_boolean.test"
     common.mock_restore_cache(
         hass, (State("climate.test_thermostat", HVACMode.HEAT, attributes),)
     )
@@ -2896,26 +2861,11 @@ async def _restart_with_restored_state(hass, attributes, **extra) -> str:
         hass, input_boolean.DOMAIN, {"input_boolean": {"test": None}}
     )
     await hass.async_block_till_done()
-    assert await async_setup_component(
-        hass,
-        CLIMATE,
-        {
-            "climate": {
-                "platform": DOMAIN,
-                "name": "test_thermostat",
-                "heater": heater_switch,
-                "target_sensor": common.ENT_SENSOR,
-                "floor_sensor": common.ENT_FLOOR_SENSOR,
-                "max_floor_temp": 28,
-                "cold_tolerance": COLD_TOLERANCE,
-                "hot_tolerance": HOT_TOLERANCE,
-                **extra,
-            }
-        },
-    )
+    config = _floor_heater_config(name="test_thermostat", **extra)
+    assert await async_setup_component(hass, CLIMATE, {"climate": config})
     await hass.async_block_till_done()
     hass.set_state(CoreState.running)
-    return heater_switch
+    return FLOOR_HEATER
 
 
 async def test_restore_old_state_applies_comfort_floor_from_config(
@@ -2961,33 +2911,7 @@ async def test_heater_mode_aux_heater_comfort_floor_keeps_running(
     hass: HomeAssistant, setup_comp_1  # noqa: F811
 ) -> None:
     """Heater + secondary: comfort keeps the running heater past the air target."""
-    heater_switch = "input_boolean.heater_switch"
-    secondary_heater_switch = "input_boolean.secondary_heater_switch"
-    assert await async_setup_component(
-        hass,
-        input_boolean.DOMAIN,
-        {"input_boolean": {"heater_switch": None, "secondary_heater_switch": None}},
-    )
-    assert await async_setup_component(
-        hass,
-        CLIMATE,
-        {
-            "climate": {
-                "platform": DOMAIN,
-                "name": "test",
-                "heater": heater_switch,
-                "secondary_heater": secondary_heater_switch,
-                "secondary_heater_timeout": {"seconds": 10},
-                "target_sensor": common.ENT_SENSOR,
-                "initial_hvac_mode": HVACMode.HEAT,
-                "floor_sensor": common.ENT_FLOOR_SENSOR,
-                "cold_tolerance": COLD_TOLERANCE,
-                "hot_tolerance": HOT_TOLERANCE,
-                **COMFORT_FLOOR,
-            }
-        },
-    )
-    await hass.async_block_till_done()
+    heater_switch, secondary_heater_switch = await _setup_aux_floor_heater(hass)
 
     setup_sensor(hass, 18)
     setup_floor_sensor(hass, 20)

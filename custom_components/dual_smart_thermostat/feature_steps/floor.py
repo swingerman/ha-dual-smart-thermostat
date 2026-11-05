@@ -17,10 +17,14 @@ from ..const import (
 from ..schemas import get_base_schema, get_floor_heating_schema, get_grouped_schema
 
 
-def _collect(collected_config: dict, user_input: dict[str, Any]) -> None:
+def _submitted(user_input: dict[str, Any]) -> dict[str, Any]:
     # An emptied comfort_floor_temp is absent from user_input; store None so a
     # stale persisted value can't survive the entry merge.
-    collected_config.update({CONF_COMFORT_FLOOR_TEMP: None, **user_input})
+    return {CONF_COMFORT_FLOOR_TEMP: None, **user_input}
+
+
+def _collect(collected_config: dict, user_input: dict[str, Any]) -> None:
+    collected_config.update(_submitted(user_input))
 
 
 def _floor_errors(
@@ -29,7 +33,7 @@ def _floor_errors(
     # Same rule YAML validation uses (config_validation.py).
     if user_input is None:
         return {}
-    candidate = {**collected_config, CONF_COMFORT_FLOOR_TEMP: None, **user_input}
+    candidate = {**collected_config, **_submitted(user_input)}
     code = comfort_floor_error(candidate)
     return {CONF_COMFORT_FLOOR_TEMP: code} if code else {}
 

@@ -115,6 +115,29 @@ class TestSimpleHeaterNoFeatures:
         assert flow.collected_config["configure_presets"] is False
 
 
+async def _flow_at_floor_step(mock_hass) -> ConfigFlowHandler:
+    """Simple heater config flow advanced to the floor_config step."""
+    flow = ConfigFlowHandler()
+    flow.hass = mock_hass
+    flow.collected_config = {}
+    await flow.async_step_user({CONF_SYSTEM_TYPE: SYSTEM_TYPE_SIMPLE_HEATER})
+    await flow.async_step_basic(
+        {
+            CONF_NAME: "Test Heater",
+            CONF_SENSOR: "sensor.temperature",
+            CONF_HEATER: "switch.heater",
+        }
+    )
+    await flow.async_step_features(
+        {
+            "configure_floor_heating": True,
+            "configure_openings": False,
+            "configure_presets": False,
+        }
+    )
+    return flow
+
+
 class TestSimpleHeaterFloorHeatingOnly:
     """Test simple_heater with only floor_heating enabled."""
 
@@ -201,25 +224,7 @@ class TestSimpleHeaterFloorHeatingOnly:
 
     async def test_config_flow_persists_comfort_floor_and_tolerance(self, mock_hass):
         """floor_tolerance and comfort floor settings are saved by config flow."""
-        flow = ConfigFlowHandler()
-        flow.hass = mock_hass
-        flow.collected_config = {}
-
-        await flow.async_step_user({CONF_SYSTEM_TYPE: SYSTEM_TYPE_SIMPLE_HEATER})
-        await flow.async_step_basic(
-            {
-                CONF_NAME: "Test Heater",
-                CONF_SENSOR: "sensor.temperature",
-                CONF_HEATER: "switch.heater",
-            }
-        )
-        await flow.async_step_features(
-            {
-                "configure_floor_heating": True,
-                "configure_openings": False,
-                "configure_presets": False,
-            }
-        )
+        flow = await _flow_at_floor_step(mock_hass)
         result = await flow.async_step_floor_config(
             {
                 CONF_FLOOR_SENSOR: "sensor.floor_temperature",
@@ -238,25 +243,7 @@ class TestSimpleHeaterFloorHeatingOnly:
 
     async def test_floor_config_rejects_comfort_floor_at_or_above_max(self, mock_hass):
         """The floor step shows an error instead of saving comfort >= max."""
-        flow = ConfigFlowHandler()
-        flow.hass = mock_hass
-        flow.collected_config = {}
-
-        await flow.async_step_user({CONF_SYSTEM_TYPE: SYSTEM_TYPE_SIMPLE_HEATER})
-        await flow.async_step_basic(
-            {
-                CONF_NAME: "Test Heater",
-                CONF_SENSOR: "sensor.temperature",
-                CONF_HEATER: "switch.heater",
-            }
-        )
-        await flow.async_step_features(
-            {
-                "configure_floor_heating": True,
-                "configure_openings": False,
-                "configure_presets": False,
-            }
-        )
+        flow = await _flow_at_floor_step(mock_hass)
         floor_input = {
             CONF_FLOOR_SENSOR: "sensor.floor_temperature",
             CONF_MAX_FLOOR_TEMP: 28,

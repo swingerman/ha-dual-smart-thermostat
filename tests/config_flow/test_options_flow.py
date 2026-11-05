@@ -645,6 +645,16 @@ def _schema_default(schema_dict, name):
     return (key.description or {}).get("suggested_value")
 
 
+async def _at_floor_options(mock_hass, entry, **data) -> OptionsFlowHandler:
+    """Options flow on an entry with a floor sensor, advanced to floor_options."""
+    entry.data.update({CONF_FLOOR_SENSOR: "sensor.floor_temp", **data})
+    handler = OptionsFlowHandler(entry)
+    handler.hass = mock_hass
+    result = await handler.async_step_init({"cold_tolerance": 0.3})
+    assert result["step_id"] == "floor_options"
+    return handler
+
+
 async def test_floor_options_prefills_comfort_floor_and_tolerance(
     mock_hass, simple_heater_config_entry
 ):
@@ -673,17 +683,9 @@ async def test_floor_options_clearing_comfort_floor_disables_it(
     mock_hass, simple_heater_config_entry
 ):
     """Emptying comfort_floor_temp must not let the stored value survive the merge."""
-    simple_heater_config_entry.data.update(
-        {
-            CONF_FLOOR_SENSOR: "sensor.floor_temp",
-            CONF_COMFORT_FLOOR_TEMP: 24,
-        }
+    handler = await _at_floor_options(
+        mock_hass, simple_heater_config_entry, **{CONF_COMFORT_FLOOR_TEMP: 24}
     )
-    handler = OptionsFlowHandler(simple_heater_config_entry)
-    handler.hass = mock_hass
-
-    result = await handler.async_step_init({"cold_tolerance": 0.3})
-    assert result["step_id"] == "floor_options"
     # Cleared optional field is simply absent from the submitted form
     result = await handler.async_step_floor_options(
         {CONF_FLOOR_SENSOR: "sensor.floor_temp"}
@@ -697,12 +699,7 @@ async def test_floor_options_rejects_comfort_floor_at_or_above_max(
     mock_hass, simple_heater_config_entry
 ):
     """Options floor step keeps the form open with an error for comfort >= max."""
-    simple_heater_config_entry.data.update({CONF_FLOOR_SENSOR: "sensor.floor_temp"})
-    handler = OptionsFlowHandler(simple_heater_config_entry)
-    handler.hass = mock_hass
-
-    result = await handler.async_step_init({"cold_tolerance": 0.3})
-    assert result["step_id"] == "floor_options"
+    handler = await _at_floor_options(mock_hass, simple_heater_config_entry)
     result = await handler.async_step_floor_options(
         {
             CONF_FLOOR_SENSOR: "sensor.floor_temp",
