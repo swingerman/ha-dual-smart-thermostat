@@ -1201,6 +1201,44 @@ async def test_sensor_unknown_at_startup_does_nothing(
     assert hass.states.get(heater).state == STATE_ON
 
 
+@pytest.mark.parametrize("expected_lingering_timers", [True])
+@pytest.mark.parametrize("sensor_state", [STATE_UNAVAILABLE, STATE_UNKNOWN])
+async def test_sensor_unavailable_stop_holds_until_reading(
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+    setup_comp_1,  # noqa: F811
+    sensor_state,
+) -> None:
+    """After the emergency stop, nothing restarts the heater on the last reading."""
+    hass.config.units = METRIC_SYSTEM
+    heater = await _setup_min_cycle_heater(hass, 18)
+    await common.async_set_temperature(hass, 23)
+    await hass.async_block_till_done()
+    assert hass.states.get(heater).state == STATE_ON
+
+    # past the min cycle, so the stop is immediate
+    await _tick(hass, freezer, 61)
+    hass.states.async_set(common.ENT_SENSOR, sensor_state)
+    await hass.async_block_till_done()
+    assert hass.states.get(heater).state == STATE_OFF
+
+    # the min-cycle poll and a new target leave it stopped
+    await _tick(hass, freezer, 61)
+    assert hass.states.get(heater).state == STATE_OFF
+    await common.async_set_temperature(hass, 24)
+    await hass.async_block_till_done()
+    assert hass.states.get(heater).state == STATE_OFF
+    assert (
+        hass.states.get(common.ENTITY).attributes.get(ATTR_HVAC_ACTION_REASON)
+        == HVACActionReasonInternal.TEMPERATURE_SENSOR_STALLED
+    )
+
+    # a reading resumes control
+    setup_sensor(hass, 18)
+    await hass.async_block_till_done()
+    assert hass.states.get(heater).state == STATE_ON
+
+
 async def test_running_when_hvac_mode_is_off(
     hass: HomeAssistant, setup_comp_heat  # noqa: F811
 ) -> None:
