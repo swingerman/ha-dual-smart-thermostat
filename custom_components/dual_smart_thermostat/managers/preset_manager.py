@@ -150,7 +150,7 @@ class PresetManager(StateManager):
         self._preset_mode = preset_mode
         self._preset_env = self.presets[preset_mode]
 
-    async def apply_old_state(self, old_state: State):
+    def apply_old_state(self, old_state: State):
         """Restore state from previous session."""
         if old_state is None:
             return
@@ -164,16 +164,16 @@ class PresetManager(StateManager):
         old_target_temp_high = old_state.attributes.get(ATTR_TARGET_TEMP_HIGH)
 
         if self._features.is_range_mode:
-            await self._apply_range_mode_state(
+            self._apply_range_mode_state(
                 old_preset_mode,
                 old_temperature,
                 old_target_temp_low,
                 old_target_temp_high,
             )
         else:
-            await self._apply_single_temp_mode_state(old_preset_mode, old_temperature)
+            self._apply_single_temp_mode_state(old_preset_mode, old_temperature)
 
-    async def _apply_range_mode_state(
+    def _apply_range_mode_state(
         self,
         old_preset_mode: str | None,
         old_temperature: float | None,
@@ -203,11 +203,11 @@ class PresetManager(StateManager):
 
         # Apply preset temperatures
         preset = self._presets[old_preset_mode]
-        await self._restore_range_temps_from_preset(
+        self._restore_range_temps_from_preset(
             preset, old_target_temp_low, old_target_temp_high
         )
 
-    async def _apply_single_temp_mode_state(
+    def _apply_single_temp_mode_state(
         self, old_preset_mode: str | None, old_temperature: float | None
     ):
         """Restore single temperature mode state."""
@@ -232,9 +232,9 @@ class PresetManager(StateManager):
             return
 
         # Otherwise restore from preset configuration
-        await self._restore_temp_from_preset(self._presets[old_preset_mode])
+        self._restore_temp_from_preset(self._presets[old_preset_mode])
 
-    async def _restore_range_temps_from_preset(
+    def _restore_range_temps_from_preset(
         self,
         preset: PresetEnv,
         old_target_temp_low: float | None,
@@ -260,7 +260,7 @@ class PresetManager(StateManager):
                 else float(preset_temp_high)
             )
 
-    async def _restore_temp_from_preset(self, preset):
+    def _restore_temp_from_preset(self, preset):
         """Restore temperature from preset configuration (supports multiple formats)."""
         # Handle legacy float format
         if isinstance(preset, float):

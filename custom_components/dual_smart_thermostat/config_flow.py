@@ -750,26 +750,13 @@ class ConfigFlowHandler(ExcludeOwnEntity, ConfigFlow, domain=DOMAIN):
             and system_type
             != "floor_heating"  # floor_heating type already has floor config
         ):
-            # For simple_heater, only configure floor heating if the user
-            # opted into it in the earlier features-selection step. For other
-            # systems that support floor heating, go straight to floor config
-            # when needed.
-            if system_type == SystemType.SIMPLE_HEATER:
-                # Only go to floor config if the user opted in and floor
-                # settings haven't already been provided to avoid looping
-                if (
-                    self.collected_config.get("configure_floor_heating")
-                    and CONF_FLOOR_SENSOR not in self.collected_config
-                ):
-                    return await self.async_step_floor_config()
-            else:
-                # For other systems that support floor heating, only go to
-                # floor config if the user opted in during features selection
-                if (
-                    self.collected_config.get("configure_floor_heating")
-                    and CONF_FLOOR_SENSOR not in self.collected_config
-                ):
-                    return await self.async_step_floor_config()
+            # Only go to floor config if the user opted in during features
+            # selection and floor settings haven't been provided (avoids looping)
+            if (
+                self.collected_config.get("configure_floor_heating")
+                and CONF_FLOOR_SENSOR not in self.collected_config
+            ):
+                return await self.async_step_floor_config()
 
         # Floor heating configuration is handled earlier where required.
 
