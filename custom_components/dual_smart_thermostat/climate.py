@@ -1831,6 +1831,13 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
                 _LOGGER.debug("Climate is off, skipping control")
                 return
 
+            # The emergency stop stands until the sensor reports again:
+            # controlling on its last reading is what the stop prevents.
+            # Auto mode does the same in its evaluator.
+            if self._sensor_stalled:
+                _LOGGER.debug("Sensor stalled, skipping control")
+                return
+
             await self.hvac_device.async_control_hvac(time, force)
 
             _LOGGER.debug(
