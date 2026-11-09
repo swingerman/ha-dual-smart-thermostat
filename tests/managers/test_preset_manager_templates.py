@@ -48,7 +48,7 @@ class TestPresetManagerTemplateIntegration:
         }
 
         # Act: Apply old state (which should use getter)
-        await preset_manager.apply_old_state(old_state)
+        preset_manager.apply_old_state(old_state)
 
         # Assert: Environment target temp set from template evaluation
         assert environment.target_temp == 18.0  # Value from template
@@ -88,7 +88,7 @@ class TestPresetManagerTemplateIntegration:
         }
 
         # Act: Apply old state
-        await preset_manager.apply_old_state(old_state)
+        preset_manager.apply_old_state(old_state)
 
         # Assert: Target temp is the evaluated template value (22, not the original entity value 20)
         assert environment.target_temp == 22.0
@@ -129,7 +129,7 @@ class TestPresetManagerTemplateIntegration:
         }
 
         # Act: Apply old state
-        await preset_manager.apply_old_state(old_state)
+        preset_manager.apply_old_state(old_state)
 
         # Assert: Both temps set from templates (outdoor_temp = 20 in fixture)
         assert environment.target_temp_low == 18.0  # 20 - 2
@@ -155,6 +155,6 @@ class TestPresetManagerTemplateIntegration:
             "temperature": None,
         }
 
-        await preset_manager.apply_old_state(old_state)
+        preset_manager.apply_old_state(old_state)
 
         assert environment.target_temp == 21.0

@@ -56,7 +56,7 @@ class OpeningManager:
         self.opening_entities = (
             self.conform_opening_entities(self.openings) if openings else []
         )
-        self._opening_curr_state = {k: None for k in self.opening_entities}
+        self._opening_curr_state = dict.fromkeys(self.opening_entities)
 
     @staticmethod
     def conform_openings_list(openings: list) -> list:

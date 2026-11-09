@@ -328,7 +328,7 @@ async def async_setup_entry(
     # This fixes issue #468 where entity wasn't created after initial config
     config = {**config_entry.data, **config_entry.options}
 
-    await _async_setup_config(
+    _async_setup_config(
         hass,
         config,
         config_entry.entry_id,
@@ -345,7 +345,7 @@ async def async_setup_platform(
     """Set up the smart dual thermostat platform."""
 
     await async_setup_reload_service(hass, DOMAIN, PLATFORMS)
-    sensor_key = await _async_setup_config(
+    sensor_key = _async_setup_config(
         hass, config, config.get(CONF_UNIQUE_ID), async_add_entities
     )
 
@@ -436,7 +436,7 @@ def _normalize_config_numeric_values(config: dict[str, Any]) -> dict[str, Any]:
     return config
 
 
-async def _async_setup_config(
+def _async_setup_config(
     hass: HomeAssistant,
     config: dict[str, Any],
     unique_id: str | None,
@@ -982,7 +982,7 @@ class DualSmartThermostat(ClimateEntity, RestoreEntity):
             self._set_support_flags()
 
             # restore previous preset mode if available
-            await self.presets.apply_old_state(old_state)
+            self.presets.apply_old_state(old_state)
             self._attr_preset_mode = self.presets.preset_mode
 
             _LOGGER.debug("restoring hvac_mode: %s", hvac_mode)
