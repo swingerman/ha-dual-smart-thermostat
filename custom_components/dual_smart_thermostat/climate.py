@@ -530,7 +530,7 @@ def _async_setup_config(
         """My first service."""
         _LOGGER.debug("Received data %s", call.data)
         reason = call.data.get(ATTR_HVAC_ACTION_REASON)
-        entity_ids = extract_entity_ids(hass, call)
+        entity_ids = extract_entity_ids(call)
 
         # make sure its a valid external reason
         if reason not in HVACActionReasonExternal:

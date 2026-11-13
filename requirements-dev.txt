@@ -1,11 +1,11 @@
 -r requirements.txt
 pip>=26.1.2,<27.0
-pytest-homeassistant-custom-component==0.13.348
+pytest-homeassistant-custom-component==0.13.375
 # Explicit pytest dependencies (may be transitive from pytest-homeassistant-custom-component)
 pytest>=8.4.2
 pytest-cov>=7.1.0
 # NOTE: pytest-asyncio is hard-pinned by pytest-homeassistant-custom-component
-# (==1.4.0 as of 0.13.348), so the exact version is always delivered
+# (==1.4.0 as of 0.13.375), so the exact version is always delivered
 # transitively; this floor just documents the 0.x -> 1.x major.
 pytest-asyncio>=1.4.0
 # Code formatting and linting
