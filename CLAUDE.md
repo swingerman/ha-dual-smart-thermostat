@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Home Assistant Dual Smart Thermostat - An enhanced thermostat component supporting multiple HVAC modes (heating, cooling, heat pump, fan, humidity control), advanced features (floor temperature control, window/door sensors, presets), and sophisticated control logic.
 
-**Target**: Home Assistant 2026.3.2+ (dev/CI on 2026.7.4)
+**Target**: Home Assistant 2026.10.0+ (dev/CI on 2026.10.4)
 **Language**: Python 3.14
 
 ## Essential Commands
