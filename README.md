@@ -6,7 +6,7 @@ The `dual_smart_thermostat` is an enhanced version of generic thermostat impleme
 [![hacs_badge](https://img.shields.io/badge/HACS-Default-41BDF5.svg?style=for-the-badge)](https://github.com/swingerman/ha-dual-smart-thermostat) ![Release](https://img.shields.io/github/v/release/swingerman/ha-dual-smart-thermostat?style=for-the-badge) [![Python tests](https://img.shields.io/github/actions/workflow/status/swingerman/ha-dual-smart-thermostat/tests.yaml?style=for-the-badge&label=tests)](https://github.com/swingerman/ha-dual-smart-thermostat/actions/workflows/tests.yaml) [![Coverage](https://img.shields.io/sonar/coverage/swingerman_ha-dual-smart-thermostat?server=https%3A%2F%2Fsonarcloud.io&style=for-the-badge)](https://sonarcloud.io/dashboard?id=swingerman_ha-dual-smart-thermostat) [![Donate](https://img.shields.io/badge/Donate-PayPal-yellowgreen?style=for-the-badge&logo=paypal)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=S6NC9BYVDDJMA&source=url)
 
 
-[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=swingerman&repository=ha-dual-smart-thermostat&category=Integration)
+[![Open your Home Assistant instance and open this repository in the Marketplace (HACS before Home Assistant 2026.11).](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=swingerman&repository=ha-dual-smart-thermostat&category=integration)
 
 
 ## Table of contents
@@ -1211,7 +1211,12 @@ If your HVAC device doesn't have these issues, you can safely disable keep-alive
 
 ## Installation
 
-Installation is via the [Home Assistant Community Store (HACS)](https://hacs.xyz/), which is the best place to get third-party integrations for Home Assistant. Once you have HACS set up, simply [search the `Integrations` section](https://hacs.xyz/docs/basic/getting_started) for Dual Smart Thermostat.
+Use the button at the top of this page, or install it by hand:
+
+- **Home Assistant 2026.11 and newer:** open **Settings** > **Marketplace** and search for Dual Smart Thermostat. The [Marketplace](https://www.home-assistant.io/integrations/marketplace/) is built into Home Assistant and replaces HACS. If you installed this integration with HACS before, it moved to the Marketplace automatically and keeps getting updates.
+- **Home Assistant 2026.10:** install it from the [Home Assistant Community Store (HACS)](https://hacs.xyz/): search the `Integrations` section for Dual Smart Thermostat.
+
+To try beta versions, turn on the **Pre-release** switch for this repository in the Marketplace (or HACS).
 
 ## Heater Mode Example
 
