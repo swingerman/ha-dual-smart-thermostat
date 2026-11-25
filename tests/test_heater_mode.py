@@ -4092,3 +4092,91 @@ async def test_keep_alive_off_mode_turns_off_inside_min_cycle(
     await hass.async_block_till_done()
     off_service = SERVICE_CLOSE_VALVE if is_valve else SERVICE_TURN_OFF
     assert [c.service for c in calls] == [off_service]
+
+
+async def test_aux_heater_non_dual_mode_primary_stays_off_on_target_change(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory, setup_comp_1  # noqa: F811
+) -> None:
+    """Primary heater must not restart while the secondary heater has taken over.
+
+    In non-dual mode the primary heater is turned off when the secondary heater
+    takes over after the timeout. A later target/preset change re-runs control
+    while the secondary is still on; that must not turn the primary back on
+    alongside it (both heaters running in non-dual mode).
+    """
+    secondary_heater_timeout = 10
+    heater_switch = "input_boolean.heater_switch"
+    secondary_heater_switch = "input_boolean.secondary_heater_switch"
+
+    assert await async_setup_component(
+        hass,
+        input_boolean.DOMAIN,
+        {"input_boolean": {"heater_switch": None, "secondary_heater_switch": None}},
+    )
+
+    assert await async_setup_component(
+        hass,
+        input_number.DOMAIN,
+        {
+            "input_number": {
+                "temp": {"name": "test", "initial": 10, "min": 0, "max": 40, "step": 1}
+            }
+        },
+    )
+
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "heater": heater_switch,
+                "secondary_heater": secondary_heater_switch,
+                "secondary_heater_timeout": {"seconds": secondary_heater_timeout},
+                "secondary_heater_dual_mode": False,
+                "target_sensor": common.ENT_SENSOR,
+                "initial_hvac_mode": HVACMode.HEAT,
+                "cold_tolerance": 0.5,
+                "hot_tolerance": 0.5,
+            }
+        },
+    )
+    await hass.async_block_till_done()
+
+    setup_sensor(hass, 18)
+    await hass.async_block_till_done()
+    await common.async_set_temperature(hass, 21)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(heater_switch).state == STATE_ON
+    assert hass.states.get(secondary_heater_switch).state == STATE_OFF
+
+    # Primary times out -> secondary takes over, primary turned off
+    freezer.tick(timedelta(seconds=secondary_heater_timeout + 5))
+    common.async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(secondary_heater_switch).state == STATE_ON
+
+    # Target raised (as a preset change would do) while still below target
+    await common.async_set_temperature(hass, 23)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(secondary_heater_switch).state == STATE_ON
+
+    # Sensor update while still cold must not restart the primary either
+    setup_sensor(hass, 19)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(secondary_heater_switch).state == STATE_ON
+
+    # Target reached -> secondary turns off, primary stays off
+    setup_sensor(hass, 23.5)
+    await hass.async_block_till_done()
+
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(secondary_heater_switch).state == STATE_OFF

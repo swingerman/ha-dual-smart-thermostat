@@ -130,13 +130,18 @@ If only the [`heater`](#heater) entity is set the thermostat works only in heate
 ## Two Stage (AUX) Heating
 
 Two stage or AUX heating can be enabled by adding the [required configuration](#two-stage-heating-example) entities: [`secondary_heater`](#secondary_heater), [`secondary heater_timeout`](#secondary_heater_timeout). If these are set the feature will enable automatically.
-Optionally you can set [`secondary heater_dual_mode`](#secondar_heater_dual_mode) to `true` to turn on the secondary heater together with the primary heater.
+Optionally you can set [`secondary_heater_dual_mode`](#secondary_heater_dual_mode) to choose what happens to the primary heater when the secondary heater starts.
 
 ### How Two Stage Heating Works?
 
-If the timeout ends and the [`heater`](#heater) was on for the whole time, the thermostat switches to the [`secondary heater`](#secondary_heater). In this case, the primary heater ([`heater`](#heater)) will be turned off. This will be remembered for the day it turned on, and in the next heating cycle, the [`secondary heater`](#secondary_heater) will turn on automatically.
-On the following day the primary heater will turn on again, and the second stage will again only turn on after a timeout.
-If the third [`secondary heater_dual_mode`](#secondar_heater_dual_mode) is set to `true`, the secondary heater will be turned on together with the primary heater.
+Each heating cycle starts with the primary [`heater`](#heater). If the timeout ends and the primary heater was on for the whole time without reaching the target, the secondary heater starts. What happens next depends on [`secondary_heater_dual_mode`](#secondary_heater_dual_mode):
+
+| `secondary_heater_dual_mode` | When the timeout ends | Later heating cycles the same day |
+|---|---|---|
+| `false` (default) | The primary heater turns **off** and the secondary heater takes over. The primary stays off until the target is reached. | Only the secondary heater runs. |
+| `true` | The primary heater **stays on** and the secondary heater is added. Both turn off together at the target. | Both heaters start together. |
+
+On the following day the primary heater gets the first try again, and the second stage again only starts after the timeout.
 
 ### Two Stage Heating Example
 
@@ -809,7 +814,7 @@ The reason is grouped into three categories:
 
 ### secondary_heater_dual_mode
 
-  _(optional, (bool)_  If set true the secondary (aux) heater will be turned on together with the primary heater.
+  _(optional, (bool)_  What happens to the primary heater when the secondary heater starts. `false` (default): the primary heater turns off and the secondary heater takes over for the rest of the day. `true`: the primary heater stays on and runs together with the secondary heater. Shown in the UI as "Keep primary heater on when secondary starts". See [How Two Stage Heating Works?](#how-two-stage-heating-works).
 
 ### cooler
 
