@@ -322,12 +322,12 @@
         "data": {
           "secondary_heater": "Brytare för sekundär värmare",
           "secondary_heater_timeout": "Tidsgräns för sekundär värmare",
-          "secondary_heater_dual_mode": "Drift i dubbelläge"
+          "secondary_heater_dual_mode": "Behåll primär värmare på när sekundär startar"
         },
         "data_description": {
           "secondary_heater": "Entitets-ID för extra/sekundär värmarbrytare. Aktiveras när den primära värmaren inte kan upprätthålla temperaturen, vilket ger ytterligare värmekapacitet vid extremt kalla förhållanden.",
           "secondary_heater_timeout": "Tid att vänta innan den sekundära värmaren aktiveras efter att den primära värmaren startat. Förhindrar att båda värmarna startar samtidigt och ger den primära värmaren tid att nå måltemperaturen.",
-          "secondary_heater_dual_mode": "Aktivera att både primär och sekundär värmare arbetar samtidigt vid behov. När avaktiverat aktiveras den sekundära värmaren endast när den primära värmaren ensam är otillräcklig."
+          "secondary_heater_dual_mode": "Vad som händer med den primära värmaren när den har gått hela tidsgränsen utan att nå målet. På: den primära förblir på och den sekundära läggs till, och resten av dagen startar båda tillsammans. Av: den primära stängs av och den sekundära tar över, och resten av dagen använder varje värmecykel bara den sekundära. Oavsett får den primära första försöket igen nästa dag."
         }
       },
       "floor_heating": {
@@ -845,12 +845,12 @@
         "data": {
           "secondary_heater": "Brytare för sekundär värmare",
           "secondary_heater_timeout": "Tidsgräns för sekundär värmare",
-          "secondary_heater_dual_mode": "Drift i dubbelläge"
+          "secondary_heater_dual_mode": "Behåll primär värmare på när sekundär startar"
         },
         "data_description": {
           "secondary_heater": "Entitets-ID för extra/sekundär värmarbrytare. Ger ytterligare värmekapacitet vid behov.",
           "secondary_heater_timeout": "Tid att vänta innan den sekundära värmaren aktiveras efter att den primära värmaren startat.",
-          "secondary_heater_dual_mode": "Aktivera att både primär och sekundär värmare arbetar samtidigt vid behov."
+          "secondary_heater_dual_mode": "Vad som händer med den primära värmaren när den har gått hela tidsgränsen utan att nå målet. På: den primära förblir på och den sekundära läggs till, och resten av dagen startar båda tillsammans. Av: den primära stängs av och den sekundära tar över, och resten av dagen använder varje värmecykel bara den sekundära. Oavsett får den primära första försöket igen nästa dag."
         }
       },
       "floor_options": {

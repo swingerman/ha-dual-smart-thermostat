@@ -322,12 +322,12 @@
         "data": {
           "secondary_heater": "Interruptor do aquecedor secundário",
           "secondary_heater_timeout": "Tempo limite do aquecedor secundário",
-          "secondary_heater_dual_mode": "Funcionamento em modo duplo"
+          "secondary_heater_dual_mode": "Manter o aquecedor principal ligado quando o secundário arranca"
         },
         "data_description": {
           "secondary_heater": "ID da entidade do interruptor do aquecedor auxiliar/secundário. Ativado quando o aquecedor principal não consegue manter a temperatura, fornecendo capacidade de aquecimento adicional para condições de frio extremo.",
           "secondary_heater_timeout": "Tempo de espera antes de ativar o aquecedor secundário após o arranque do aquecedor principal. Evita que ambos os aquecedores arranquem em simultâneo e dá ao aquecedor principal tempo para atingir a temperatura alvo.",
-          "secondary_heater_dual_mode": "Permita que o aquecedor principal e o secundário funcionem em simultâneo quando necessário. Quando desativado, o aquecedor secundário só é ativado quando o aquecedor principal sozinho é insuficiente."
+          "secondary_heater_dual_mode": "O que acontece ao aquecedor principal quando funcionou durante todo o tempo limite sem atingir o objetivo. Ligado: o principal mantém-se ligado e o secundário é adicionado, e no resto do dia ambos arrancam juntos. Desligado: o principal desliga-se e o secundário assume, e no resto do dia cada ciclo de aquecimento usa apenas o secundário. Em ambos os casos, o principal tem a primeira tentativa no dia seguinte."
         }
       },
       "floor_heating": {
@@ -845,12 +845,12 @@
         "data": {
           "secondary_heater": "Interruptor do aquecedor secundário",
           "secondary_heater_timeout": "Tempo limite do aquecedor secundário",
-          "secondary_heater_dual_mode": "Funcionamento em modo duplo"
+          "secondary_heater_dual_mode": "Manter o aquecedor principal ligado quando o secundário arranca"
         },
         "data_description": {
           "secondary_heater": "ID da entidade do interruptor do aquecedor auxiliar/secundário. Fornece capacidade de aquecimento adicional quando necessário.",
           "secondary_heater_timeout": "Tempo de espera antes de ativar o aquecedor secundário após o arranque do aquecedor principal.",
-          "secondary_heater_dual_mode": "Permita que o aquecedor principal e o secundário funcionem em simultâneo quando necessário."
+          "secondary_heater_dual_mode": "O que acontece ao aquecedor principal quando funcionou durante todo o tempo limite sem atingir o objetivo. Ligado: o principal mantém-se ligado e o secundário é adicionado, e no resto do dia ambos arrancam juntos. Desligado: o principal desliga-se e o secundário assume, e no resto do dia cada ciclo de aquecimento usa apenas o secundário. Em ambos os casos, o principal tem a primeira tentativa no dia seguinte."
         }
       },
       "floor_options": {

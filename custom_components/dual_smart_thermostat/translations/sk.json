@@ -283,12 +283,12 @@
         "data": {
           "secondary_heater": "Spínač sekundárneho ohrievača",
           "secondary_heater_timeout": "Časový limit sekundárneho ohrievača",
-          "secondary_heater_dual_mode": "Prevádzka v duálnom režime"
+          "secondary_heater_dual_mode": "Ponechať primárny ohrievač zapnutý, keď sa spustí sekundárny"
         },
         "data_description": {
           "secondary_heater": "ID entity spínača pomocného/sekundárneho ohrievača. Aktivuje sa, keď primárny ohrievač nedokáže udržať teplotu, čím poskytuje dodatočnú vykurovaciu kapacitu pre extrémne chladné podmienky.",
           "secondary_heater_timeout": "Čas čakania pred aktiváciou sekundárneho ohrievača po spustení primárneho ohrievača. Zabraňuje súčasnému spusteniu oboch ohrievačov a poskytuje primárnemu ohrievaču čas na dosiahnutie cieľovej teploty.",
-          "secondary_heater_dual_mode": "Povoliť súčasnú prácu primárneho aj sekundárneho ohrievača, keď je to potrebné. Po zakázaní sa sekundárny ohrievač aktivuje len vtedy, keď samotný primárny ohrievač nestačí."
+          "secondary_heater_dual_mode": "Čo sa stane s primárnym ohrievačom, keď bežal celý časový limit bez dosiahnutia cieľa. Zap.: primárny zostane zapnutý a pridá sa sekundárny, zvyšok dňa sa spúšťajú spolu. Vyp.: primárny sa vypne a prevezme sekundárny, zvyšok dňa každý vykurovací cyklus používa len sekundárny. V oboch prípadoch má primárny nasledujúci deň opäť prvý pokus."
         }
       },
       "floor_heating": {
@@ -806,12 +806,12 @@
         "data": {
           "secondary_heater": "Spínač sekundárneho ohrievača",
           "secondary_heater_timeout": "Časový limit sekundárneho ohrievača",
-          "secondary_heater_dual_mode": "Prevádzka v duálnom režime"
+          "secondary_heater_dual_mode": "Ponechať primárny ohrievač zapnutý, keď sa spustí sekundárny"
         },
         "data_description": {
           "secondary_heater": "ID entity spínača pomocného/sekundárneho ohrievača. Poskytuje dodatočnú vykurovaciu kapacitu, keď je to potrebné.",
           "secondary_heater_timeout": "Čas čakania pred aktiváciou sekundárneho ohrievača po spustení primárneho ohrievača.",
-          "secondary_heater_dual_mode": "Povoliť súčasnú prácu primárneho aj sekundárneho ohrievača, keď je to potrebné."
+          "secondary_heater_dual_mode": "Čo sa stane s primárnym ohrievačom, keď bežal celý časový limit bez dosiahnutia cieľa. Zap.: primárny zostane zapnutý a pridá sa sekundárny, zvyšok dňa sa spúšťajú spolu. Vyp.: primárny sa vypne a prevezme sekundárny, zvyšok dňa každý vykurovací cyklus používa len sekundárny. V oboch prípadoch má primárny nasledujúci deň opäť prvý pokus."
         }
       },
       "floor_options": {

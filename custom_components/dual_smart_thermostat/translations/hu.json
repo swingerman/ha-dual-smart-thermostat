@@ -322,12 +322,12 @@
         "data": {
           "secondary_heater": "Másodlagos fűtés kapcsolója",
           "secondary_heater_timeout": "Másodlagos fűtés időtúllépése",
-          "secondary_heater_dual_mode": "Kettős üzemmódú működés"
+          "secondary_heater_dual_mode": "Elsődleges fűtés bekapcsolva marad, amikor a másodlagos indul"
         },
         "data_description": {
           "secondary_heater": "A kiegészítő/másodlagos fűtés kapcsolójának entitásazonosítója. Akkor aktiválódik, amikor az elsődleges fűtés nem tudja tartani a hőmérsékletet, és extrém hideg viszonyok között további fűtőteljesítményt biztosít.",
           "secondary_heater_timeout": "Az elsődleges fűtés elindulása után a másodlagos fűtés aktiválása előtt megvárandó idő. Megakadályozza, hogy mindkét fűtés egyszerre induljon el, és időt ad az elsődleges fűtésnek a célhőmérséklet elérésére.",
-          "secondary_heater_dual_mode": "Engedélyezi, hogy az elsődleges és a másodlagos fűtés szükség esetén egyszerre működjön. Kikapcsolva a másodlagos fűtés csak akkor aktiválódik, ha az elsődleges fűtés önmagában nem elegendő."
+          "secondary_heater_dual_mode": "Mi történjen az elsődleges fűtéssel, ha a teljes időkorlát alatt működött a célérték elérése nélkül. Be: az elsődleges fűtés bekapcsolva marad és a másodlagos is csatlakozik, a nap hátralévő részében mindkettő együtt indul. Ki: az elsődleges fűtés kikapcsol és a másodlagos veszi át, a nap hátralévő részében minden fűtési ciklusban csak a másodlagos működik. Mindkét esetben másnap az elsődleges fűtés próbálkozik először."
         }
       },
       "floor_heating": {
@@ -845,12 +845,12 @@
         "data": {
           "secondary_heater": "Másodlagos fűtés kapcsolója",
           "secondary_heater_timeout": "Másodlagos fűtés időtúllépése",
-          "secondary_heater_dual_mode": "Kettős üzemmódú működés"
+          "secondary_heater_dual_mode": "Elsődleges fűtés bekapcsolva marad, amikor a másodlagos indul"
         },
         "data_description": {
           "secondary_heater": "A kiegészítő/másodlagos fűtés kapcsolójának entitásazonosítója. Szükség esetén további fűtőteljesítményt biztosít.",
           "secondary_heater_timeout": "Az elsődleges fűtés elindulása után a másodlagos fűtés aktiválása előtt megvárandó idő.",
-          "secondary_heater_dual_mode": "Engedélyezi, hogy az elsődleges és a másodlagos fűtés szükség esetén egyszerre működjön."
+          "secondary_heater_dual_mode": "Mi történjen az elsődleges fűtéssel, ha a teljes időkorlát alatt működött a célérték elérése nélkül. Be: az elsődleges fűtés bekapcsolva marad és a másodlagos is csatlakozik, a nap hátralévő részében mindkettő együtt indul. Ki: az elsődleges fűtés kikapcsol és a másodlagos veszi át, a nap hátralévő részében minden fűtési ciklusban csak a másodlagos működik. Mindkét esetben másnap az elsődleges fűtés próbálkozik először."
         }
       },
       "floor_options": {
