@@ -28,3 +28,4 @@ config/*
 .claude/*
 !.claude/commands/
 !.claude/skills/
+tests/testing_config/

@@ -31,6 +31,9 @@ def heat_pump_entry():
     """Create a mock config entry for heat pump system."""
     entry = Mock()
     entry.entry_id = "test_heat_pump"
+    entry.update_listeners = (
+        []
+    )  # real entries have a list; a Mock is truthy (HA 2026.11 report_usage)
     entry.data = {
         CONF_NAME: "Heat Pump",
         CONF_SYSTEM_TYPE: SYSTEM_TYPE_HEAT_PUMP,

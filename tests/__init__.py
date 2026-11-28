@@ -32,7 +32,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.setup import async_setup_component
 from homeassistant.util.unit_system import METRIC_SYSTEM
 import pytest
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from pytest_homeassistant.common import MockConfigEntry
 
 from custom_components.dual_smart_thermostat.const import (
     CONF_MAX_FLOOR_TEMP,

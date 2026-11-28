@@ -31,6 +31,9 @@ def heater_cooler_entry():
     """Create a mock config entry for heater+cooler system."""
     entry = Mock()
     entry.entry_id = "test_heater_cooler"
+    entry.update_listeners = (
+        []
+    )  # real entries have a list; a Mock is truthy (HA 2026.11 report_usage)
     entry.data = {
         CONF_NAME: "Heater Cooler",
         CONF_SYSTEM_TYPE: SYSTEM_TYPE_HEATER_COOLER,
@@ -451,6 +454,9 @@ async def test_reconfigure_from_climate_to_switches_drops_climate_keys():
     """Reconfiguring a climate cooler into a switch leaves no climate keys behind."""
     entry = Mock()
     entry.entry_id = "test_heater_cooler_climate"
+    entry.update_listeners = (
+        []
+    )  # real entries have a list; a Mock is truthy (HA 2026.11 report_usage)
     entry.data = {
         CONF_NAME: "Heater Cooler",
         CONF_SYSTEM_TYPE: SYSTEM_TYPE_HEATER_COOLER,

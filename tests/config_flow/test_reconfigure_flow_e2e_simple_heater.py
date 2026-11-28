@@ -31,6 +31,9 @@ def simple_heater_entry():
     """Create a mock config entry for simple heater system."""
     entry = Mock()
     entry.entry_id = "test_simple_heater"
+    entry.update_listeners = (
+        []
+    )  # real entries have a list; a Mock is truthy (HA 2026.11 report_usage)
     entry.data = {
         CONF_NAME: "Simple Heater",
         CONF_SYSTEM_TYPE: SYSTEM_TYPE_SIMPLE_HEATER,
