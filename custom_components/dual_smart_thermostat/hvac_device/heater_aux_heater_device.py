@@ -211,18 +211,20 @@ class HeaterAUXHeaterDevice(MultiHvacDevice):
             self._aux_heater_last_run = datetime.datetime.now()
             self._hvac_action_reason = HVACActionReason.TARGET_TEMP_NOT_REACHED
 
-        elif self.aux_heater_device.is_active and not self._aux_heater_dual_mode:
+        elif (
+            self.aux_heater_device.is_active
+            and not self._aux_heater_dual_mode
+            and not is_floor_cold
+        ):
             # Second stage has taken over (non-dual mode). The primary heater must
             # stay off until the target is reached; re-running the primary
             # controller here (e.g. on a preset or target change) would turn it
             # back on alongside the secondary heater.
-            _LOGGER.debug(
-                "Secondary heater %s active in non-dual mode - keeping primary off",
-                self.aux_heater_device.entity_id,
-            )
             if self.heater_device.is_active:
                 await self.heater_device.async_turn_off()
-            self._hvac_action_reason = HVACActionReason.TARGET_TEMP_NOT_REACHED
+            self._hvac_action_reason = (
+                self.heater_device.target_env_attr_not_reached_reason()
+            )
 
         else:
             heater_was_active = self.heater_device.is_active
