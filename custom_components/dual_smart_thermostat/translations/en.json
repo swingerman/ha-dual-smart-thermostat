@@ -283,12 +283,12 @@
                 "data": {
                     "secondary_heater": "Secondary heater switch",
                     "secondary_heater_timeout": "Secondary heater timeout",
-                    "secondary_heater_dual_mode": "Dual mode operation"
+                    "secondary_heater_dual_mode": "Keep primary heater on when secondary starts"
                 },
                 "data_description": {
                     "secondary_heater": "Entity ID for auxiliary/secondary heater switch. Activated when primary heater cannot maintain temperature, providing additional heating capacity for extremely cold conditions.",
                     "secondary_heater_timeout": "Time to wait before activating secondary heater after primary heater starts. Prevents both heaters from starting simultaneously and allows primary heater time to reach target temperature.",
-                    "secondary_heater_dual_mode": "Enable both primary and secondary heaters to work simultaneously when needed. When disabled, secondary heater only activates when primary heater alone is insufficient."
+                    "secondary_heater_dual_mode": "What happens to the primary heater when it has run for the whole timeout without reaching the target. On: the primary stays on and the secondary heater is added, and for the rest of the day both start together. Off: the primary turns off and the secondary heater takes over, and for the rest of the day each heating cycle uses only the secondary heater. Either way the primary gets the first try again the next day."
                 }
             },
             "floor_heating": {
@@ -806,12 +806,12 @@
                 "data": {
                     "secondary_heater": "Secondary heater switch",
                     "secondary_heater_timeout": "Secondary heater timeout",
-                    "secondary_heater_dual_mode": "Dual mode operation"
+                    "secondary_heater_dual_mode": "Keep primary heater on when secondary starts"
                 },
                 "data_description": {
                     "secondary_heater": "Entity ID for auxiliary/secondary heater switch. Provides additional heating capacity when needed.",
                     "secondary_heater_timeout": "Time to wait before activating secondary heater after primary heater starts.",
-                    "secondary_heater_dual_mode": "Enable both primary and secondary heaters to work simultaneously when needed."
+                    "secondary_heater_dual_mode": "What happens to the primary heater when it has run for the whole timeout without reaching the target. On: the primary stays on and the secondary heater is added, and for the rest of the day both start together. Off: the primary turns off and the secondary heater takes over, and for the rest of the day each heating cycle uses only the secondary heater. Either way the primary gets the first try again the next day."
                 }
             },
             "floor_options": {

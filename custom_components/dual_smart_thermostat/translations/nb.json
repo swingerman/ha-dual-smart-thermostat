@@ -322,12 +322,12 @@
         "data": {
           "secondary_heater": "Bryter for sekundært varmeapparat",
           "secondary_heater_timeout": "Tidsavbrudd for sekundært varmeapparat",
-          "secondary_heater_dual_mode": "Drift i dual-modus"
+          "secondary_heater_dual_mode": "Behold primært varmeapparat på når sekundært starter"
         },
         "data_description": {
           "secondary_heater": "Enhets-ID for hjelpe-/sekundærvarmeapparatets bryter. Aktiveres når det primære varmeapparatet ikke kan opprettholde temperaturen, og gir ekstra oppvarmingskapasitet under ekstremt kalde forhold.",
           "secondary_heater_timeout": "Tid å vente før det sekundære varmeapparatet aktiveres etter at det primære varmeapparatet starter. Hindrer at begge varmeapparatene starter samtidig og gir det primære varmeapparatet tid til å nå måltemperaturen.",
-          "secondary_heater_dual_mode": "Aktiver at både primært og sekundært varmeapparat kan arbeide samtidig ved behov. Når deaktivert, aktiveres det sekundære varmeapparatet kun når det primære varmeapparatet alene er utilstrekkelig."
+          "secondary_heater_dual_mode": "Hva som skjer med det primære varmeapparatet når det har gått hele tidsavbruddet uten å nå målet. På: det primære forblir på og det sekundære legges til, og resten av dagen starter begge sammen. Av: det primære slås av og det sekundære tar over, og resten av dagen bruker hver varmesyklus bare det sekundære. Uansett får det primære første forsøk igjen neste dag."
         }
       },
       "floor_heating": {
@@ -845,12 +845,12 @@
         "data": {
           "secondary_heater": "Bryter for sekundært varmeapparat",
           "secondary_heater_timeout": "Tidsavbrudd for sekundært varmeapparat",
-          "secondary_heater_dual_mode": "Drift i dual-modus"
+          "secondary_heater_dual_mode": "Behold primært varmeapparat på når sekundært starter"
         },
         "data_description": {
           "secondary_heater": "Enhets-ID for hjelpe-/sekundærvarmeapparatets bryter. Gir ekstra oppvarmingskapasitet ved behov.",
           "secondary_heater_timeout": "Tid å vente før det sekundære varmeapparatet aktiveres etter at det primære varmeapparatet starter.",
-          "secondary_heater_dual_mode": "Aktiver at både primært og sekundært varmeapparat kan arbeide samtidig ved behov."
+          "secondary_heater_dual_mode": "Hva som skjer med det primære varmeapparatet når det har gått hele tidsavbruddet uten å nå målet. På: det primære forblir på og det sekundære legges til, og resten av dagen starter begge sammen. Av: det primære slås av og det sekundære tar over, og resten av dagen bruker hver varmesyklus bare det sekundære. Uansett får det primære første forsøk igjen neste dag."
         }
       },
       "floor_options": {
