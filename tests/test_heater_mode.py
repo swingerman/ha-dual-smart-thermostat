@@ -4180,3 +4180,66 @@ async def test_aux_heater_non_dual_mode_primary_stays_off_on_target_change(
 
     assert hass.states.get(heater_switch).state == STATE_OFF
     assert hass.states.get(secondary_heater_switch).state == STATE_OFF
+
+
+@pytest.mark.parametrize("expected_lingering_timers", [True])
+async def test_aux_heater_respects_min_cycle(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory, setup_comp_1  # noqa: F811
+) -> None:
+    """min_cycle_duration holds both stages of a heater + aux setup (#669)."""
+    heater_switch = "input_boolean.heater_switch"
+    aux_switch = "input_boolean.secondary_heater_switch"
+    assert await async_setup_component(
+        hass,
+        input_boolean.DOMAIN,
+        {"input_boolean": {"heater_switch": None, "secondary_heater_switch": None}},
+    )
+    assert await async_setup_component(
+        hass,
+        CLIMATE,
+        {
+            "climate": {
+                "platform": DOMAIN,
+                "name": "test",
+                "heater": heater_switch,
+                "secondary_heater": aux_switch,
+                "secondary_heater_timeout": {"seconds": 10},
+                "secondary_heater_dual_mode": False,
+                "target_sensor": common.ENT_SENSOR,
+                "initial_hvac_mode": HVACMode.HEAT,
+                "min_cycle_duration": timedelta(seconds=120),
+            }
+        },
+    )
+    await hass.async_block_till_done()
+    freezer.tick(timedelta(seconds=130))  # both switches past their first cycle
+    common.async_fire_time_changed(hass)
+
+    setup_sensor(hass, 18)
+    await common.async_set_temperature(hass, 21)
+    await hass.async_block_till_done()
+    assert hass.states.get(heater_switch).state == STATE_ON
+
+    # Timeout hands over to aux, but the primary has not run a full cycle yet
+    freezer.tick(timedelta(seconds=15))
+    common.async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    assert hass.states.get(heater_switch).state == STATE_ON
+    assert hass.states.get(aux_switch).state == STATE_OFF
+
+    # Cycle elapsed: hand-over happens
+    freezer.tick(timedelta(seconds=120))
+    setup_sensor(hass, 18.5)  # next control pass, like any held change
+    await hass.async_block_till_done()
+    assert hass.states.get(heater_switch).state == STATE_OFF
+    assert hass.states.get(aux_switch).state == STATE_ON
+
+    # Target reached inside the aux's min cycle: aux keeps running
+    setup_sensor(hass, 25)
+    await hass.async_block_till_done()
+    assert hass.states.get(aux_switch).state == STATE_ON
+
+    freezer.tick(timedelta(seconds=130))
+    setup_sensor(hass, 25.5)
+    await hass.async_block_till_done()
+    assert hass.states.get(aux_switch).state == STATE_OFF
