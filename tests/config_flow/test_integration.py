@@ -23,7 +23,7 @@ from unittest.mock import AsyncMock, Mock, patch
 from homeassistant.const import CONF_NAME
 from homeassistant.data_entry_flow import FlowResult
 import pytest
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from pytest_homeassistant.common import MockConfigEntry
 
 from custom_components.dual_smart_thermostat.const import (
     ATTR_CLOSING_TIMEOUT,

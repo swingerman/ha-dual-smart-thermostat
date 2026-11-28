@@ -292,7 +292,7 @@ async def test_name(hass):
 
 ### Using MockConfigEntry
 ```python
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from pytest_homeassistant.common import MockConfigEntry
 
 config_entry = MockConfigEntry(
     domain=DOMAIN,

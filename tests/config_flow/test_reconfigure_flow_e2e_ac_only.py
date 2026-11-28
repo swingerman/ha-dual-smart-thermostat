@@ -27,6 +27,9 @@ def ac_only_entry():
     """Create a mock config entry for AC-only system."""
     entry = Mock()
     entry.entry_id = "test_ac_only"
+    entry.update_listeners = (
+        []
+    )  # real entries have a list; a Mock is truthy (HA 2026.11 report_usage)
     entry.data = {
         CONF_NAME: "AC Only",
         CONF_SYSTEM_TYPE: SYSTEM_TYPE_AC_ONLY,

@@ -22,7 +22,7 @@ The Docker-based workflow provides:
 ### 1. Build the Development Image
 
 ```bash
-# Build with default Home Assistant version (2026.10.4)
+# Build with default Home Assistant version (2026.11.3)
 docker-compose build dev
 
 # Or build with a specific version

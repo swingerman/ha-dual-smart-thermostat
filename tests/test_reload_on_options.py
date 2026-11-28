@@ -3,7 +3,7 @@
 from homeassistant.config_entries import OptionsFlowWithReload
 from homeassistant.const import CONF_NAME
 import pytest
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from pytest_homeassistant.common import MockConfigEntry
 
 from custom_components.dual_smart_thermostat.const import (
     CONF_HEATER,

@@ -34,6 +34,9 @@ def heat_pump_entry_with_features():
     """Create a mock config entry for heat pump system with features."""
     entry = Mock()
     entry.entry_id = "test_heat_pump"
+    entry.update_listeners = (
+        []
+    )  # real entries have a list; a Mock is truthy (HA 2026.11 report_usage)
     entry.data = {
         CONF_NAME: "Living Room",
         CONF_SYSTEM_TYPE: SYSTEM_TYPE_HEAT_PUMP,
@@ -53,6 +56,9 @@ def heater_cooler_entry_with_features():
     """Create a mock config entry for heater+cooler system with features."""
     entry = Mock()
     entry.entry_id = "test_heater_cooler"
+    entry.update_listeners = (
+        []
+    )  # real entries have a list; a Mock is truthy (HA 2026.11 report_usage)
     entry.data = {
         CONF_NAME: "Bedroom",
         CONF_SYSTEM_TYPE: SYSTEM_TYPE_HEATER_COOLER,
