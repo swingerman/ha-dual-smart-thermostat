@@ -26,7 +26,7 @@ The project provides convenient Docker scripts in the `scripts/` folder:
 ./scripts/docker-test --log-cli-level=DEBUG        # Run with debug logging
 
 # Linting - Use docker-lint for all code quality checks (REQUIRED before commit)
-./scripts/docker-lint                              # Check all linting (isort, black, flake8, codespell, ruff)
+./scripts/docker-lint                              # Check all linting (same isort, black, flake8, mypy commands as CI linting.yaml)
 ./scripts/docker-lint --fix                        # Auto-fix linting issues
 
 # Interactive Shell - For debugging and exploration
