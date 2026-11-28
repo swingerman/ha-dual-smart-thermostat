@@ -45,6 +45,27 @@ class HeaterAUXHeaterDevice(MultiHvacDevice):
     def _target_env_attr(self) -> str:
         return "_target_temp_low" if self._features.is_range_mode else "_target_temp"
 
+    async def _async_switch(self, device, on: bool, safety: bool = False) -> bool:
+        """Every on/off the aux device makes goes through here.
+
+        A real state change waits for min_cycle_duration unless it is a safety
+        stop/start (opening, floor limits). Same-state calls (keep-alive
+        re-sends) pass. A held change is retried via min_cycle_hold. Returns False
+        when held.
+        """
+        if (
+            on != device.is_active
+            and not safety
+            and not device.hvac_controller.min_cycle_elapsed()
+        ):
+            _LOGGER.debug("Not switching %s: minimum cycle", device.entity_id)
+            return False
+        if on:
+            await device.async_turn_on()
+        else:
+            await device.async_turn_off()
+        return True
+
     async def async_control_hvac(self, time=None, force=False):
         _LOGGER.debug({self.__class__.__name__})
         match self._hvac_mode:
@@ -93,11 +114,11 @@ class HeaterAUXHeaterDevice(MultiHvacDevice):
         if (too_cold and not any_opening_open and not is_floor_hot) or is_floor_cold:
 
             if not is_floor_cold and self._comfort_floor_only():
-                await self.heater_device.async_turn_on()
+                await self._async_switch(self.heater_device, True)
             elif self._has_aux_heating_ran_today:
-                await self._async_handle_aux_heater_ran_today()
+                await self._async_handle_aux_heater_ran_today(is_floor_cold)
             else:
-                await self._async_handle_aux_heater_havent_run_today()
+                await self._async_handle_aux_heater_havent_run_today(is_floor_cold)
 
             if is_floor_cold:
                 self._hvac_action_reason = HVACActionReason.LIMIT
@@ -111,7 +132,9 @@ class HeaterAUXHeaterDevice(MultiHvacDevice):
             _LOGGER.info(
                 "Keep-alive - Turning off heater %s", self.heater_device.entity_id
             )
-            await self.heater_device.async_turn_off()
+            await self._async_switch(
+                self.heater_device, False, is_floor_hot or any_opening_open
+            )
 
             if is_floor_hot:
                 self._hvac_action_reason = HVACActionReason.OVERHEAT
@@ -128,16 +151,16 @@ class HeaterAUXHeaterDevice(MultiHvacDevice):
             == HVACActionReason.COMFORT_FLOOR
         )
 
-    async def _async_handle_aux_heater_ran_today(self) -> None:
+    async def _async_handle_aux_heater_ran_today(self, safety: bool) -> None:
         _LOGGER.info("Aux heater has already ran today")
         if self._aux_heater_dual_mode:
-            await self.heater_device.async_turn_on()
-        await self.aux_heater_device.async_turn_on()
+            await self._async_switch(self.heater_device, True, safety)
+        await self._async_switch(self.aux_heater_device, True, safety)
 
-    async def _async_handle_aux_heater_havent_run_today(self) -> None:
+    async def _async_handle_aux_heater_havent_run_today(self, safety: bool) -> None:
         if self._aux_heater_dual_mode:
-            await self.heater_device.async_turn_on()
-        await self.heater_device.async_turn_on()
+            await self._async_switch(self.heater_device, True, safety)
+        await self._async_switch(self.heater_device, True, safety)
 
         _LOGGER.info("Scheduling aux heater check")
 
@@ -183,8 +206,9 @@ class HeaterAUXHeaterDevice(MultiHvacDevice):
             _LOGGER.info("Turning off heaters when on")
 
             # maybe call device -> async_control_hvac?
-            await self.heater_device.async_turn_off()
-            await self.aux_heater_device.async_turn_off()
+            safety = is_floor_hot or any_opening_open
+            await self._async_switch(self.heater_device, False, safety)
+            await self._async_switch(self.aux_heater_device, False, safety)
 
             if too_hot:
                 self._hvac_action_reason = HVACActionReason.TARGET_TEMP_REACHED
@@ -195,8 +219,8 @@ class HeaterAUXHeaterDevice(MultiHvacDevice):
 
         elif comfort_only and self.aux_heater_device.is_active:
             # Room target reached; comfort floor only needs the first stage.
-            await self.aux_heater_device.async_turn_off()
-            await self.heater_device.async_turn_on()
+            await self._async_switch(self.aux_heater_device, False)
+            await self._async_switch(self.heater_device, True)
             self._hvac_action_reason = HVACActionReason.COMFORT_FLOOR
 
         elif (
@@ -205,11 +229,13 @@ class HeaterAUXHeaterDevice(MultiHvacDevice):
             and not comfort_only
         ):
             _LOGGER.debug("Turning on aux heater %s", self.aux_heater_device.entity_id)
-            if not self._aux_heater_dual_mode:
-                await self.heater_device.async_turn_off()
-            await self.aux_heater_device.async_turn_on()
-            self._aux_heater_last_run = datetime.datetime.now()
-            self._hvac_action_reason = HVACActionReason.TARGET_TEMP_NOT_REACHED
+            # Non-dual hand-over waits until the primary may actually stop
+            if self._aux_heater_dual_mode or await self._async_switch(
+                self.heater_device, False
+            ):
+                await self._async_switch(self.aux_heater_device, True)
+                self._aux_heater_last_run = datetime.datetime.now()
+                self._hvac_action_reason = HVACActionReason.TARGET_TEMP_NOT_REACHED
 
         elif (
             self.aux_heater_device.is_active
@@ -220,8 +246,7 @@ class HeaterAUXHeaterDevice(MultiHvacDevice):
             # stay off until the target is reached; re-running the primary
             # controller here (e.g. on a preset or target change) would turn it
             # back on alongside the secondary heater.
-            if self.heater_device.is_active:
-                await self.heater_device.async_turn_off()
+            await self._async_switch(self.heater_device, False)
             self._hvac_action_reason = (
                 self.heater_device.target_env_attr_not_reached_reason()
             )
@@ -237,7 +262,7 @@ class HeaterAUXHeaterDevice(MultiHvacDevice):
                 and self.aux_heater_device.is_active
             ):
                 _LOGGER.info("Primary heater turned off, also turning off aux heater")
-                await self.aux_heater_device.async_turn_off()
+                await self._async_switch(self.aux_heater_device, False)
 
     def _first_stage_heating_timed_out(self, timeout=None) -> bool:
         """Determines if the heater switch has been on for the timeout period."""
