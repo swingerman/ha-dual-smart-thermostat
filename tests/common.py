@@ -1,9 +1,7 @@
 import asyncio
 from asyncio import TimerHandle
-from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime, timedelta
 import functools as ft
-import json
 import pathlib
 import time
 from typing import Any
@@ -39,19 +37,21 @@ from homeassistant.core import (
     HomeAssistant,
     ServiceCall,
     ServiceResponse,
-    State,
     SupportsResponse,
     callback,
     split_entity_id,
 )
-from homeassistant.helpers import event, restore_state
+from homeassistant.helpers import event
 from homeassistant.helpers.dispatcher import SignalType, async_dispatcher_connect
-from homeassistant.helpers.json import JSONEncoder
 from homeassistant.loader import bind_hass
 from homeassistant.setup import async_setup_component
 from homeassistant.util.async_ import run_callback_threadsafe
 import homeassistant.util.dt as dt_util
-from pytest_homeassistant_custom_component.common import MockEntityPlatform
+from pytest_homeassistant.common import (  # noqa: F401
+    MockEntityPlatform,
+    mock_restore_cache,
+    mock_restore_cache_with_extra_data,
+)
 import voluptuous as vol
 
 from custom_components.dual_smart_thermostat.const import (
@@ -380,59 +380,6 @@ def get_scheduled_timer_handles(loop: asyncio.AbstractEventLoop) -> list[TimerHa
     """Return a list of scheduled TimerHandles."""
     handles: list[TimerHandle] = loop._scheduled  # type: ignore[attr-defined] # noqa: SLF001
     return handles
-
-
-def mock_restore_cache(hass: HomeAssistant, states: Sequence[State]) -> None:
-    """Mock the DATA_RESTORE_CACHE."""
-    key = restore_state.DATA_RESTORE_STATE
-    data = restore_state.RestoreStateData(hass)
-    now = dt_util.utcnow()
-
-    last_states = {}
-    for state in states:
-        restored_state = state.as_dict()
-        restored_state = {
-            **restored_state,
-            "attributes": json.loads(
-                json.dumps(restored_state["attributes"], cls=JSONEncoder)
-            ),
-        }
-        last_states[state.entity_id] = restore_state.StoredState.from_dict(
-            {"state": restored_state, "last_seen": now}
-        )
-    data.last_states = last_states
-    _LOGGER.debug("Restore cache: %s", data.last_states)
-    assert len(data.last_states) == len(states), f"Duplicate entity_id? {states}"
-
-    restore_state.async_get.cache_clear()
-    hass.data[key] = data
-
-
-def mock_restore_cache_with_extra_data(
-    hass: HomeAssistant, states: Sequence[tuple[State, Mapping[str, Any]]]
-) -> None:
-    """Mock the DATA_RESTORE_CACHE."""
-    key = restore_state.DATA_RESTORE_STATE
-    data = restore_state.RestoreStateData(hass)
-    now = dt_util.utcnow()
-
-    last_states = {}
-    for state, extra_data in states:
-        restored_state = state.as_dict()
-        restored_state = {
-            **restored_state,
-            "attributes": json.loads(
-                json.dumps(restored_state["attributes"], cls=JSONEncoder)
-            ),
-        }
-        last_states[state.entity_id] = restore_state.StoredState.from_dict(
-            {"state": restored_state, "extra_data": extra_data, "last_seen": now}
-        )
-    data.last_states = last_states
-    _LOGGER.debug("Restore cache: %s", data.last_states)
-    assert len(data.last_states) == len(states), f"Duplicate entity_id? {states}"
-
-    hass.data[key] = data
 
 
 def async_mock_service(

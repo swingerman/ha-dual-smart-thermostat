@@ -18,7 +18,7 @@ from homeassistant.components.climate import HVACMode
 from homeassistant.const import STATE_OFF, STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import HomeAssistant
 import pytest
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from pytest_homeassistant.common import MockConfigEntry
 
 from custom_components.dual_smart_thermostat.const import DOMAIN
 

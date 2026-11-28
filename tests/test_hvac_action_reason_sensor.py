@@ -7,7 +7,7 @@ from homeassistant.core import HomeAssistant, State
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.entity import EntityCategory
 import pytest
-from pytest_homeassistant_custom_component.common import mock_restore_cache
+from pytest_homeassistant.common import mock_restore_cache
 
 from custom_components.dual_smart_thermostat.const import (
     SET_HVAC_ACTION_REASON_SENSOR_SIGNAL,

@@ -434,7 +434,7 @@ async def test_reconfigure_revisits_climate_control():
 async def _reconfiguring(hass, own_entity="climate.dst_living"):
     """A reconfigure flow for an entry whose own climate entity is in the registry."""
     from homeassistant.helpers import entity_registry as er
-    from pytest_homeassistant_custom_component.common import MockConfigEntry
+    from pytest_homeassistant.common import MockConfigEntry
 
     from custom_components.dual_smart_thermostat.const import DOMAIN
 
